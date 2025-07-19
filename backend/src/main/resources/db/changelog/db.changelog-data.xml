@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- Seed tabella ruolo -->
+    <changeSet id="seed-ruoli" author="developer">
+        <loadData
+                file="data/ruoli.csv"
+                tableName="ruolo"
+                separator=","
+                relativeToChangelogFile="true"/>
+    </changeSet>
+
+    <!-- Seed tabella item_tipo -->
+    <changeSet id="seed-item-tipo" author="developer">
+        <loadData
+                file="data/item_tipo.csv"
+                tableName="item_tipo"
+                separator=","
+                relativeToChangelogFile="true"/>
+    </changeSet>
+
+    <!-- Seed tabella sistema -->
+    <changeSet id="seed-sistema" author="developer">
+        <loadData
+                file="data/sistema.csv"
+                tableName="sistema"
+                separator=","
+                relativeToChangelogFile="true"/>
+    </changeSet>
+
+    <!-- Seed tabella mondo -->
+    <changeSet id="seed-mondo" author="developer">
+        <loadData
+                file="data/mondo.csv"
+                tableName="mondo"
+                separator=","
+                relativeToChangelogFile="true"/>
+    </changeSet>
+
+    <!-- Seed tabella tipo_stat -->
+    <changeSet id="seed-tipo-stat" author="developer">
+        <loadData
+                file="data/tipo_stat.csv"
+                tableName="tipo_stat"
+                separator=","
+                relativeToChangelogFile="true"/>
+    </changeSet>
+
+</databaseChangeLog>
