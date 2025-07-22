@@ -2,7 +2,6 @@ package it.fin8.grdsheet.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,28 +10,20 @@ import java.io.Serializable;
 @Getter
 @Setter
 @Entity
-@Table(name = "stat_value")
+@Table(name = "livello")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class StatValue implements Serializable {
-    @Id
-    @Column(name = "id", nullable = false)
-    private Integer id;
+public class Livello implements Serializable {
+    @EmbeddedId
+    private LivelloId id;
 
-    @NotNull
+    @MapsId("personaggioId")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "personaggio_id", nullable = false)
     private Personaggio personaggio;
 
-    @NotNull
+    @MapsId("itemClasseId")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "tipo_stat_id", nullable = false)
-    private TipoStat tipoStat;
-
-    @Column(name = "label", nullable = false)
-    private String label;
-
-    @NotNull
-    @Column(name = "valore", nullable = false)
-    private Integer valore;
+    @JoinColumn(name = "item_classe_id", nullable = false)
+    private Item itemClasse;
 
 }

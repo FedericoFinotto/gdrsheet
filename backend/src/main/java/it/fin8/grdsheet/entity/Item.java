@@ -1,33 +1,56 @@
 package it.fin8.grdsheet.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.io.Serializable;
+import java.util.List;
 
 @Getter
 @Setter
 @Entity
-@NoArgsConstructor
-@AllArgsConstructor
 @Table(name = "items")
-public class Item {
-
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+public class Item implements Serializable {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Integer id;
 
+    @Size(max = 100)
+    @NotNull
     @Column(name = "nome", nullable = false, length = 100)
     private String nome;
 
+    @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "tipo_item_id", nullable = false)
     private ItemTipo tipoItem;
 
-    @Lob
-    @Column(name = "descrizione")
+    @Column(name = "descrizione", length = Integer.MAX_VALUE)
     private String descrizione;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "proprietario_id")
-    private Personaggio proprietario; // null se è un item di compendio
+    @JoinColumn(name = "personaggio_id")
+    private Personaggio personaggio;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_sistema")
+    private Sistema sistema;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_mondo")
+    private Mondo mondo;
+
+    @OneToMany(mappedBy = "idItemSource", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties("idItemSource")
+    private List<Collegamento> child;
+
+    @OneToMany(mappedBy = "idItem", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties("idItem")
+    private List<Modificatori> modificatori;
+
 }

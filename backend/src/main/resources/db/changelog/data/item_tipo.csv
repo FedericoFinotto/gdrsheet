@@ -6,6 +6,8 @@ id,descrizione
 4,arma
 5,munizione
 6,equipaggiamento
+7,personaggio
 8,altro
 9,classe
 10,razza
+11,attacco

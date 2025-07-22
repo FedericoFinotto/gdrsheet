@@ -23,7 +23,13 @@
             <column name="id" type="serial">
                 <constraints primaryKey="true"/>
             </column>
-            <column name="descrizione" type="varchar(100)">
+            <column name="username" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="password" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="varchar(100)">
                 <constraints nullable="false"/>
             </column>
             <column name="ruolo_id" type="int">
@@ -38,9 +44,9 @@
                 constraintName="fk_utente_ruolo"/>
     </changeSet>
 
-    <!-- 3. Mondo -->
+    <!-- 3. Sistema -->
     <changeSet id="3" author="developer">
-        <createTable tableName="mondo">
+        <createTable tableName="sistema">
             <column name="id" type="serial">
                 <constraints primaryKey="true"/>
             </column>
@@ -50,16 +56,25 @@
         </createTable>
     </changeSet>
 
-    <!-- 4. Sistema -->
+    <!-- 4. Mondo -->
     <changeSet id="4" author="developer">
-        <createTable tableName="sistema">
+        <createTable tableName="mondo">
             <column name="id" type="serial">
                 <constraints primaryKey="true"/>
             </column>
             <column name="descrizione" type="varchar(100)">
                 <constraints nullable="false"/>
             </column>
+            <column name="sistema_id" type="int">
+                <constraints nullable="false"/>
+            </column>
         </createTable>
+        <addForeignKeyConstraint
+                baseTableName="mondo"
+                baseColumnNames="sistema_id"
+                referencedTableName="sistema"
+                referencedColumnNames="id"
+                constraintName="fk_mondo_sistema"/>
     </changeSet>
 
     <!-- 5. Item_Tipo -->
@@ -74,7 +89,7 @@
         </createTable>
     </changeSet>
 
-    <!-- 6. Personaggio (senza FK sulla razza) -->
+    <!-- 6. Personaggio -->
     <changeSet id="6" author="developer">
         <createTable tableName="personaggio">
             <column name="id" type="serial">
@@ -83,37 +98,17 @@
             <column name="nome" type="varchar(100)">
                 <constraints nullable="false"/>
             </column>
-            <column name="razza" type="int">
-                <constraints nullable="false"/>
-            </column>
-            <column name="utente_id" type="int">
-                <constraints nullable="false"/>
-            </column>
             <column name="mondo_id" type="int"/>
-            <column name="sistema_id" type="int"/>
         </createTable>
-
-        <addForeignKeyConstraint
-                baseTableName="personaggio"
-                baseColumnNames="utente_id"
-                referencedTableName="utente"
-                referencedColumnNames="id"
-                constraintName="fk_personaggio_utente"/>
         <addForeignKeyConstraint
                 baseTableName="personaggio"
                 baseColumnNames="mondo_id"
                 referencedTableName="mondo"
                 referencedColumnNames="id"
                 constraintName="fk_personaggio_mondo"/>
-        <addForeignKeyConstraint
-                baseTableName="personaggio"
-                baseColumnNames="sistema_id"
-                referencedTableName="sistema"
-                referencedColumnNames="id"
-                constraintName="fk_personaggio_sistema"/>
     </changeSet>
 
-    <!-- 7. Items -->
+    <!-- 7. Items (includo id_sistema e id_mondo) -->
     <changeSet id="7" author="developer">
         <createTable tableName="items">
             <column name="id" type="serial">
@@ -126,8 +121,11 @@
                 <constraints nullable="false"/>
             </column>
             <column name="descrizione" type="text"/>
-            <column name="proprietario_id" type="int"/>
+            <column name="personaggio_id" type="int"/>
+            <column name="id_sistema" type="int"/>
+            <column name="id_mondo" type="int"/>
         </createTable>
+        <!-- FK su item_tipo e personaggio -->
         <addForeignKeyConstraint
                 baseTableName="items"
                 baseColumnNames="tipo_item_id"
@@ -136,37 +134,29 @@
                 constraintName="fk_items_item_tipo"/>
         <addForeignKeyConstraint
                 baseTableName="items"
-                baseColumnNames="proprietario_id"
+                baseColumnNames="personaggio_id"
                 referencedTableName="personaggio"
                 referencedColumnNames="id"
                 constraintName="fk_items_personaggio"/>
-    </changeSet>
-
-    <!-- 8. FK aggiuntiva: personaggio.razza → items.id -->
-    <changeSet id="8" author="developer">
+        <!-- FK su sistema e mondo, nullable -->
         <addForeignKeyConstraint
-                baseTableName="personaggio"
-                baseColumnNames="razza"
-                referencedTableName="items"
-                referencedColumnNames="id"
-                constraintName="fk_personaggio_item_razza"/>
-    </changeSet>
-
-    <!-- 9. Alter Mondo: aggiunge id_sistema -->
-    <changeSet id="9" author="developer">
-        <addColumn tableName="mondo">
-            <column name="id_sistema" type="int"/>
-        </addColumn>
-        <addForeignKeyConstraint
-                baseTableName="mondo"
+                baseTableName="items"
                 baseColumnNames="id_sistema"
                 referencedTableName="sistema"
                 referencedColumnNames="id"
-                constraintName="fk_mondo_sistema"/>
+                constraintName="fk_items_sistema"
+                onDelete="SET NULL"/>
+        <addForeignKeyConstraint
+                baseTableName="items"
+                baseColumnNames="id_mondo"
+                referencedTableName="mondo"
+                referencedColumnNames="id"
+                constraintName="fk_items_mondo"
+                onDelete="SET NULL"/>
     </changeSet>
 
-    <!-- 10. Tipo Stat -->
-    <changeSet id="10" author="developer">
+    <!-- 8. Tipo Stat -->
+    <changeSet id="8" author="developer">
         <createTable tableName="tipo_stat">
             <column name="id" type="serial">
                 <constraints primaryKey="true"/>
@@ -177,8 +167,8 @@
         </createTable>
     </changeSet>
 
-    <!-- 11. Stat_Value -->
-    <changeSet id="11" author="developer">
+    <!-- 9. Stat_Value -->
+    <changeSet id="9" author="developer">
         <createTable tableName="stat_value">
             <column name="id" type="serial">
                 <constraints primaryKey="true"/>
@@ -189,6 +179,7 @@
             <column name="tipo_stat_id" type="int">
                 <constraints nullable="false"/>
             </column>
+            <column name="label" type="varchar2(32)"/>
             <column name="valore" type="int">
                 <constraints nullable="false"/>
             </column>
@@ -207,8 +198,8 @@
                 constraintName="fk_stat_value_tipo_stat"/>
     </changeSet>
 
-    <!-- 12. Avanzamento -->
-    <changeSet id="12" author="developer">
+    <!-- 10. Avanzamento -->
+    <changeSet id="10" author="developer">
         <createTable tableName="avanzamento">
             <column name="id" type="serial">
                 <constraints primaryKey="true"/>
@@ -237,13 +228,16 @@
                 constraintName="fk_avanzamento_target"/>
     </changeSet>
 
-    <!-- 13. Livello -->
-    <changeSet id="13" author="developer">
+    <!-- 11. Livello -->
+    <changeSet id="11" author="developer">
         <createTable tableName="livello">
             <column name="personaggio_id" type="int">
                 <constraints nullable="false" primaryKey="true" primaryKeyName="pk_livello"/>
             </column>
             <column name="item_classe_id" type="int">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="livello" type="int">
                 <constraints nullable="false" primaryKey="true"/>
             </column>
         </createTable>
@@ -261,8 +255,8 @@
                 constraintName="fk_livello_item"/>
     </changeSet>
 
-    <!-- 14. Item_Label -->
-    <changeSet id="14" author="developer">
+    <!-- 12. Item_Label -->
+    <changeSet id="12" author="developer">
         <createTable tableName="item_label">
             <column name="id" type="serial">
                 <constraints primaryKey="true"/>
@@ -281,8 +275,8 @@
                 constraintName="fk_item_label_item"/>
     </changeSet>
 
-    <!-- 15. Default_Item_Label -->
-    <changeSet id="15" author="developer">
+    <!-- 13. Default_Item_Label -->
+    <changeSet id="13" author="developer">
         <createTable tableName="default_item_label">
             <column name="id" type="serial">
                 <constraints primaryKey="true"/>
@@ -307,6 +301,186 @@
                 referencedTableName="item_tipo"
                 referencedColumnNames="id"
                 constraintName="fk_default_label_item_tipo"/>
+    </changeSet>
+
+    <!-- 14. Default_Stat -->
+    <changeSet id="14" author="developer">
+        <createTable tableName="default_stat">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_mondo" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="id_sistema" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo_stat_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="label" type="varchar2(32)"/>
+            <column name="valore_default" type="int"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="default_stat"
+                baseColumnNames="id_mondo"
+                referencedTableName="mondo"
+                referencedColumnNames="id"
+                constraintName="fk_default_stat_mondo"/>
+        <addForeignKeyConstraint
+                baseTableName="default_stat"
+                baseColumnNames="id_sistema"
+                referencedTableName="sistema"
+                referencedColumnNames="id"
+                constraintName="fk_default_stat_sistema"/>
+        <addForeignKeyConstraint
+                baseTableName="default_stat"
+                baseColumnNames="tipo_stat_id"
+                referencedTableName="tipo_stat"
+                referencedColumnNames="id"
+                constraintName="fk_default_stat_tipo_stat"/>
+    </changeSet>
+
+    <!-- 15. Modificatori -->
+    <changeSet id="15" author="developer">
+        <createTable tableName="modificatori">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_item" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="id_stat" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="valore" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="nota" type="text"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="modificatori"
+                baseColumnNames="id_item"
+                referencedTableName="items"
+                referencedColumnNames="id"
+                constraintName="fk_modificatori_items"/>
+        <addForeignKeyConstraint
+                baseTableName="modificatori"
+                baseColumnNames="id_stat"
+                referencedTableName="tipo_stat"
+                referencedColumnNames="id"
+                constraintName="fk_modificatori_tipo_stat"/>
+    </changeSet>
+
+    <!-- 16. Tipo_Permesso -->
+    <changeSet id="16" author="developer">
+        <createTable tableName="tipo_permesso">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="nome" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <!-- 17. Permessi_Item -->
+    <changeSet id="17" author="developer">
+        <createTable tableName="permessi_item">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_utente" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="id_item" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo_permesso" type="int">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="permessi_item"
+                baseColumnNames="id_utente"
+                referencedTableName="utente"
+                referencedColumnNames="id"
+                constraintName="fk_permessi_item_utente"/>
+        <addForeignKeyConstraint
+                baseTableName="permessi_item"
+                baseColumnNames="id_item"
+                referencedTableName="items"
+                referencedColumnNames="id"
+                constraintName="fk_permessi_item_items"/>
+        <addForeignKeyConstraint
+                baseTableName="permessi_item"
+                baseColumnNames="tipo_permesso"
+                referencedTableName="tipo_permesso"
+                referencedColumnNames="id"
+                constraintName="fk_permessi_item_tipo_permesso"/>
+    </changeSet>
+
+    <!-- 18. Permessi_Personaggi -->
+    <changeSet id="18" author="developer">
+        <createTable tableName="permessi_personaggi">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_utente" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="id_personaggio" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo_permesso" type="int">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="permessi_personaggi"
+                baseColumnNames="id_utente"
+                referencedTableName="utente"
+                referencedColumnNames="id"
+                constraintName="fk_permessi_personaggi_utente"/>
+        <addForeignKeyConstraint
+                baseTableName="permessi_personaggi"
+                baseColumnNames="id_personaggio"
+                referencedTableName="personaggio"
+                referencedColumnNames="id"
+                constraintName="fk_permessi_personaggi_personaggio"/>
+        <addForeignKeyConstraint
+                baseTableName="permessi_personaggi"
+                baseColumnNames="tipo_permesso"
+                referencedTableName="tipo_permesso"
+                referencedColumnNames="id"
+                constraintName="fk_permessi_personaggi_tipo_permesso"/>
+    </changeSet>
+
+    <!-- 18. Collegamenti -->
+    <changeSet id="19" author="developer">
+        <createTable tableName="collegamento">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_item_source" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="id_item_target" type="int">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="collegamento"
+                baseColumnNames="id_item_source"
+                referencedTableName="items"
+                referencedColumnNames="id"
+                constraintName="fk_collegamento_item_source"/>
+        <addForeignKeyConstraint
+                baseTableName="collegamento"
+                baseColumnNames="id_item_target"
+                referencedTableName="items"
+                referencedColumnNames="id"
+                constraintName="fk_collegamento_item_target"/>
     </changeSet>
 
 </databaseChangeLog>

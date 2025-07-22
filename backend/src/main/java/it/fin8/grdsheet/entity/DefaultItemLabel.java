@@ -11,28 +11,24 @@ import java.io.Serializable;
 @Getter
 @Setter
 @Entity
-@Table(name = "stat_value")
+@Table(name = "default_item_label")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class StatValue implements Serializable {
+public class DefaultItemLabel implements Serializable {
     @Id
     @Column(name = "id", nullable = false)
     private Integer id;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "personaggio_id", nullable = false)
-    private Personaggio personaggio;
+    @JoinColumn(name = "id_mondo", nullable = false)
+    private Mondo idMondo;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "tipo_stat_id", nullable = false)
-    private TipoStat tipoStat;
+    @JoinColumn(name = "id_item_tipo", nullable = false)
+    private ItemTipo idItemTipo;
 
-    @Column(name = "label", nullable = false)
+    @Column(name = "label", length = Integer.MAX_VALUE)
     private String label;
-
-    @NotNull
-    @Column(name = "valore", nullable = false)
-    private Integer valore;
 
 }

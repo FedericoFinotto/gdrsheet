@@ -51,4 +51,62 @@
                 relativeToChangelogFile="true"/>
     </changeSet>
 
+    <!-- Seed tabella items -->
+    <changeSet id="seed-items" author="developer">
+        <loadData
+                file="data/items.csv"
+                tableName="items"
+                separator=","
+                relativeToChangelogFile="true"/>
+    </changeSet>
+
+    <changeSet id="seed-utente" author="developer">
+        <loadData
+                file="data/utente.csv"
+                tableName="utente"
+                separator=","
+                relativeToChangelogFile="true"/>
+    </changeSet>
+
+    <changeSet id="seed-default-item-label" author="developer">
+        <loadData
+                file="data/default_item_label.csv"
+                tableName="default_item_label"
+                separator=","
+                relativeToChangelogFile="true"/>
+    </changeSet>
+
+    <changeSet id="seed-personaggio" author="developer">
+        <loadData
+                file="data/personaggio.csv"
+                tableName="personaggio"
+                separator=","
+                relativeToChangelogFile="true"/>
+    </changeSet>
+
+    <changeSet id="seed-tipo-permesso" author="developer">
+        <loadData
+                file="data/tipo_permesso.csv"
+                tableName="tipo_permesso"
+                separator=","
+                relativeToChangelogFile="true"/>
+    </changeSet>
+
+    <changeSet id="seed-permessi-personaggi" author="developer">
+        <loadData
+                file="data/permessi_personaggi.csv"
+                tableName="permessi_personaggi"
+                separator=","
+                relativeToChangelogFile="true"/>
+    </changeSet>
+
+    <changeSet id="seed-stat-value" author="developer">
+        <loadData
+                file="data/stat_value.csv"
+                tableName="stat_value"
+                separator=","
+                relativeToChangelogFile="true"/>
+    </changeSet>
+
+
 </databaseChangeLog>

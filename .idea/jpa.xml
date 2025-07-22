@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="JpaBuddyIdeaProjectConfig">
-    <option name="reLastEntityCreationPackage" value="backend/src/main/java/it/fin8/grdsheet" />
+    <option name="reLastEntityCreationPackage" value="backend/src/main/java/it/fin8/grdsheet/entity" />
     <option name="reverseEngineeringLastDbConnectionId" value="7727c197-5546-4c13-8cd8-879b5d5528a6" />
   </component>
 </project>

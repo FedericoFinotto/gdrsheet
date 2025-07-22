@@ -11,28 +11,25 @@ import java.io.Serializable;
 @Getter
 @Setter
 @Entity
-@Table(name = "stat_value")
+@Table(name = "avanzamento")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class StatValue implements Serializable {
+public class Avanzamento implements Serializable {
     @Id
     @Column(name = "id", nullable = false)
     private Integer id;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "personaggio_id", nullable = false)
-    private Personaggio personaggio;
+    @JoinColumn(name = "id_item_source", nullable = false)
+    private Item idItemSource;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "tipo_stat_id", nullable = false)
-    private TipoStat tipoStat;
-
-    @Column(name = "label", nullable = false)
-    private String label;
+    @JoinColumn(name = "id_item_target", nullable = false)
+    private Item idItemTarget;
 
     @NotNull
-    @Column(name = "valore", nullable = false)
-    private Integer valore;
+    @Column(name = "livello", nullable = false)
+    private Integer livello;
 
 }
