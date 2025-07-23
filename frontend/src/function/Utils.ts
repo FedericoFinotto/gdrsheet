@@ -20,3 +20,18 @@ export function getModificatoriFromItem(item, visited = new Set()) {
 
     return result;
 }
+
+export function getModificatoriFromPersonaggio(personaggio) {
+    if (!personaggio) return [];
+    let result = [];
+
+    for (const itm of personaggio.abilita || []) {
+        result.push(...getModificatoriFromItem(itm));
+    }
+    for (const itm of personaggio.razze || []) {
+        result.push(...getModificatoriFromItem(itm));
+    }
+
+    return result;
+}
+

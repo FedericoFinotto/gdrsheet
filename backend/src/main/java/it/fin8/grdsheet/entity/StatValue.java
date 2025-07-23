@@ -25,11 +25,8 @@ public class StatValue implements Serializable {
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "tipo_stat_id", nullable = false)
-    private TipoStat tipoStat;
-
-    @Column(name = "label", nullable = false)
-    private String label;
+    @JoinColumn(name = "stat_id", nullable = false)
+    private Stat stat;
 
     @NotNull
     @Column(name = "valore", nullable = false)

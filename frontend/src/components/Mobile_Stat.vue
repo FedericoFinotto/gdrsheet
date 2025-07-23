@@ -1,6 +1,6 @@
 <template>
   <div class="stat-box">
-    <div class="label">{{ label }}</div>
+    <div class="label">{{ id }}</div>
     <div class="modifier">{{ modifier >= 0 ? '+' + modifier : modifier }}</div>
     <div class="base">{{ value }}</div>
   </div>
@@ -8,25 +8,31 @@
 
 <script setup>
 import {computed, inject} from 'vue'
+import {getModificatoriFromPersonaggio} from "../function/Utils.ts";
 
 const props = defineProps({
-  label: String,
   id: String
 })
 
 const sharedData = inject('sharedData')
 
 // Trova la statistica corrispondente
-const stat = computed(() => sharedData.character.stats.find(s => s.label === props.id));
+const stat = computed(() => sharedData.character.stats?.find(s => s.stat?.id === props.id));
 
 const mods = computed(() => {
+  const mod = getModificatoriFromPersonaggio(sharedData.character);
+  return mod;
 });
 
 // Valore base della stat (es. 14)
 const value = computed(() => {
-  console.log('aaa', stat.value.valore);
-  return stat.value.valore || 10;
-})
+  const base = stat?.value?.valore ?? 10;
+  const bonus = mods.value
+      .filter(mod => mod.stat.id === props.id)
+      .reduce((sum, mod) => sum + mod.valore, 0);
+  return base + bonus;
+});
+
 
 // Calcolo del modificatore (D&D style)
 const modifier = computed(() => Math.floor((value.value - 10) / 2))

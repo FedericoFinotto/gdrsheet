@@ -2,12 +2,12 @@
   <h2 style="margin-bottom: 0; text-align: center">{{ sharedData.character?.nome ?? "" }}</h2>
   <Mobile_HP v-if="sharedData.character"/>
   <div v-if="sharedData.character" class="stat-block">
-    <Mobile_Stat id="FOR" label="FOR"></Mobile_Stat>
-    <Mobile_Stat id="DES" label="DES"></Mobile_Stat>
-    <Mobile_Stat id="COS" label="COS"></Mobile_Stat>
-    <Mobile_Stat id="INT" label="INT"></Mobile_Stat>
-    <Mobile_Stat id="SAG" label="SAG"></Mobile_Stat>
-    <Mobile_Stat id="CAR" label="CAR"></Mobile_Stat>
+    <Mobile_Stat id="FOR"></Mobile_Stat>
+    <Mobile_Stat id="DES"></Mobile_Stat>
+    <Mobile_Stat id="COS"></Mobile_Stat>
+    <Mobile_Stat id="INT"></Mobile_Stat>
+    <Mobile_Stat id="SAG"></Mobile_Stat>
+    <Mobile_Stat id="CAR"></Mobile_Stat>
   </div>
   <div v-if="sharedData">
     <p>{{ sharedData.character }}</p>

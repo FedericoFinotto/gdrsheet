@@ -9,7 +9,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "default_stat")
+@Table(name = "stat_default")
 public class DefaultStat {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,8 +28,8 @@ public class DefaultStat {
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "tipo_stat_id", nullable = false)
-    private TipoStat tipoStat;
+    @JoinColumn(name = "stat_id", nullable = false)
+    private Stat stat;
 
     @Size(max = 32)
     @Column(name = "label", length = 32)

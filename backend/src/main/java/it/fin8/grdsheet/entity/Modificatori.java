@@ -23,7 +23,7 @@ public class Modificatori {
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_stat", nullable = false)
-    private TipoStat idStat;
+    private Stat stat;
 
     @NotNull
     @Column(name = "valore", nullable = false)

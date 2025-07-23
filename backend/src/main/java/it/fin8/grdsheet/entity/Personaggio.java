@@ -1,7 +1,6 @@
 package it.fin8.grdsheet.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import it.fin8.grdsheet.config.Constants;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -32,49 +31,50 @@ public class Personaggio implements Serializable {
     private Mondo mondo;
 
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo_item_id = " + Constants.TIPO_ITEM_RAZZA)
+    @Where(clause = "tipo = 'RAZZA'")
     @JsonIgnoreProperties("personaggio")
     private List<Item> razze;
 
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo_item_id = " + Constants.TIPO_ITEM_ABILITA)
+    @Where(clause = "tipo = 'ABILITA'")
     @JsonIgnoreProperties("personaggio")
     private List<Item> abilita;
 
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo_item_id = " + Constants.TIPO_ITEM_TALENTO)
+    @Where(clause = "tipo = 'TALENTO'")
     @JsonIgnoreProperties("personaggio")
     private List<Item> talenti;
 
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo_item_id = " + Constants.TIPO_ITEM_OGGETTO)
+    @Where(clause = "tipo = 'OGGETTO'")
     @JsonIgnoreProperties("personaggio")
     private List<Item> oggetti;
 
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo_item_id = " + Constants.TIPO_ITEM_CONSUMABILE)
+    @Where(clause = "tipo = 'CONSUMABILE'")
     @JsonIgnoreProperties("personaggio")
     private List<Item> consumabili;
 
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo_item_id = " + Constants.TIPO_ITEM_ARMA)
+    @Where(clause = "tipo = 'ARMA'")
     @JsonIgnoreProperties("personaggio")
     private List<Item> armi;
 
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo_item_id = " + Constants.TIPO_ITEM_MUNIZIONE)
+    @Where(clause = "tipo = 'MUNIZIONE'")
     @JsonIgnoreProperties("personaggio")
     private List<Item> munizioni;
 
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo_item_id = " + Constants.TIPO_ITEM_EQUIPAGGIAMENTO)
+    @Where(clause = "tipo = 'EQUIPAGGIAMENTO'")
     @JsonIgnoreProperties("personaggio")
     private List<Item> equipaggiamento;
 
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo_item_id = " + Constants.TIPO_ITEM_ALTRO)
+    @Where(clause = "tipo = 'ALTRO'")
     @JsonIgnoreProperties("personaggio")
     private List<Item> altri;
+
 
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
     @JsonIgnoreProperties("personaggio")

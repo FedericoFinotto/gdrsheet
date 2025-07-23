@@ -1,6 +1,7 @@
 package it.fin8.grdsheet.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import it.fin8.grdsheet.def.TipoItem;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -25,10 +26,9 @@ public class Item implements Serializable {
     @Column(name = "nome", nullable = false, length = 100)
     private String nome;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "tipo_item_id", nullable = false)
-    private ItemTipo tipoItem;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo", nullable = false)
+    private TipoItem tipo;
 
     @Column(name = "descrizione", length = Integer.MAX_VALUE)
     private String descrizione;

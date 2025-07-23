@@ -6,15 +6,10 @@
        http://www.liquibase.org/xml/ns/dbchangelog
        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
 
-    <!-- include 1.0 -->
     <include file="db.changelog-1.0.xml"
              relativeToChangelogFile="true"/>
 
-    <!-- dopo l'include di db.changelog-1.0.xml -->
     <include file="db.changelog-data.xml"
              relativeToChangelogFile="true"/>
-
-    <!-- include futuri: 1.1, 1.2, ecc. -->
-    <!-- <include file="db.changelog-1.1.xml" relativeToChangelogFile="true"/> -->
 
 </databaseChangeLog>

@@ -1,9 +1,3 @@
-id,username,password,name,ruolo_id
-0,app,,,0
-1,fin8,aletheia,Fin8,0
-2,cico,master,Cico,1
-3,costa,costa,Leonardo Costa,3
-4,paolo,paolo,Paolo Boscolo Contadin,3
-5,gabriele,gabriele,Gabriele De Ambrosi,3
-6,finotto,finotto,Federico Finotto,3
-7,ferrarese,ferrarese,Mattia Ferrarese,3
+id,username,password,name,ruolo
+0,compendio,,,ADMIN
+1,fin8,aletheia,Fin8,ADMIN
