@@ -1,5 +1,7 @@
 package it.fin8.grdsheet.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import it.fin8.grdsheet.def.TipoItem;
 import it.fin8.grdsheet.def.TipoStat;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -11,23 +13,21 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "stats")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Stat {
-    @Id
-    @Size(max = 10)
-    @Column(name = "id", nullable = false, length = 10)
-    private String id;
+	@Id
+	@Size(max = 10)
+	@Column(name = "id", nullable = false, length = 10)
+	private String id;
 
-    @Size(max = 64)
-    @NotNull
-    @Column(name = "label", nullable = false, length = 64)
-    private String label;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "tipo", nullable = false)
+	private TipoStat tipo;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "default_mod")
-    private Stat defaultMod;
+	@Size(max = 64)
+	@NotNull
+	@Column(name = "label", nullable = false, length = 64)
+	private String label;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "tipo", nullable = false)
-    private TipoStat tipo;
 
 }

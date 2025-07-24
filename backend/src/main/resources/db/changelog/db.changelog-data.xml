@@ -48,6 +48,14 @@
                  stripComments="true"/>
     </changeSet>
 
+    <changeSet id="seed-stat_default" author="developer">
+        <sqlFile path="data/stat_default.sql"
+                 relativeToChangelogFile="true"
+                 splitStatements="true"
+                 endDelimiter=";"
+                 stripComments="true"/>
+    </changeSet>
+
     <changeSet id="seed-yo" author="developer">
         <sqlFile path="data/personaggio_yo.sql"
                  relativeToChangelogFile="true"

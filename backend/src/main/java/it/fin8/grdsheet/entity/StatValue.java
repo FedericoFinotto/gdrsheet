@@ -32,4 +32,10 @@ public class StatValue implements Serializable {
     @Column(name = "valore", nullable = false)
     private Integer valore;
 
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "mod", nullable = false)
+    private Stat mod;
+
+
 }

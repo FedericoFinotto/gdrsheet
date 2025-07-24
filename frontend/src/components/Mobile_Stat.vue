@@ -20,8 +20,7 @@ const sharedData = inject('sharedData')
 const stat = computed(() => sharedData.character.stats?.find(s => s.stat?.id === props.id));
 
 const mods = computed(() => {
-  const mod = getModificatoriFromPersonaggio(sharedData.character);
-  return mod;
+  return getModificatoriFromPersonaggio(sharedData.character);
 });
 
 // Valore base della stat (es. 14)
@@ -40,12 +39,12 @@ const modifier = computed(() => Math.floor((value.value - 10) / 2))
 
 <style scoped>
 .stat-box {
-  width: 80px;
-  height: 100px;
+  width: 50px;
+  height: 80px;
   border: 2px solid #888;
   border-radius: 8px;
   text-align: center;
-  padding: 8px;
+  padding: 4px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;

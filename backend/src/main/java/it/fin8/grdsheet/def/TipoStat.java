@@ -7,7 +7,8 @@ public enum TipoStat {
     CAR("Caratteristica"),
     AB("Abilitá"),
     TS("Tiro Salvezza"),
-    PF("Punti Ferita");
+    PF("Punti Ferita"),
+    ATT("Attributo");
 
     private final String label;
 

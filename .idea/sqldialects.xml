@@ -2,6 +2,7 @@
 <project version="4">
   <component name="SqlDialectMappings">
     <file url="file://$PROJECT_DIR$/backend/src/main/resources/db/changelog/data/personaggio_yo.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/backend/src/main/resources/db/changelog/data/stat_default.sql" dialect="PostgreSQL" />
     <file url="PROJECT" dialect="PostgreSQL" />
   </component>
 </project>

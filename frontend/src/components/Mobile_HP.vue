@@ -18,11 +18,11 @@ import {computed, inject} from 'vue'
 const sharedData = inject('sharedData')
 
 const hp = computed(() =>
-    sharedData.character.stats?.find(stat => stat.label === 'PF')?.valore ?? 0
+    sharedData.character.stats?.find(stat => stat.stat.id === 'PF')?.valore ?? 0
 );
 
 const hpMax = computed(() =>
-    sharedData.character.stats?.find(stat => stat.label === 'PF MAX')?.valore ?? 0
+    sharedData.character.stats?.find(stat => stat.stat.id === 'PFMAX')?.valore ?? 0
 );
 
 
@@ -30,7 +30,7 @@ const hpPercent = computed(() => (hp.value / hpMax.value) * 100)
 
 function modificaHp(delta) {
   const nuovoHp = Math.max(0, Math.min(hpMax.value, hp.value + delta))
-  sharedData.character.stats.find(stat => stat.label === 'PF').valore = nuovoHp;
+  sharedData.character.stats.find(stat => stat.stat.id === 'PF').valore = nuovoHp;
   // chiamata asincrona non bloccante
   // updateHp(sharedData.id, nuovoHp).catch(err => {
   //   console.error('Errore aggiornamento HP', err)

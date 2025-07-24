@@ -1,5 +1,6 @@
 package it.fin8.grdsheet.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -10,6 +11,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "stat_default")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class DefaultStat {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

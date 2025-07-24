@@ -1,5 +1,6 @@
 package it.fin8.grdsheet.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -9,6 +10,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "collegamento")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Collegamento {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

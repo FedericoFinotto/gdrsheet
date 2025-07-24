@@ -9,10 +9,8 @@
     <Mobile_Stat id="SAG"></Mobile_Stat>
     <Mobile_Stat id="CAR"></Mobile_Stat>
   </div>
-  <div v-if="sharedData">
-    <p>{{ sharedData.character }}</p>
-  </div>
-  <div v-else>Loading…</div>
+  <TestTabella v-if="sharedData.character"/>
+
 
 </template>
 
@@ -21,6 +19,8 @@
 import {inject, onMounted} from 'vue'
 import Mobile_Stat from "./Mobile_Stat.vue";
 import Mobile_HP from "./Mobile_HP.vue";
+import Tabella from "./Tabella.vue";
+import TestTabella from "./TestTabella.vue";
 
 onMounted(() => {
 })
@@ -36,7 +36,7 @@ const sharedData = inject('sharedData')
   flex-wrap: wrap; /* ✅ Permette di andare a capo */
   gap: 8px; /* (opzionale) spazio tra le stat */
   justify-content: center;
-  background: #f3f3f3;
+  background: transparent;
   box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
 </style>

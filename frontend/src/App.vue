@@ -1,6 +1,9 @@
 <template>
   <SharedDataProvider>
+    <div class="onMobile">
     <router-view/>
+
+    </div>
     <UpperBar/>
     <HamburgerMenu/>
   </SharedDataProvider>
@@ -13,5 +16,8 @@ import HamburgerMenu from "./components/HamburgerMenu.vue";
 </script>
 
 <style>
-/* global styles */
+.onMobile {
+  margin-top: 4rem;
+
+}
 </style>

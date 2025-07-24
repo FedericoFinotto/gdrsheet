@@ -31,6 +31,27 @@ export function getModificatoriFromPersonaggio(personaggio) {
     for (const itm of personaggio.razze || []) {
         result.push(...getModificatoriFromItem(itm));
     }
+    for (const itm of personaggio.altri || []) {
+        result.push(...getModificatoriFromItem(itm));
+    }
+    for (const itm of personaggio.armi || []) {
+        result.push(...getModificatoriFromItem(itm));
+    }
+    for (const itm of personaggio.consumabili || []) {
+        result.push(...getModificatoriFromItem(itm));
+    }
+    for (const itm of personaggio.equipaggiamento || []) {
+        result.push(...getModificatoriFromItem(itm));
+    }
+    for (const itm of personaggio.munizioni || []) {
+        result.push(...getModificatoriFromItem(itm));
+    }
+    for (const itm of personaggio.oggetti || []) {
+        result.push(...getModificatoriFromItem(itm));
+    }
+    for (const itm of personaggio.talenti || []) {
+        result.push(...getModificatoriFromItem(itm));
+    }
 
     return result;
 }

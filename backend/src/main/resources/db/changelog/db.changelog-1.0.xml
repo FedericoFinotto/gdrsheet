@@ -122,6 +122,9 @@
             <column name="valore" type="int">
                 <constraints nullable="false"/>
             </column>
+            <column name="mod" type="varchar2(10)">
+                <constraints nullable="true"/>
+            </column>
         </createTable>
 
     </changeSet>
@@ -190,7 +193,7 @@
         </createTable>
     </changeSet>
 
-    <!-- stat_default -->
+    <!-- stats -->
     <changeSet id="14" author="developer">
         <createTable tableName="stats">
             <column name="id" type="varchar2(10)">
@@ -201,9 +204,6 @@
             </column>
             <column name="label" type="varchar2(64)">
                 <constraints nullable="false"/>
-            </column>
-            <column name="default_mod" type="varchar2(10)">
-                <constraints nullable="true"/>
             </column>
         </createTable>
     </changeSet>
@@ -223,8 +223,10 @@
             <column name="stat_id" type="varchar2(10)">
                 <constraints nullable="false"/>
             </column>
-            <column name="label" type="varchar2(32)"/>
             <column name="valore_default" type="int"/>
+            <column name="default_mod" type="varchar2(10)">
+                <constraints nullable="true"/>
+            </column>
         </createTable>
     </changeSet>
 
@@ -240,8 +242,11 @@
             <column name="id_stat" type="varchar2(10)">
                 <constraints nullable="false"/>
             </column>
-            <column name="valore" type="int">
+            <column name="valore" type="varchar2(64)">
                 <constraints nullable="false"/>
+            </column>
+            <column name="always" type="boolean">
+                <constraints nullable="true"/>
             </column>
             <column name="nota" type="text"/>
         </createTable>
@@ -344,6 +349,12 @@
                 referencedTableName="personaggio"
                 referencedColumnNames="id"
                 constraintName="fk_stat_value_personaggio"/>
+        <addForeignKeyConstraint
+                baseTableName="stat_value"
+                baseColumnNames="mod"
+                referencedTableName="stats"
+                referencedColumnNames="id"
+                constraintName="fk_stat_value_mod"/>
 
         <!--        AVANZAMENTO-->
         <addForeignKeyConstraint
@@ -389,14 +400,6 @@
                 referencedColumnNames="id"
                 constraintName="fk_default_label_mondo"/>
 
-        <!--        STATS-->
-        <addForeignKeyConstraint
-                baseTableName="stats"
-                baseColumnNames="default_mod"
-                referencedTableName="stats"
-                referencedColumnNames="id"
-                constraintName="fk_stats_default_mod"/>
-
         <!--        STAT_DEFAULT-->
         <addForeignKeyConstraint
                 baseTableName="stat_default"
@@ -410,6 +413,12 @@
                 referencedTableName="sistema"
                 referencedColumnNames="id"
                 constraintName="fk_stat_default_sistema"/>
+        <addForeignKeyConstraint
+                baseTableName="stat_default"
+                baseColumnNames="default_mod"
+                referencedTableName="stats"
+                referencedColumnNames="id"
+                constraintName="fk_stat_default_default_mod"/>
 
         <!--        MODIFICATORI-->
         <addForeignKeyConstraint
