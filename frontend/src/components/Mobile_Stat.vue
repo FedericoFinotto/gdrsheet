@@ -33,7 +33,6 @@ const value = computed(() => {
 });
 
 
-// Calcolo del modificatore (D&D style)
 const modifier = computed(() => Math.floor((value.value - 10) / 2))
 </script>
 

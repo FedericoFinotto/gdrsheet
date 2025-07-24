@@ -10,6 +10,7 @@
     <Mobile_Stat id="CAR"></Mobile_Stat>
   </div>
   <TestTabella v-if="sharedData.character"/>
+<!--  <PorcoDio></PorcoDio>-->
 
 
 </template>
@@ -21,6 +22,7 @@ import Mobile_Stat from "./Mobile_Stat.vue";
 import Mobile_HP from "./Mobile_HP.vue";
 import Tabella from "./Tabella.vue";
 import TestTabella from "./TestTabella.vue";
+import PorcoDio from "./PorcoDio.vue";
 
 onMounted(() => {
 })
