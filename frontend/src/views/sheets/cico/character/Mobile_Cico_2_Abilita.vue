@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, defineProps, markRaw, ref, watch} from 'vue';
 import Tabella from "../../../../components/Tabella.vue";
-import {getDatiCaratteristica, getModificatoriFromPersonaggio} from "../../../../function/Utils";
+import {getDatiCaratteristica, getModificatoriFromPersonaggio, testoModificatore} from "../../../../function/Utils";
 import DettaglioAbilita from "../../../../components/Mobile_DettaglioAbilita.vue";
 
 const props = defineProps({
@@ -26,7 +26,7 @@ watch(
               nome: stat.stat.label,
               id: stat.stat.id,
               caratteristica: stat.mod?.id,
-              valore: abilita.modificatore,
+              valore: testoModificatore(abilita.modificatore),
               modificatori: abilita.modificatori,
               base: stat.valore,
               bonusCaratteristica: abilita.statisticaBase?.modificatore ?? 0,

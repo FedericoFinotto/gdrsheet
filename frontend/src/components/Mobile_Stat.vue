@@ -1,14 +1,14 @@
 <template>
   <div class="stat-box">
     <div class="label">{{ label ?? id }}</div>
-    <div class="modifier">{{ stat.modificatore ?? '' }}</div>
+    <div class="modifier">{{ testoModificatore(stat.modificatore) ?? '' }}</div>
     <div class="base">{{ stat.valore }}</div>
   </div>
 </template>
 
 <script setup>
 import {computed, defineProps} from 'vue'
-import {getDatiCaratteristica} from "../function/Utils";
+import {getDatiCaratteristica, testoModificatore} from "../function/Utils";
 
 const props = defineProps({
   datiPersonaggio: {

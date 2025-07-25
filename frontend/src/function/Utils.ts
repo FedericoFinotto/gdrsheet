@@ -84,3 +84,9 @@ export function getDatiCaratteristica(personaggio, caratteristica, modsPersonagg
 }
 
 
+export function testoModificatore(mod: number) {
+    if (mod >= 0) return "+" + mod;
+    return mod;
+}
+
+
