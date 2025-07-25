@@ -72,6 +72,14 @@ export function getDatiCaratteristica(personaggio, caratteristica, modsPersonagg
             modificatori: mods
         }
     }
+    if (stat.stat.tipo === 'AB') {
+        const modificatore = (statisticaBase?.modificatore ?? 0) + bonus;
+        return {
+            modificatore: modificatore,
+            statisticaBase: statisticaBase ?? null,
+            modificatori: mods
+        }
+    }
 
 }
 
