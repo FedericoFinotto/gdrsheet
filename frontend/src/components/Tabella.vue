@@ -1,5 +1,5 @@
 <script setup>
-import { ref, defineProps, onMounted } from 'vue';
+import { ref, defineProps } from 'vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 
@@ -19,19 +19,15 @@ const props = defineProps({
   }
 });
 
-onMounted(() => {
-});
-
 const expandedRows = ref([]);
 
 const toggleRow = (event) => {
   const row = event.data;
-  const index = expandedRows.value.findIndex(r => r.id === row.id); // Confronta per `id`
-
+  const index = expandedRows.value.findIndex(r => r.id === row.id);
   if (index >= 0) {
     expandedRows.value.splice(index, 1);
   } else {
-    expandedRows.value = [row]; // Questa linea assicura che solo una riga sia espansa
+    expandedRows.value = [row];
   }
 };
 </script>
@@ -58,16 +54,25 @@ const toggleRow = (event) => {
         :field="col.field"
         :header="col.label"
     >
-      <template v-if="$slots[`col-${col.field}`]" #body="slotProps">
-        <slot :name="`col-${col.field}`" :data="slotProps.data" />
-      </template>
-      <template v-else #body="slotProps">
-        {{ slotProps.data[col.field] }}
+      <template #body="slotProps">
+        <slot
+            v-if="$slots[`col-${col.field}`]"
+            :name="`col-${col.field}`"
+            :data="slotProps.data"
+        />
+        <template v-else>
+          {{ slotProps.data[col.field] }}
+        </template>
       </template>
     </Column>
 
     <template v-if="expandable" #expansion="slotProps">
-      <slot name="expansion" :data="slotProps.data" />
+      <component
+          v-if="slotProps.data.expandedComponent"
+          :is="slotProps.data.expandedComponent"
+          v-bind="slotProps.data.expandedProps"
+      />
+      <slot v-else name="expansion" :data="slotProps.data" />
     </template>
   </DataTable>
 </template>

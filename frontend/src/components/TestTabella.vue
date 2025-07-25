@@ -2,80 +2,63 @@
 import { computed, inject, ref, watch } from 'vue';
 import Tabella from "./Tabella.vue";
 import { getModificatoriFromPersonaggio } from "../function/Utils";
-import DettaglioAbilita from "./DettaglioAbilita.vue"; // Importa il componente da mostrare nell'espansione
+import DettaglioAbilita from "./DettaglioAbilita.vue";
 
-// Assicurati che SharedData e Stat siano definiti correttamente, se usi TypeScript
 interface Stat {
   stat: { id: string; label: string; tipo: string; };
   mod?: { id: string; };
   valore: number;
 }
-
-interface Character {
-  stats?: Stat[];
-  // Altre proprietà di character
-}
-
-interface SharedData {
-  character: Character;
-  // Altre proprietà di sharedData
-}
-
+interface Character { stats?: Stat[]; }
+interface SharedData { character: Character; }
 const sharedData = inject<SharedData>('sharedData');
 
 const statMod = (mod: { id: string } | undefined) => {
   if (mod?.id) {
-    const stat = sharedData?.character.stats?.find(s => s.stat?.id === mod.id);
-    const base = stat?.valore ?? 0;
+    const statObj = sharedData?.character.stats?.find(s => s.stat.id === mod.id);
+    const base = statObj?.valore ?? 0;
     const bonus = mods.value
-        .filter(m => m.stat.id === stat?.stat.id)
+        .filter(m => m.stat.id === statObj?.stat.id)
         .reduce((sum, m) => sum + m.valore, 0);
-    const valore = base + bonus;
-    return Math.floor((valore - 10) / 2);
+    return Math.floor((base + bonus - 10) / 2);
   }
   return 0;
 };
 
-const mods = computed(() => {
-  return sharedData?.character ? getModificatoriFromPersonaggio(sharedData.character) : [];
-});
-
-const items = ref([]); // `items` è ora un ref, aggiornato tramite watcher
-
-// Watcher per costruire l'array `items` quando `sharedData.character` cambia
+const mods = computed(() => sharedData?.character ? getModificatoriFromPersonaggio(sharedData.character) : []);
+const items = ref<any[]>([]);
 watch(
     () => sharedData?.character,
-    (newCharacter) => {
-      if (!newCharacter || !newCharacter.stats) {
-        items.value = [];
-        return;
-      }
-
-      items.value = newCharacter.stats
-          .filter(stat => stat.stat.tipo === 'AB')
+    (newChar) => {
+      if (!newChar?.stats) { items.value = []; return; }
+      items.value = newChar.stats
+          .filter(s => s.stat.tipo === 'AB')
           .map(stat => {
-            const thisMods = mods.value.filter(mod => mod.stat.id === stat.stat.id);
-            const bonus = thisMods.reduce((sum, mod) => sum + mod.valore, 0);
-            const bonusCaratteristica =  statMod(stat.mod)
-            const valore = stat.valore + bonus + bonusCaratteristica;
-
+            const thisMods = mods.value.filter(m => m.stat.id === stat.stat.id);
+            const bonus = thisMods.reduce((sum, m) => sum + m.valore, 0);
+            const bonusCar = statMod(stat.mod);
+            const valore = stat.valore + bonus + bonusCar;
             return {
               nome: stat.stat.label,
               id: stat.stat.id,
               caratteristica: stat.mod?.id,
-              valore: valore,
+              valore,
               modificatori: thisMods,
               base: stat.valore,
-              bonusCaratteristica: bonusCaratteristica,
+              bonusCaratteristica: bonusCar,
+              expandedComponent: DettaglioAbilita,
+              expandedProps: { data: {
+                  nome: stat.stat.label,
+                  base: stat.valore,
+                  bonusCaratteristica: bonusCar,
+                  modificatori: thisMods,
+                  caratteristica: stat.mod?.id
+                }}
             };
           });
     },
-    {
-      immediate: true,
-      deep: true
-    }
+    { immediate: true, deep: true }
 );
-
 const columns = [
   { field: 'nome', label: 'Abilita\'' },
   { field: 'valore', label: '' },
@@ -84,32 +67,13 @@ const columns = [
 </script>
 
 <template>
-  <div>
-    <Tabella :columns="columns" :items="items" :expandable="true">
-      <template #expansion="slotProps">
-        <div>
-          <DettaglioAbilita :data="slotProps.data" />
-        </div>
-      </template>
-
-      <template #col-valore="{ data }">
-        <span :class="{'text-bold-green': data.valore > 10}">{{ data.valore }}</span>
-      </template>
-    </Tabella>
-  </div>
+  <Tabella
+      :columns="columns"
+      :items="items"
+      :expandable="true"
+  />
 </template>
 
 <style scoped>
-.expanded-row-content {
-  background-color: #f8f8f8;
-  border-left: 5px solid #6c757d;
-  padding: 1rem;
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
-  border-radius: 4px;
-}
-.text-bold-green {
-  font-weight: bold;
-  color: green;
-}
+.text-bold-green { font-weight: bold; color: green; }
 </style>
