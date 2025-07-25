@@ -6,7 +6,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Where;
 
 import java.io.Serializable;
 import java.util.List;
@@ -31,59 +30,11 @@ public class Personaggio implements Serializable {
     private Mondo mondo;
 
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo = 'RAZZA'")
     @JsonIgnoreProperties("personaggio")
-    private List<Item> razze;
-
-    @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo = 'ABILITA'")
-    @JsonIgnoreProperties("personaggio")
-    private List<Item> abilita;
-
-    @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo = 'TALENTO'")
-    @JsonIgnoreProperties("personaggio")
-    private List<Item> talenti;
-
-    @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo = 'OGGETTO'")
-    @JsonIgnoreProperties("personaggio")
-    private List<Item> oggetti;
-
-    @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo = 'CONSUMABILE'")
-    @JsonIgnoreProperties("personaggio")
-    private List<Item> consumabili;
-
-    @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo = 'ARMA'")
-    @JsonIgnoreProperties("personaggio")
-    private List<Item> armi;
-
-    @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo = 'MUNIZIONE'")
-    @JsonIgnoreProperties("personaggio")
-    private List<Item> munizioni;
-
-    @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo = 'EQUIPAGGIAMENTO'")
-    @JsonIgnoreProperties("personaggio")
-    private List<Item> equipaggiamento;
-
-    @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo = 'ALTRO'")
-    @JsonIgnoreProperties("personaggio")
-    private List<Item> altri;
-
+    private List<Item> items;
 
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
     @JsonIgnoreProperties("personaggio")
     private List<StatValue> stats;
-
-    @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
-    @Where(clause = "tipo = 'LIVELLO'")
-    @JsonIgnoreProperties("personaggio")
-    private List<Item> livelli;
-
 
 }

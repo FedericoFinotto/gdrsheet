@@ -1,5 +1,5 @@
 <script setup>
-import { defineProps, onMounted } from 'vue';
+import {defineProps, onMounted} from 'vue';
 
 const props = defineProps({
   data: {
@@ -25,7 +25,6 @@ onMounted(() => {
         <span v-if="mod.descrizione">({{ mod.descrizione }})</span>
       </p>
     </div>
-
   </div>
 </template>
 

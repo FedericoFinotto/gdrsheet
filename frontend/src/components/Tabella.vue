@@ -1,5 +1,5 @@
 <script setup>
-import { ref, defineProps } from 'vue';
+import {defineProps, ref} from 'vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 
@@ -72,7 +72,7 @@ const toggleRow = (event) => {
           :is="slotProps.data.expandedComponent"
           v-bind="slotProps.data.expandedProps"
       />
-      <slot v-else name="expansion" :data="slotProps.data" />
+      <slot v-else :data="slotProps.data" name="expansion"/>
     </template>
   </DataTable>
 </template>

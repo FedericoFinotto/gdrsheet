@@ -1,16 +1,8 @@
-<template>
-  <Tabella
-      :columns="columns"
-      :expandable="true"
-      :items="items"
-  />
-</template>
-
 <script setup lang="ts">
-import {computed, defineProps, ref, watch} from 'vue';
-import Tabella from "./Tabella.vue";
-import {getModificatoriFromPersonaggio} from "../function/Utils";
-import DettaglioAbilita from "./Mobile_DettaglioAbilita.vue";
+import {computed, defineProps, markRaw, ref, watch} from 'vue';
+import Tabella from "../../../../components/Tabella.vue";
+import {getModificatoriFromPersonaggio} from "../../../../function/Utils";
+import DettaglioAbilita from "../../../../components/Mobile_DettaglioAbilita.vue";
 
 const props = defineProps({
   datiPersonaggio: {
@@ -22,7 +14,7 @@ const props = defineProps({
 const statMod = (mod: { id: string } | undefined) => {
   if (mod?.id) {
     const statObj = props.datiPersonaggio?.character.stats?.find(s => s.stat.id === mod.id);
-    const base = statObj?.valore ?? 0;
+    const base = parseInt(statObj?.valore) ?? 0;
     const bonus = mods.value
         .filter(m => m.stat.id === statObj?.stat.id)
         .reduce((sum, m) => sum + m.valore, 0);
@@ -41,9 +33,9 @@ watch(
           .filter(s => s.stat.tipo === 'AB')
           .map(stat => {
             const thisMods = mods.value.filter(m => m.stat.id === stat.stat.id);
-            const bonus = thisMods.reduce((sum, m) => sum + m.valore, 0);
+            const bonus = thisMods.reduce((sum, m) => sum + parseInt(m.valore), 0);
             const bonusCar = statMod(stat.mod);
-            const valore = stat.valore + bonus + bonusCar;
+            const valore = parseInt(stat.valore) + bonus + bonusCar;
             return {
               nome: stat.stat.label,
               id: stat.stat.id,
@@ -52,7 +44,7 @@ watch(
               modificatori: thisMods,
               base: stat.valore,
               bonusCaratteristica: bonusCar,
-              expandedComponent: DettaglioAbilita,
+              expandedComponent: markRaw(DettaglioAbilita),
               expandedProps: { data: {
                   nome: stat.stat.label,
                   base: stat.valore,
@@ -71,6 +63,18 @@ const columns = [
   { field: 'caratteristica', label: '' }
 ];
 </script>
+
+<template>
+  <Tabella
+      :columns="columns"
+      :expandable="true"
+      :items="items"
+  >
+    <template #col-valore="{ data }">
+      <span :class="{'text-bold-green': data.valore > 10}">{{ data.valore }}</span>
+    </template>
+  </Tabella>
+</template>
 
 <style scoped>
 .text-bold-green { font-weight: bold; color: green; }

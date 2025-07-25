@@ -1,54 +1,52 @@
 <template>
   <div class="stat-box">
-    <div class="label">{{ id }}</div>
-    <div class="modifier">{{ modifier >= 0 ? '+' + modifier : modifier }}</div>
-    <div class="base">{{ value }}</div>
+    <div class="label">{{ label ?? id }}</div>
+    <div class="modifier">{{ stat.modificatore ?? '' }}</div>
+    <div class="base">{{ stat.valore }}</div>
   </div>
 </template>
 
 <script setup>
-import {computed, inject} from 'vue'
-import {getModificatoriFromPersonaggio} from "../function/Utils.ts";
+import {computed, defineProps} from 'vue'
+import {getDatiCaratteristica} from "../function/Utils";
 
 const props = defineProps({
-  id: String
-})
-
-const sharedData = inject('sharedData')
-
-// Trova la statistica corrispondente
-const stat = computed(() => sharedData.character.stats?.find(s => s.stat?.id === props.id));
-
-const mods = computed(() => {
-  return getModificatoriFromPersonaggio(sharedData.character);
+  datiPersonaggio: {
+    type: Object,
+    required: true
+  },
+  id: {
+    type: String,
+    required: true
+  },
+  label: {
+    type: String,
+    default: undefined
+  }
 });
 
-// Valore base della stat (es. 14)
-const value = computed(() => {
-  const base = stat?.value?.valore ?? 10;
-  const bonus = mods.value
-      .filter(mod => mod.stat.id === props.id)
-      .reduce((sum, mod) => sum + mod.valore, 0);
-  return base + bonus;
-});
-
-
-const modifier = computed(() => Math.floor((value.value - 10) / 2))
+const stat = computed(() =>
+    getDatiCaratteristica(props.datiPersonaggio, props.id)
+);
 </script>
 
 <style scoped>
 .stat-box {
-  width: 50px;
-  height: 80px;
-  border: 2px solid #888;
-  border-radius: 8px;
-  text-align: center;
-  padding: 4px;
-  display: flex;
+  display: inline-flex;
   flex-direction: column;
   justify-content: space-between;
+
+  /* larghezza automatica in base al contenuto */
+  width: auto;
+  min-width: 45px;
+
+  padding: 4px;
+  border: 2px solid #888;
+  border-radius: 8px;
   background: #f3f3f3;
   box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+
+  text-align: center;
 }
 
 .label {
@@ -67,5 +65,4 @@ const modifier = computed(() => Math.floor((value.value - 10) / 2))
   font-size: 1rem;
   color: #666;
 }
-
 </style>

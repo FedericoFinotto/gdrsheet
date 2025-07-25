@@ -4,7 +4,7 @@
 </template>
 
 <script setup>
-import CharacterSheet from "../components/Mobile_Cico_0_CharacterSheet.vue";
+import CharacterSheet from "./sheets/cico/character/Mobile_Cico_0_CharacterSheet.vue";
 </script>
 
 <style scoped>

@@ -30,7 +30,7 @@ public class StatValue implements Serializable {
 
     @NotNull
     @Column(name = "valore", nullable = false)
-    private Integer valore;
+    private String valore;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
