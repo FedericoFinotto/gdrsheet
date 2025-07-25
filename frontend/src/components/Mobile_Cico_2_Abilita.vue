@@ -1,21 +1,27 @@
-<script setup lang="ts">
-import { computed, inject, ref, watch } from 'vue';
-import Tabella from "./Tabella.vue";
-import { getModificatoriFromPersonaggio } from "../function/Utils";
-import DettaglioAbilita from "./DettaglioAbilita.vue";
+<template>
+  <Tabella
+      :columns="columns"
+      :expandable="true"
+      :items="items"
+  />
+</template>
 
-interface Stat {
-  stat: { id: string; label: string; tipo: string; };
-  mod?: { id: string; };
-  valore: number;
-}
-interface Character { stats?: Stat[]; }
-interface SharedData { character: Character; }
-const sharedData = inject<SharedData>('sharedData');
+<script setup lang="ts">
+import {computed, defineProps, ref, watch} from 'vue';
+import Tabella from "./Tabella.vue";
+import {getModificatoriFromPersonaggio} from "../function/Utils";
+import DettaglioAbilita from "./Mobile_DettaglioAbilita.vue";
+
+const props = defineProps({
+  datiPersonaggio: {
+    type: Object,
+    required: true
+  }
+});
 
 const statMod = (mod: { id: string } | undefined) => {
   if (mod?.id) {
-    const statObj = sharedData?.character.stats?.find(s => s.stat.id === mod.id);
+    const statObj = props.datiPersonaggio?.character.stats?.find(s => s.stat.id === mod.id);
     const base = statObj?.valore ?? 0;
     const bonus = mods.value
         .filter(m => m.stat.id === statObj?.stat.id)
@@ -25,10 +31,10 @@ const statMod = (mod: { id: string } | undefined) => {
   return 0;
 };
 
-const mods = computed(() => sharedData?.character ? getModificatoriFromPersonaggio(sharedData.character) : []);
+const mods = computed(() => props.datiPersonaggio?.character ? getModificatoriFromPersonaggio(props.datiPersonaggio.character) : []);
 const items = ref<any[]>([]);
 watch(
-    () => sharedData?.character,
+    () => props.datiPersonaggio?.character,
     (newChar) => {
       if (!newChar?.stats) { items.value = []; return; }
       items.value = newChar.stats
@@ -65,14 +71,6 @@ const columns = [
   { field: 'caratteristica', label: '' }
 ];
 </script>
-
-<template>
-  <Tabella
-      :columns="columns"
-      :items="items"
-      :expandable="true"
-  />
-</template>
 
 <style scoped>
 .text-bold-green { font-weight: bold; color: green; }
