@@ -11,7 +11,7 @@ const props = defineProps({
   },
   columns: {
     type: Array,
-    required: true // [{ field: 'nome', label: 'Nome' }, ...]
+    required: true
   },
   expandable: {
     type: Boolean,
@@ -20,33 +20,18 @@ const props = defineProps({
 });
 
 onMounted(() => {
-  // Questo log mostra le props ricevute dal componente padre
-  // e può essere utile per il debug iniziale.
-  console.log("Tabella.vue montato con props:", props);
 });
 
-// Espansione righe
-// `expandedRows` sarà un array degli oggetti riga che sono attualmente espanse.
-// PrimeVue lo gestisce internamente, ma noi lo inizializziamo.
 const expandedRows = ref([]);
 
-// Funzione per espandere/comprimere la riga cliccata
 const toggleRow = (event) => {
-  // `event.data` è l'oggetto della riga cliccata
   const row = event.data;
-  // Trova l'indice della riga nell'array delle righe espanse
   const index = expandedRows.value.findIndex(r => r.id === row.id); // Confronta per `id`
 
   if (index >= 0) {
-    // Se la riga è già espansa, la rimuovi dall'array per comprimerla
     expandedRows.value.splice(index, 1);
-    console.log("Riga compressa:", row.id);
   } else {
-    // Se la riga non è espansa, la aggiungi all'array per espanderla
-    // Se vuoi permettere una sola riga espansa alla volta, puoi fare così:
     expandedRows.value = [row]; // Questa linea assicura che solo una riga sia espansa
-    // Se vuoi più righe espanse, usa: expandedRows.value.push(row);
-    console.log("Riga espansa:", row.id);
   }
 };
 </script>
@@ -88,6 +73,4 @@ const toggleRow = (event) => {
 </template>
 
 <style scoped>
-/* Stili specifici per il componente Tabella.vue */
-/* Puoi aggiungere stili per le righe espanse o altre parti della tabella */
 </style>

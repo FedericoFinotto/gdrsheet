@@ -1,24 +1,39 @@
 import { createApp } from 'vue'
 import PrimeVue from 'primevue/config'
-import Toast from 'primevue/toast'  // Importa il componente Toast
-import Button from 'primevue/button' // Se hai bisogno di altri componenti di PrimeVue
 
-import 'primevue/resources/themes/saga-blue/theme.css'
-import 'primevue/resources/primevue.min.css'
-import 'primeicons/primeicons.css'
+// Import PrimeVue components you are actually using
+import Toast from 'primevue/toast'
+import Button from 'primevue/button'
+import TabView from 'primevue/tabview' // Correct import for the tab container
+import TabPanel from 'primevue/tabpanel' // Correct import for individual tabs within TabView
+
+// THEME IMPORTS (These look correct)
+import 'primevue/resources/themes/saga-blue/theme.css' // Your chosen theme
+import 'primevue/resources/primevue.min.css'          // PrimeVue core CSS
+import 'primeicons/primeicons.css'                    // PrimeIcons for icons
 
 import App from './App.vue'
 import router from './router'
 
 const app = createApp(App)
 
-// Usa PrimeVue
+// Use router and PrimeVue
 app.use(router)
 app.use(PrimeVue)
 
-// Registra il componente Toast e altri componenti necessari
-app.component('Toast', Toast)  // Registrazione di Toast
-app.component('Button', Button)  // Registrazione di Button (se usato)
+// Register global components
+app.component('Toast', Toast)
+app.component('Button', Button)
 
-// Monta l'app
+// Register the CORRECT Tab components
+app.component('TabView', TabView) // Register TabView, not 'Tabs'
+app.component('TabPanel', TabPanel) // Register TabPanel (used inside TabView)
+
+// Remove these lines if you don't have corresponding valid PrimeVue components:
+// app.component('Tabs', Tabs)
+// app.component('TabList', TabList)
+// app.component('TabPanels', TabPanels) // TabPanels is often a concept, not a directly imported component
+// app.component('Tab', Tab)
+
+// Mount the app
 app.mount('#app')

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, ref, watch } from 'vue';
 import Tabella from "./Tabella.vue";
-import { getModificatoriFromPersonaggio } from "../function/Utils.ts";
+import { getModificatoriFromPersonaggio } from "../function/Utils";
 import DettaglioAbilita from "./DettaglioAbilita.vue"; // Importa il componente da mostrare nell'espansione
 
 // Assicurati che SharedData e Stat siano definiti correttamente, se usi TypeScript
@@ -56,7 +56,8 @@ watch(
           .map(stat => {
             const thisMods = mods.value.filter(mod => mod.stat.id === stat.stat.id);
             const bonus = thisMods.reduce((sum, mod) => sum + mod.valore, 0);
-            const valore = stat.valore + bonus + statMod(stat.mod);
+            const bonusCaratteristica =  statMod(stat.mod)
+            const valore = stat.valore + bonus + bonusCaratteristica;
 
             return {
               nome: stat.stat.label,
@@ -64,8 +65,8 @@ watch(
               caratteristica: stat.mod?.id,
               valore: valore,
               modificatori: thisMods,
-              // Nota: non c'è più `expanded` qui, perché il contenuto è gestito dallo slot
-              // expandedData: { ... } // Puoi comunque passare questi dati allo slot se vuoi
+              base: stat.valore,
+              bonusCaratteristica: bonusCaratteristica,
             };
           });
     },

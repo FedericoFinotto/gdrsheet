@@ -7,13 +7,17 @@ export function getModificatoriFromItem(item, visited = new Set()) {
 
     // Aggiungi i modificatori dell'item corrente
     if (Array.isArray(item.modificatori)) {
-        result.push(...item.modificatori);
+        result.push(...item.modificatori.map(itm => ({
+            ...itm,
+            tipo: item.tipo, // Aggiunto come chiave: valore
+            nome: item.nome  // Aggiunto come chiave: valore
+        })));
     }
 
     // Visita i figli (ricorsivamente)
     if (Array.isArray(item.child)) {
         for (const link of item.child) {
-            const childItem = link.idItemTarget;
+            const childItem = link.idItemTarget; // Assicurati che childItem sia l'oggetto completo, non solo l'ID
             result.push(...getModificatoriFromItem(childItem, visited));
         }
     }

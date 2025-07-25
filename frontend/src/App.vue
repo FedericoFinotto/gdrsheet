@@ -18,6 +18,5 @@ import HamburgerMenu from "./components/HamburgerMenu.vue";
 <style>
 .onMobile {
   margin-top: 4rem;
-
 }
 </style>
