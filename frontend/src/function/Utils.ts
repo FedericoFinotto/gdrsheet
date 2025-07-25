@@ -56,6 +56,9 @@ export function getModificatoriFromPersonaggio(personaggio) {
     for (const itm of personaggio.talenti || []) {
         result.push(...getModificatoriFromItem(itm));
     }
+    for (const itm of personaggio.livelli || []) {
+        result.push(...getModificatoriFromItem(itm));
+    }
 
     return result;
 }

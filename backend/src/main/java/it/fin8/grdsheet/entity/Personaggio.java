@@ -81,8 +81,9 @@ public class Personaggio implements Serializable {
     private List<StatValue> stats;
 
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
+    @Where(clause = "tipo = 'LIVELLO'")
     @JsonIgnoreProperties("personaggio")
-    private List<Livello> livello;
+    private List<Item> livelli;
 
 
 }

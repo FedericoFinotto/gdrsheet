@@ -7,10 +7,11 @@
 
     <changeSet id="0" author="Federico Finotto">
         <sql>
-            CREATE TYPE tipo_item AS ENUM ('ABILITA', 'TALENTO', 'OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO', 'PERSONAGGIO', 'CLASSE', 'RAZZA', 'ATTACCO', 'ALTRO');
+            CREATE TYPE tipo_item AS ENUM ('ABILITA', 'TALENTO', 'OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO', 'PERSONAGGIO', 'CLASSE', 'RAZZA', 'ATTACCO', 'ALTRO', 'LIVELLO');
             CREATE TYPE tipo_stat AS ENUM ('CAR', 'AB', 'TS', 'PF', 'ATT');
             CREATE TYPE tipo_permesso AS ENUM ('R', 'W');
             CREATE TYPE tipo_ruolo AS ENUM ('ADMIN', 'MASTER', 'EDITOR', 'GIOCATORE');
+            CREATE TYPE tipo_modificatore AS ENUM ('RANK', 'VALORE', 'DEVIAZIONE', 'CA');
         </sql>
     </changeSet>
 
@@ -119,10 +120,16 @@
             <column name="stat_id" type="varchar2(10)">
                 <constraints nullable="false"/>
             </column>
-            <column name="valore" type="int">
+            <column name="valore" type="varchar2(32)">
                 <constraints nullable="false"/>
             </column>
             <column name="mod" type="varchar2(10)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="classe" type="boolean">
+                <constraints nullable="true"/>
+            </column>
+            <column name="addestramento" type="boolean">
                 <constraints nullable="true"/>
             </column>
         </createTable>
@@ -223,10 +230,11 @@
             <column name="stat_id" type="varchar2(10)">
                 <constraints nullable="false"/>
             </column>
-            <column name="valore_default" type="int"/>
+            <column name="valore_default" type="varchar2(32)"/>
             <column name="default_mod" type="varchar2(10)">
                 <constraints nullable="true"/>
             </column>
+            <column name="addestramento" type="boolean"/>
         </createTable>
     </changeSet>
 
@@ -249,6 +257,7 @@
                 <constraints nullable="true"/>
             </column>
             <column name="nota" type="text"/>
+            <column name="tipo" type="tipo_modificatore"/>
         </createTable>
     </changeSet>
 

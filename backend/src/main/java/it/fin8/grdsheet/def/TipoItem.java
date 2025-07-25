@@ -15,7 +15,8 @@ public enum TipoItem {
     CLASSE("Classe"),
     RAZZA("Razza"),
     ATTACCO("Attacco"),
-    ALTRO("Altro");
+    ALTRO("Altro"),
+    LIVELLO("Livello");
 
     private final String label;
 
