@@ -9,8 +9,8 @@ export function getModificatoriFromItem(item, visited = new Set()) {
     if (Array.isArray(item.modificatori)) {
         result.push(...item.modificatori.map(itm => ({
             ...itm,
-            tipo: item.tipo,
-            nome: item.nome
+            item_tipo: item.tipo,
+            item_nome: item.nome,
         })));
     }
 
@@ -73,11 +73,28 @@ export function getDatiCaratteristica(personaggio, caratteristica, modsPersonagg
         }
     }
     if (stat.stat.tipo === 'AB') {
-        const modificatore = (statisticaBase?.modificatore ?? 0) + bonus;
+        const modificatoriVALORE = mods.filter(mod => mod.tipo === 'VALORE');
+        const modificatoriRANK = mods.filter(mod => mod.tipo === 'RANK');
+        const bonusVALORE = modificatoriVALORE.filter(m => m.always).reduce((sum, mod) => sum + parseInt(mod.valore), 0);
+        const rank = modificatoriRANK.reduce((sum, mod) => sum + parseInt(mod.valore), 0);
+        const bonusRank = stat.classe ? rank : Math.floor(rank / 2);
+        const modificatore = (statisticaBase?.modificatore ?? 0) + bonusVALORE + bonusRank;
+
         return {
-            modificatore: modificatore,
-            statisticaBase: statisticaBase ?? null,
-            modificatori: mods
+            rank: {
+                valore: rank,
+                modificatore: bonusRank,
+                modificatori: modificatoriRANK,
+                addestramento: stat.addestramento,
+                classe: stat.classe,
+            },
+            statistica: {
+                id: stat.stat.id,
+                label: stat.stat.label,
+                modificatore: modificatore,
+                modificatori: modificatoriVALORE,
+            },
+            base: statisticaBase ?? null,
         }
     }
 

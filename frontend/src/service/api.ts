@@ -1,8 +1,14 @@
 import axios from 'axios';
 
+const getBackendBaseUrl = () => {
+    const {protocol, hostname} = window.location;
+    return `${protocol}//${hostname}:8080/api`;
+};
+
 const api = axios.create({
-    baseURL: 'http://localhost:8080/api', // adatta il path al tuo backend
+    baseURL: getBackendBaseUrl(),
     timeout: 10000,
 });
+
 
 export default api;

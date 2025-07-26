@@ -1,5 +1,6 @@
 <script setup>
 import {defineProps, onMounted} from 'vue';
+import {testoModificatore} from "../function/Utils";
 
 const props = defineProps({
   data: {
@@ -9,20 +10,21 @@ const props = defineProps({
 });
 
 onMounted(() => {
+  console.log(props);
 });
 </script>
 
 <template>
   <div class="abilita-detail-card">
 
-    <p><strong>Rank:  </strong> {{data.base > 0 ? '+' : ''}}{{ data.base }}</p>
-    <p v-if="data.caratteristica"><strong>{{data.caratteristica}}:  </strong>{{(data.bonusCaratteristica > 0 ? '+' : '')+data.bonusCaratteristica}}</p>
+    <p><strong>Grado {{ data.rank.valore }} : </strong> {{ testoModificatore(data.rank.modificatore) }}</p>
+    <p v-if="data.base"><strong>{{ data.base.label }}: </strong>{{ testoModificatore(data.base.modificatore) }}</p>
 
-    <div v-if="data.modificatori && data.modificatori.length > 0">
-      <p v-for="(mod, index) in data.modificatori" :key="index">
-        <strong>{{ mod.nome || 'Sconosciuto' }}:</strong>
-        {{ mod.valore > 0 ? '+' : '' }}{{ mod.valore }}
-        <span v-if="mod.descrizione">({{ mod.descrizione }})</span>
+    <div v-if="data.statistica.modificatori && data.statistica.modificatori.length > 0">
+      <p v-for="(mod, index) in data.statistica.modificatori" :key="index">
+        <strong>{{ mod.item_nome || 'Sconosciuto' }}:</strong>
+        {{ mod.valore }}
+        <span v-if="mod.nota">{{ mod.nota }}</span>
       </p>
     </div>
   </div>

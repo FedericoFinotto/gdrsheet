@@ -6,8 +6,12 @@ import lombok.Getter;
 public enum TipoModificatore {
     RANK("Rank"),
     VALORE("Valore"),
-    DEVIAZIONE("Deviazione"),
-    CA("CA");
+    CA_DEVIAZIONE("Deviazione"),
+    CA_SCHIVARE("Schivare"),
+    CA_ARMOR("Armatura"),
+    CA_SHIELD("Scudo"),
+    CA_MAGIC("Magico"),
+    CA_NATURALE("Naturale");
 
     private final String label;
 

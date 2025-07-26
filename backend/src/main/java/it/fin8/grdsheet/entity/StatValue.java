@@ -37,5 +37,12 @@ public class StatValue implements Serializable {
     @JoinColumn(name = "mod", nullable = false)
     private Stat mod;
 
+    @NotNull
+    @Column(name = "classe", nullable = false)
+    private Boolean classe;
+
+    @NotNull
+    @Column(name = "addestramento", nullable = false)
+    private Boolean addestramento;
 
 }

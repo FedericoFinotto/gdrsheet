@@ -7,11 +7,11 @@
 
     <changeSet id="0" author="Federico Finotto">
         <sql>
-            CREATE TYPE tipo_item AS ENUM ('ABILITA', 'TALENTO', 'OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO', 'PERSONAGGIO', 'CLASSE', 'RAZZA', 'ATTACCO', 'ALTRO', 'LIVELLO');
+            CREATE TYPE tipo_item AS ENUM ('ABILITA', 'TALENTO', 'OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO', 'PERSONAGGIO', 'CLASSE', 'RAZZA', 'ATTACCO', 'ALTRO', 'LIVELLO', 'MALEDIZIONE');
             CREATE TYPE tipo_stat AS ENUM ('CAR', 'AB', 'TS', 'PF', 'ATT');
             CREATE TYPE tipo_permesso AS ENUM ('R', 'W');
             CREATE TYPE tipo_ruolo AS ENUM ('ADMIN', 'MASTER', 'EDITOR', 'GIOCATORE');
-            CREATE TYPE tipo_modificatore AS ENUM ('RANK', 'VALORE', 'DEVIAZIONE', 'CA');
+            CREATE TYPE tipo_modificatore AS ENUM ('RANK', 'VALORE', 'CA_SCHIVARE', 'CA_ARMOR', 'CA_NATURALE', 'CA_DEVIAZIONE', 'CA_SHIELD', 'CA_MAGIC');
         </sql>
     </changeSet>
 

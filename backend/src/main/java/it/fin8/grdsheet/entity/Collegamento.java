@@ -20,11 +20,13 @@ public class Collegamento {
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_item_source", nullable = false)
+    @JsonIgnoreProperties("personaggio")
     private Item idItemSource;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_item_target", nullable = false)
+    @JsonIgnoreProperties("personaggio")
     private Item idItemTarget;
 
 }

@@ -1,6 +1,7 @@
 package it.fin8.grdsheet.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import it.fin8.grdsheet.def.TipoModificatore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -29,9 +30,16 @@ public class Modificatori {
 
     @NotNull
     @Column(name = "valore", nullable = false)
-    private Integer valore;
+    private String valore;
 
     @Column(name = "nota", length = Integer.MAX_VALUE)
     private String nota;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo", nullable = false)
+    private TipoModificatore tipo;
+
+    @Column(name = "always", length = Integer.MAX_VALUE)
+    private Boolean sempreAttivo;
 
 }
