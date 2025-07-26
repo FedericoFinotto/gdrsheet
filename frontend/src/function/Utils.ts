@@ -5,16 +5,24 @@ export function getModificatoriFromItem(item, visited = new Set()) {
 
     let result = [];
 
-    // Aggiungi i modificatori dell'item corrente
     if (Array.isArray(item.modificatori)) {
+        let abilitaDiClasse: string[] = [];
+
+        if (item.tipo === 'LIVELLO') {
+            const classe = item.child.find(i => i.itemTarget?.tipo === 'CLASSE')?.itemTarget;
+            const labelAbClasse = classe?.labels?.find(x => x.label === 'ABCLASSE');
+            const abilitaDiClasseStringa: string = labelAbClasse?.valore ?? '';
+            abilitaDiClasse = abilitaDiClasseStringa ? abilitaDiClasseStringa.split(',') : [];
+        }
+
         result.push(...item.modificatori.map(itm => ({
             ...itm,
             item_tipo: item.tipo,
             item_nome: item.nome,
+            item_ab_classe: abilitaDiClasse,
         })));
     }
 
-    // Visita i figli (ricorsivamente)
     if (Array.isArray(item.child)) {
         for (const link of item.child) {
             const childItem = link.idItemTarget;
@@ -75,9 +83,15 @@ export function getDatiCaratteristica(personaggio, caratteristica, modsPersonagg
     if (stat.stat.tipo === 'AB') {
         const modificatoriVALORE = mods.filter(mod => mod.tipo === 'VALORE');
         const modificatoriRANK = mods.filter(mod => mod.tipo === 'RANK');
+
+        let abClasse = false;
+        if (modificatoriRANK.length > 0) {
+            abClasse = modificatoriRANK[0].item_ab_classe.includes(stat.stat.id);
+        }
+
         const bonusVALORE = modificatoriVALORE.filter(m => m.always).reduce((sum, mod) => sum + parseInt(mod.valore), 0);
         const rank = modificatoriRANK.reduce((sum, mod) => sum + parseInt(mod.valore), 0);
-        const bonusRank = stat.classe ? rank : Math.floor(rank / 2);
+        const bonusRank = (abClasse || stat.classe) ? rank : Math.floor(rank / 2);
         const modificatore = (statisticaBase?.modificatore ?? 0) + bonusVALORE + bonusRank;
 
         return {

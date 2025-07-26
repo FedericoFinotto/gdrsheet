@@ -21,7 +21,7 @@ public class ItemLabel implements Serializable {
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_item", nullable = false)
-    private Item idItem;
+    private Item item;
 
     @Column(name = "label", length = Integer.MAX_VALUE)
     private String label;

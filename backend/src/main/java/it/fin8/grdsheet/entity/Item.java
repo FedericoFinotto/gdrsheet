@@ -45,12 +45,16 @@ public class Item implements Serializable {
     @JoinColumn(name = "id_mondo")
     private Mondo mondo;
 
-    @OneToMany(mappedBy = "idItemSource", fetch = FetchType.LAZY)
-    @JsonIgnoreProperties("idItemSource")
+    @OneToMany(mappedBy = "itemSource", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties("itemSource")
     private List<Collegamento> child;
 
     @OneToMany(mappedBy = "idItem", fetch = FetchType.LAZY)
     @JsonIgnoreProperties("idItem")
     private List<Modificatori> modificatori;
+
+    @OneToMany(mappedBy = "item", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties("item")
+    private List<ItemLabel> labels;
 
 }

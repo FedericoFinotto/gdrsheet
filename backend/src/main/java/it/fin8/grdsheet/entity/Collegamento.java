@@ -21,12 +21,12 @@ public class Collegamento {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_item_source", nullable = false)
     @JsonIgnoreProperties("personaggio")
-    private Item idItemSource;
+    private Item itemSource;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_item_target", nullable = false)
     @JsonIgnoreProperties("personaggio")
-    private Item idItemTarget;
+    private Item itemTarget;
 
 }
