@@ -48,10 +48,14 @@ export function getModificatoriFromPersonaggio(personaggio) {
 export function getDatiCaratteristica(personaggio, caratteristica, modsPersonaggio = undefined) {
     const stat = personaggio.character.stats?.find(s => s.stat?.id === caratteristica);
 
+    let carToFind = caratteristica;
+    if (caratteristica === 'CAS' || caratteristica === 'CAC') {
+        carToFind = 'CA';
+    }
     if (modsPersonaggio === undefined) {
         modsPersonaggio = getModificatoriFromPersonaggio(personaggio.character);
     }
-    const mods = modsPersonaggio.filter(mod => mod.stat.id === caratteristica);
+    const mods = modsPersonaggio.filter(mod => mod.stat.id === carToFind);
     const bonus = mods.reduce((sum, mod) => sum + parseInt(mod.valore), 0);
 
     let statisticaBase = undefined;
@@ -89,11 +93,6 @@ export function getDatiCaratteristica(personaggio, caratteristica, modsPersonagg
             abClasse = modificatoriRANK[0].item_ab_classe.includes(stat.stat.id);
         }
 
-        if (modificatoriVALORE.length > 0) {
-            console.log('MADONNA BLASFEMA', modificatoriVALORE);
-        }
-
-        const test = stat.stat.label;
         const bonusVALORE = modificatoriVALORE.filter(m => m.sempreAttivo).reduce((sum, mod) => sum + parseInt(mod.valore), 0);
         const rank = modificatoriRANK.reduce((sum, mod) => sum + parseInt(mod.valore), 0);
         const bonusRank = (abClasse || stat.classe) ? rank : Math.floor(rank / 2);
@@ -115,6 +114,95 @@ export function getDatiCaratteristica(personaggio, caratteristica, modsPersonagg
             },
             base: statisticaBase ?? null,
         }
+    }
+    if (stat.stat.tipo === 'CA') {
+        const prendiMassimo = (mods: any[]) =>
+            mods.length > 0
+                ? Math.max(...mods.map(mod => parseInt(mod.valore)))
+                : 0;
+
+        const modificatoriSchivare = mods.filter(mod => mod.tipo === 'CA_SCHIVARE');
+        const modificatoriArmatura = mods.filter(mod => mod.tipo === 'CA_ARMOR');
+        const modificatoriNaturale = mods.filter(mod => mod.tipo === 'CA_NATURALE');
+        const modificatoriDeviazione = mods.filter(mod => mod.tipo === 'CA_DEVIAZIONE');
+        const modificatoriScudo = mods.filter(mod => mod.tipo === 'CA_SHIELD');
+        const modificatoriMagici = mods.filter(mod => mod.tipo === 'CA_MAGIC');
+        const modificatoriValore = mods.filter(mod => mod.tipo === 'VALORE');
+
+
+        const bonusVALORE = modificatoriValore.filter(m => m.sempreAttivo).reduce((sum, mod) => sum + parseInt(mod.valore), 0);
+        const modificatoreSchivare = prendiMassimo(modificatoriSchivare);
+        const modificatoreArmatura = prendiMassimo(modificatoriArmatura);
+        const modificatoreNaturale = prendiMassimo(modificatoriNaturale);
+        const modificatoreDeviazione = prendiMassimo(modificatoriDeviazione);
+        const modificatoreScudo = prendiMassimo(modificatoriScudo);
+        const modificatoreMagici = prendiMassimo(modificatoriMagici);
+        const modificatoreBase = statisticaBase?.modificatore ?? 0;
+
+        const CA = bonusVALORE + modificatoreSchivare + modificatoreArmatura + modificatoreNaturale + modificatoreDeviazione + modificatoreScudo + modificatoreMagici + modificatoreBase;
+        const CA_CONTATTO = modificatoreSchivare + modificatoreDeviazione + modificatoreMagici + modificatoreBase;
+        const CA_SORPRESO = modificatoreArmatura + modificatoreNaturale + modificatoreDeviazione + modificatoreScudo + modificatoreMagici;
+
+        if (stat.stat.id === 'CA') {
+            return {
+                modificatore: CA,
+                modificatori: {
+                    schivare: modificatoriSchivare,
+                    armatura: modificatoriArmatura,
+                    naturale: modificatoriNaturale,
+                    deviazione: modificatoriDeviazione,
+                    scudo: modificatoriScudo,
+                    magici: modificatoriMagici,
+                    valore: modificatoriValore,
+                },
+                valori: {
+                    schivare: modificatoreSchivare,
+                    armatura: modificatoreArmatura,
+                    naturale: modificatoreNaturale,
+                    deviazione: modificatoreDeviazione,
+                    scudo: modificatoreScudo,
+                    magici: modificatoreMagici,
+                    base: modificatoreBase
+                }
+            }
+        }
+        if (stat.stat.id === 'CAC') {
+            return {
+                modificatore: CA_CONTATTO,
+                modificatori: {
+                    schivare: modificatoriSchivare,
+                    deviazione: modificatoriDeviazione,
+                    magici: modificatoriMagici,
+                    valore: modificatoriValore,
+                },
+                valori: {
+                    schivare: modificatoreSchivare,
+                    deviazione: modificatoreDeviazione,
+                    magici: modificatoreMagici,
+                    base: modificatoreBase
+                }
+            }
+        }
+        if (stat.stat.id === 'CAS') {
+            return {
+                modificatore: CA_SORPRESO,
+                modificatori: {
+                    armatura: modificatoriArmatura,
+                    naturale: modificatoriNaturale,
+                    deviazione: modificatoriDeviazione,
+                    scudo: modificatoriScudo,
+                    magici: modificatoriMagici,
+                },
+                valori: {
+                    armatura: modificatoreArmatura,
+                    naturale: modificatoreNaturale,
+                    deviazione: modificatoreDeviazione,
+                    scudo: modificatoreScudo,
+                    magici: modificatoreMagici,
+                }
+            }
+        }
+
     }
 
 }

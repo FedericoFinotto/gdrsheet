@@ -14,11 +14,11 @@
     <Mobile_Stat id="RFL" :dati-personaggio="datiPersonaggio" label="Riflessi"></Mobile_Stat>
     <Mobile_Stat id="VLT" :dati-personaggio="datiPersonaggio" label="Volonta"></Mobile_Stat>
   </div>
-  <!--  <div v-if="datiPersonaggio.character" class="stat-block">-->
-  <!--    <Mobile_Stat id="CA" :dati-personaggio="datiPersonaggio" label="CA"></Mobile_Stat>-->
-  <!--    <Mobile_Stat id="CAC" :dati-personaggio="datiPersonaggio" label="Contatto"></Mobile_Stat>-->
-  <!--    <Mobile_Stat id="CAS" :dati-personaggio="datiPersonaggio" label="Sorpreso"></Mobile_Stat>-->
-  <!--  </div>-->
+    <div v-if="datiPersonaggio.character" class="stat-block">
+      <Mobile_Stat id="CA" :dati-personaggio="datiPersonaggio" label="CA"></Mobile_Stat>
+      <Mobile_Stat id="CAC" :dati-personaggio="datiPersonaggio" label="Contatto"></Mobile_Stat>
+      <Mobile_Stat id="CAS" :dati-personaggio="datiPersonaggio" label="Sorpreso"></Mobile_Stat>
+    </div>
 </template>
 
 <script setup>
