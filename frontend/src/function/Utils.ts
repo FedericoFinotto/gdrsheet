@@ -89,7 +89,12 @@ export function getDatiCaratteristica(personaggio, caratteristica, modsPersonagg
             abClasse = modificatoriRANK[0].item_ab_classe.includes(stat.stat.id);
         }
 
-        const bonusVALORE = modificatoriVALORE.filter(m => m.always).reduce((sum, mod) => sum + parseInt(mod.valore), 0);
+        if (modificatoriVALORE.length > 0) {
+            console.log('MADONNA BLASFEMA', modificatoriVALORE);
+        }
+
+        const test = stat.stat.label;
+        const bonusVALORE = modificatoriVALORE.filter(m => m.sempreAttivo).reduce((sum, mod) => sum + parseInt(mod.valore), 0);
         const rank = modificatoriRANK.reduce((sum, mod) => sum + parseInt(mod.valore), 0);
         const bonusRank = (abClasse || stat.classe) ? rank : Math.floor(rank / 2);
         const modificatore = (statisticaBase?.modificatore ?? 0) + bonusVALORE + bonusRank;
