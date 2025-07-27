@@ -21,12 +21,12 @@ public class Avanzamento implements Serializable {
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_item_source", nullable = false)
-    private Item idItemSource;
+    private Item itemSource;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_item_target", nullable = false)
-    private Item idItemTarget;
+    private Item itemTarget;
 
     @NotNull
     @Column(name = "livello", nullable = false)

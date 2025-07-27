@@ -1,3 +1,5 @@
+import {TIPO_ITEM} from "./Constants";
+
 export function getModificatoriFromItem(item, visited = new Set()) {
     if (!item || visited.has(item.id)) return [];
 
@@ -23,12 +25,12 @@ export function getModificatoriFromItem(item, visited = new Set()) {
         })));
     }
 
-    if (Array.isArray(item.child)) {
-        for (const link of item.child) {
-            const childItem = link.idItemTarget;
-            result.push(...getModificatoriFromItem(childItem, visited));
-        }
-    }
+    // if (Array.isArray(item.child)) {
+    //     for (const link of item.child) {
+    //         const childItem = link.itemTarget;
+    //         result.push(...getModificatoriFromItem(childItem, visited));
+    //     }
+    // }
 
     return result;
 }
@@ -37,7 +39,7 @@ export function getModificatoriFromPersonaggio(personaggio) {
     if (!personaggio) return [];
     let result = [];
 
-    for (const itm of personaggio.items || []) {
+    for (const itm of getAllItems(personaggio) || []) {
         result.push(...getModificatoriFromItem(itm));
     }
 
@@ -207,10 +209,75 @@ export function getDatiCaratteristica(personaggio, caratteristica, modsPersonagg
 
 }
 
-
 export function testoModificatore(mod: number) {
     if (mod >= 0) return "+" + mod;
     return mod;
 }
+
+export function getAllItems(personaggio) {
+    let result = [];
+    personaggio.items.forEach(item => {
+        result.push(...getAllItemsFromItem(item))
+    });
+
+    const classiConConteggio = Object.values(
+        result
+            .filter(it => it.tipo === TIPO_ITEM.CLASSE)
+            .reduce((acc, it) => {
+                if (!acc[it.id]) {
+                    acc[it.id] = {
+                        ...it,
+                        count: 1,
+                        child: [...(it.child ?? [])], // copia child
+                    };
+                } else {
+                    acc[it.id].count += 1;
+                }
+                return acc;
+            }, {} as Record<number, any>)
+    );
+
+    // Per ogni classe raggruppata, analizza gli avanzamenti
+    for (const cls of classiConConteggio) {
+        const {count, avanzamento} = cls;
+
+        if (!Array.isArray(avanzamento)) continue;
+
+        for (const avz of avanzamento) {
+            if (avz.livello <= count && avz.itemTarget) {
+                // evita duplicati
+                const presente = cls.child?.some(link => link.itemTarget?.id === avz.itemTarget.id);
+                if (!presente) {
+                    cls.child.push({itemTarget: avz.itemTarget});
+                }
+            }
+        }
+    }
+
+    result = result.filter(itm => itm.tipo !== TIPO_ITEM.CLASSE);
+    classiConConteggio.forEach(classe => result.push(...getAllItemsFromItem(classe)));
+
+
+    console.log('OGGETTI RILEVATI DA GETALLITEMS', result);
+    return result;
+}
+
+export function getAllItemsFromItem(item, visited = new Set()): any[] {
+    if (!item || visited.has(item.id)) return [];
+
+    visited.add(item.id);
+
+    const result = [item]; // includi l'item corrente
+
+    if (Array.isArray(item.child)) {
+        for (const link of item.child) {
+            const childItem = link.itemTarget;
+            result.push(...getAllItemsFromItem(childItem, visited));
+        }
+    }
+
+    return result;
+}
+
 
 

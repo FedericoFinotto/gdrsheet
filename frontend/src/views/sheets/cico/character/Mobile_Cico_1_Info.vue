@@ -19,12 +19,21 @@
       <Mobile_Stat id="CAC" :dati-personaggio="datiPersonaggio" label="Contatto"></Mobile_Stat>
       <Mobile_Stat id="CAS" :dati-personaggio="datiPersonaggio" label="Sorpreso"></Mobile_Stat>
     </div>
+  <Tabella v-if="itemsAbilitaPassive.length > 0"
+           :columns="columnsAbilitaPassive"
+           :expandable="true"
+           :items="itemsAbilitaPassive"
+  >
+  </Tabella>
 </template>
 
-<script setup>
-import {defineProps} from 'vue';
+<script setup lang="ts">
+import {defineProps, ref, watch} from 'vue';
 import Mobile_Stat from "../../../../components/Mobile_Stat.vue";
 import Mobile_HP from "../../../../components/Mobile_HP.vue";
+import {getAllItems} from "../../../../function/Utils.js";
+import {TIPO_ITEM} from "../../../../function/Constants.js";
+import Tabella from "../../../../components/Tabella.vue";
 
 
 const props = defineProps({
@@ -33,6 +42,35 @@ const props = defineProps({
     required: true
   }
 });
+
+const itemsAbilitaPassive = ref<any[]>([]);
+watch(
+    () => props.datiPersonaggio?.character,
+    (newChar) => {
+      if (!newChar?.items) {
+        itemsAbilitaPassive.value = [];
+        return;
+      }
+
+      itemsAbilitaPassive.value = getAllItems(newChar)
+          .filter(itm => [TIPO_ITEM.ABILITA].includes(itm.tipo))
+          // .map(itm => {
+          //   return {
+          //     ...itm,
+          //     expandedComponent: markRaw(DettaglioAbilita),
+          //     expandedProps: {data: {...itm}}
+          //   };
+          // })
+          .sort((a, b) => a.nome.localeCompare(b.nome));
+
+    },
+    {immediate: true, deep: true}
+);
+
+const columnsAbilitaPassive = [
+  {field: 'nome', label: 'Abilita Passive'},
+];
+
 
 </script>
 

@@ -57,4 +57,8 @@ public class Item implements Serializable {
     @JsonIgnoreProperties("item")
     private List<ItemLabel> labels;
 
+    @OneToMany(mappedBy = "itemSource", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties("itemSource")
+    private List<Avanzamento> avanzamento;
+
 }

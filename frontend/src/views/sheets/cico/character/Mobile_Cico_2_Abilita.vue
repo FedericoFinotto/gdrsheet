@@ -33,7 +33,7 @@ watch(
             };
           })
           .filter(s => !s.rank.addestramento || (s.rank.valore > 0))
-          .sort((a, b) => a.nome.localeCompare(b.nome)); // 👈 ordinamento alfabetico per nome
+          .sort((a, b) => a.nome.localeCompare(b.nome));
     },
     { immediate: true, deep: true }
 );
