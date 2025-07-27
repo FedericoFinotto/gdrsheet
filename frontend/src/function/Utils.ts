@@ -1,4 +1,4 @@
-import {TIPO_ITEM} from "./Constants";
+import {TIPO_ITEM, TIPO_MODIFICATORE, TIPO_STAT} from "./Constants";
 
 export function getModificatoriFromItem(item, visited = new Set()) {
     if (!item || visited.has(item.id)) return [];
@@ -10,8 +10,8 @@ export function getModificatoriFromItem(item, visited = new Set()) {
     if (Array.isArray(item.modificatori)) {
         let abilitaDiClasse: string[] = [];
 
-        if (item.tipo === 'LIVELLO') {
-            const classe = item.child.find(i => i.itemTarget?.tipo === 'CLASSE')?.itemTarget;
+        if (item.tipo === TIPO_ITEM.LIVELLO) {
+            const classe = item.child.find(i => i.itemTarget?.tipo === TIPO_ITEM.CLASSE)?.itemTarget;
             const labelAbClasse = classe?.labels?.find(x => x.label === 'ABCLASSE');
             const abilitaDiClasseStringa: string = labelAbClasse?.valore ?? '';
             abilitaDiClasse = abilitaDiClasseStringa ? abilitaDiClasseStringa.split(',') : [];
@@ -78,7 +78,7 @@ export function getDatiCaratteristica(personaggio, caratteristica, modsPersonagg
             valore: valore
         }
     }
-    if (stat.stat.tipo === 'TS') {
+    if (stat.stat.tipo === TIPO_STAT.TS) {
         const modificatore = statisticaBase?.modificatore + bonus;
         return {
             modificatore: modificatore,
@@ -86,9 +86,9 @@ export function getDatiCaratteristica(personaggio, caratteristica, modsPersonagg
             modificatori: mods
         }
     }
-    if (stat.stat.tipo === 'AB') {
-        const modificatoriVALORE = mods.filter(mod => mod.tipo === 'VALORE');
-        const modificatoriRANK = mods.filter(mod => mod.tipo === 'RANK');
+    if (stat.stat.tipo === TIPO_STAT.AB) {
+        const modificatoriVALORE = mods.filter(mod => mod.tipo === TIPO_MODIFICATORE.VALORE);
+        const modificatoriRANK = mods.filter(mod => mod.tipo === TIPO_MODIFICATORE.RANK);
 
         let abClasse = false;
         if (modificatoriRANK.length > 0) {
@@ -117,19 +117,19 @@ export function getDatiCaratteristica(personaggio, caratteristica, modsPersonagg
             base: statisticaBase ?? null,
         }
     }
-    if (stat.stat.tipo === 'CA') {
+    if (stat.stat.tipo === TIPO_STAT.CA) {
         const prendiMassimo = (mods: any[]) =>
             mods.length > 0
                 ? Math.max(...mods.map(mod => parseInt(mod.valore)))
                 : 0;
 
-        const modificatoriSchivare = mods.filter(mod => mod.tipo === 'CA_SCHIVARE');
-        const modificatoriArmatura = mods.filter(mod => mod.tipo === 'CA_ARMOR');
-        const modificatoriNaturale = mods.filter(mod => mod.tipo === 'CA_NATURALE');
-        const modificatoriDeviazione = mods.filter(mod => mod.tipo === 'CA_DEVIAZIONE');
-        const modificatoriScudo = mods.filter(mod => mod.tipo === 'CA_SHIELD');
-        const modificatoriMagici = mods.filter(mod => mod.tipo === 'CA_MAGIC');
-        const modificatoriValore = mods.filter(mod => mod.tipo === 'VALORE');
+        const modificatoriSchivare = mods.filter(mod => mod.tipo === TIPO_MODIFICATORE.CA_SCHIVARE);
+        const modificatoriArmatura = mods.filter(mod => mod.tipo === TIPO_MODIFICATORE.CA_ARMOR);
+        const modificatoriNaturale = mods.filter(mod => mod.tipo === TIPO_MODIFICATORE.CA_NATURALE);
+        const modificatoriDeviazione = mods.filter(mod => mod.tipo === TIPO_MODIFICATORE.CA_DEVIAZIONE);
+        const modificatoriScudo = mods.filter(mod => mod.tipo === TIPO_MODIFICATORE.CA_SHIELD);
+        const modificatoriMagici = mods.filter(mod => mod.tipo === TIPO_MODIFICATORE.CA_MAGIC);
+        const modificatoriValore = mods.filter(mod => mod.tipo === TIPO_MODIFICATORE.VALORE);
 
 
         const bonusVALORE = modificatoriValore.filter(m => m.sempreAttivo).reduce((sum, mod) => sum + parseInt(mod.valore), 0);
