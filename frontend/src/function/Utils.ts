@@ -211,7 +211,7 @@ export function getDatiCaratteristica(personaggio, caratteristica, modsPersonagg
 
 export function testoModificatore(mod: number) {
     if (mod >= 0) return "+" + mod;
-    return mod;
+    return mod.toString();
 }
 
 export function getAllItems(personaggio) {
@@ -248,7 +248,13 @@ export function getAllItems(personaggio) {
                 // evita duplicati
                 const presente = cls.child?.some(link => link.itemTarget?.id === avz.itemTarget.id);
                 if (!presente) {
-                    cls.child.push({itemTarget: avz.itemTarget});
+                    const newChild = {itemTarget: avz.itemTarget};
+                    if (avz.itemTarget.tipo === TIPO_ITEM.INCANTESIMO) {
+                        const spellB = cls.labels.find(x => x.label === 'SPELL').valore;
+                        const livello = avz.itemTarget.labels.find(x => x.label === spellB).valore;
+                        newChild.itemTarget.livello = livello;
+                    }
+                    cls.child.push(newChild);
                 }
             }
         }
@@ -256,9 +262,7 @@ export function getAllItems(personaggio) {
 
     result = result.filter(itm => itm.tipo !== TIPO_ITEM.CLASSE);
     classiConConteggio.forEach(classe => result.push(...getAllItemsFromItem(classe)));
-
-
-    console.log('OGGETTI RILEVATI DA GETALLITEMS', result);
+    console.log("ALL ITEMS", result);
     return result;
 }
 

@@ -14,6 +14,7 @@ export const TIPO_ITEM = {
     ALTRO: 'ALTRO',
     LIVELLO: 'LIVELLO',
     MALEDIZIONE: 'MALEDIZIONE',
+    INCANTESIMO: 'INCANTESIMO',
 } as const;
 
 export type TipoItem = typeof TIPO_ITEM[keyof typeof TIPO_ITEM];

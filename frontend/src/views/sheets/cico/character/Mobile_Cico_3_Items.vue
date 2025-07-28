@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import {defineProps, ref, watch} from 'vue';
+import {defineProps, markRaw, ref, watch} from 'vue';
 import Tabella from "../../../../components/Tabella.vue";
 import {getAllItems} from "../../../../function/Utils";
 import {TIPO_ITEM} from "../../../../function/Constants";
+import Mobile_DettaglioItem from "../../../../components/Mobile_DettaglioItem.vue";
 
 const props = defineProps({
   datiPersonaggio: {
@@ -26,13 +27,13 @@ watch(
 
       items.value = getAllItems(newChar)
           .filter(itm => [TIPO_ITEM.OGGETTO, TIPO_ITEM.ARMA, TIPO_ITEM.EQUIPAGGIAMENTO, TIPO_ITEM.CONSUMABILE, TIPO_ITEM.MUNIZIONE].includes(itm.tipo))
-          // .map(itm => {
-          //   return {
-          //     ...itm,
-          //     expandedComponent: markRaw(DettaglioAbilita),
-          //     expandedProps: {data: {...itm}}
-          //   };
-          // })
+          .map(itm => {
+            return {
+              ...itm,
+              expandedComponent: markRaw(Mobile_DettaglioItem),
+              expandedProps: {data: {item: {...itm}, personaggio: props.datiPersonaggio}},
+            };
+          })
           .sort((a, b) => a.nome.localeCompare(b.nome));
 
       itemsOggetti.value = items.value.filter(itm => [TIPO_ITEM.OGGETTO].includes(itm.tipo));

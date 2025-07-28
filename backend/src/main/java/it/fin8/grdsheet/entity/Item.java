@@ -18,6 +18,7 @@ import java.util.List;
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Item implements Serializable {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Integer id;
 
@@ -26,8 +27,8 @@ public class Item implements Serializable {
     @Column(name = "nome", nullable = false, length = 100)
     private String nome;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "tipo", nullable = false)
+    @Enumerated(EnumType.STRING)
     private TipoItem tipo;
 
     @Column(name = "descrizione", length = Integer.MAX_VALUE)
@@ -53,7 +54,7 @@ public class Item implements Serializable {
     @JsonIgnoreProperties("idItem")
     private List<Modificatori> modificatori;
 
-    @OneToMany(mappedBy = "item", fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties("item")
     private List<ItemLabel> labels;
 

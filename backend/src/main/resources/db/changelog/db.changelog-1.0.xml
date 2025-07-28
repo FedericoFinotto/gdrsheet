@@ -7,7 +7,7 @@
 
     <changeSet id="0" author="Federico Finotto">
         <sql>
-            CREATE TYPE tipo_item AS ENUM ('ABILITA', 'TALENTO', 'OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO', 'PERSONAGGIO', 'CLASSE', 'RAZZA', 'ATTACCO', 'ALTRO', 'LIVELLO', 'MALEDIZIONE');
+            CREATE TYPE tipo_item AS ENUM ('ABILITA', 'TALENTO', 'OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO', 'PERSONAGGIO', 'CLASSE', 'RAZZA', 'ATTACCO', 'ALTRO', 'LIVELLO', 'MALEDIZIONE','INCANTESIMO');
             CREATE TYPE tipo_stat AS ENUM ('CAR', 'AB', 'TS', 'PF', 'ATT','CA');
             CREATE TYPE tipo_permesso AS ENUM ('R', 'W');
             CREATE TYPE tipo_ruolo AS ENUM ('ADMIN', 'MASTER', 'EDITOR', 'GIOCATORE');
@@ -42,7 +42,7 @@
             <column name="name" type="varchar(100)">
                 <constraints nullable="false"/>
             </column>
-            <column name="ruolo" type="tipo_ruolo">
+            <column name="ruolo" type="varchar2(16)">
                 <constraints nullable="false"/>
             </column>
         </createTable>
@@ -98,7 +98,7 @@
             <column name="nome" type="varchar(100)">
                 <constraints nullable="false"/>
             </column>
-            <column name="tipo" type="tipo_item">
+            <column name="tipo" type="varchar2(16)">
                 <constraints nullable="false"/>
             </column>
             <column name="descrizione" type="text"/>
@@ -179,8 +179,8 @@
             <column name="id_item" type="int">
                 <constraints nullable="false"/>
             </column>
-            <column name="label" type="text"/>
-            <column name="valore" type="text"/>
+            <column name="label" type="varchar2(16)"/>
+            <column name="valore" type="varchar2(64)"/>
         </createTable>
     </changeSet>
 
@@ -193,10 +193,10 @@
             <column name="id_mondo" type="int">
                 <constraints nullable="false"/>
             </column>
-            <column name="tipo" type="tipo_item">
+            <column name="tipo" type="varchar2(16)">
                 <constraints nullable="false"/>
             </column>
-            <column name="label" type="text"/>
+            <column name="label" type="varchar2(64)"/>
         </createTable>
     </changeSet>
 
@@ -206,7 +206,7 @@
             <column name="id" type="varchar2(10)">
                 <constraints primaryKey="true"/>
             </column>
-            <column name="tipo" type="tipo_stat">
+            <column name="tipo" type="varchar2(16)">
                 <constraints nullable="true"/>
             </column>
             <column name="label" type="varchar2(64)">
@@ -256,8 +256,8 @@
             <column name="always" type="boolean">
                 <constraints nullable="true"/>
             </column>
-            <column name="nota" type="text"/>
-            <column name="tipo" type="tipo_modificatore"/>
+            <column name="nota" type="varchar2(64)"/>
+            <column name="tipo" type="varchar2(64)"/>
         </createTable>
     </changeSet>
 
@@ -273,7 +273,7 @@
             <column name="id_item" type="int">
                 <constraints nullable="false"/>
             </column>
-            <column name="tipo" type="tipo_permesso">
+            <column name="tipo" type="varchar2(16)">
                 <constraints nullable="false"/>
             </column>
         </createTable>
@@ -291,7 +291,7 @@
             <column name="id_personaggio" type="int">
                 <constraints nullable="false"/>
             </column>
-            <column name="tipo" type="tipo_permesso">
+            <column name="tipo" type="varchar2(16)">
                 <constraints nullable="false"/>
             </column>
         </createTable>
