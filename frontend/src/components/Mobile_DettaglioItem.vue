@@ -1,8 +1,8 @@
 <script setup lang='ts'>
 import {defineProps, onMounted, ref} from 'vue';
 import {testoModificatore} from "../function/Utils";
-import {TIPO_ITEM} from "../function/Constants";
 import {getValoreLabel} from "../function/Calcolo";
+import {getItem} from "../service/PersonaggioService";
 
 const props = defineProps({
   data: {
@@ -15,18 +15,22 @@ const listaAbilita = ref<any[]>([]);
 const listaAttacchi = ref<any[]>([]);
 const listaMaledizioni = ref<any[]>([]);
 
+const item = ref<Object>({});
+const loading = ref(true);
+
 onMounted(() => {
-  console.log(props.data.item);
-  listaAbilita.value = props.data.item.child.filter(itm => itm.itemTarget.tipo === TIPO_ITEM.ABILITA);
-  listaAttacchi.value = props.data.item.child.filter(itm => itm.itemTarget.tipo === TIPO_ITEM.ATTACCO);
-  listaMaledizioni.value = props.data.item.child.filter(itm => itm.itemTarget.tipo === TIPO_ITEM.MALEDIZIONE);
+  getItem(props.data.item.id).then(resp => {
+    item.value = resp.data;
+    loading.value = false;
+    console.log(resp.data);
+  })
 });
 </script>
 
 <template>
-  <div class="abilita-detail-card">
-    <div v-if="data.item.descrizione">
-      {{ data.item.descrizione }}
+  <div class="abilita-detail-card" v-if="!loading">
+    <div v-if="item.descrizione">
+      {{ item.descrizione }}
       <div style="height: 20px"></div>
     </div>
 

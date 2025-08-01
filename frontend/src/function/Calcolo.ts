@@ -1,4 +1,4 @@
-import {getDatiCaratteristica, testoModificatore} from './Utils';
+import {testoModificatore} from './Utils';
 
 const REGEX_DADI = /^\d+d\d+([+-]\d+)?$/;
 const REGEX_NUMERO = /^[+-]?\d+$/;
@@ -13,7 +13,8 @@ export function calcola(personaggio: any, formula: string): string {
     if (matches) {
         for (const match of matches) {
             const id = match.substring(1);
-            const stat = getDatiCaratteristica(personaggio, id);
+            // const stat = getDatiCaratteristica(personaggio, id);
+            const stat = {};
             const valore = parseInt(stat?.modificatore ?? '0', 10);
 
             const regex = new RegExp(match.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');

@@ -19,6 +19,8 @@ public class ModificatoreMapper {
         dto.setValore(Integer.parseInt(entity.getValore()));
         dto.setNota(entity.getNota());
         dto.setSempreAttivo(entity.getSempreAttivo());
+        dto.setItem(entity.getItem().getNome());
+        dto.setStatId(entity.getStat().getId());
         return dto;
     }
 
@@ -39,6 +41,8 @@ public class ModificatoreMapper {
         dto.setDiClasse(diClasse);
         dto.setClasse(nomeClasse);
         dto.setSempreAttivo(entity.getSempreAttivo());
+        dto.setItem(entity.getItem().getNome());
+        dto.setStatId(entity.getStat().getId());
         return dto;
     }
 }

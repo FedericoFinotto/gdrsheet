@@ -13,6 +13,8 @@ import lombok.Setter;
 public class ModificatoreDTO {
     private Integer id;
 
+    private String statId;
+
     private Integer valore;
 
     private String nota;
@@ -20,4 +22,6 @@ public class ModificatoreDTO {
     private TipoModificatore tipo;
 
     private Boolean sempreAttivo;
+
+    private String item;
 }

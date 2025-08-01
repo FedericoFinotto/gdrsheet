@@ -1,18 +1,23 @@
 <template>
   <div class="stat-box">
     <div class="label">{{ label ?? id }}</div>
-    <div class="modifier">{{ testoModificatore(stat.modificatore) ?? '' }}</div>
-    <div class="base">{{ stat.valore }}</div>
+    <div class="modifier">{{ stat ? (testoModificatore(stat.modificatore) ?? '') : '' }}</div>
+    <div class="base">{{ stat ? (stat.valore ?? '') : '' }}</div>
   </div>
 </template>
 
 <script setup>
 import {computed, defineProps} from 'vue'
-import {getDatiCaratteristica, testoModificatore} from "../function/Utils";
+import {useCharacterStore} from "../stores/personaggio";
+import {storeToRefs} from "pinia";
+import {testoModificatore} from "../function/Utils";
+
+const characterStore = useCharacterStore()
+const {cache} = storeToRefs(characterStore);
 
 const props = defineProps({
-  datiPersonaggio: {
-    type: Object,
+  idPersonaggio: {
+    type: Number,
     required: true
   },
   id: {
@@ -25,9 +30,26 @@ const props = defineProps({
   }
 });
 
-const stat = computed(() =>
-    getDatiCaratteristica(props.datiPersonaggio, props.id)
-);
+const stat = computed(() => {
+  const statistiche = cache.value[props.idPersonaggio]?.modificatori;
+
+  if (statistiche) {
+    const caratteristica = statistiche.caratteristiche.find(x => x.id === props.id);
+    const classeArmatura = statistiche.classeArmatura.find(x => x.id === props.id);
+    const tiroSalvezza = statistiche.tiriSalvezza.find(x => x.id === props.id);
+
+    if (caratteristica) {
+      return caratteristica;
+    }
+    if (classeArmatura) {
+      return classeArmatura;
+    }
+    if (tiroSalvezza) {
+      return tiroSalvezza;
+    }
+    return null;
+  }
+});
 </script>
 
 <style scoped>

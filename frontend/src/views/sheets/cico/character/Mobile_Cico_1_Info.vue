@@ -1,23 +1,23 @@
 <template>
-  <h2 style="margin-bottom: 0; text-align: center">{{ datiPersonaggio.character?.nome ?? "" }}</h2>
-  <Mobile_HP v-if="datiPersonaggio.character"/>
-  <div v-if="datiPersonaggio.character" class="stat-block">
-    <Mobile_Stat id="FOR" :dati-personaggio="datiPersonaggio"></Mobile_Stat>
-    <Mobile_Stat id="DES" :dati-personaggio="datiPersonaggio"></Mobile_Stat>
-    <Mobile_Stat id="COS" :dati-personaggio="datiPersonaggio"></Mobile_Stat>
-    <Mobile_Stat id="INT" :dati-personaggio="datiPersonaggio"></Mobile_Stat>
-    <Mobile_Stat id="SAG" :dati-personaggio="datiPersonaggio"></Mobile_Stat>
-    <Mobile_Stat id="CAR" :dati-personaggio="datiPersonaggio"></Mobile_Stat>
+  <h2 style="margin-bottom: 0; text-align: center">{{ cache[idPersonaggio].modificatori?.nome ?? "" }}</h2>
+  <!--  <Mobile_HP v-if="cache[idPersonaggio].character"/>-->
+  <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
+    <Mobile_Stat id="FOR" :id-personaggio="idPersonaggio"></Mobile_Stat>
+    <Mobile_Stat id="DES" :id-personaggio="idPersonaggio"></Mobile_Stat>
+    <Mobile_Stat id="COS" :id-personaggio="idPersonaggio"></Mobile_Stat>
+    <Mobile_Stat id="INT" :id-personaggio="idPersonaggio"></Mobile_Stat>
+    <Mobile_Stat id="SAG" :id-personaggio="idPersonaggio"></Mobile_Stat>
+    <Mobile_Stat id="CAR" :id-personaggio="idPersonaggio"></Mobile_Stat>
   </div>
-  <div v-if="datiPersonaggio.character" class="stat-block">
-    <Mobile_Stat id="TMP" :dati-personaggio="datiPersonaggio" label="Tempra"></Mobile_Stat>
-    <Mobile_Stat id="RFL" :dati-personaggio="datiPersonaggio" label="Riflessi"></Mobile_Stat>
-    <Mobile_Stat id="VLT" :dati-personaggio="datiPersonaggio" label="Volonta"></Mobile_Stat>
+  <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
+    <Mobile_Stat id="TMP" :id-personaggio="idPersonaggio" label="Tempra"></Mobile_Stat>
+    <Mobile_Stat id="RFL" :id-personaggio="idPersonaggio" label="Riflessi"></Mobile_Stat>
+    <Mobile_Stat id="VLT" :id-personaggio="idPersonaggio" label="Volonta"></Mobile_Stat>
   </div>
-    <div v-if="datiPersonaggio.character" class="stat-block">
-      <Mobile_Stat id="CA" :dati-personaggio="datiPersonaggio" label="CA"></Mobile_Stat>
-      <Mobile_Stat id="CAC" :dati-personaggio="datiPersonaggio" label="Contatto"></Mobile_Stat>
-      <Mobile_Stat id="CAS" :dati-personaggio="datiPersonaggio" label="Sorpreso"></Mobile_Stat>
+  <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
+    <Mobile_Stat id="CA" :id-personaggio="idPersonaggio" label="CA"></Mobile_Stat>
+    <Mobile_Stat id="CAC" :id-personaggio="idPersonaggio" label="Contatto"></Mobile_Stat>
+    <Mobile_Stat id="CAS" :id-personaggio="idPersonaggio" label="Sorpreso"></Mobile_Stat>
     </div>
   <div class="spazietto"/>
   <Tabella v-if="itemsAbilitaPassive.length > 0"
@@ -33,37 +33,38 @@
 
 <script setup lang="ts">
 import {defineProps, markRaw, ref, watch} from 'vue';
+import {storeToRefs} from "pinia";
+import {useCharacterStore} from "../../../../stores/personaggio";
 import Mobile_Stat from "../../../../components/Mobile_Stat.vue";
-import Mobile_HP from "../../../../components/Mobile_HP.vue";
-import {getAllItems} from "../../../../function/Utils.js";
-import {TIPO_ITEM} from "../../../../function/Constants.js";
-import Tabella from "../../../../components/Tabella.vue";
 import Mobile_DettaglioItem from "../../../../components/Mobile_DettaglioItem.vue";
+import Tabella from "../../../../components/Tabella.vue";
+
+const characterStore = useCharacterStore()
+const {cache} = storeToRefs(characterStore);
 
 
 const props = defineProps({
-  datiPersonaggio: {
-    type: Object,
+  idPersonaggio: {
+    type: Number,
     required: true
   }
 });
 
 const itemsAbilitaPassive = ref<any[]>([]);
 watch(
-    () => props.datiPersonaggio?.character,
+    () => cache.value[props.idPersonaggio]?.items,
     (newChar) => {
-      if (!newChar?.items) {
+      if (!newChar?.abilita) {
         itemsAbilitaPassive.value = [];
         return;
       }
 
-      itemsAbilitaPassive.value = getAllItems(newChar)
-          .filter(itm => [TIPO_ITEM.ABILITA].includes(itm.tipo))
+      itemsAbilitaPassive.value = newChar.abilita
           .map(itm => {
             return {
               ...itm,
               expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: props.datiPersonaggio}}
+              expandedProps: {data: {item: {...itm}, personaggio: cache[props.idPersonaggio]}}
             };
           })
           .sort((a, b) => a.nome.localeCompare(b.nome));

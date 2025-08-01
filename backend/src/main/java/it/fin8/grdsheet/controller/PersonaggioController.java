@@ -3,6 +3,7 @@ package it.fin8.grdsheet.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import it.fin8.grdsheet.dto.DatiPersonaggioDTO;
+import it.fin8.grdsheet.dto.ItemsDTO;
 import it.fin8.grdsheet.entity.Personaggio;
 import it.fin8.grdsheet.repository.PersonaggioRepository;
 import it.fin8.grdsheet.service.PersonaggioService;
@@ -42,19 +43,19 @@ public class PersonaggioController {
         return ResponseEntity.ok(p);
     }
 
-//    @Operation(
-//            summary = "Recupera un personaggio per ID",
-//            description = "Items legati a un personaggio"
-//    )
-//    @GetMapping("/items/{id}")
-//    public ResponseEntity<List<Item>> test(
-//            @Parameter(description = "ID del personaggio", required = true)
-//            @PathVariable Integer id
-//    ) {
-//        List<Item> result = personaggioService.flattenItems(id);
-//
-//        return ResponseEntity.ok(result);
-//    }
+    @Operation(
+            summary = "Recupera un personaggio per ID",
+            description = "Items legati a un personaggio"
+    )
+    @GetMapping("/items/{id}")
+    public ResponseEntity<ItemsDTO> getAllPersonaggioItemsDTOByIdPersonaggio(
+            @Parameter(description = "ID del personaggio", required = true)
+            @PathVariable Integer id
+    ) {
+        ItemsDTO result = personaggioService.getAllPersonaggioItemsDTOByIdPersonaggio(id);
+
+        return ResponseEntity.ok(result);
+    }
 
     @Operation(
             summary = "Modificatori Personaggio",

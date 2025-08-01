@@ -10,20 +10,19 @@ const props = defineProps({
 });
 
 onMounted(() => {
-  console.log(props);
 });
 </script>
 
 <template>
   <div class="abilita-detail-card">
 
-    <p><strong>Grado {{ data.rank.valore }} : </strong> {{ testoModificatore(data.rank.modificatore) }}</p>
-    <p v-if="data.base"><strong>{{ data.base.label }}: </strong>{{ testoModificatore(data.base.modificatore) }}</p>
+    <p><strong>Grado {{ data.rank.valore }}: </strong> {{ testoModificatore(data.rank.modificatore) }}</p>
+    <p v-if="data.base.id"><strong>{{ data.base.label }}: </strong>{{ testoModificatore(data.base.modificatore) }}</p>
 
-    <div v-if="data.statistica.modificatori && data.statistica.modificatori.length > 0">
-      <p v-for="(mod, index) in data.statistica.modificatori" :key="index">
-        <strong>{{ mod.item_nome || 'Sconosciuto' }}:</strong>
-        {{ mod.valore }}
+    <div v-if="data.abilita.modificatori">
+      <p v-for="(mod, index) in data.abilita.modificatori" :key="index">
+        <strong>{{ mod.item || 'Sconosciuto' }}:</strong>
+        {{ testoModificatore(mod.valore) }}
         <span v-if="mod.nota">{{ mod.nota }}</span>
       </p>
     </div>

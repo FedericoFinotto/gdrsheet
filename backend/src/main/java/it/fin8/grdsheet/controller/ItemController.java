@@ -38,8 +38,8 @@ public class ItemController {
     }
 
     @Operation(
-            summary = "Recupera la lista di Oggetti per tipo",
-            description = "Recupera la lista di Oggetti per tipo"
+            summary = "Recupera un item Specifico",
+            description = "Recupera un item Specifico"
     )
     @GetMapping("/{id}")
     public ResponseEntity<Item> getById(

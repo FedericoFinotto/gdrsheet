@@ -13,6 +13,8 @@ import lombok.Setter;
 public class RankDTO {
     private Integer id;
 
+    private String statId;
+
     private Integer valore;
 
     private String nota;
@@ -28,4 +30,6 @@ public class RankDTO {
     public Integer getModificatore() {
         return diClasse ? valore : (int) Math.floor((double) (valore / 2));
     }
+
+    private String item;
 }

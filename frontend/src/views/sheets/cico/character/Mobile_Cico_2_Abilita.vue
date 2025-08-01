@@ -1,58 +1,46 @@
 <script setup lang="ts">
-import {computed, defineProps, markRaw, ref, watch} from 'vue';
-import Tabella from "../../../../components/Tabella.vue";
-import {getDatiCaratteristica, getModificatoriFromPersonaggio, testoModificatore} from "../../../../function/Utils";
+import {computed, defineProps, markRaw, onMounted, watch} from 'vue'
+import Tabella from '../../../../components/Tabella.vue'
+import {storeToRefs} from 'pinia'
+import {useCharacterStore} from "../../../../stores/personaggio";
+import {testoModificatore} from "../../../../function/Utils";
 import DettaglioAbilita from "../../../../components/Mobile_DettaglioAbilita.vue";
 
-const props = defineProps({
-  datiPersonaggio: {
-    type: Object,
-    required: true
-  }
-});
+const props = defineProps<{ idPersonaggio: number }>()
 
-const mods = computed(() => props.datiPersonaggio?.character ? getModificatoriFromPersonaggio(props.datiPersonaggio.character) : []);
-const items = ref<any[]>([]);
-watch(
-    () => props.datiPersonaggio?.character,
-    (newChar) => {
-      if (!newChar?.stats) { items.value = []; return; }
+const characterStore = useCharacterStore()
+const {cache} = storeToRefs(characterStore)
 
-      items.value = newChar.stats
-          .filter(s => s.stat.tipo === 'AB')
-          .map(stat => {
-            const abilita = getDatiCaratteristica(props.datiPersonaggio, stat.stat.id, mods.value);
-            return {
-              ...abilita,
-              id: abilita.statistica.id,
-              nome: abilita.statistica.label,
-              valore: testoModificatore(abilita.statistica.modificatore),
-              caratteristica: abilita.base?.id ?? '',
-              expandedComponent: markRaw(DettaglioAbilita),
-              expandedProps: {data: {...abilita}}
-            };
-          })
-          .filter(s => !s.rank.addestramento || (s.rank.valore > 0))
-          .sort((a, b) => a.nome.localeCompare(b.nome));
-    },
-    { immediate: true, deep: true }
-);
+onMounted(() => {
+  characterStore.fetchCharacter(props.idPersonaggio)
+})
+watch(() => props.idPersonaggio, id => {
+  characterStore.fetchCharacter(id)
+})
 
-const columns = [
-  { field: 'nome', label: 'Abilita\'' },
-  { field: 'valore', label: '' },
-  { field: 'caratteristica', label: '' }
-];
+const abilita = computed(() => {
+  return (cache.value[props.idPersonaggio]?.modificatori?.abilita ?? []).filter(x => x.show).map(abilita => {
+    return {
+      ...abilita,
+      id: abilita.abilita.id,
+      nome: abilita.abilita.nome,
+      valore: testoModificatore(abilita.abilita.modificatore),
+      caratteristica: abilita?.base?.id ?? '',
+      expandedComponent: markRaw(DettaglioAbilita),
+      expandedProps: {data: {...abilita}}
+    }
+  }).sort((a, b) => a.nome.localeCompare(b.nome));
+})
 </script>
 
 <template>
   <Tabella
-      :columns="columns"
+      :columns="[
+      { field: 'nome', label: 'Abilità' },
+      { field: 'valore', label: '' },
+      { field: 'caratteristica', label: '' }
+    ]"
       :expandable="true"
-      :items="items"
-  >
-  </Tabella>
+      :items="abilita"
+  />
 </template>
-
-<style scoped>
-</style>
