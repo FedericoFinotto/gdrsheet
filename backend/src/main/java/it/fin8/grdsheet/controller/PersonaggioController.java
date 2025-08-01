@@ -3,7 +3,6 @@ package it.fin8.grdsheet.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import it.fin8.grdsheet.dto.DatiPersonaggioDTO;
-import it.fin8.grdsheet.entity.Item;
 import it.fin8.grdsheet.entity.Personaggio;
 import it.fin8.grdsheet.repository.PersonaggioRepository;
 import it.fin8.grdsheet.service.PersonaggioService;
@@ -14,8 +13,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/personaggi")
@@ -45,19 +42,19 @@ public class PersonaggioController {
         return ResponseEntity.ok(p);
     }
 
-    @Operation(
-            summary = "Recupera un personaggio per ID",
-            description = "Items legati a un personaggio"
-    )
-    @GetMapping("/items/{id}")
-    public ResponseEntity<List<Item>> test(
-            @Parameter(description = "ID del personaggio", required = true)
-            @PathVariable Integer id
-    ) {
-        List<Item> result = personaggioService.getAllItemsFromPersonaggioId(id);
-
-        return ResponseEntity.ok(result);
-    }
+//    @Operation(
+//            summary = "Recupera un personaggio per ID",
+//            description = "Items legati a un personaggio"
+//    )
+//    @GetMapping("/items/{id}")
+//    public ResponseEntity<List<Item>> test(
+//            @Parameter(description = "ID del personaggio", required = true)
+//            @PathVariable Integer id
+//    ) {
+//        List<Item> result = personaggioService.flattenItems(id);
+//
+//        return ResponseEntity.ok(result);
+//    }
 
     @Operation(
             summary = "Modificatori Personaggio",
