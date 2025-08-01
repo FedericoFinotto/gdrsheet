@@ -25,7 +25,7 @@ public class RankDTO {
 
     private String classe;
 
-    public Integer getValoreByClasse() {
+    public Integer getModificatore() {
         return diClasse ? valore : (int) Math.floor((double) (valore / 2));
     }
 }

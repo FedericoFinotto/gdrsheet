@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 
 @Component
@@ -41,8 +42,7 @@ public class PersonaggioService {
         Deque<Item> stack = new ArrayDeque<>(rootItems);
         while (!stack.isEmpty()) {
             Item cur = stack.pop();
-            result.add(cur);
-            if (cur.getChild() != null) {
+            if (result.add(cur) && cur.getChild() != null) {
                 cur.getChild().stream()
                         .map(Collegamento::getItemTarget)
                         .forEach(stack::push);
@@ -52,78 +52,107 @@ public class PersonaggioService {
     }
 
     /**
-     * Ottiene i dati del personaggio con due query principali evitando il MultipleBagFetchException.
+     * Ottiene i dati del personaggio con calcolo sicuro multithread,
+     * evitando accessi Hibernate non thread-safe durante il parallelismo.
      */
     public DatiPersonaggioDTO getDatiPersonaggio(Integer id) {
-        // 1) Carica solo Personaggio base
+        // 1) Carica Personaggio
         Personaggio p = personaggioRepository
                 .findById(id)
                 .orElseThrow(() -> new RuntimeException("Personaggio non trovato"));
 
-        // 2) Carica Items e loro figli in un'unica query (join fetch su child only)
+        // 2) Fetch Items + figli
         List<Item> rootItems = itemRepository.findAllByPersonaggioIdWithChild(id);
         List<Item> allItems = flattenItems(rootItems);
 
-        // 3) Carica tutti i modificatori con IN sulla lista di item IDs
-        List<Integer> itemIds = allItems.stream()
-                .map(Item::getId)
-                .toList();
+        // 3) Fetch Modificatori
+        List<Integer> itemIds = allItems.stream().map(Item::getId).toList();
         List<Modificatore> allMods = modificatoreRepository.findAllByItemIdIn(itemIds);
-        Map<String, List<Modificatore>> modsByStat = allMods.stream()
-                .collect(Collectors.groupingBy(m -> m.getStat().getId()));
 
-        // 4) Carica StatValue con join fetch di Stat e Mod (seconda query)
+        // 4) Raggruppa Modificatori e Rank direttamente da entity
+        Map<String, List<ModificatoreDTO>> modsDtoByStat = allMods.stream()
+                .filter(m -> !TipoModificatore.RANK.equals(m.getTipo()))
+                .collect(Collectors.groupingBy(
+                        m -> m.getStat().getId(),
+                        Collectors.mapping(modificatoreMapper::toDTO, Collectors.toList())
+                ));
+
+        Map<String, List<RankDTO>> ranksDtoByStat = allMods.stream()
+                .filter(m -> TipoModificatore.RANK.equals(m.getTipo()))
+                .collect(Collectors.groupingBy(
+                        m -> m.getStat().getId(),
+                        Collectors.mapping(modificatoreMapper::toRankDTO, Collectors.toList())
+                ));
+
+        // 5) Fetch StatValue + Stat + Mod (single query)
         List<StatValue> stats = statValueRepository.findAllByPersonaggioIdWithStat(id);
 
-        // 5) Costruzione DTO
+        // 6) Costruisci DTO personaggio
         DatiPersonaggioDTO dto = new DatiPersonaggioDTO(p);
 
-        // 5a) Caratteristiche
-        stats.stream()
+        // 6a) Calcolo Caratteristiche sequenziale
+        List<CaratteristicaDTO> carList = stats.stream()
                 .filter(sv -> TipoStat.CAR.equals(sv.getStat().getTipo()))
                 .map(sv -> calcolaCaratteristica(
                         sv,
-                        modsByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList())
+                        modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList())
                 ))
-                .forEach(dto.getCaratteristiche()::add);
+                .toList();
+        dto.getCaratteristiche().addAll(carList);
 
-        // 5b) Tiri Salvezza e Abilità
-        stats.forEach(sv -> {
-            if (TipoStat.TS.equals(sv.getStat().getTipo())) {
-                dto.getTiriSalvezza().add(calcoloTiroSalvezza(
-                        sv,
-                        modsByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
-                        dto.getCaratteristiche()));
-            } else if (TipoStat.AB.equals(sv.getStat().getTipo())) {
-                dto.getAbilita().add(calcolaAbilita(
-                        sv,
-                        modsByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
-                        dto.getCaratteristiche()));
-            }
-        });
+        // 6b) Calcolo parallelo Tiri Salvezza e Abilità su DTO isolati
+        ForkJoinPool pool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
+        try {
+            List<TiroSalvezzaDTO> tsList = pool.submit(() ->
+                    stats.parallelStream()
+                            .filter(sv -> TipoStat.TS.equals(sv.getStat().getTipo()))
+                            .map(sv -> calcoloTiroSalvezza(
+                                    sv,
+                                    modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
+                                    carList
+                            ))
+                            .toList()
+            ).get();
+            dto.getTiriSalvezza().addAll(tsList);
+
+            List<AbilitaDTO> abList = pool.submit(() ->
+                    stats.parallelStream()
+                            .filter(sv -> TipoStat.AB.equals(sv.getStat().getTipo()))
+                            .map(sv -> calcolaAbilita(
+                                    sv,
+                                    modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
+                                    ranksDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
+                                    carList
+                            ))
+                            .toList()
+            ).get();
+            dto.getAbilita().addAll(abList);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Errore nel calcolo parallelo", e);
+        } finally {
+            pool.shutdown();
+        }
 
         return dto;
     }
 
-    // I metodi di calcolo rimangono invariati
-
-    private CaratteristicaDTO calcolaCaratteristica(StatValue stat, List<Modificatore> mods) {
-        List<ModificatoreDTO> modsDto = mods.stream()
-                .map(modificatoreMapper::toDTO)
-                .toList();
-
+    private CaratteristicaDTO calcolaCaratteristica(
+            StatValue stat,
+            List<ModificatoreDTO> modsDto
+    ) {
         int base = Integer.parseInt(stat.getValore());
-        int bonusValore = mods.stream()
-                .filter(Modificatore::getSempreAttivo)
+        int bonusValore = modsDto.stream()
+                .filter(ModificatoreDTO::getSempreAttivo)
                 .filter(m -> TipoModificatore.VALORE.equals(m.getTipo()))
-                .mapToInt(m -> Integer.parseInt(m.getValore()))
+                .mapToInt(ModificatoreDTO::getValore)
                 .sum();
         int valore = base + bonusValore;
         int modificatoreBase = (valore - 10) / 2;
-        int bonusMod = mods.stream()
-                .filter(Modificatore::getSempreAttivo)
+        int bonusMod = modsDto.stream()
+                .filter(ModificatoreDTO::getSempreAttivo)
                 .filter(m -> TipoModificatore.MOD.equals(m.getTipo()))
-                .mapToInt(m -> Integer.parseInt(m.getValore()))
+                .mapToInt(ModificatoreDTO::getValore)
                 .sum();
         int modificatore = modificatoreBase + bonusMod;
 
@@ -139,21 +168,16 @@ public class PersonaggioService {
 
     private TiroSalvezzaDTO calcoloTiroSalvezza(
             StatValue stat,
-            List<Modificatore> mods,
-            List<CaratteristicaDTO> caratteristiche
+            List<ModificatoreDTO> modsDto,
+            List<CaratteristicaDTO> carList
     ) {
-        List<ModificatoreDTO> modsDto = mods.stream()
-                .map(modificatoreMapper::toDTO)
-                .toList();
         int bonus = modsDto.stream()
                 .filter(ModificatoreDTO::getSempreAttivo)
                 .mapToInt(ModificatoreDTO::getValore)
                 .sum();
-
-        CaratteristicaDTO baseCar = caratteristiche.stream()
+        CaratteristicaDTO baseCar = carList.stream()
                 .filter(c -> c.getId().equals(stat.getMod().getId()))
-                .findFirst()
-                .orElse(null);
+                .findFirst().orElse(null);
         int modBase = baseCar != null ? baseCar.getModificatore() : 0;
         int total = modBase + bonus;
 
@@ -169,50 +193,45 @@ public class PersonaggioService {
 
     private AbilitaDTO calcolaAbilita(
             StatValue stat,
-            List<Modificatore> mods,
-            List<CaratteristicaDTO> caratteristiche
+            List<ModificatoreDTO> modsDto,
+            List<RankDTO> ranksDto,
+            List<CaratteristicaDTO> carList
     ) {
-        List<ModificatoreDTO> modsDto = mods.stream()
-                .filter(m -> !TipoModificatore.RANK.equals(m.getTipo()))
-                .map(modificatoreMapper::toDTO)
-                .toList();
-        List<RankDTO> ranks = mods.stream()
-                .filter(m -> TipoModificatore.RANK.equals(m.getTipo()))
-                .map(modificatoreMapper::toRankDTO)
-                .toList();
-
-        CaratteristicaDTO baseCar = stat.getMod() != null
-                ? caratteristiche.stream()
-                .filter(c -> c.getId().equals(stat.getMod().getId()))
-                .findFirst().orElse(null)
-                : null;
-        int modBase = baseCar != null ? baseCar.getModificatore() : 0;
-
+        // Gestione possible null per stat.getMod()
+        String modStatId = stat.getMod() != null ? stat.getMod().getId() : null;
+        // Base modificatore dalla caratteristica associata, se presente
+        int modBase = 0;
+        if (modStatId != null) {
+            modBase = carList.stream()
+                    .filter(c -> modStatId.equals(c.getId()))
+                    .findFirst()
+                    .map(CaratteristicaDTO::getModificatore)
+                    .orElse(0);
+        }
         int bonusVal = modsDto.stream()
                 .filter(ModificatoreDTO::getSempreAttivo)
                 .mapToInt(ModificatoreDTO::getValore)
                 .sum();
-        int bonusRank = ranks.stream()
+        int bonusRank = ranksDto.stream()
                 .filter(RankDTO::getSempreAttivo)
-                .mapToInt(RankDTO::getValoreByClasse)
+                .mapToInt(RankDTO::getModificatore)
                 .sum();
-        int valoreRank = ranks.stream()
+        int valoreRank = ranksDto.stream()
                 .filter(RankDTO::getSempreAttivo)
                 .mapToInt(RankDTO::getValore)
                 .sum();
-
         int total = modBase + bonusVal + bonusRank;
 
         return new AbilitaDTO(
                 stat.getStat().getId(),
                 stat.getStat().getLabel(),
-                baseCar != null ? baseCar.getId() : null,
+                modStatId,
                 modBase,
                 total,
                 valoreRank,
                 bonusRank,
                 modsDto,
-                ranks
+                ranksDto
         );
     }
 }
