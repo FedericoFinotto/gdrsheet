@@ -12,7 +12,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "modificatori")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class Modificatori {
+public class Modificatore {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
@@ -21,7 +21,7 @@ public class Modificatori {
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_item", nullable = false)
-    private Item idItem;
+    private Item item;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

@@ -6,6 +6,7 @@ import lombok.Getter;
 public enum TipoModificatore {
     RANK("Rank"),
     VALORE("Valore"),
+    MOD("Modificatore"),
     CA_DEVIAZIONE("Deviazione"),
     CA_SCHIVARE("Schivare"),
     CA_ARMOR("Armatura"),

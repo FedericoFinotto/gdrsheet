@@ -15,7 +15,7 @@ import java.util.List;
 @Setter
 @Entity
 @Table(name = "items")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "personaggio"})
 public class Item implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -50,9 +50,13 @@ public class Item implements Serializable {
     @JsonIgnoreProperties("itemSource")
     private List<Collegamento> child;
 
-    @OneToMany(mappedBy = "idItem", fetch = FetchType.LAZY)
+//    @OneToMany(mappedBy = "itemTarget", fetch = FetchType.LAZY)
+//    @JsonIgnoreProperties("itemTarget")
+//    private List<Collegamento> parent;
+
+    @OneToMany(mappedBy = "item", fetch = FetchType.LAZY)
     @JsonIgnoreProperties("idItem")
-    private List<Modificatori> modificatori;
+    private List<Modificatore> modificatori;
 
     @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties("item")
