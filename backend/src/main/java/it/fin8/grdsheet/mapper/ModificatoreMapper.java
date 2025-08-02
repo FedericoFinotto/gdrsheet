@@ -16,7 +16,11 @@ public class ModificatoreMapper {
         ModificatoreDTO dto = new ModificatoreDTO();
         dto.setId(entity.getId());
         dto.setTipo(entity.getTipo());
-        dto.setValore(Integer.parseInt(entity.getValore()));
+        dto.setFormula(entity.getValore());
+        try {
+            dto.setValore(Integer.parseInt(entity.getValore()));
+        } catch (Exception e) {
+        }
         dto.setNota(entity.getNota());
         dto.setSempreAttivo(entity.getSempreAttivo());
         dto.setItem(entity.getItem().getNome());

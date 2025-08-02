@@ -23,7 +23,7 @@ public class ItemsDTO {
     private List<ItemDTO> attacchi;
     private List<ItemDTO> livelli;
     private List<ItemDTO> maledizioni;
-    private List<ItemDTO> incantesimi;
+    private List<IncantesimoDTO> incantesimi;
     private List<ItemDTO> trasformazioni;
 
     public ItemsDTO() {

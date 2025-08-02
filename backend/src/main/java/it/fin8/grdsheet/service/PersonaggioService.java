@@ -7,10 +7,7 @@ import it.fin8.grdsheet.dto.*;
 import it.fin8.grdsheet.entity.*;
 import it.fin8.grdsheet.mapper.ItemMapper;
 import it.fin8.grdsheet.mapper.ModificatoreMapper;
-import it.fin8.grdsheet.repository.ItemRepository;
-import it.fin8.grdsheet.repository.ModificatoreRepository;
-import it.fin8.grdsheet.repository.PersonaggioRepository;
-import it.fin8.grdsheet.repository.StatValueRepository;
+import it.fin8.grdsheet.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -33,6 +30,9 @@ public class PersonaggioService {
 
     @Autowired
     private StatValueRepository statValueRepository;
+
+    @Autowired
+    private ItemLabelRepository itemLabelRepository;
 
     @Autowired
     private ModificatoreMapper modificatoreMapper;
@@ -64,7 +64,7 @@ public class PersonaggioService {
         ItemsDTO itemsDTO = new ItemsDTO();
 //        'ABILITA', 'TALENTO', 'OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO',
 //        'PERSONAGGIO', 'CLASSE', 'RAZZA', 'ATTACCO', 'ALTRO', 'LIVELLO', 'MALEDIZIONE', 'INCANTESIMO'
-        getAllPersonaggioItemsByIdPersonaggio(id).parallelStream().forEach(itm -> {
+        getAllPersonaggioItemsByIdPersonaggio(id).stream().forEach(itm -> {
                     if (TipoItem.ABILITA.equals(itm.getTipo())) {
                         itemsDTO.getAbilita().add(itemMapper.toDTO(itm));
                     }
@@ -102,7 +102,7 @@ public class PersonaggioService {
                         itemsDTO.getMaledizioni().add(itemMapper.toDTO(itm));
                     }
                     if (TipoItem.INCANTESIMO.equals(itm.getTipo())) {
-                        itemsDTO.getIncantesimi().add(itemMapper.toDTO(itm));
+                        itemsDTO.getIncantesimi().add(itemMapper.toIncantesimoDTO(itm));
                     }
                 }
         );
@@ -129,6 +129,29 @@ public class PersonaggioService {
         for (Map.Entry<Item, Long> entry : classLevels.entrySet()) {
             Item classe = entry.getKey();
             long livello = entry.getValue();
+            List<ItemLivelloDTO> incantesimi = new ArrayList<>();
+            ItemLabel spellDiClasse = classe.getLabels().stream().filter(x -> x.getLabel().equals("SPELL")).findFirst().orElse(null);
+            if (spellDiClasse != null) {
+                ItemLabel preparedSpell = itemLabelRepository.findByItemPersonaggioIdAndItemNome(idPersonaggio, "PreparedSpell").stream().filter(x -> x.getLabel().equals(spellDiClasse.getValore())).findFirst().orElse(null);
+                if (preparedSpell != null) {
+                    List<Integer> incantesimiIds = Stream.of(preparedSpell.getValore().split(","))
+                            .map(String::trim)
+                            .filter(s -> !s.isEmpty())
+                            .map(Integer::parseInt)
+                            .toList();
+                    incantesimi = itemRepository.findIncantesimiWithLivelloByLabelAndIds(spellDiClasse.getValore(), incantesimiIds);
+                    if (!incantesimi.isEmpty()) {
+                        incantesimi.forEach(item -> {
+                            item.getItem().getLabels().add(new ItemLabel(null, null, "CLIVELLO", item.getLivello()));
+                            item.getItem().getLabels().add(new ItemLabel(null, null, "CSLASSE", spellDiClasse.getValore()));
+                        });
+                        advanceRoots.addAll(incantesimi.stream().map(ItemLivelloDTO::getItem).toList());
+                    }
+                }
+
+
+            }
+
             if (classe.getAvanzamento() != null) {
                 for (Avanzamento av : classe.getAvanzamento()) {
                     if (av.getLivello() <= livello) {
@@ -136,6 +159,7 @@ public class PersonaggioService {
                     }
                 }
             }
+
         }
 
         // Esegui un unico flatten di tutti i root (main + advance)
@@ -196,7 +220,7 @@ public class PersonaggioService {
         ForkJoinPool pool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
         try {
             List<TiroSalvezzaDTO> tsList = pool.submit(() ->
-                    stats.parallelStream()
+                    stats.stream()
                             .filter(sv -> TipoStat.TS.equals(sv.getStat().getTipo()))
                             .map(sv -> modificatoriService.calcoloTiroSalvezza(
                                     sv,
@@ -208,7 +232,7 @@ public class PersonaggioService {
             dto.getTiriSalvezza().addAll(tsList);
 
             List<AbilitaDTO> abList = pool.submit(() ->
-                    stats.parallelStream()
+                    stats.stream()
                             .filter(sv -> TipoStat.AB.equals(sv.getStat().getTipo()))
                             .map(sv -> modificatoriService.calcolaAbilita(
                                     sv,
@@ -221,7 +245,7 @@ public class PersonaggioService {
             dto.getAbilita().addAll(abList);
 
             List<ClasseArmaturaDTO> caList = pool.submit(() ->
-                    stats.parallelStream()
+                    stats.stream()
                             .filter(sv -> TipoStat.CA.equals(sv.getStat().getTipo()))
                             .map(sv -> modificatoriService.calcolaClasseArmatura(
                                     sv,

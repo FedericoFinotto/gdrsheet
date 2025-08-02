@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import {defineProps, markRaw, ref, watch} from 'vue';
 import Tabella from "../../../../components/Tabella.vue";
-import {getAllItems} from "../../../../function/Utils";
-import {TIPO_ITEM} from "../../../../function/Constants";
 import Mobile_DettaglioItem from "../../../../components/Mobile_DettaglioItem.vue";
+import {useCharacterStore} from "../../../../stores/personaggio";
+import {storeToRefs} from "pinia";
 
 const props = defineProps({
-  datiPersonaggio: {
-    type: Object,
+  idPersonaggio: {
+    type: Number,
     required: true
   }
 });
+
+const characterStore = useCharacterStore()
+const {cache} = storeToRefs(characterStore)
+
 const items = ref<any[]>([]);
 const itemsLivello0 = ref<any[]>([]);
 const itemsLivello1 = ref<any[]>([]);
@@ -22,37 +26,76 @@ const itemsLivello6 = ref<any[]>([]);
 const itemsLivello7 = ref<any[]>([]);
 const itemsLivello8 = ref<any[]>([]);
 const itemsLivello9 = ref<any[]>([]);
+// watch(
+//     () => props.datiPersonaggio?.character,
+//     (newChar) => {
+//       if (!newChar?.items) {
+//         items.value = [];
+//         return;
+//       }
+//
+//       items.value = getAllItems(newChar)
+//           .filter(itm => [TIPO_ITEM.INCANTESIMO].includes(itm.tipo))
+//           .map(itm => {
+//             return {
+//               ...itm,
+//               expandedComponent: markRaw(Mobile_DettaglioItem),
+//               expandedProps: {data: {item: {...itm}, personaggio: props.datiPersonaggio}},
+//             };
+//           })
+//           .sort((a, b) => a.nome.localeCompare(b.nome));
+//
+//       console.log(items);
+//
+//       itemsLivello0.value = items.value.filter(itm => itm.livello === "0");
+//       itemsLivello1.value = items.value.filter(itm => itm.livello === "1");
+//       itemsLivello2.value = items.value.filter(itm => itm.livello === "2");
+//       itemsLivello3.value = items.value.filter(itm => itm.livello === "3");
+//       itemsLivello4.value = items.value.filter(itm => itm.livello === "4");
+//       itemsLivello5.value = items.value.filter(itm => itm.livello === "5");
+//       itemsLivello6.value = items.value.filter(itm => itm.livello === "6");
+//       itemsLivello7.value = items.value.filter(itm => itm.livello === "7");
+//       itemsLivello8.value = items.value.filter(itm => itm.livello === "8");
+//       itemsLivello9.value = items.value.filter(itm => itm.livello === "9");
+//     },
+//     {immediate: true, deep: true}
+// );
+
+
 watch(
-    () => props.datiPersonaggio?.character,
+    () => cache.value[props.idPersonaggio]?.items,
     (newChar) => {
-      if (!newChar?.items) {
+      if (!newChar) {
         items.value = [];
         return;
       }
 
-      items.value = getAllItems(newChar)
-          .filter(itm => [TIPO_ITEM.INCANTESIMO].includes(itm.tipo))
+      items.value = newChar.incantesimi
           .map(itm => {
             return {
               ...itm,
               expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: props.datiPersonaggio}},
+              expandedProps: {data: {item: {...itm}, personaggio: cache[props.idPersonaggio]}}
             };
           })
           .sort((a, b) => a.nome.localeCompare(b.nome));
 
-      console.log(items);
+      console.log(items.value);
 
-      itemsLivello0.value = items.value.filter(itm => itm.livello === "0");
-      itemsLivello1.value = items.value.filter(itm => itm.livello === "1");
-      itemsLivello2.value = items.value.filter(itm => itm.livello === "2");
-      itemsLivello3.value = items.value.filter(itm => itm.livello === "3");
-      itemsLivello4.value = items.value.filter(itm => itm.livello === "4");
-      itemsLivello5.value = items.value.filter(itm => itm.livello === "5");
-      itemsLivello6.value = items.value.filter(itm => itm.livello === "6");
-      itemsLivello7.value = items.value.filter(itm => itm.livello === "7");
-      itemsLivello8.value = items.value.filter(itm => itm.livello === "8");
-      itemsLivello9.value = items.value.filter(itm => itm.livello === "9");
+      itemsLivello0.value = items.value.filter(itm => itm.livello === 0);
+      itemsLivello1.value = items.value.filter(itm => itm.livello === 1);
+      itemsLivello2.value = items.value.filter(itm => itm.livello === 2);
+      itemsLivello3.value = items.value.filter(itm => itm.livello === 3);
+      itemsLivello4.value = items.value.filter(itm => itm.livello === 4);
+      itemsLivello5.value = items.value.filter(itm => itm.livello === 5);
+      itemsLivello6.value = items.value.filter(itm => itm.livello === 6);
+      itemsLivello7.value = items.value.filter(itm => itm.livello === 7);
+      itemsLivello8.value = items.value.filter(itm => itm.livello === 8);
+      itemsLivello9.value = items.value.filter(itm => itm.livello === 9);
+
+      console.log(itemsLivello0.value, itemsLivello1.value, itemsLivello2.value, itemsLivello3.value);
+
+
     },
     {immediate: true, deep: true}
 );
@@ -90,10 +133,10 @@ const columnsLivello9 = [
 </script>
 
 <template>
-  <Tabella v-if="items.length > 0"
+  <Tabella v-if="itemsLivello0.length > 0"
            :columns="columnsLivello0"
            :expandable="true"
-           :items="items"
+           :items="itemsLivello0"
   >
   </Tabella>
   <div class="spazietto"/>

@@ -3,7 +3,9 @@ package it.fin8.grdsheet.entity;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.io.Serializable;
@@ -13,6 +15,8 @@ import java.io.Serializable;
 @Entity
 @Table(name = "item_label")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@AllArgsConstructor
+@NoArgsConstructor
 public class ItemLabel implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

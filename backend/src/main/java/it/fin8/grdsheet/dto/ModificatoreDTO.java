@@ -17,6 +17,8 @@ public class ModificatoreDTO {
 
     private Integer valore;
 
+    private String formula;
+
     private String nota;
 
     private TipoModificatore tipo;

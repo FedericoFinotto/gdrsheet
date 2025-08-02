@@ -1,5 +1,6 @@
 package it.fin8.grdsheet.dto;
 
+import it.fin8.grdsheet.entity.Item;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -9,7 +10,7 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class IncantesimoDTO extends ItemDTO {
-    private String cd;
-    private Integer livello;
+public class ItemLivelloDTO {
+    private Item item;
+    private String livello;
 }

@@ -143,7 +143,7 @@ public class ModificatoriService {
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(valore);
 
         ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
-                .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, true, null)).orElse(null);
+                .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, null)).orElse(null);
 
 
         if (stat.getStat().getId().equals("CA")) {

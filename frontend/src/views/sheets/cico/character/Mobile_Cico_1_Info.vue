@@ -73,6 +73,29 @@ watch(
     {immediate: true, deep: true}
 );
 
+const itemsTalenti = ref<any[]>([]);
+watch(
+    () => cache.value[props.idPersonaggio]?.items,
+    (newChar) => {
+      if (!newChar?.talenti) {
+        itemsTalenti.value = [];
+        return;
+      }
+
+      itemsAbilitaPassive.value = newChar.abilita
+          .map(itm => {
+            return {
+              ...itm,
+              expandedComponent: markRaw(Mobile_DettaglioItem),
+              expandedProps: {data: {item: {...itm}, personaggio: cache[props.idPersonaggio]}}
+            };
+          })
+          .sort((a, b) => a.nome.localeCompare(b.nome));
+
+    },
+    {immediate: true, deep: true}
+);
+
 const columnsAbilitaPassive = [
   {field: 'nome', label: 'Abilita Passive'},
 ];

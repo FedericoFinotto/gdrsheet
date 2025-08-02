@@ -3,6 +3,7 @@ import {defineProps, onMounted, ref} from 'vue';
 import {testoModificatore} from "../function/Utils";
 import {getValoreLabel} from "../function/Calcolo";
 import {getItem} from "../service/PersonaggioService";
+import {TIPO_ITEM} from "../function/Constants";
 
 const props = defineProps({
   data: {
@@ -21,8 +22,10 @@ const loading = ref(true);
 onMounted(() => {
   getItem(props.data.item.id).then(resp => {
     item.value = resp.data;
+    listaAbilita.value = resp.data.child.filter(x => x.tipo === TIPO_ITEM.ABILITA);
+    listaAttacchi.value = resp.data.child.filter(x => x.tipo === TIPO_ITEM.ATTACCO);
+    listaMaledizioni.value = resp.data.child.filter(x => x.tipo === TIPO_ITEM.MALEDIZIONE);
     loading.value = false;
-    console.log(resp.data);
   })
 });
 </script>
@@ -62,9 +65,9 @@ onMounted(() => {
       </p>
     </div>
 
-    <div v-if="data.item.modificatori && data.item.modificatori.length > 0">
+    <div v-if="item.modificatori && item.modificatori.length > 0">
       <p><strong>Modificatori: </strong></p>
-      <p v-for="(mod, index) in data.item.modificatori" :key="index">
+      <p v-for="(mod, index) in item.modificatori" :key="index">
         <strong>{{ mod.stat.label }}:</strong>
         {{ testoModificatore(mod.valore) }}
         <span v-if="mod.nota">{{ mod.nota }}</span>

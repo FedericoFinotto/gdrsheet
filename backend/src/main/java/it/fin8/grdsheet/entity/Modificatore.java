@@ -11,7 +11,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "modificatori")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "item"})
 public class Modificatore {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
