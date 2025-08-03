@@ -1,13 +1,17 @@
 package it.fin8.grdsheet.mapper;
 
+import it.fin8.grdsheet.dto.BonusAttaccoDTO;
+import it.fin8.grdsheet.dto.CaratteristicaDTO;
+import org.springframework.stereotype.Component;
+
+@Component
 public class StatMapper {
 
-//    CaratteristicaDTO toDTO( entity) {
-//        ModificatoreDTO dto = new ModificatoreDTO();
-//        dto.setId(entity.getId());
-//        dto.setTipo(entity.getTipo());
-//        dto.setValore(Integer.parseInt(entity.getValore()));
-//        dto.setNota(entity.getNota());
-//        return dto;
-//    }
+    public CaratteristicaDTO toCaratteristicaDTO(BonusAttaccoDTO source) {
+        CaratteristicaDTO result = new CaratteristicaDTO();
+        result.setId(source.getId());
+        result.setModificatore(source.getModificatore());
+        result.setLabel(source.getNome());
+        return result;
+    }
 }

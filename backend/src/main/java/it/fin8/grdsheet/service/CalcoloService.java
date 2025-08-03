@@ -2,7 +2,9 @@ package it.fin8.grdsheet.service;
 
 import it.fin8.grdsheet.dto.CaratteristicaDTO;
 import it.fin8.grdsheet.dto.DatiPersonaggioDTO;
+import it.fin8.grdsheet.mapper.StatMapper;
 import net.objecthunter.exp4j.ExpressionBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -12,8 +14,11 @@ import java.util.regex.Pattern;
 
 @Component
 public class CalcoloService {
+
+    @Autowired
+    private StatMapper statMapper;
+
     private static final Pattern PATTERN_PLACEH = Pattern.compile("@\\w+");
-    // match singolo tiro di dado, eventualmente con un +offset o -offset
     private static final Pattern PATTERN_DICE = Pattern.compile("\\d+d\\d+(?:[+-]\\d+)?");
     private static final Pattern PATTERN_NUMBER = Pattern.compile("^[+-]?\\d+$");
 
@@ -87,6 +92,7 @@ public class CalcoloService {
      * Overload per DTO personaggio
      */
     public String calcola(String formula, DatiPersonaggioDTO dati) {
+        dati.getCaratteristiche().addAll(dati.getBonusAttacco().stream().map(x -> statMapper.toCaratteristicaDTO(x)).toList());
         return calcola(formula, dati.getCaratteristiche());
     }
 }
