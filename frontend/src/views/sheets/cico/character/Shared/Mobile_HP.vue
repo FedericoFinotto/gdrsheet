@@ -14,8 +14,12 @@
 
 <script setup>
 import {computed, inject} from 'vue'
+import {useCharacterStore} from "../../../../../stores/personaggio.js";
+import {storeToRefs} from "pinia";
 
 const sharedData = inject('sharedData')
+const characterStore = useCharacterStore()
+const {cache} = storeToRefs(characterStore)
 
 const hp = computed(() =>
     sharedData.character.stats?.find(stat => stat.stat.id === 'PF')?.valore ?? 0

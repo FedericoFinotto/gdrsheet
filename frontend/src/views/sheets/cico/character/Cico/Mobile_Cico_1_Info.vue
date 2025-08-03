@@ -1,6 +1,10 @@
 <template>
-  <h2 style="margin-bottom: 0; text-align: center">{{ cache[idPersonaggio].modificatori?.nome ?? "" }}</h2>
-  <!--  <Mobile_HP v-if="cache[idPersonaggio].character"/>-->
+  <div class="nome">
+    <h2>{{
+        cache[idPersonaggio].modificatori?.nome ?? ""
+      }}</h2>
+  </div>
+  <!--  <Mobile_HP v-if="cache[idPersonaggio].modificatori"/>-->
   <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
     <Mobile_Stat id="FOR" :id-personaggio="idPersonaggio"></Mobile_Stat>
     <Mobile_Stat id="DES" :id-personaggio="idPersonaggio"></Mobile_Stat>
@@ -47,14 +51,40 @@ const props = defineProps({
 
 <style>
 .stat-block {
-  width: 100%;
-  padding: 8px;
   display: flex;
-  flex-wrap: wrap; /* ✅ Permette di andare a capo */
-  gap: 8px; /* (opzionale) spazio tra le stat */
+  flex-wrap: wrap;
+  padding: 0 !important;
+  gap: 0 !important;
+
+  /* già presente: permette il wrap */
+  /*gap: 8px;  spazio tra le caselle */
+  /* elimina justify-content:center se vuoi che partano da sinistra
+     o usa space-between per distribuire gli spazi in automatico */
+  justify-content: flex-start;
+}
+
+.stat-block > * {
+  flex: 1 1 0; /* grow = 1, shrink = 1, base = 0 */
+  /* opzionale: imposti una min-width per evitare che diventino troppo piccole */
+  min-width: 45px;
+}
+
+.stat-block > .stat-box:nth-child(odd) {
+  background-color: rgba(0, 99, 108, 0.25);
+}
+
+.stat-block > .stat-box:nth-child(even) {
+  background-color: rgba(0, 0, 225, 0.35);
+}
+
+.nome {
+  border: 0.5px solid black;
+  text-align: center;
+  display: flex;
   justify-content: center;
-  background: transparent;
-  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  align-items: center;
+  height: 40px;
+  color: black;
 }
 
 .p-tabview-panels {

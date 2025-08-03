@@ -76,11 +76,10 @@ const stat = computed(() => {
   /* larghezza automatica in base al contenuto */
   width: auto;
   min-width: 45px;
+  border: 0.5px solid black;
 
   padding: 4px;
-  border: 2px solid #888;
-  border-radius: 8px;
-  background: #f3f3f3;
+  background: transparent;
   box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 
   text-align: center;
@@ -90,16 +89,17 @@ const stat = computed(() => {
   font-size: 0.8rem;
   font-weight: bold;
   text-transform: uppercase;
+  color: black;
 }
 
 .modifier {
   font-size: 1.4rem;
   font-weight: bold;
-  color: #444;
+  color: black;
 }
 
 .base {
   font-size: 1rem;
-  color: #666;
+  color: black;
 }
 </style>
