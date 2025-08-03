@@ -77,7 +77,7 @@ public class ModificatoriService {
     ) {
         modsDto.forEach(x -> {
             if (x.getValore() == null) {
-                x.setValore(calcoloService.calcola(x.getFormula(), carList));
+                x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), carList)));
             }
         });
         int bonus = modsDto.stream()
@@ -108,7 +108,7 @@ public class ModificatoriService {
     ) {
         modsDto.forEach(x -> {
             if (x.getValore() == null) {
-                x.setValore(calcoloService.calcola(x.getFormula(), carList));
+                x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), carList)));
             }
         });
         String modStatId = stat.getMod() != null ? stat.getMod().getId() : null;
@@ -145,7 +145,7 @@ public class ModificatoriService {
         int modificatore = 0;
         modsDto.forEach(x -> {
             if (x.getValore() == null) {
-                x.setValore(calcoloService.calcola(x.getFormula(), carList));
+                x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), carList)));
             }
         });
 

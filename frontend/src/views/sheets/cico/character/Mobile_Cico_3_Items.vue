@@ -36,7 +36,7 @@ watch(
             return {
               ...itm,
               expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: cache[props.idPersonaggio]}}
+              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
             };
           })
           .sort((a, b) => a.nome.localeCompare(b.nome));
@@ -46,7 +46,7 @@ watch(
             return {
               ...itm,
               expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: cache[props.idPersonaggio]}}
+              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
             };
           })
           .sort((a, b) => a.nome.localeCompare(b.nome));
@@ -56,7 +56,7 @@ watch(
             return {
               ...itm,
               expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: cache[props.idPersonaggio]}}
+              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
             };
           })
           .sort((a, b) => a.nome.localeCompare(b.nome));
@@ -66,7 +66,7 @@ watch(
             return {
               ...itm,
               expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: cache[props.idPersonaggio]}}
+              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
             };
           })
           .sort((a, b) => a.nome.localeCompare(b.nome));
@@ -76,41 +76,13 @@ watch(
             return {
               ...itm,
               expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: cache[props.idPersonaggio]}}
+              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
             };
           })
           .sort((a, b) => a.nome.localeCompare(b.nome));
     },
     {immediate: true, deep: true}
 );
-
-// watch(
-//     () => props.datiPersonaggio?.character,
-//     (newChar) => {
-//       if (!newChar?.items) {
-//         itemsOggetti.value = [];
-//         return;
-//       }
-//
-//       items.value = getAllItems(newChar)
-//           .filter(itm => [TIPO_ITEM.OGGETTO, TIPO_ITEM.ARMA, TIPO_ITEM.EQUIPAGGIAMENTO, TIPO_ITEM.CONSUMABILE, TIPO_ITEM.MUNIZIONE].includes(itm.tipo))
-//           .map(itm => {
-//             return {
-//               ...itm,
-//               expandedComponent: markRaw(Mobile_DettaglioItem),
-//               expandedProps: {data: {item: {...itm}, personaggio: props.datiPersonaggio}},
-//             };
-//           })
-//           .sort((a, b) => a.nome.localeCompare(b.nome));
-//
-//       itemsOggetti.value = items.value.filter(itm => [TIPO_ITEM.OGGETTO].includes(itm.tipo));
-//       itemsArmi.value = items.value.filter(itm => [TIPO_ITEM.ARMA].includes(itm.tipo));
-//       itemsEquipaggiamento.value = items.value.filter(itm => [TIPO_ITEM.EQUIPAGGIAMENTO].includes(itm.tipo));
-//       itemsConsumabili.value = items.value.filter(itm => [TIPO_ITEM.CONSUMABILE].includes(itm.tipo));
-//       itemsMunizioni.value = items.value.filter(itm => [TIPO_ITEM.MUNIZIONE].includes(itm.tipo));
-//     },
-//     {immediate: true, deep: true}
-// );
 
 const columnsOggetti = [
   {field: 'nome', label: 'Oggetti'},
