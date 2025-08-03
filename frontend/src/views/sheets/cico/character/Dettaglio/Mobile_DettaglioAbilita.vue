@@ -1,6 +1,6 @@
 <script setup>
 import {defineProps, onMounted} from 'vue';
-import {testoModificatore} from "../function/Utils";
+import {testoModificatore} from "../../../../../function/Utils";
 
 const props = defineProps({
   data: {

@@ -50,9 +50,9 @@ public class Item implements Serializable {
     @JsonIgnoreProperties("itemSource")
     private List<Collegamento> child;
 
-//    @OneToMany(mappedBy = "itemTarget", fetch = FetchType.LAZY)
-//    @JsonIgnoreProperties("itemTarget")
-//    private List<Collegamento> parent;
+    @OneToMany(mappedBy = "itemTarget", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties("itemTarget")
+    private List<Collegamento> parent;
 
     @OneToMany(mappedBy = "item", fetch = FetchType.LAZY)
     @JsonIgnoreProperties("idItem")

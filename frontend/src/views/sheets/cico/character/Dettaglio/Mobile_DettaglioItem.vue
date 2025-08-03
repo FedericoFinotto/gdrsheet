@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {defineProps, onMounted, ref} from 'vue';
-import {testoModificatore} from "../function/Utils";
-import {getItem} from "../service/PersonaggioService";
-import {TIPO_ITEM} from "../function/Constants";
-import type {ItemDB} from "../models/ItemDB";
-import {getValoreLabel, thereIsValoreLabel} from "../function/Calcolo";
+import {testoModificatore} from "../../../../../function/Utils";
+import {getItem} from "../../../../../service/PersonaggioService";
+import {TIPO_ITEM} from "../../../../../function/Constants";
+import type {ItemDB} from "../../../../../models/ItemDB";
+import {getValoreLabel, thereIsValoreLabel} from "../../../../../function/Calcolo";
 
 interface PropsData {
   item: ItemDB;            // l'oggetto item con id e tipo

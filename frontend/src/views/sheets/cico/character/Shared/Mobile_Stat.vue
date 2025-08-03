@@ -8,9 +8,9 @@
 
 <script setup>
 import {computed, defineProps} from 'vue'
-import {useCharacterStore} from "../stores/personaggio";
+import {useCharacterStore} from "../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
-import {testoModificatore} from "../function/Utils";
+import {testoModificatore} from "../../../../../function/Utils";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore);

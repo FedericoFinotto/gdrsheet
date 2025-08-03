@@ -1,7 +1,9 @@
 package it.fin8.grdsheet.mapper;
 
+import it.fin8.grdsheet.dto.AttaccoDTO;
 import it.fin8.grdsheet.dto.IncantesimoDTO;
 import it.fin8.grdsheet.dto.ItemDTO;
+import it.fin8.grdsheet.entity.Collegamento;
 import it.fin8.grdsheet.entity.Item;
 import it.fin8.grdsheet.entity.ItemLabel;
 import org.springframework.stereotype.Component;
@@ -29,6 +31,30 @@ public class ItemMapper {
         dto.setTipo(entity.getTipo());
         if (livello != null) {
             dto.setLivello(Integer.parseInt(livello.getValore()));
+        }
+        return dto;
+    }
+
+    public AttaccoDTO toAttaccoDTO(Item entity) {
+        List<ItemLabel> itemLabels = entity.getLabels();
+        ItemLabel attacco = itemLabels.stream().filter(x -> x.getLabel().equals("TPC")).findFirst().orElse(null);
+        ItemLabel danno = itemLabels.stream().filter(x -> x.getLabel().equals("TPD")).findFirst().orElse(null);
+        List<Collegamento> parents = entity.getParent();
+        String nomeItemParent = null;
+        if (parents != null && !parents.isEmpty()) {
+            Item parent = parents.get(0).getItemSource();
+            nomeItemParent = parent.getNome();
+        }
+        AttaccoDTO dto = new AttaccoDTO();
+        dto.setId(entity.getId());
+        dto.setNome(entity.getNome());
+        dto.setTipo(entity.getTipo());
+        dto.setNomeItem(nomeItemParent);
+        if (attacco != null) {
+            dto.setAttacco(attacco.getValore());
+        }
+        if (danno != null) {
+            dto.setColpo(danno.getValore());
         }
         return dto;
     }

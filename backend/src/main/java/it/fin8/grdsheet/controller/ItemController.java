@@ -20,20 +20,6 @@ public class ItemController {
         this.repo = repo;
     }
 
-//    @Operation(
-//            summary = "Recupera la lista di Oggetti per tipo",
-//            description = "Recupera la lista di Oggetti per tipo"
-//    )
-//    @GetMapping("/list/{tipo}")
-//    public ResponseEntity<List<Item>> getByTipo(
-//            @Parameter(description = "Tipo Item", required = true)
-//            @PathVariable TipoItem tipo
-//    ) {
-//        List<Item> itms = repo.findItemsByTipo(tipo);
-//
-//        return ResponseEntity.ok(itms);
-//    }
-
     @Operation(
             summary = "Recupera un item Specifico",
             description = "Recupera un item Specifico"

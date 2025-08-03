@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {defineProps, markRaw, ref, watch} from 'vue';
-import Tabella from "../../../../components/Tabella.vue";
-import {useCharacterStore} from "../../../../stores/personaggio";
+import Tabella from "../../../../../components/Tabella.vue";
+import {useCharacterStore} from "../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
-import Mobile_DettaglioItem from "../../../../components/Mobile_DettaglioItem.vue";
+import Mobile_DettaglioItem from "../Dettaglio/Mobile_DettaglioItem.vue";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore)

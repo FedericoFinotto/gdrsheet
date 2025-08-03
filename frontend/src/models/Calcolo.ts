@@ -1,6 +1,8 @@
+import {Statistiche} from "./Modificatori";
+
 export interface CalcoloRequest {
     formula: string;
-    datiPersonaggio: DatiPersonaggioDTO;
+    datiPersonaggio: Statistiche;
 }
 
 export interface CalcoloResponse {

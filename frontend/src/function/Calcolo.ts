@@ -1,4 +1,5 @@
 import {calcolaFormula} from "../service/PersonaggioService";
+import {Statistiche} from "../models/Modificatori";
 
 const REGEX_DADI = /^\d+d\d+([+-]\d+)?$/;
 const REGEX_NUMERO = /^[+-]?\d+$/;
@@ -57,9 +58,14 @@ export function getValoreLabel(personaggio, itemTarget: any, tipo: 'TPC' | 'TPD'
     return calcolaFormula(label.valore, personaggio.modificatori);
 }
 
+export function getValoreFormula(personaggio: Statistiche, formula: string) {
+    if (!formula) return null;
+    return calcolaFormula(formula, personaggio);
+}
+
+
 export function thereIsValoreLabel(personaggio, itemTarget: any, tipo: 'TPC' | 'TPD'): boolean {
     const prova = itemTarget.labels?.find((l: any) => l.label === tipo);
-    console.log(prova);
     return prova !== null;
 }
 

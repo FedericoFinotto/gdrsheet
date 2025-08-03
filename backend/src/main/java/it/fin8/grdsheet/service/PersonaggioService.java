@@ -64,7 +64,7 @@ public class PersonaggioService {
         ItemsDTO itemsDTO = new ItemsDTO();
 //        'ABILITA', 'TALENTO', 'OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO',
 //        'PERSONAGGIO', 'CLASSE', 'RAZZA', 'ATTACCO', 'ALTRO', 'LIVELLO', 'MALEDIZIONE', 'INCANTESIMO'
-        getAllPersonaggioItemsByIdPersonaggio(id).stream().forEach(itm -> {
+        getAllPersonaggioItemsByIdPersonaggio(id).forEach(itm -> {
                     if (TipoItem.ABILITA.equals(itm.getTipo())) {
                         itemsDTO.getAbilita().add(itemMapper.toDTO(itm));
                     }
@@ -93,7 +93,7 @@ public class PersonaggioService {
                         itemsDTO.getRazze().add(itemMapper.toDTO(itm));
                     }
                     if (TipoItem.ATTACCO.equals(itm.getTipo())) {
-                        itemsDTO.getAttacchi().add(itemMapper.toDTO(itm));
+                        itemsDTO.getAttacchi().add(itemMapper.toAttaccoDTO(itm));
                     }
                     if (TipoItem.LIVELLO.equals(itm.getTipo())) {
                         itemsDTO.getLivelli().add(itemMapper.toDTO(itm));

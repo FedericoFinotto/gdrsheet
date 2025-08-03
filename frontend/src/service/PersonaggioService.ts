@@ -26,6 +26,7 @@ export function calcolaFormula(formula: string, datiPersonaggio: Statistiche): P
         formula,
         datiPersonaggio
     };
+    console.log('CHIAMATA calcolo formula', payload);
     return api
         .post<CalcoloResponse>('/calcolo/formula', payload)
 }

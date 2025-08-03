@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {computed, defineProps, markRaw, onMounted, watch} from 'vue'
-import Tabella from '../../../../components/Tabella.vue'
+import Tabella from '../../../../../components/Tabella.vue'
 import {storeToRefs} from 'pinia'
-import {useCharacterStore} from "../../../../stores/personaggio";
-import {testoModificatore} from "../../../../function/Utils";
-import DettaglioAbilita from "../../../../components/Mobile_DettaglioAbilita.vue";
+import {useCharacterStore} from "../../../../../stores/personaggio";
+import {testoModificatore} from "../../../../../function/Utils";
+import Mobile_DettaglioAbilita from "../Dettaglio/Mobile_DettaglioAbilita.vue";
 
 const props = defineProps<{ idPersonaggio: number }>()
 
@@ -26,7 +26,7 @@ const abilita = computed(() => {
       nome: abilita.abilita.nome,
       valore: testoModificatore(abilita.abilita.modificatore),
       caratteristica: abilita?.base?.id ?? '',
-      expandedComponent: markRaw(DettaglioAbilita),
+      expandedComponent: markRaw(Mobile_DettaglioAbilita),
       expandedProps: {data: {...abilita}}
     }
   }).sort((a, b) => a.nome.localeCompare(b.nome));

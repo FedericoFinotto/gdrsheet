@@ -20,7 +20,7 @@ public class ItemsDTO {
     private List<ItemDTO> equipaggiamento;
     private List<ItemDTO> classi;
     private List<ItemDTO> razze;
-    private List<ItemDTO> attacchi;
+    private List<AttaccoDTO> attacchi;
     private List<ItemDTO> livelli;
     private List<ItemDTO> maledizioni;
     private List<IncantesimoDTO> incantesimi;
