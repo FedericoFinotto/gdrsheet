@@ -53,16 +53,17 @@ const mostraLabel = (label, val) => {
   }
 }
 
-const switchState = async () => {
+async function switchState() {
   try {
     await switchItemState(itemInfo.id);
     // usa personaggio.id, non personaggio.modificatori.id
     console.log('RICALCOLO', personaggio.modificatori.id)
     await characterStore.fetchCharacter(personaggio.modificatori.id, true);
+
   } catch (e) {
     console.error('Errore nello switch dello stato:', e);
   }
-};
+}
 
 onMounted(async () => {
   try {
