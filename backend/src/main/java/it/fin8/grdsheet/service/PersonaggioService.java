@@ -104,6 +104,10 @@ public class PersonaggioService {
                     if (TipoItem.INCANTESIMO.equals(itm.getTipo())) {
                         itemsDTO.getIncantesimi().add(itemMapper.toIncantesimoDTO(itm));
                     }
+                    if (TipoItem.TRASFORMAZIONE.equals(itm.getTipo())) {
+                        itemsDTO.getTrasformazioni().add(itemMapper.toDTO(itm));
+                    }
+
                 }
         );
         return itemsDTO;
@@ -193,6 +197,11 @@ public class PersonaggioService {
                 .orElseThrow(() -> new RuntimeException("Personaggio non trovato"));
 
         List<Item> allItems = getAllPersonaggioItemsByIdPersonaggio(p.getId());
+        allItems = allItems.stream().filter(i -> i.getLabels().stream()
+                .noneMatch(lbl ->
+                        "DISABLED".equalsIgnoreCase(lbl.getLabel())
+                                && "1".equals(lbl.getValore())
+                )).toList();
 
         // 6) Fetch Modificatori
         List<Integer> itemIds = allItems.stream().map(Item::getId).toList();

@@ -45,6 +45,12 @@ public class ModificatoriService {
             List<ModificatoreDTO> modsDto
     ) {
         int base = Integer.parseInt(stat.getValore());
+        ModificatoreDTO baseSovrascritto = prendiMaxDTO(modsDto, TipoModificatore.BASE);
+        if (baseSovrascritto != null) {
+            if (baseSovrascritto.getValore() > base) {
+                base = baseSovrascritto.getValore();
+            }
+        }
         int bonusValore = modsDto.stream()
                 .filter(ModificatoreDTO::getSempreAttivo)
                 .filter(m -> TipoModificatore.VALORE.equals(m.getTipo()))

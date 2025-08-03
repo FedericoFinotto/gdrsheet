@@ -12,7 +12,8 @@ public enum TipoModificatore {
     CA_ARMOR("Armatura"),
     CA_SHIELD("Scudo"),
     CA_MAGIC("Magico"),
-    CA_NATURALE("Naturale");
+    CA_NATURALE("Naturale"),
+    BASE("Base");
 
     private final String label;
 

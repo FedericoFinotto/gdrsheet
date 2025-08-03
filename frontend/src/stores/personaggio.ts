@@ -26,22 +26,24 @@ export const useCharacterStore = defineStore('character', {
          * 1) First fetch modifiers
          * 2) Then in parallel fetch character and items
          */
-        async fetchCharacter(id: number) {
-            if (this.cache[id] && !this.cache[id].loading) {
+        async fetchCharacter(id: number, reset: boolean = false) {
+            if (this.cache[id] && !this.cache[id].loading && !reset) {
+                console.log('DATI PERSONAGGIO LETTI DALLA CACHE');
                 return this.cache[id]
             }
             // initialize placeholder
+            console.log('RICALCOLO DATI PERSONAGGIO');
             this.cache[id] = {character: null, modificatori: null, items: null, loading: true, error: null}
 
             try {
                 // 1) modifiers first
                 getModificatoriPersonaggioById(id).then(resp => {
                     this.cache[id].modificatori = resp.data
+                    getAllPersonaggioItemsDTOByIdPersonaggio(id).then(resp => {
+                        this.cache[id].items = resp.data
+                    })
                 })
 
-                getAllPersonaggioItemsDTOByIdPersonaggio(id).then(resp => {
-                    this.cache[id].items = resp.data
-                })
             } catch (err) {
                 this.cache[id].error = err
             } finally {

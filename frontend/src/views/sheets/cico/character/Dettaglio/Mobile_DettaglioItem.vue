@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import {defineProps, onMounted, ref} from 'vue';
 import {testoModificatore} from "../../../../../function/Utils";
-import {getItem} from "../../../../../service/PersonaggioService";
+import {getItem, switchItemState} from "../../../../../service/PersonaggioService";
 import {TIPO_ITEM} from "../../../../../function/Constants";
 import type {ItemDB} from "../../../../../models/ItemDB";
 import {getValoreLabel, thereIsValoreLabel} from "../../../../../function/Calcolo";
+import {useCharacterStore} from "../../../../../stores/personaggio";
+import {storeToRefs} from "pinia";
 
 interface PropsData {
   item: ItemDB;            // l'oggetto item con id e tipo
@@ -13,6 +15,9 @@ interface PropsData {
 
 const props = defineProps<{ data: PropsData }>();
 const {item: itemInfo, personaggio} = props.data;
+
+const characterStore = useCharacterStore();
+const {cache} = storeToRefs(characterStore);
 
 const listaAbilita = ref<ItemDB[]>([]);
 const listaAttacchi = ref<ItemDB[]>([]);
@@ -47,6 +52,17 @@ const mostraLabel = (label, val) => {
       return null;
   }
 }
+
+const switchState = async () => {
+  try {
+    await switchItemState(itemInfo.id);
+    // usa personaggio.id, non personaggio.modificatori.id
+    console.log('RICALCOLO', personaggio.modificatori.id)
+    await characterStore.fetchCharacter(personaggio.modificatori.id, true);
+  } catch (e) {
+    console.error('Errore nello switch dello stato:', e);
+  }
+};
 
 onMounted(async () => {
   try {
@@ -93,6 +109,7 @@ onMounted(async () => {
 
 <template>
   <div class="abilita-detail-card" v-if="!loading && itemDetail">
+    <button class="bottone" @click="switchState">TOMARE</button>
     <!-- Labels dinamiche -->
     <div v-if="Object.keys(labelMap).length">
       <div v-for="(val, key) in labelMap" :key="key">
@@ -136,12 +153,12 @@ onMounted(async () => {
 
     <!-- Modificatori -->
     <div v-if="itemDetail.modificatori?.length">
-      <p><strong>Modificatori:</strong></p>
-      <p v-for="mod in itemDetail.modificatori" :key="mod.id">
+      <strong>Modificatori:</strong><br>
+      <span v-for="mod in itemDetail.modificatori" :key="mod.id">
         <strong>{{ mod.stat.label }}:</strong>
         {{ testoModificatore(mod.valore) }}
-        <span v-if="mod.nota">- {{ mod.nota }}</span>
-      </p>
+        <span v-if="mod.nota">- {{ mod.nota }}</span><br>
+      </span>
     </div>
   </div>
 </template>
@@ -153,5 +170,10 @@ onMounted(async () => {
 
 .abilita-detail-card div {
   margin-bottom: 4px;
+}
+
+.bottone {
+  width: 30%;
+  height: 30px;
 }
 </style>

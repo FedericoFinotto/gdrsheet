@@ -31,3 +31,8 @@ export function calcolaFormula(formula: string, datiPersonaggio: Statistiche): P
         .post<CalcoloResponse>('/calcolo/formula', payload)
 }
 
+export function switchItemState(id: number): Promise<AxiosResponse<ItemDB>> {
+    return api
+        .get<ItemDB>(`/item/switch-state/${id}`);
+}
+
