@@ -18,7 +18,9 @@ public enum TipoItem {
     ALTRO("Altro"),
     LIVELLO("Livello"),
     MALEDIZIONE("Maledizione"),
-    INCANTESIMO("Incantesimo")
+    INCANTESIMO("Incantesimo"),
+    TRASFORMAZIONE("Trasformazione"),
+    AVANZAMENTO("Avanzamento")
     ;
 
     private final String label;

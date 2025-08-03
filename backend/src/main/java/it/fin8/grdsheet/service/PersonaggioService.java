@@ -130,6 +130,7 @@ public class PersonaggioService {
             Item classe = entry.getKey();
             long livello = entry.getValue();
             List<ItemLivelloDTO> incantesimi = new ArrayList<>();
+//            List<ItemLivelloDTO> avanzamenti = new ArrayList<>();
             ItemLabel spellDiClasse = classe.getLabels().stream().filter(x -> x.getLabel().equals("SPELL")).findFirst().orElse(null);
             if (spellDiClasse != null) {
                 ItemLabel preparedSpell = itemLabelRepository.findByItemPersonaggioIdAndItemNome(idPersonaggio, "PreparedSpell").stream().filter(x -> x.getLabel().equals(spellDiClasse.getValore())).findFirst().orElse(null);
@@ -140,6 +141,8 @@ public class PersonaggioService {
                             .map(Integer::parseInt)
                             .toList();
                     incantesimi = itemRepository.findIncantesimiWithLivelloByLabelAndIds(spellDiClasse.getValore(), incantesimiIds);
+//                    avanzamenti = itemRepository.findAvanzamentiWithLivelloByLabelAndIds(spellDiClasse.getValore(), incantesimiIds);
+
                     if (!incantesimi.isEmpty()) {
                         incantesimi.forEach(item -> {
                             item.getItem().getLabels().add(new ItemLabel(null, null, "CLIVELLO", item.getLivello()));
@@ -152,12 +155,21 @@ public class PersonaggioService {
 
             }
 
+            List<Avanzamento> aumentoStatistiche = new ArrayList<>();
             if (classe.getAvanzamento() != null) {
                 for (Avanzamento av : classe.getAvanzamento()) {
                     if (av.getLivello() <= livello) {
-                        advanceRoots.add(av.getItemTarget());
+                        if (av.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO)) {
+                            aumentoStatistiche.add(av);
+                        } else {
+                            advanceRoots.add(av.getItemTarget());
+                        }
                     }
                 }
+
+                aumentoStatistiche.stream()
+                        .max(Comparator.comparing(Avanzamento::getLivello)).ifPresent(stat -> advanceRoots.add(stat.getItemTarget()));
+
             }
 
         }
@@ -187,6 +199,7 @@ public class PersonaggioService {
         List<Modificatore> allMods = modificatoreRepository.findAllByItemIdIn(itemIds);
 
         List<ItemLabel> abClasse = itemLabelRepository.findByLabelAndItem_IdIn("ABCLASSE", itemIds);
+        List<ItemLabel> taglia = itemLabelRepository.findByLabelAndItem_IdIn("TAGLIA", itemIds);
 
         // 7) Raggruppa Modificatori e Rank in DTO
         Map<String, List<ModificatoreDTO>> modsDtoByStat = allMods.stream()
@@ -258,6 +271,20 @@ public class PersonaggioService {
                             .toList()
             ).get();
             dto.getClasseArmatura().addAll(caList);
+
+            List<BonusAttaccoDTO> atkList = pool.submit(() ->
+                    stats.stream()
+                            .filter(sv -> TipoStat.ATK.equals(sv.getStat().getTipo()))
+                            .map(sv -> modificatoriService.calcolaBonusAttacco(
+                                    sv,
+                                    modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
+                                    modsDtoByStat.getOrDefault("BAB", Collections.emptyList()),
+                                    carList,
+                                    taglia
+                            ))
+                            .toList()
+            ).get();
+            dto.getBonusAttacco().addAll(atkList);
 
         } catch (Exception e) {
             throw new RuntimeException("Errore nel calcolo parallelo", e);

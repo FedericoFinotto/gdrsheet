@@ -27,6 +27,7 @@ export const TIPO_STAT = {
     PF: 'PF',
     ATT: 'ATT',
     CA: 'CA',
+    ATK: 'ATK',
 } as const;
 
 export type TipoStat = typeof TIPO_STAT[keyof typeof TIPO_STAT];

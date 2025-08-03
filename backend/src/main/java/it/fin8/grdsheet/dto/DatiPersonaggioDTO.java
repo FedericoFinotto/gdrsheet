@@ -22,6 +22,7 @@ public class DatiPersonaggioDTO {
     List<TiroSalvezzaDTO> tiriSalvezza;
     List<AbilitaDTO> abilita;
     List<ClasseArmaturaDTO> classeArmatura;
+    List<BonusAttaccoDTO> bonusAttacco;
 
     public DatiPersonaggioDTO(Personaggio personaggio) {
         id = personaggio.getId();
@@ -30,6 +31,7 @@ public class DatiPersonaggioDTO {
         abilita = new ArrayList<>();
         tiriSalvezza = new ArrayList<>();
         classeArmatura = new ArrayList<>();
+        bonusAttacco = new ArrayList<>();
     }
 
 }

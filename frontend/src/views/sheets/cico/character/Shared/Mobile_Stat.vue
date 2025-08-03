@@ -37,6 +37,7 @@ const stat = computed(() => {
     const caratteristica = statistiche.caratteristiche.find(x => x.id === props.id);
     const classeArmatura = statistiche.classeArmatura.find(x => x.id === props.id);
     const tiroSalvezza = statistiche.tiriSalvezza.find(x => x.id === props.id);
+    const bonusAttacco = statistiche.bonusAttacco.find(x => x.id === props.id);
 
     if (caratteristica) {
       return caratteristica;
@@ -46,6 +47,20 @@ const stat = computed(() => {
     }
     if (tiroSalvezza) {
       return tiroSalvezza;
+    }
+    if (bonusAttacco) {
+      const values = bonusAttacco.attacchiMultipli;
+      console.log("PORCAMADONNA", bonusAttacco, values);
+      let modificatore;
+
+
+      modificatore = values
+          .map(v => testoModificatore(v))
+          .join(' / ');
+
+
+      console.log('ATTACCHI MULTIPLI', modificatore);
+      return {modificatore};
     }
     return null;
   }

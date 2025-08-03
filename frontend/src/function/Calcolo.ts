@@ -63,7 +63,6 @@ export function getValoreFormula(personaggio: Statistiche, formula: string) {
     return calcolaFormula(formula, personaggio);
 }
 
-
 export function thereIsValoreLabel(personaggio, itemTarget: any, tipo: 'TPC' | 'TPD'): boolean {
     const prova = itemTarget.labels?.find((l: any) => l.label === tipo);
     return prova !== null;

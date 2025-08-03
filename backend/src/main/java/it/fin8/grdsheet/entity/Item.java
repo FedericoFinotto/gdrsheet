@@ -15,7 +15,7 @@ import java.util.List;
 @Setter
 @Entity
 @Table(name = "items")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "personaggio"})
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "personaggio", "parent"})
 public class Item implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

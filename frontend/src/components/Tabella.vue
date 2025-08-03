@@ -1,89 +1,101 @@
 <script setup lang="ts">
-import {defineProps, ref} from 'vue'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
+import {defineProps, ref} from 'vue';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
 
-const props = defineProps({
-  items: {type: Array, required: true},
-  columns: {type: Array, required: true},
-  expandable: {type: Boolean, default: false}
-})
+// Definizione delle props
+interface ColumnDef {
+  field: string;
+  label: string;
+  subfield?: string;
+}
 
-// il tuo stato “manuale” delle righe espanse
-const expandedRows = ref<any[]>([])
+const props = defineProps<{
+  items: any[];
+  columns: ColumnDef[];
+  expandable?: boolean;
+}>();
 
-/**
- * Gestisce manualmente il toggle: apre/chiude solo la riga ricevuta
- */
-function onRowToggle(event: { data: any; expandedRows: any[] }) {
-  const row = event.data
-  const idx = expandedRows.value.findIndex(r => r.id === row.id)
+// Stato delle righe espanse
+const expandedRows = ref<any[]>([]);
 
+function onRowToggle(event: { data: any; }) {
+  const row = event.data;
+  const idx = expandedRows.value.findIndex(r => r.id === row.id);
   if (idx >= 0) {
-    // era aperta → chiudi
-    expandedRows.value.splice(idx, 1)
+    expandedRows.value.splice(idx, 1);
   } else {
-    // chiudi tutto e riapri solo questa
-    expandedRows.value = [row]
+    expandedRows.value = [row];
   }
 }
 
-/**
- * Se vuoi che anche un click su qualunque cella apra/chiuda:
- */
-function onRowClick(event: { data: any }) {
-  onRowToggle({data: event.data, expandedRows: expandedRows.value})
+function onRowClick(event: { data: any; }) {
+  onRowToggle(event);
 }
 </script>
 
 <template>
   <DataTable
-      :value="items"
+      :value="props.items"
       dataKey="id"
       tableStyle="width:100%"
       class="p-datatable-sm"
       :expandedRows="expandedRows"
       @rowToggle="onRowToggle"
-      @rowClick="expandable ? onRowClick : undefined"
+      @rowClick="props.expandable ? onRowClick : undefined"
   >
-    <!-- colonna expander -->
+    <!-- Colonna expander -->
     <Column
-        v-if="expandable"
+        v-if="props.expandable"
         expander
         style="width:3rem"
     />
 
-    <!-- colonne dinamiche invariati -->
+    <!-- Colonne dinamiche -->
     <Column
-        v-for="col in columns"
+        v-for="col in props.columns"
         :key="col.field"
         :field="col.field"
         :header="col.label"
     >
       <template #body="{ data }">
-        <slot
-            v-if="$slots[`col-${col.field}`]"
-            :name="`col-${col.field}`"
-            :data="data"
-        />
-        <template v-else>
-          {{ data[col.field] }}
-        </template>
+        <div class="cell-content">
+          <!-- Valore principale -->
+          <div class="primary">
+            {{ data[col.field] }}
+          </div>
+          <!-- Subfield in piccolo se presente -->
+          <div v-if="col.subfield" class="subtext">
+            {{ data[col.subfield] }}
+          </div>
+        </div>
       </template>
     </Column>
 
-    <!-- slot di espansione -->
-    <template v-if="expandable" #expansion="{ data }">
+    <!-- Slot di espansione -->
+    <template v-if="props.expandable" #expansion="{ data }">
       <component
           v-if="data.expandedComponent"
           :is="data.expandedComponent"
           v-bind="data.expandedProps"
       />
-      <slot
-          v-else
-          name="expansion"
-          :data="data"
-      />
+      <slot v-else name="expansion" :data="data"/>
     </template>
   </DataTable>
 </template>
+
+<style scoped>
+.cell-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.primary {
+  font-size: 1rem;
+}
+
+.subtext {
+  font-size: 0.75rem;
+}
+
+</style>

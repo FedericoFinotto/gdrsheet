@@ -39,4 +39,24 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             @Param("label") String label,
             @Param("ids") List<Integer> ids
     );
+
+    /**
+     * Restituisce l'intera entità Item e il valore (livello) associato,
+     * filtrando per tipo INCANTESIMO, label e lista di IDs.
+     */
+    @Query("""
+                SELECT new it.fin8.grdsheet.dto.ItemLivelloDTO(
+                  i,
+                  il.valore
+                )
+                FROM Item i
+                JOIN i.labels il
+                WHERE il.label = :label
+                  AND i.tipo   = 'AVANZAMENTO'
+                  AND i.id     IN :ids
+            """)
+    List<ItemLivelloDTO> findAvanzamentiWithLivelloByLabelAndIds(
+            @Param("label") String label,
+            @Param("ids") List<Integer> ids
+    );
 }

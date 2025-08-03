@@ -60,7 +60,7 @@ watch(
 );
 
 const columnsAttacchi = [
-  {field: 'nome', label: 'Arma'},
+  {field: 'nomeItem', subfield: 'nome', label: 'Arma'},
   {field: 'atk', label: 'Colpire'},
   {field: 'dmg', label: 'Danno'}
 ];

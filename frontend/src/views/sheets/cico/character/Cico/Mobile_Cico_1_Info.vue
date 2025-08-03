@@ -19,6 +19,12 @@
     <Mobile_Stat id="CAC" :id-personaggio="idPersonaggio" label="Contatto"></Mobile_Stat>
     <Mobile_Stat id="CAS" :id-personaggio="idPersonaggio" label="Sorpreso"></Mobile_Stat>
   </div>
+  <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
+    <Mobile_Stat id="BAB" :id-personaggio="idPersonaggio" label="BAB"></Mobile_Stat>
+    <Mobile_Stat id="LTT" :id-personaggio="idPersonaggio" label="Lotta"></Mobile_Stat>
+    <Mobile_Stat id="MSC" :id-personaggio="idPersonaggio" label="Mischia"></Mobile_Stat>
+    <Mobile_Stat id="GTT" :id-personaggio="idPersonaggio" label="Distanza"></Mobile_Stat>
+  </div>
 </template>
 
 <script setup lang="ts">

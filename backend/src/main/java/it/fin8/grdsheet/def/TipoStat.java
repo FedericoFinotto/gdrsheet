@@ -9,7 +9,8 @@ public enum TipoStat {
     TS("Tiro Salvezza"),
     PF("Punti Ferita"),
     ATT("Attributo"),
-    CA("Classe Armatura");
+    CA("Classe Armatura"),
+    ATK("Attacco");
 
     private final String label;
 
