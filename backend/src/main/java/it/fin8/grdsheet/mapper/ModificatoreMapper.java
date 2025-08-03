@@ -9,6 +9,10 @@ import it.fin8.grdsheet.entity.ItemLabel;
 import it.fin8.grdsheet.entity.Modificatore;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 @Component
 public class ModificatoreMapper {
 
@@ -28,14 +32,28 @@ public class ModificatoreMapper {
         return dto;
     }
 
-    public RankDTO toRankDTO(Modificatore entity) {
+    public RankDTO toRankDTO(Modificatore entity, List<ItemLabel> abClasse) {
         String nomeClasse = null;
         boolean diClasse = false;
         Item classe = entity.getItem().getChild().stream().map(Collegamento::getItemTarget).filter(itemTarget -> itemTarget.getTipo().equals(TipoItem.CLASSE)).findFirst().orElse(null);
-        if (classe != null) {
-            ItemLabel ABCLASSE = classe.getLabels().stream().filter(x -> x.getLabel().equals("ABCLASSE")).findFirst().orElse(null);
-            diClasse = ABCLASSE != null && ABCLASSE.getValore().contains(entity.getStat().getId());
-            nomeClasse = classe.getNome();
+        Map<String, List<String>> mappaDiClasse = abClasse.stream()
+                .filter(x ->
+                        x.getItem().getTipo() != TipoItem.CLASSE
+                                || x.getItem().equals(classe)
+                )
+                .collect(Collectors.toMap(
+                        x -> x.getItem().getNome(),
+                        x -> List.of(x.getValore().split(","))
+                ));
+
+        for (Map.Entry<String, List<String>> entry : mappaDiClasse.entrySet()) {
+            List<String> valori = entry.getValue();
+            String idStat = String.valueOf(entity.getStat().getId());
+            if (valori.contains(idStat)) {
+                diClasse = true;
+                nomeClasse = entry.getKey();
+                break;
+            }
         }
         RankDTO dto = new RankDTO();
         dto.setId(entity.getId());

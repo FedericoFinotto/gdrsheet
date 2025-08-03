@@ -17,7 +17,7 @@ onMounted(() => {
   <div class="abilita-detail-card">
 
     <p><strong>Grado {{ data.rank.valore }}: </strong> {{ testoModificatore(data.rank.modificatore) }}</p>
-    <p v-if="data.base.id"><strong>{{ data.base.label }}: </strong>{{ testoModificatore(data.base.modificatore) }}</p>
+    <p v-if="data.base?.id"><strong>{{ data.base.label }}: </strong>{{ testoModificatore(data.base.modificatore) }}</p>
 
     <div v-if="data.abilita.modificatori">
       <p v-for="(mod, index) in data.abilita.modificatori" :key="index">

@@ -186,6 +186,8 @@ public class PersonaggioService {
         List<Integer> itemIds = allItems.stream().map(Item::getId).toList();
         List<Modificatore> allMods = modificatoreRepository.findAllByItemIdIn(itemIds);
 
+        List<ItemLabel> abClasse = itemLabelRepository.findByLabelAndItem_IdIn("ABCLASSE", itemIds);
+
         // 7) Raggruppa Modificatori e Rank in DTO
         Map<String, List<ModificatoreDTO>> modsDtoByStat = allMods.stream()
                 .filter(m -> !TipoModificatore.RANK.equals(m.getTipo()))
@@ -197,7 +199,7 @@ public class PersonaggioService {
                 .filter(m -> TipoModificatore.RANK.equals(m.getTipo()))
                 .collect(Collectors.groupingBy(
                         m -> m.getStat().getId(),
-                        Collectors.mapping(modificatoreMapper::toRankDTO, Collectors.toList())
+                        Collectors.mapping(x -> modificatoreMapper.toRankDTO(x, abClasse), Collectors.toList())
                 ));
 
         // 8) Fetch StatValues con join fetch di Stat

@@ -37,6 +37,8 @@ public class ModificatoriService {
     private ModificatoreMapper modificatoreMapper;
     @Autowired
     private ItemMapper itemMapper;
+    @Autowired
+    private CalcoloService calcoloService;
 
 
     CaratteristicaDTO calcolaCaratteristica(
@@ -73,6 +75,11 @@ public class ModificatoriService {
             List<ModificatoreDTO> modsDto,
             List<CaratteristicaDTO> carList
     ) {
+        modsDto.forEach(x -> {
+            if (x.getValore() == null) {
+                x.setValore(calcoloService.calcola(x.getFormula(), carList));
+            }
+        });
         int bonus = modsDto.stream()
                 .filter(ModificatoreDTO::getSempreAttivo)
                 .mapToInt(ModificatoreDTO::getValore)
@@ -99,6 +106,11 @@ public class ModificatoriService {
             List<RankDTO> ranksDto,
             List<CaratteristicaDTO> carList
     ) {
+        modsDto.forEach(x -> {
+            if (x.getValore() == null) {
+                x.setValore(calcoloService.calcola(x.getFormula(), carList));
+            }
+        });
         String modStatId = stat.getMod() != null ? stat.getMod().getId() : null;
         CaratteristicaDTO cBase = null;
         Integer modBase = 0;
@@ -131,6 +143,11 @@ public class ModificatoriService {
 
     ClasseArmaturaDTO calcolaClasseArmatura(StatValue stat, List<ModificatoreDTO> modsDto, List<ModificatoreDTO> modsCADto, List<CaratteristicaDTO> carList) {
         int modificatore = 0;
+        modsDto.forEach(x -> {
+            if (x.getValore() == null) {
+                x.setValore(calcoloService.calcola(x.getFormula(), carList));
+            }
+        });
 
         ModificatoreDTO schivare = prendiMaxDTO(modsCADto, TipoModificatore.CA_SCHIVARE);
         ModificatoreDTO armor = prendiMaxDTO(modsCADto, TipoModificatore.CA_ARMOR);
