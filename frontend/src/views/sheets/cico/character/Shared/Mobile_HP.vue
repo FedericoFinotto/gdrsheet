@@ -4,7 +4,7 @@
     <div class="hp-bar-wrapper">
       <div class="hp-bar" :style="{ background: barraGradient }">
         <div class="delta-left" v-if="deltaInAttesa < 0">
-          ({{ deltaInAttesa > 0 ? '+' : '' }}{{ deltaInAttesa }})
+          ({{ deltaInAttesa }})
         </div>
 
         <div class="hp-center">
@@ -16,13 +16,11 @@
           </template>
         </div>
 
-
         <div class="delta-right" v-if="deltaInAttesa > 0">
-          ({{ deltaInAttesa > 0 ? '+' : '' }}{{ deltaInAttesa }})
+          (+{{ deltaInAttesa }})
         </div>
       </div>
     </div>
-
     <button @click="modificaHp(1)">+</button>
   </div>
 </template>
@@ -43,6 +41,7 @@ const props = defineProps({
 })
 
 const deltaInAttesa = ref(0)
+const pfTempRimossiInAttesa = ref(0)
 let timerId: ReturnType<typeof setTimeout> | null = null
 
 const pf = computed(() =>
@@ -82,18 +81,29 @@ function modificaHp(delta: number) {
 
   if (delta < 0) {
     let danno = -delta
-
     if (pftemp && pftemp.valore > 0) {
       const toltiDaTemp = Math.min(danno, pftemp.valore)
       pftemp.valore -= toltiDaTemp
+      pfTempRimossiInAttesa.value += toltiDaTemp
       danno -= toltiDaTemp
     }
-
     if (danno > 0) {
       pf.valore = Math.max(0, pf.valore - danno)
     }
   } else if (delta > 0) {
-    pf.valore = Math.min(pf.max, pf.valore + delta)
+    // Prima ripristina PF TEMP se ne ho tolti in attesa
+    if (pfTempRimossiInAttesa.value > 0) {
+      const daRipristinare = Math.min(delta, pfTempRimossiInAttesa.value)
+      if (pftemp) {
+        pftemp.valore += daRipristinare
+        pfTempRimossiInAttesa.value -= daRipristinare
+        delta -= daRipristinare
+      }
+    }
+    // Poi cura PF normali
+    if (delta > 0) {
+      pf.valore = Math.min(pf.max, pf.valore + delta)
+    }
   }
 
   if (timerId) clearTimeout(timerId)
@@ -108,11 +118,12 @@ function persistHp() {
 
   if (!pf) return
 
-  // TODO: chiamate asincrone verso il backend
+  // TODO: chiamate asincrone verso backend
   // updateHp(props.idPersonaggio, pf.valore).catch(...)
   // updatePfTemp(props.idPersonaggio, pftemp?.valore).catch(...)
 
   deltaInAttesa.value = 0
+  pfTempRimossiInAttesa.value = 0
   timerId = null
 }
 </script>
@@ -183,5 +194,4 @@ button {
   right: 0.5rem;
   justify-content: flex-end;
 }
-
 </style>
