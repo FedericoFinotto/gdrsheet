@@ -19,81 +19,66 @@ public class CalcoloService {
     private StatMapper statMapper;
 
     private static final Pattern PATTERN_PLACEH = Pattern.compile("@\\w+");
-    private static final Pattern PATTERN_DICE = Pattern.compile("\\d+d\\d+(?:[+-]\\d+)?");
+    private static final Pattern PATTERN_DICE = Pattern.compile("\\d+d\\d+(?:\\d+)?");
     private static final Pattern PATTERN_NUMBER = Pattern.compile("^[+-]?\\d+$");
 
     public String calcola(String formula, List<CaratteristicaDTO> caratteristiche) {
-        if (formula == null || formula.isBlank()) {
-            return "0";
-        }
+        if (formula == null || formula.isBlank()) return "0";
 
-        // 1) sostituisci @ID con il modificatore
-        String eval = formula;
-        Matcher m0 = PATTERN_PLACEH.matcher(eval);
-        while (m0.find()) {
-            String ph = m0.group();
-            String id = ph.substring(1);
+        // 1. Sostituisci @XXX con i modificatori numerici
+        String replaced = formula;
+        Matcher m = PATTERN_PLACEH.matcher(replaced);
+        while (m.find()) {
+            String ph = m.group();        // esempio: @FOR
+            String id = ph.substring(1); // esempio: FOR
             int mod = caratteristiche.stream()
-                    .filter(c -> id.equals(c.getId()))
+                    .filter(c -> id.equalsIgnoreCase(c.getId()))
                     .map(c -> c.getModificatore() != null ? c.getModificatore() : 0)
-                    .findFirst().orElse(0);
-            eval = eval.replace(ph, Integer.toString(mod));
+                    .findFirst()
+                    .orElse(0);
+            replaced = replaced.replace(ph, String.valueOf(mod));
         }
-        // togli spazi
-        eval = eval.replaceAll("\\s+", "");
 
-        // 2) estrai i dice token
-        Matcher md = PATTERN_DICE.matcher(eval);
-        List<String> diceTokens = new ArrayList<>();
-        while (md.find()) {
-            diceTokens.add(md.group());
+        // 2. Estrai e salva la parte col dado (es: 1d8)
+        Matcher diceMatcher = PATTERN_DICE.matcher(replaced);
+        String dicePart = "";
+        if (diceMatcher.find()) {
+            dicePart = diceMatcher.group();
+            replaced = replaced.replace(dicePart, ""); // rimuove TUTTE le occorrenze di quel dado
         }
-        // rimuovi tutti i dice token per isolare la parte numerica
-        String numericExpr = PATTERN_DICE.matcher(eval).replaceAll("");
-        // ripulisci eventuali + iniziali/finali
-        numericExpr = numericExpr.replaceAll("(^\\+|\\+$)", "");
 
-        // 3) valuta la parte numerica (se non vuota)
-        long numericResult = 0;
+        // 3. Pulizia formula numerica (rimuove spazi)
+        String numericExpr = replaced.replaceAll("\\s+", "");
+
+        long result = 0;
         if (!numericExpr.isBlank()) {
-            // se è un numero puro
-            if (PATTERN_NUMBER.matcher(numericExpr).matches()) {
-                numericResult = Long.parseLong(numericExpr);
-            } else {
-                try {
-                    numericResult = Math.round(
-                            new ExpressionBuilder(numericExpr).build().evaluate()
-                    );
-                } catch (Exception ex) {
-                    // in caso di errore, fallback a 0
-                    numericResult = 0;
-                }
+            try {
+                result = Math.round(new ExpressionBuilder(numericExpr).build().evaluate());
+            } catch (Exception e) {
+                result = 0;
             }
         }
 
-        // 4) ricompone il risultato
-        String result;
-        if (diceTokens.isEmpty()) {
-            // nessun dado, restituisci solo il numerico
-            result = Long.toString(numericResult);
+        // 4. Ritorna la formula finale
+        if (!dicePart.isBlank()) {
+            return result != 0 ? dicePart + (result > 0 ? "+" : "") + result : dicePart;
         } else {
-            // unisci tutti i dice con '+'
-            String diceExpr = String.join("+", diceTokens);
-            if (numericResult != 0) {
-                result = diceExpr + "+" + numericResult;
-            } else {
-                result = diceExpr;
-            }
+            return String.valueOf(result);
         }
-        return result;
     }
+
 
     /**
      * Overload per DTO personaggio
      */
     public String calcola(String formula, DatiPersonaggioDTO dati) {
-        dati.getCaratteristiche().addAll(dati.getBonusAttacco().stream().map(x -> statMapper.toCaratteristicaDTO(x)).toList());
-        return calcola(formula, dati.getCaratteristiche());
+        List<CaratteristicaDTO> caratteristiche = new ArrayList<>(dati.getCaratteristiche());
+        if (dati.getBonusAttacco() != null) {
+            caratteristiche.addAll(dati.getBonusAttacco().stream()
+                    .map(statMapper::toCaratteristicaDTO)
+                    .toList());
+        }
+        return calcola(formula, caratteristiche);
     }
-}
 
+}

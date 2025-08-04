@@ -29,6 +29,12 @@
     <Mobile_Stat id="MSC" :id-personaggio="idPersonaggio" label="Mischia"></Mobile_Stat>
     <Mobile_Stat id="GTT" :id-personaggio="idPersonaggio" label="Distanza"></Mobile_Stat>
   </div>
+  <div class="stat-block">
+    <template
+        v-for="stat in cache[idPersonaggio].modificatori.contatori.filter(x => x.id !== 'PF' && x.id != 'PFTEMP')">
+      <Mobile_Contatore :id-stat="stat.id" :id-personaggio="idPersonaggio"></Mobile_Contatore>
+    </template>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -37,6 +43,7 @@ import {storeToRefs} from "pinia";
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import Mobile_Stat from "../Shared/Mobile_Stat.vue";
 import Mobile_HP from "../Shared/Mobile_HP.vue";
+import Mobile_Contatore from "../Shared/Mobile_Contatore.vue";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore);

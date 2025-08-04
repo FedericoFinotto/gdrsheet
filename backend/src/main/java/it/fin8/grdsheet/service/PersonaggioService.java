@@ -49,16 +49,26 @@ public class PersonaggioService {
     private List<Item> flattenItems(Collection<Item> rootItems) {
         List<Item> result = new ArrayList<>();
         Deque<Item> stack = new ArrayDeque<>(rootItems);
+
         while (!stack.isEmpty()) {
             Item cur = stack.pop();
-            if (result.add(cur) && cur.getChild() != null) {
+
+            result.add(cur);
+            boolean isDisabled = cur.getLabels() != null &&
+                    cur.getLabels().stream().anyMatch(
+                            l -> "DISABLED".equalsIgnoreCase(l.getLabel()) && "1".equals(l.getValore())
+                    );
+
+            if (!isDisabled && cur.getChild() != null) {
                 for (Collegamento col : cur.getChild()) {
                     stack.push(col.getItemTarget());
                 }
             }
         }
+
         return result;
     }
+
 
     public ItemsDTO getAllPersonaggioItemsDTOByIdPersonaggio(Integer id) {
         ItemsDTO itemsDTO = new ItemsDTO();
@@ -145,7 +155,6 @@ public class PersonaggioService {
                             .map(Integer::parseInt)
                             .toList();
                     incantesimi = itemRepository.findIncantesimiWithLivelloByLabelAndIds(spellDiClasse.getValore(), incantesimiIds);
-//                    avanzamenti = itemRepository.findAvanzamentiWithLivelloByLabelAndIds(spellDiClasse.getValore(), incantesimiIds);
 
                     if (!incantesimi.isEmpty()) {
                         incantesimi.forEach(item -> {
@@ -155,7 +164,6 @@ public class PersonaggioService {
                         advanceRoots.addAll(incantesimi.stream().map(ItemLivelloDTO::getItem).toList());
                     }
                 }
-
 
             }
 

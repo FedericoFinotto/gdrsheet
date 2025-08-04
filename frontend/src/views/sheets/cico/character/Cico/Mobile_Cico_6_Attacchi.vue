@@ -31,6 +31,7 @@ watch(
       );
 
       // Enrich asincrono: trasforma ogni itm in { ...itm, atk }
+      console.log(sorted, 'TOMARE');
       const enriched = await Promise.all(
           sorted.map(async itm => {
             let atkVal: string | null = null;
@@ -39,6 +40,7 @@ watch(
             if (itm.attacco) {
               const resp = await getValoreFormula(cache.value[props.idPersonaggio].modificatori, itm.attacco);
               atkVal = testoModificatore(resp.data.risultato);
+              console.log('calcolo attacco', itm);
             }
 
             if (itm.colpo) {
