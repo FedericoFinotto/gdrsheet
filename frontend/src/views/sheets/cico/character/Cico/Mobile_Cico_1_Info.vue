@@ -70,15 +70,16 @@ const props = defineProps({
 }
 
 .stat-block > .stat-box:nth-child(odd) {
-  background-color: rgba(0, 99, 108, 0.25);
+  background-color: var(--secondary-color);
 }
 
 .stat-block > .stat-box:nth-child(even) {
-  background-color: rgba(0, 0, 225, 0.35);
+  background-color: var(--tertiary-color);
 }
 
 .nome {
-  border: 0.5px solid black;
+  border: 1px solid var(--border-color);
+  background-color: var(--primary-color);
   text-align: center;
   display: flex;
   justify-content: center;

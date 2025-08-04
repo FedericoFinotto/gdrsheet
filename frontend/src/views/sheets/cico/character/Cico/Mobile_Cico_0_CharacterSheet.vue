@@ -64,4 +64,25 @@ onMounted(() => {
 .p-tabview .p-tabview-panel {
   padding: 0 !important;
 }
+
+.p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+  background: var(--secondary-color);
+  border-color: var();
+  color: #000000;
+}
+
+.p-tabview .p-tabview-nav li .p-tabview-nav-link {
+  border: solid rgba(57, 0, 228, 0.99);
+  border-width: 0 0 2px 0;
+  border-color: var(--border-color);
+  background: var(--primary-color);
+  color: #6c757d;
+  padding: 1rem;
+  font-weight: 600;
+  border-top-right-radius: 3px;
+  border-top-left-radius: 3px;
+  transition: box-shadow 0.2s;
+  margin: 0 0 -2px 0;
+  outline-color: transparent;
+}
 </style>

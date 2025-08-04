@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import {defineProps, ref} from 'vue';
-import DataTable from 'primevue/datatable';
-import Column from 'primevue/column';
+import {PRIMARY_COLOR, SECONDARY_COLOR, TERTIARY_COLOR} from "../function/Constants";
 
-// Definizione delle props
 interface ColumnDef {
   field: string;
   label: string;
@@ -16,86 +14,86 @@ const props = defineProps<{
   expandable?: boolean;
 }>();
 
-// Stato delle righe espanse
-const expandedRows = ref<any[]>([]);
+const ROW_COLOR_1 = SECONDARY_COLOR;
+const ROW_COLOR_2 = TERTIARY_COLOR;
+const EXPANDED_COLOR = PRIMARY_COLOR;
 
-function onRowToggle(event: { data: any; }) {
-  const row = event.data;
-  const idx = expandedRows.value.findIndex(r => r.id === row.id);
-  if (idx >= 0) {
-    expandedRows.value.splice(idx, 1);
-  } else {
-    expandedRows.value = [row];
-  }
+const expandedId = ref<string | number | null>(null);
+
+function toggleRow(id: string | number) {
+  expandedId.value = expandedId.value === id ? null : id;
 }
 
-function onRowClick(event: { data: any; }) {
-  onRowToggle(event);
+function isExpanded(id: string | number) {
+  return expandedId.value === id;
 }
 </script>
 
 <template>
-  <DataTable
-      :value="props.items"
-      dataKey="id"
-      tableStyle="width:100%"
-      class="p-datatable-sm"
-      :expandedRows="expandedRows"
-      @rowToggle="onRowToggle"
-      @rowClick="props.expandable ? onRowClick : undefined"
-  >
-    <!-- Colonna expander -->
-    <Column
-        v-if="props.expandable"
-        expander
-        style="width:3rem"
-    />
-
-    <!-- Colonne dinamiche -->
-    <Column
-        v-for="col in props.columns"
-        :key="col.field"
-        :field="col.field"
-        :header="col.label"
-    >
-      <template #body="{ data }">
-        <div class="cell-content">
-          <!-- Valore principale -->
-          <div class="primary">
-            {{ data[col.field] }}
+  <table class="custom-table">
+    <thead>
+    <tr>
+      <th v-for="col in props.columns" :key="col.field">
+        {{ col.label }}
+      </th>
+    </tr>
+    </thead>
+    <tbody>
+    <template v-for="(row, rowIndex) in props.items" :key="row.id">
+      <tr
+          @click="toggleRow(row.id)"
+          :style="{ backgroundColor: isExpanded(row.id) ? EXPANDED_COLOR : (rowIndex % 2 === 0 ? ROW_COLOR_1 : ROW_COLOR_2) }"
+      >
+        <td v-for="col in props.columns" :key="col.field">
+          <div class="cell-content">
+            <div class="primary">{{ row[col.field] }}</div>
+            <div v-if="col.subfield" class="subtext">{{ row[col.subfield] }}</div>
           </div>
-          <!-- Subfield in piccolo se presente -->
-          <div v-if="col.subfield" class="subtext">
-            {{ data[col.subfield] }}
-          </div>
-        </div>
-      </template>
-    </Column>
-
-    <!-- Slot di espansione -->
-    <template v-if="props.expandable" #expansion="{ data }">
-      <component
-          v-if="data.expandedComponent"
-          :is="data.expandedComponent"
-          v-bind="data.expandedProps"
-      />
-      <slot v-else name="expansion" :data="data"/>
+        </td>
+      </tr>
+      <tr
+          v-if="props.expandable && isExpanded(row.id)"
+          :style="{ backgroundColor: EXPANDED_COLOR }"
+      >
+        <td :colspan="props.columns.length">
+          <component
+              v-if="row.expandedComponent"
+              :is="row.expandedComponent"
+              v-bind="row.expandedProps"
+          />
+          <slot v-else name="expansion" :data="row"/>
+        </td>
+      </tr>
     </template>
-  </DataTable>
+    </tbody>
+  </table>
 </template>
 
 <style scoped>
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.custom-table th,
+.custom-table td {
+  padding: 0.5rem;
+  border-width: 0 1px 0 0;
+  border-color: var(--border-color);
+}
+
+.custom-table tbody tr {
+  cursor: pointer;
+}
 .cell-content {
   display: flex;
   flex-direction: column;
 }
-
 .primary {
   font-size: 1rem;
 }
-
 .subtext {
   font-size: 0.75rem;
+  color: #666;
 }
-
 </style>

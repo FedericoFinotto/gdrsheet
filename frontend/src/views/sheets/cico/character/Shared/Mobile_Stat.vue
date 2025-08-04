@@ -76,7 +76,7 @@ const stat = computed(() => {
   /* larghezza automatica in base al contenuto */
   width: auto;
   min-width: 45px;
-  border: 0.5px solid black;
+  border: 1px solid var(--border-color);
 
   padding: 4px;
   background: transparent;
