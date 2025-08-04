@@ -1,8 +1,8 @@
 <template>
-  <div class="hp-container">
+  <div class="hp-container" :style="{ background: barraGradient }">
     <button @click="modificaHp(-1)">-</button>
     <div class="hp-bar-wrapper">
-      <div class="hp-bar" :style="{ background: barraGradient }">
+      <div class="hp-bar">
         <div class="delta-left" v-if="deltaInAttesa < 0">
           ({{ deltaInAttesa }})
         </div>
@@ -23,6 +23,7 @@
     </div>
     <button @click="modificaHp(1)">+</button>
   </div>
+
 </template>
 
 <script setup lang="ts">
@@ -132,22 +133,27 @@ function persistHp() {
 .hp-container {
   display: flex;
   width: 100%;
+  overflow: hidden;
+  height: 2rem;
+  align-items: center;
+  border: 1px solid var(--border-color);
 }
 
 button {
   padding: 0.3rem 0.6rem;
   font-size: 1.2rem;
   flex-shrink: 0;
-  height: 2rem;
+  height: 100%;
+  background: transparent;
+  border: none;
+  z-index: 3;
+  cursor: pointer;
 }
 
 .hp-bar-wrapper {
   flex: 1;
-  height: 2rem;
+  height: 100%;
   position: relative;
-  overflow: hidden;
-  border: 1px solid #999;
-  border-radius: 6px;
 }
 
 .hp-bar {
@@ -157,7 +163,6 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.3s;
 }
 
 .hp-center {
@@ -194,4 +199,5 @@ button {
   right: 0.5rem;
   justify-content: flex-end;
 }
+
 </style>
