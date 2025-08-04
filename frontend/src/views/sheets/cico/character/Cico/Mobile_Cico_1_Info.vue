@@ -4,7 +4,7 @@
         cache[idPersonaggio].modificatori?.nome ?? ""
       }}</h2>
   </div>
-  <!--  <Mobile_HP v-if="cache[idPersonaggio].modificatori"/>-->
+  <Mobile_HP v-if="cache[idPersonaggio].modificatori" :id-personaggio="idPersonaggio"/>
   <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
     <Mobile_Stat id="FOR" :id-personaggio="idPersonaggio"></Mobile_Stat>
     <Mobile_Stat id="DES" :id-personaggio="idPersonaggio"></Mobile_Stat>
@@ -36,6 +36,7 @@ import {defineProps} from 'vue';
 import {storeToRefs} from "pinia";
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import Mobile_Stat from "../Shared/Mobile_Stat.vue";
+import Mobile_HP from "../Shared/Mobile_HP.vue";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore);
@@ -54,7 +55,8 @@ const props = defineProps({
   display: flex;
   flex-wrap: wrap;
   padding: 0 !important;
-  gap: 0 !important;
+  gap: 3px !important;
+  margin-top: 3px;
 
   /* già presente: permette il wrap */
   /*gap: 8px;  spazio tra le caselle */

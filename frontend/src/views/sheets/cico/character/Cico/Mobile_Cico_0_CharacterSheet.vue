@@ -24,6 +24,30 @@ const loaded = ref(false);
 const characterStore = useCharacterStore();
 const {cache} = storeToRefs(characterStore);
 
+let startX = 0;
+let endX = 0;
+const threshold = 50; // distanza minima in px per considerare swipe
+
+const onTouchStart = (e: TouchEvent) => {
+  startX = e.changedTouches[0].screenX;
+};
+
+const onTouchEnd = (e: TouchEvent) => {
+  endX = e.changedTouches[0].screenX;
+  handleSwipe();
+};
+
+const handleSwipe = () => {
+  const deltaX = endX - startX;
+  if (Math.abs(deltaX) > threshold) {
+    if (deltaX < 0 && activeIndex.value < 5) {
+      activeIndex.value++; // swipe verso sinistra → pagina successiva
+    } else if (deltaX > 0 && activeIndex.value > 0) {
+      activeIndex.value--; // swipe verso destra → pagina precedente
+    }
+  }
+};
+
 onMounted(() => {
   console.log('ON MOUNTED CHARACTER SHEET, id:', idPersonaggio);
   characterStore.fetchCharacter(idPersonaggio).then(() => {

@@ -11,6 +11,7 @@ import org.jsoup.select.Elements;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.*;
 
 @Component
@@ -204,10 +205,12 @@ public class IncantesimoParser {
             Map.entry("CA", "Complete Scoundrel"),
             Map.entry("SRD", "Standard")
     );
+    private final GoogleTranslator googleTranslator;
 
 
-    public IncantesimoParser(ItemRepository itemRepository) {
+    public IncantesimoParser(ItemRepository itemRepository, GoogleTranslator googleTranslator) {
         this.itemRepository = itemRepository;
+        this.googleTranslator = googleTranslator;
     }
 
 
@@ -476,6 +479,25 @@ public class IncantesimoParser {
         if (input == null || input.isEmpty()) return input;
         return input.substring(0, 1).toUpperCase() + input.substring(1).toLowerCase();
     }
+
+    public List<Item> edit() throws IOException {
+        List<Item> incantesimi = itemRepository.findItemsByTipo(TipoItem.INCANTESIMO);
+        List<Integer> esclusi = List.of();
+        for (Item item : incantesimi.stream().filter(x -> !esclusi.contains(x.getId())).toList()) {
+            String descrizione = item.getDescrizione();
+            if (descrizione != null) {
+                String testoPulito = descrizione.replaceAll("\\r?\\n", " ");
+                System.out.println(item.getNome());
+                String tradotto = GoogleTranslator.translate(testoPulito, "en", "it");
+                System.out.println(tradotto);
+            }
+        }
+
+//        itemRepository.saveAll(incantesimi);
+
+        return incantesimi;
+    }
+
 
 }
 

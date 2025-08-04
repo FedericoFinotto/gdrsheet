@@ -78,8 +78,8 @@ function isExpanded(id: string | number) {
 .custom-table th,
 .custom-table td {
   padding: 0.5rem;
-  border-width: 0 1px 0 0;
-  border-color: var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
 }
 
 .custom-table tbody tr {

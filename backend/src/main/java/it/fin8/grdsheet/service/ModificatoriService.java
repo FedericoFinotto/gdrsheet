@@ -3,6 +3,7 @@ package it.fin8.grdsheet.service;
 import it.fin8.grdsheet.def.TipoItem;
 import it.fin8.grdsheet.def.TipoModificatore;
 import it.fin8.grdsheet.dto.*;
+import it.fin8.grdsheet.entity.Item;
 import it.fin8.grdsheet.entity.ItemLabel;
 import it.fin8.grdsheet.entity.StatValue;
 import it.fin8.grdsheet.mapper.ItemMapper;
@@ -293,5 +294,45 @@ public class ModificatoriService {
             baseMod -= 5;
         }
         return attacks;
+    }
+
+    public ContatoreDTO calcolaContatore(StatValue stat,
+                                         List<ModificatoreDTO> modsDto,
+                                         List<CaratteristicaDTO> carList,
+                                         List<Item> livelli) {
+        modsDto.forEach(x -> {
+            if (x.getValore() == null) {
+                x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), carList)));
+            }
+        });
+
+        int bonus = modsDto.stream()
+                .filter(ModificatoreDTO::getSempreAttivo)
+                .mapToInt(ModificatoreDTO::getValore)
+                .sum();
+
+        int total = bonus;
+
+        if (stat.getMod() != null) {
+            CaratteristicaDTO baseCar = carList.stream()
+                    .filter(c -> c.getId().equals(stat.getMod().getId()))
+                    .findFirst().orElse(null);
+            int modBase = baseCar != null ? baseCar.getModificatore() : 0;
+            total += modBase;
+        }
+
+        if (stat.getFormula() != null) {
+            String formula = stat.getFormula().replaceAll("@LVL", String.valueOf(livelli.size() - 1));
+            int formulaEvaluated = Integer.parseInt(calcoloService.calcola(formula, carList));
+            total += formulaEvaluated;
+        }
+
+        return new ContatoreDTO(
+                stat.getStat().getId(),
+                stat.getStat().getLabel(),
+                Integer.parseInt(stat.getValore()),
+                total,
+                modsDto
+        );
     }
 }

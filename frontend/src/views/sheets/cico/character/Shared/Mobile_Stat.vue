@@ -77,7 +77,6 @@ const stat = computed(() => {
   width: auto;
   min-width: 45px;
   border: 1px solid var(--border-color);
-
   padding: 4px;
   background: transparent;
   box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);

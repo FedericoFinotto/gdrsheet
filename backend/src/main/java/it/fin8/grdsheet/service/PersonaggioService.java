@@ -197,14 +197,23 @@ public class PersonaggioService {
                 .orElseThrow(() -> new RuntimeException("Personaggio non trovato"));
 
         List<Item> allItems = getAllPersonaggioItemsByIdPersonaggio(p.getId());
-        allItems = allItems.stream().filter(i -> i.getLabels().stream()
-                .noneMatch(lbl ->
-                        "DISABLED".equalsIgnoreCase(lbl.getLabel())
-                                && "1".equals(lbl.getValore())
-                )).toList();
+        List<Item> filteredItems = new ArrayList<>(allItems.size());
+        for (Item item : allItems) {
+            boolean isDisabled = false;
+            for (ItemLabel lbl : item.getLabels()) {
+                if ("DISABLED".equalsIgnoreCase(lbl.getLabel()) && "1".equals(lbl.getValore())) {
+                    isDisabled = true;
+                    break;
+                }
+            }
+            if (!isDisabled) {
+                filteredItems.add(item);
+            }
+        }
+        List<Item> livelloItems = filteredItems.stream().filter(x -> x.getTipo().equals(TipoItem.LIVELLO)).toList();
 
         // 6) Fetch Modificatori
-        List<Integer> itemIds = allItems.stream().map(Item::getId).toList();
+        List<Integer> itemIds = filteredItems.stream().map(Item::getId).toList();
         List<Modificatore> allMods = modificatoreRepository.findAllByItemIdIn(itemIds);
 
         List<ItemLabel> abClasse = itemLabelRepository.findByLabelAndItem_IdIn("ABCLASSE", itemIds);
@@ -294,6 +303,19 @@ public class PersonaggioService {
                             .toList()
             ).get();
             dto.getBonusAttacco().addAll(atkList);
+
+            List<ContatoreDTO> countList = pool.submit(() ->
+                    stats.stream()
+                            .filter(sv -> TipoStat.COUNT.equals(sv.getStat().getTipo()))
+                            .map(sv -> modificatoriService.calcolaContatore(
+                                    sv,
+                                    modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
+                                    carList,
+                                    livelloItems
+                            ))
+                            .toList()
+            ).get();
+            dto.getContatori().addAll(countList);
 
         } catch (Exception e) {
             throw new RuntimeException("Errore nel calcolo parallelo", e);

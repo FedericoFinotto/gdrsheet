@@ -1,5 +1,6 @@
 package it.fin8.grdsheet.spellparser;
 
+import io.swagger.v3.oas.annotations.Operation;
 import it.fin8.grdsheet.entity.Item;
 import jakarta.transaction.Transactional;
 import org.springframework.http.ResponseEntity;
@@ -24,30 +25,17 @@ public class ParserController {
         this.parser = parser;
     }
 
-//    @Operation(
-//            summary = "Parsa un file HTML",
-//            description = "Estrae gli incantesimi da un file HTML formattato con tag <h6> e <p>"
-//    )
-//    @GetMapping("/file/{nomeFile}")
-//    public ResponseEntity<List<Item>> elaboraByNome(
-//            @Parameter(description = "Nome del file HTML", required = true)
-//            @PathVariable String nomeFile
-//    ) throws Exception {
-//        File html = new File("C:/opt/gdrsheet/spells/" + nomeFile);
-//
-//        if (!html.exists()) {
-//            return ResponseEntity.notFound().build();
-//        }
-//        List<Incantesimo> incantesimi = parser.parse(html);
-//        List<Item> processato = parser.postProcessing(incantesimi);
-//        List<Item> persistito = new ArrayList<Item>();
-//        for (Item i : processato) {
-//            System.out.println("Persisto " + i.getNome());
+    @Operation(
+            summary = "EEEE",
+            description = "OOOO"
+    )
+    @GetMapping("/edit")
+    public ResponseEntity<List<Item>> elaboraByNome(
+    ) throws Exception {
+        return ResponseEntity.ok(parser.edit());
+    }
 
-    /// /            persistito.add(parser.persist(i));
-//        }
-//        return ResponseEntity.ok(processato);
-//    }
+
     @GetMapping("/file/all")
     @Transactional
     public ResponseEntity<List<Item>> elaboraTutti() throws Exception {

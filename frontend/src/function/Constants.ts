@@ -70,11 +70,11 @@ export type TipoModificatore = typeof TIPO_MODIFICATORE[keyof typeof TIPO_MODIFI
 // export const PRIMARY_COLOR = 'rgba(9,50,0,0.25)';
 
 // Palette stile pergamena per l'app DnD
-export const PRIMARY_COLOR = '#F5E1A4';   // Tonalità chiara di pergamena
-export const SECONDARY_COLOR = '#E8C884'; // Tonalità leggermente più scura
-export const TERTIARY_COLOR = '#D2B47C';  // Evidenziazione più marcata
+export const PRIMARY_COLOR = 'rgba(255,255,255,0.99)';   // Tonalità chiara di pergamena
+export const SECONDARY_COLOR = '#a8ffb4'; // Tonalità leggermente più scura
+export const TERTIARY_COLOR = '#d3fffa';  // Evidenziazione più marcata
 // Opzionali per ulteriori variazioni
-export const ACCENT_COLOR = '#B89C71';    // Accento neutro
-export const BORDER_COLOR = '#AC8E58';    // Colore dei bordi
+export const ACCENT_COLOR = '#ffdba6';    // Accento neutro
+export const BORDER_COLOR = '#000000';    // Colore dei bordi
 
 ;

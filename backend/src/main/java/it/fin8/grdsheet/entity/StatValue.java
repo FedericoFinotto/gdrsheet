@@ -33,6 +33,10 @@ public class StatValue implements Serializable {
     private String valore;
 
     @NotNull
+    @Column(name = "formula", nullable = false)
+    private String formula;
+
+    @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "mod", nullable = false)
     private Stat mod;
