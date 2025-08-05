@@ -217,25 +217,42 @@ public class ModificatoriService {
         }
 
         if (stat.getStat().getId().equals("BAB")) {
-            modificatore = modificatoriAttivi.stream().mapToInt(ModificatoreDTO::getValore).sum();
+            modificatore = Optional.of(modificatoriAttivi)
+                    .map(list -> list.stream()
+                            .mapToInt(ModificatoreDTO::getValore)
+                            .sum())
+                    .orElse(0);
         }
         if (stat.getStat().getId().equals("LTT")) {
             modificatoriAttivi.addAll(valoreBAB);
             modificatoriAttivi.add(baseMod);
             modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), 4 * taglia, "4*TAGLIA", null, null, true, null));
-            modificatore = modificatoriAttivi.stream().mapToInt(ModificatoreDTO::getValore).sum();
+            modificatore = Optional.of(modificatoriAttivi)
+                    .map(list -> list.stream()
+                            .mapToInt(ModificatoreDTO::getValore)
+                            .sum())
+                    .orElse(0);
         }
         if (stat.getStat().getId().equals("GTT")) {
             modificatoriAttivi.addAll(valoreBAB);
             modificatoriAttivi.add(baseMod);
             modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, null));
-            modificatore = modificatoriAttivi.stream().mapToInt(ModificatoreDTO::getValore).sum();
+            modificatore = Optional.of(modificatoriAttivi)
+                    .map(list -> list.stream()
+                            .mapToInt(ModificatoreDTO::getValore)
+                            .sum())
+                    .orElse(0);
         }
         if (stat.getStat().getId().equals("MSC")) {
             modificatoriAttivi.addAll(valoreBAB);
             modificatoriAttivi.add(baseMod);
             modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, null));
-            modificatore = modificatoriAttivi.stream().mapToInt(ModificatoreDTO::getValore).sum();
+            modificatore = Optional.of(modificatoriAttivi)
+                    .map(list -> list.stream()
+                            .mapToInt(ModificatoreDTO::getValore)
+                            .sum())
+                    .orElse(0);
+
         }
 
         return new BonusAttaccoDTO(
