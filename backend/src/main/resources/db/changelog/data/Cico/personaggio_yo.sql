@@ -2,15 +2,26 @@ INSERT INTO personaggio (nome, mondo_id)
 VALUES ('Qui', 1);
 
 INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo)
-VALUES ('Livello 0', 'LIVELLO', 'LIVELLO 0 QUI', (select id from personaggio where nome = 'Qui'), (select id from personaggio where nome = 'Qui'), 1),
-       ('Livello 1', 'LIVELLO', 'LIVELLO 1 QUI', (select id from personaggio where nome = 'Qui'), (select id from personaggio where nome = 'Qui'), 1),
-       ('Livello 2', 'LIVELLO', 'LIVELLO 2 QUI', (select id from personaggio where nome = 'Qui'), (select id from personaggio where nome = 'Qui'), 1),
-       ('Livello 3', 'LIVELLO', 'LIVELLO 3 QUI', (select id from personaggio where nome = 'Qui'), (select id from personaggio where nome = 'Qui'), 1),
-       ('Livello 4', 'LIVELLO', 'LIVELLO 4 QUI', (select id from personaggio where nome = 'Qui'), (select id from personaggio where nome = 'Qui'), 1),
-       ('Livello 5', 'LIVELLO', 'LIVELLO 5 QUI', (select id from personaggio where nome = 'Qui'), (select id from personaggio where nome = 'Qui'), 1),
+VALUES ('Livello 0', 'LIVELLO', 'LIVELLO 0 QUI', (select id from personaggio where nome = 'Qui'), 1, 1),
+       ('Livello 1', 'LIVELLO', 'LIVELLO 1 QUI', (select id from personaggio where nome = 'Qui'), 1, 1),
+       ('Livello 2', 'LIVELLO', 'LIVELLO 2 QUI', (select id from personaggio where nome = 'Qui'), 1, 1),
+       ('Livello 3', 'LIVELLO', 'LIVELLO 3 QUI', (select id from personaggio where nome = 'Qui'), 1, 1),
+       ('Livello 4', 'LIVELLO', 'LIVELLO 4 QUI', (select id from personaggio where nome = 'Qui'), 1, 1),
+       ('Livello 5', 'LIVELLO', 'LIVELLO 5 QUI', (select id from personaggio where nome = 'Qui'), 1, 1),
        ('Balbuzie', 'ALTRO', 'Balbuzie', (select id from personaggio where nome = 'Qui'), NULL, NULL),
-       ('FromCompendio', 'ALTRO', 'FromCompendio', (select id from personaggio where nome = 'Qui'), (select id from personaggio where nome = 'Qui'), 1)
+       ('FromCompendio', 'ALTRO', 'FromCompendio', (select id from personaggio where nome = 'Qui'), 1, 1)
 ;
+
+INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo)
+VALUES ('PreparedSpell', 'ALTRO', 'PreparedSpell Qui', (select id from personaggio where nome = 'Qui'), 1, 1)
+;
+
+INSERT INTO item_label (id_item, label, valore)
+VALUES ((select id from items where descrizione = 'PreparedSpell Qui'), 'SP_DRUID',
+        '1081, 1765, 1319,561,1017,597,1352,1152,830,424,657,1697,754,754,754,1795,1046,206,247,390');
+
+INSERT INTO collegamento (id_item_source, id_item_target)
+VALUES ((SELECT id from items where descrizione = 'LIVELLO 0 QUI'), (SELECT id from items where nome = 'Changeling'));
 
 INSERT INTO stat_value (personaggio_id, stat_id, valore, mod, classe, addestramento)
 VALUES ((select id from personaggio where nome = 'Qui'), 'FOR', '19', null, false, false),

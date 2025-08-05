@@ -482,20 +482,61 @@ public class IncantesimoParser {
 
     public List<Item> edit() throws IOException {
         List<Item> incantesimi = itemRepository.findItemsByTipo(TipoItem.INCANTESIMO);
-        List<Integer> esclusi = List.of();
+        List<Integer> esclusi = List.of(783, 1457);
+        int totale = incantesimi.stream().filter(x -> !esclusi.contains(x.getId())).toList().size();
+        int counter = 0;
         for (Item item : incantesimi.stream().filter(x -> !esclusi.contains(x.getId())).toList()) {
             String descrizione = item.getDescrizione();
+            String contatore = ++counter + "/" + totale;
             if (descrizione != null) {
-                String testoPulito = descrizione.replaceAll("\\r?\\n", " ");
-                System.out.println(item.getNome());
-                String tradotto = GoogleTranslator.translate(testoPulito, "en", "it");
-                System.out.println(tradotto);
+                System.out.println(contatore + " " + item.getNome());
+                // 1) Divido in due parti sul primo doppio o singolo a capo
+                String[] parts = descrizione.split("\\R\\R|\\R", 2);
+                System.out.println(contatore + " " + "RIMUOVO" + parts[0]);
+                // parts[0] = tutto fino al primo a capo (o doppio)
+                // parts[1] = il resto (se esiste), altrimenti ""
+                String resto = parts.length > 1 ? parts[1] : "";
+                if (parts.length > 1) {
+                    // 2) Sostituisco tutti gli a capo restanti con spazi
+                    String testoPulito = resto.replaceAll("\\r?\\n+", " ").trim();
+                    System.out.println(contatore + " " + "MANTENGO" + testoPulito);
+
+//                String tradotto = GoogleTranslator.translate(testoPulito, "en", "it");
+//                System.out.println(tradotto);
+
+                    // se vuoi salvare la descrizione modificata:
+                    item.setDescrizione(testoPulito);
+                } else {
+                    System.out.println(contatore + " " + "DA ESCLUDERE");
+                }
+
+
+                System.out.println(contatore + " " + "Persisto");
             }
         }
 
-//        itemRepository.saveAll(incantesimi);
 
-        return incantesimi;
+        itemRepository.saveAll(incantesimi);
+
+        return null;
+    }
+
+    private void dumpControlChars(String s) {
+        // usa un LinkedHashSet per mantenere ordine di prima occorrenza
+        Set<Integer> codes = new LinkedHashSet<>();
+        for (int cp : s.codePoints().toArray()) {
+            if (Character.isISOControl(cp) || !Character.isDefined(cp) || Character.isWhitespace(cp) && cp != ' ') {
+                codes.add(cp);
+            }
+        }
+        if (codes.isEmpty()) {
+            System.out.println("Nessun carattere di controllo speciale trovato.");
+        } else {
+            System.out.println("Trovati caratteri speciali:");
+            for (int cp : codes) {
+                System.out.printf(" U+%04X (%s)%n", cp, Character.getName(cp));
+            }
+        }
     }
 
 

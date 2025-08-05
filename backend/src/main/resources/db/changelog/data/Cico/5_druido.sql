@@ -77,6 +77,9 @@ VALUES ((select id from items where nome = 'Druido'), (select id from items wher
 INSERT INTO item_label (id_item, label, valore)
 VALUES ((select id from items where nome = 'Druido'), 'ABCLASSE', 'AB2,AB5,AB7,AB9,AB12,AB16,AB21,AB22,AB29,AB32,CO10');
 
+INSERT INTO item_label (id_item, label, valore)
+VALUES ((select id from items where nome = 'Druido'), 'SPELL', 'SP_DRUID');
+
 INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo)
 VALUES ((select id from items where nome = 'Senso della natura'), 'CO10', +2, true, null, 'VALORE'),
        ((select id from items where nome = 'Senso della natura'), 'AB32', +2, true, null, 'VALORE'),

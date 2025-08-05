@@ -44,3 +44,6 @@ FROM changeling c
     WHERE nome = 'Cambiare forma minore'
     ) AS t;
 
+INSERT INTO item_label (id_item, label, valore)
+VALUES ((select id from items where nome = 'Changeling'), 'ABCLASSE', 'AB36');
+
