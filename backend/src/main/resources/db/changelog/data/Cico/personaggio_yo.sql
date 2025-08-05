@@ -66,9 +66,9 @@ VALUES ((select id from personaggio where nome = 'Qui'), 'FOR', '19', null, fals
        ((select id from personaggio where nome = 'Qui'), 'VLT', '0', 'SAG', false, false),
        ((select id from personaggio where nome = 'Qui'), 'BAB', '0', NULL, false, false),
        ((select id from personaggio where nome = 'Qui'), 'INIT', '0', 'DES', false, false),
-       ((select id from personaggio where nome = 'Qui'), 'LTT', '0', NULL, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'MSC', '0', NULL, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'GTT', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'LTT', '0', 'FOR', false, false),
+       ((select id from personaggio where nome = 'Qui'), 'MSC', '0', 'FOR', false, false),
+       ((select id from personaggio where nome = 'Qui'), 'GTT', '0', 'DES', false, false),
        ((select id from personaggio where nome = 'Qui'), 'CO01', '0', 'INT', false, true),
        ((select id from personaggio where nome = 'Qui'), 'CO02', '0', 'INT', false, true),
        ((select id from personaggio where nome = 'Qui'), 'CO03', '0', 'INT', false, true),
@@ -141,6 +141,41 @@ VALUES
 
 ;
 
+INSERT INTO modificatori (id_item, id_stat, valore, always, tipo)
+VALUES
+    ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'PF', '+8', true, 'VALORE'),
+    ((select id from items where descrizione = 'LIVELLO 2 QUI'), 'PF', '+7', true, 'VALORE'),
+    ((select id from items where descrizione = 'LIVELLO 3 QUI'), 'PF', '+7', true, 'VALORE'),
+    ((select id from items where descrizione = 'LIVELLO 4 QUI'), 'PF', '+7', true, 'VALORE'),
+    ((select id from items where descrizione = 'LIVELLO 5 QUI'), 'PF', '+7', true, 'VALORE');
 
 
+INSERT INTO stat_value (personaggio_id, stat_id, valore, mod, classe, addestramento, formula) VALUES
+    ((select id from personaggio where nome = 'Qui'), 'NWS', 0, null, true, false, null);
 
+INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo) VALUES
+('Papera mostruosa', 'TRASFORMAZIONE', null, (select id from personaggio where nome = 'Qui'), 1,1);
+
+INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo) VALUES
+('Pugno', 'ATTACCO', null, null, 1,1),
+('Beccata', 'ATTACCO', null, null, 1,1),
+('Soffio (Suono)', 'ATTACCO', null, null, 1,1)
+;
+
+INSERT INTO collegamento (id_item_source, id_item_target) VALUES
+((SELECT id FROM items where nome = 'Papera mostruosa'), (SELECT id FROM items where nome = 'Pugno')),
+((SELECT id FROM items where nome = 'Papera mostruosa'), (SELECT id FROM items where nome = 'Beccata')),
+((SELECT id FROM items where nome = 'Papera mostruosa'), (SELECT id FROM items where nome = 'Soffio (Suono)'));
+
+INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
+((SELECT id FROM items where nome = 'Papera mostruosa'), 'FOR', '30', true, null, 'BASE'),
+((SELECT id FROM items where nome = 'Papera mostruosa'), 'COS', '30', true, null, 'BASE'),
+((SELECT id FROM items where nome = 'Papera mostruosa'), 'DES', '18', true, null, 'BASE');
+
+INSERT INTO item_label (id_item, label, valore)
+VALUES
+    ((SELECT id FROM items WHERE nome = 'Pugno'), 'TPC', '@BAB+@FOR'),
+    ((SELECT id FROM items WHERE nome = 'Pugno'), 'TPD', '1d6+@FOR'),
+    ((SELECT id FROM items WHERE nome = 'Beccata'), 'TPC', '@BAB+@FOR'),
+    ((SELECT id FROM items WHERE nome = 'Beccata'), 'TPD', '1d8+@FOR/2'),
+    ((SELECT id FROM items WHERE nome = 'Soffio (Suono)'), 'TPD', '3d6');

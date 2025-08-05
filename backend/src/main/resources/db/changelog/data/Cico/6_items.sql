@@ -57,3 +57,9 @@ VALUES
 
 ;
 
+INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo)
+VALUES
+    ((select id from items where nome = 'Extra Wild Shape'), 'NWS', '+2', true, null, 'VALORE'),
+    ((select id from items where nome = 'Veste del druido'), 'NWS', '+1', true, null, 'VALORE');
+
+
