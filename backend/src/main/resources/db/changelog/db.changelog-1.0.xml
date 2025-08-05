@@ -5,27 +5,15 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
 
-    <changeSet id="0" author="Federico Finotto">
-        <sql>
-            CREATE TYPE tipo_item AS ENUM ('ABILITA', 'TALENTO', 'OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO', 'PERSONAGGIO', 'CLASSE', 'RAZZA', 'ATTACCO', 'ALTRO', 'LIVELLO', 'MALEDIZIONE','INCANTESIMO');
-            CREATE TYPE tipo_stat AS ENUM ('CAR', 'AB', 'TS', 'PF', 'ATT','CA');
-            CREATE TYPE tipo_permesso AS ENUM ('R', 'W');
-            CREATE TYPE tipo_ruolo AS ENUM ('ADMIN', 'MASTER', 'EDITOR', 'GIOCATORE');
-            CREATE TYPE tipo_modificatore AS ENUM ('RANK', 'VALORE', 'CA_SCHIVARE', 'CA_ARMOR', 'CA_NATURALE', 'CA_DEVIAZIONE', 'CA_SHIELD', 'CA_MAGIC');
-        </sql>
-    </changeSet>
-
-    <!-- Ruolo -->
-    <changeSet id="1" author="developer">
-        <createTable tableName="ruolo">
-            <column name="id" type="serial">
-                <constraints primaryKey="true"/>
-            </column>
-            <column name="descrizione" type="varchar(64)">
-                <constraints nullable="false"/>
-            </column>
-        </createTable>
-    </changeSet>
+<!--    <changeSet id="0" author="Federico Finotto">-->
+<!--        <sql>-->
+<!--            CREATE TYPE tipo_item AS ENUM ('ABILITA', 'TALENTO', 'OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO', 'PERSONAGGIO', 'CLASSE', 'RAZZA', 'ATTACCO', 'ALTRO', 'LIVELLO', 'MALEDIZIONE','INCANTESIMO');-->
+<!--            CREATE TYPE tipo_stat AS ENUM ('CAR', 'AB', 'TS', 'PF', 'ATT','CA');-->
+<!--            CREATE TYPE tipo_permesso AS ENUM ('R', 'W');-->
+<!--            CREATE TYPE tipo_ruolo AS ENUM ('ADMIN', 'MASTER', 'EDITOR', 'GIOCATORE');-->
+<!--            CREATE TYPE tipo_modificatore AS ENUM ('RANK', 'VALORE', 'CA_SCHIVARE', 'CA_ARMOR', 'CA_NATURALE', 'CA_DEVIAZIONE', 'CA_SHIELD', 'CA_MAGIC');-->
+<!--        </sql>-->
+<!--    </changeSet>-->
 
     <!-- Utente -->
     <changeSet id="2" author="developer">
@@ -132,6 +120,9 @@
             <column name="addestramento" type="boolean">
                 <constraints nullable="true"/>
             </column>
+            <column name="formula" type="varchar2(32)">
+                <constraints nullable="true"/>
+            </column>
         </createTable>
 
     </changeSet>
@@ -153,21 +144,6 @@
             </column>
         </createTable>
 
-    </changeSet>
-
-    <!-- Livello -->
-    <changeSet id="11" author="developer">
-        <createTable tableName="livello">
-            <column name="personaggio_id" type="int">
-                <constraints nullable="false" primaryKey="true" primaryKeyName="pk_livello"/>
-            </column>
-            <column name="item_classe_id" type="int">
-                <constraints nullable="false" primaryKey="true"/>
-            </column>
-            <column name="livello" type="int">
-                <constraints nullable="false" primaryKey="true"/>
-            </column>
-        </createTable>
     </changeSet>
 
     <!-- Item_Label -->
@@ -378,20 +354,6 @@
                 referencedTableName="items"
                 referencedColumnNames="id"
                 constraintName="fk_avanzamento_target"/>
-
-        <!--        LIVELLO-->
-        <addForeignKeyConstraint
-                baseTableName="livello"
-                baseColumnNames="personaggio_id"
-                referencedTableName="personaggio"
-                referencedColumnNames="id"
-                constraintName="fk_livello_personaggio"/>
-        <addForeignKeyConstraint
-                baseTableName="livello"
-                baseColumnNames="item_classe_id"
-                referencedTableName="items"
-                referencedColumnNames="id"
-                constraintName="fk_livello_item"/>
 
         <!--        ITEM_LABEL-->
         <addForeignKeyConstraint
