@@ -16,6 +16,7 @@
 import {computed, defineProps} from 'vue'
 import {useCharacterStore} from '../../../../../stores/personaggio'
 import {storeToRefs} from 'pinia'
+import {updateContatore} from "../../../../../service/PersonaggioService";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore)
@@ -36,7 +37,9 @@ function modifica(delta: number) {
   if (!stat.value) return
   const nuovoValore = Math.max(0, Math.min(stat.value.max, stat.value.valore + delta))
   stat.value.valore = nuovoValore
-  // TODO: chiamata backend se serve
+  updateContatore(props.idPersonaggio, props.idStat, nuovoValore).then((resp) => {
+    if (resp) console.log(resp);
+  });
 }
 </script>
 

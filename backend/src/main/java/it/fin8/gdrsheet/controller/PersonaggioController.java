@@ -4,15 +4,15 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import it.fin8.gdrsheet.dto.DatiPersonaggioDTO;
 import it.fin8.gdrsheet.dto.ItemsDTO;
+import it.fin8.gdrsheet.dto.UpdateCounterRequest;
+import it.fin8.gdrsheet.dto.UpdateHPRequest;
 import it.fin8.gdrsheet.entity.Personaggio;
 import it.fin8.gdrsheet.repository.PersonaggioRepository;
 import it.fin8.gdrsheet.service.PersonaggioService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
@@ -69,6 +69,32 @@ public class PersonaggioController {
         DatiPersonaggioDTO result = personaggioService.getDatiPersonaggio(id);
 
         return ResponseEntity.ok(result);
+    }
+
+    @Operation(
+            summary = "Aggiorna i punti ferita",
+            description = "Aggiorna i punti ferita"
+    )
+    @PostMapping("/update-hp")
+    public ResponseEntity<Boolean> updateHp(
+            @Parameter(description = "Aggiorna i punti ferita", required = true)
+            @Valid @RequestBody UpdateHPRequest request
+    ) {
+        Boolean resp = personaggioService.updateHP(request);
+        return ResponseEntity.ok(resp);
+    }
+
+    @Operation(
+            summary = "Aggiorna i punti ferita",
+            description = "Aggiorna i punti ferita"
+    )
+    @PostMapping("/update-counter")
+    public ResponseEntity<Boolean> updateCounter(
+            @Parameter(description = "Aggiorna i punti ferita", required = true)
+            @Valid @RequestBody UpdateCounterRequest request
+    ) {
+        Boolean resp = personaggioService.updateContatore(request);
+        return ResponseEntity.ok(resp);
     }
 
 

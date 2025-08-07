@@ -2,7 +2,6 @@ package it.fin8.gdrsheet.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -18,34 +17,27 @@ public class StatValue implements Serializable {
     @Column(name = "id", nullable = false)
     private Integer id;
 
-    @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "personaggio_id", nullable = false)
     private Personaggio personaggio;
 
-    @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "stat_id", nullable = false)
     private Stat stat;
 
-    @NotNull
     @Column(name = "valore", nullable = false)
     private String valore;
 
-    @NotNull
-    @Column(name = "formula", nullable = false)
+    @Column(name = "formula", nullable = true)
     private String formula;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "mod", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "mod", nullable = true)
     private Stat mod;
 
-    @NotNull
     @Column(name = "classe", nullable = false)
     private Boolean classe;
 
-    @NotNull
     @Column(name = "addestramento", nullable = false)
     private Boolean addestramento;
 

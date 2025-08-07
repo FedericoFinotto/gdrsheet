@@ -1,184 +1,183 @@
 <template>
-  <div class="hp-container" :style="{ background: barraGradient }">
-    <button @click="modificaHp(-1)">-</button>
+  <div class="hp-container" :style="{ backgroundImage: barraGradient }">
+    <button class="hp-btn" @click="modifyHp(-1)">-</button>
     <div class="hp-bar-wrapper">
       <div class="hp-bar">
-        <div class="delta-left" v-if="deltaInAttesa < 0">
-          ({{ deltaInAttesa }})
+        <div class="delta" v-if="delta < 0">
+          ({{ delta }})
         </div>
-
         <div class="hp-center">
-          <template v-if="pfTEMP > 0">
-            {{ hp + pfTEMP }} ({{ hp }} + {{ pfTEMP }}) / {{ hpMax }}
+          <template v-if="pfTemp > 0">
+            {{ hp + pfTemp }} ({{ hp }} + {{ pfTemp }}) / {{ hpMax }}
           </template>
           <template v-else>
             {{ hp }} / {{ hpMax }}
           </template>
         </div>
-
-        <div class="delta-right" v-if="deltaInAttesa > 0">
-          (+{{ deltaInAttesa }})
+        <div class="delta" v-if="delta > 0">
+          +{{ delta }}
         </div>
       </div>
     </div>
-    <button @click="modificaHp(1)">+</button>
+    <button class="hp-btn" @click="modifyHp(+1)">+</button>
   </div>
-
 </template>
 
 <script setup lang="ts">
-import {computed, defineProps, ref} from 'vue'
-import {useCharacterStore} from '../../../../../stores/personaggio'
+import {computed, defineProps, onBeforeUnmount, ref, watch} from 'vue'
+import {useCharacterStore} from '@/stores/personaggio'
 import {storeToRefs} from 'pinia'
+import {updateHP} from '@/service/PersonaggioService'
+import debounce from 'lodash/debounce'
 
-const characterStore = useCharacterStore()
-const {cache} = storeToRefs(characterStore)
+const props = defineProps<{ idPersonaggio: number }>()
 
-const props = defineProps({
-  idPersonaggio: {
-    type: Number,
-    required: true
-  }
-})
+// store slice
+const {cache} = storeToRefs(useCharacterStore())
 
-const deltaInAttesa = ref(0)
-const pfTempRimossiInAttesa = ref(0)
-let timerId: ReturnType<typeof setTimeout> | null = null
+// --- stati di sessione ---
+const delta = ref(0) // visualizza l’ultima modifica
+const pfTempRemoved = ref(0) // quanti PF TEMP tolti finora
+const hpAdded = ref(0) // quanti HP normali aggiunti finora
 
-const pf = computed(() =>
-    cache.value[props.idPersonaggio].modificatori.contatori.find(stat => stat.id === 'PF')
+// computed su contatori
+const pfStat = computed(() =>
+    cache.value[props.idPersonaggio]?.modificatori.contatori.find(s => s.id === 'PF')
+)
+const pfTempStat = computed(() =>
+    cache.value[props.idPersonaggio]?.modificatori.contatori.find(s => s.id === 'PFTEMP')
 )
 
-const pfTEMP = computed(() =>
-    cache.value[props.idPersonaggio].modificatori.contatori.find(stat => stat.id === 'PFTEMP')?.valore ?? 0
+// valori numerici
+const hp = computed(() => pfStat.value?.valore ?? 0)
+const hpMax = computed(() => pfStat.value?.max ?? 0)
+const pfTemp = computed(() => pfTempStat.value?.valore ?? 0)
+
+// percentuali per il gradiente
+const total = computed(() => hpMax.value + pfTemp.value)
+const hpPercent = computed(() => total.value > 0 ? (hp.value / total.value) * 100 : 0)
+const tempPercent = computed(() => total.value > 0 ? (pfTemp.value / total.value) * 100 : 0)
+
+const barraGradient = computed(() =>
+    `linear-gradient(to right,` +
+    `#28a745 0%,#28a745 ${hpPercent.value}%,` +
+    `#17a2b8 ${hpPercent.value}%,#17a2b8 ${hpPercent.value + tempPercent.value}%,` +
+    `#ddd ${hpPercent.value + tempPercent.value}%,#ddd 100%` +
+    `)`
 )
 
-const hp = computed(() => pf.value?.valore ?? 0)
-const hpMax = computed(() => pf.value?.max ?? 0)
-const total = computed(() => hpMax.value + pfTEMP.value)
+// debounce dell’update remoto: 3s dopo l’ultima variazione
+const debouncedUpdate = debounce(() => {
+  updateHP(
+      props.idPersonaggio,
+      pfStat.value?.valore ?? 0,
+      pfTempStat.value?.valore ?? 0
+  ).then(() => {
+    console.log('HP sincronizzati');
+    // fine sessione: resetto gli stati temporanei
+    delta.value = 0
+    pfTempRemoved.value = 0
+    hpAdded.value = 0
+  })
+}, 3000)
 
-const hpPercent = computed(() => (total.value > 0 ? (hp.value / total.value) * 100 : 0))
-const pfTempPercent = computed(() => (total.value > 0 ? (pfTEMP.value / total.value) * 100 : 0))
+// ogni volta che cambiano hp o pfTemp, rilancio il debounce
+watch([hp, pfTemp], () => {
+  debouncedUpdate()
+}, {flush: 'post'})
 
-const barraGradient = computed(() => {
-  const hp = hpPercent.value
-  const temp = pfTempPercent.value
-  return `linear-gradient(to right,
-    #28a745 0%,
-    #28a745 ${hp}%,
-    #17a2b8 ${hp}%,
-    #17a2b8 ${hp + temp}%,
-    #ddd ${hp + temp}%,
-    #ddd 100%)`
+// cancello il debounce al destroy
+onBeforeUnmount(() => {
+  debouncedUpdate.cancel()
 })
 
-function modificaHp(delta: number) {
-  const pf = cache.value[props.idPersonaggio].modificatori.contatori.find(stat => stat.id === 'PF')
-  const pftemp = cache.value[props.idPersonaggio].modificatori.contatori.find(stat => stat.id === 'PFTEMP')
+/**
+ * Modifica i valori in cache e tiene traccia di hpAdded / pfTempRemoved.
+ */
+function modifyHp(amount: number) {
+  delta.value += amount
+  let rem = amount
 
-  if (!pf) return
+  if (rem > 0) {
+    // **Heal**: prima ripristino eventuali PF TEMP tolti
+    if (pfTempRemoved.value > 0) {
+      const restore = Math.min(rem, pfTempRemoved.value)
+      pfTempStat.value!.valore += restore
+      pfTempRemoved.value -= restore
+      rem -= restore
+    }
+    // poi aggiungo HP “veri” e li conto in hpAdded
+    if (rem > 0 && pfStat.value) {
+      const added = Math.min(rem, pfStat.value.max - pfStat.value.valore)
+      pfStat.value.valore += added
+      hpAdded.value += added
+    }
 
-  deltaInAttesa.value += delta
-
-  if (delta < 0) {
-    let danno = -delta
-    if (pftemp && pftemp.valore > 0) {
-      const toltiDaTemp = Math.min(danno, pftemp.valore)
-      pftemp.valore -= toltiDaTemp
-      pfTempRimossiInAttesa.value += toltiDaTemp
-      danno -= toltiDaTemp
+  } else if (rem < 0) {
+    // **Undo di un heal**: prima tolgo gli HP appena aggiunti
+    let damage = -rem
+    if (hpAdded.value > 0) {
+      const undo = Math.min(damage, hpAdded.value)
+      pfStat.value!.valore -= undo
+      hpAdded.value -= undo
+      damage -= undo
     }
-    if (danno > 0) {
-      pf.valore = Math.max(0, pf.valore - danno)
+    // poi applico il danno usuale: PF TEMP -> HP
+    if (damage > 0 && pfTempStat.value!.valore > 0) {
+      const cut = Math.min(damage, pfTempStat.value!.valore)
+      pfTempStat.value!.valore -= cut
+      pfTempRemoved.value += cut
+      damage -= cut
     }
-  } else if (delta > 0) {
-    // Prima ripristina PF TEMP se ne ho tolti in attesa
-    if (pfTempRimossiInAttesa.value > 0) {
-      const daRipristinare = Math.min(delta, pfTempRimossiInAttesa.value)
-      if (pftemp) {
-        pftemp.valore += daRipristinare
-        pfTempRimossiInAttesa.value -= daRipristinare
-        delta -= daRipristinare
-      }
-    }
-    // Poi cura PF normali
-    if (delta > 0) {
-      pf.valore = Math.min(pf.max, pf.valore + delta)
+    if (damage > 0 && pfStat.value) {
+      pfStat.value.valore = Math.max(0, pfStat.value.valore - damage)
     }
   }
-
-  if (timerId) clearTimeout(timerId)
-  timerId = setTimeout(() => {
-    persistHp()
-  }, 3000)
-}
-
-function persistHp() {
-  const pf = cache.value[props.idPersonaggio].modificatori.contatori.find(stat => stat.id === 'PF')
-  const pftemp = cache.value[props.idPersonaggio].modificatori.contatori.find(stat => stat.id === 'PFTEMP')
-
-  if (!pf) return
-
-  // TODO: chiamate asincrone verso backend
-  // updateHp(props.idPersonaggio, pf.valore).catch(...)
-  // updatePfTemp(props.idPersonaggio, pftemp?.valore).catch(...)
-
-  deltaInAttesa.value = 0
-  pfTempRimossiInAttesa.value = 0
-  timerId = null
 }
 </script>
 
 <style scoped>
 .hp-container {
   display: flex;
-  width: 100%;
-  overflow: hidden;
-  height: 2rem;
   align-items: center;
+  height: 2rem;
   border: 1px solid var(--border-color);
+  overflow: hidden;
 }
 
-button {
-  padding: 0.3rem 0.6rem;
-  font-size: 1.2rem;
-  flex-shrink: 0;
-  height: 100%;
+.hp-btn {
   background: transparent;
   border: none;
-  z-index: 3;
+  font-size: 1.2rem;
+  padding: 0 0.6rem;
   cursor: pointer;
+  flex-shrink: 0;
+  height: 100%;
 }
 
 .hp-bar-wrapper {
   flex: 1;
-  height: 100%;
   position: relative;
 }
 
 .hp-bar {
-  height: 100%;
   width: 100%;
-  position: relative;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
 .hp-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   position: relative;
+  z-index: 2;
   font-weight: bold;
   font-size: 0.9rem;
-  color: #000;
   white-space: nowrap;
-  z-index: 2;
 }
 
-.delta-left,
-.delta-right {
+.delta {
   position: absolute;
   top: 0;
   height: 100%;
@@ -190,14 +189,11 @@ button {
   color: #000;
 }
 
-.delta-left {
+.delta:first-of-type {
   left: 0.5rem;
-  justify-content: flex-start;
 }
 
-.delta-right {
+.delta:last-of-type {
   right: 0.5rem;
-  justify-content: flex-end;
 }
-
 </style>

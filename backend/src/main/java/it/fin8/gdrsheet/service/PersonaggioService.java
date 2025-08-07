@@ -334,4 +334,51 @@ public class PersonaggioService {
         return dto;
     }
 
+    public Boolean updateHP(UpdateHPRequest upd) {
+        Personaggio p = personaggioRepository.findById(upd.getIdPersonaggio()).orElse(null);
+        if (p == null) {
+            return false;
+        }
+        StatValue hp = p.getStats().stream().filter(x -> x.getStat().getId().equals("PF")).findFirst().orElse(null);
+        StatValue hpTemp = p.getStats().stream().filter(x -> x.getStat().getId().equals("PFTEMP")).findFirst().orElse(null);
+
+        if (hpTemp == null || hp == null) {
+            return false;
+        }
+
+        hp.setValore(upd.getPf());
+        hpTemp.setValore(upd.getPfTemp());
+
+        try {
+            statValueRepository.save(hp);
+            statValueRepository.save(hpTemp);
+        } catch (Exception e) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public Boolean updateContatore(UpdateCounterRequest upd) {
+        Personaggio p = personaggioRepository.findById(upd.getIdPersonaggio()).orElse(null);
+        if (p == null) {
+            return false;
+        }
+        StatValue stat = p.getStats().stream().filter(x -> x.getStat().getId().equals(upd.getId())).findFirst().orElse(null);
+
+        if (stat == null) {
+            return false;
+        }
+
+        stat.setValore(upd.getValore());
+
+        try {
+            statValueRepository.save(stat);
+        } catch (Exception e) {
+            return false;
+        }
+
+        return true;
+    }
+
 }

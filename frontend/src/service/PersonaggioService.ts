@@ -36,3 +36,22 @@ export function switchItemState(id: number): Promise<AxiosResponse<ItemDB>> {
         .get<ItemDB>(`/item/switch-state/${id}`);
 }
 
+export function updateHP(idPersonaggio: number, pf: string, pfTemp: string): Promise<AxiosResponse<Boolean>> {
+    const payload: CalcoloRequest = {
+        idPersonaggio,
+        pf,
+        pfTemp
+    };
+    return api
+        .post<CalcoloResponse>('/personaggi/update-hp', payload)
+}
+
+export function updateContatore(idPersonaggio: number, statId: string, valore: string): Promise<AxiosResponse<Boolean>> {
+    const payload: CalcoloRequest = {
+        idPersonaggio,
+        id: statId,
+        valore
+    };
+    return api
+        .post<CalcoloResponse>('/personaggi/update-counter', payload)
+}

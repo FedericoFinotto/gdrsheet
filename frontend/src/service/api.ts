@@ -2,7 +2,8 @@ import axios from 'axios';
 
 const getBackendBaseUrl = () => {
     const {protocol, hostname} = window.location;
-    return `${protocol}//${hostname}:8080/api`;
+    if (hostname === 'localhost') return `http://localhost:8080/api`
+    return `${protocol}//${hostname}/api`;
 };
 
 const api = axios.create({

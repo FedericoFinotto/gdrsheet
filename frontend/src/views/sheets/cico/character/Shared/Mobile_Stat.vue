@@ -1,7 +1,7 @@
 <template>
   <div class="stat-box">
     <div class="label">{{ label ?? id }}</div>
-    <div class="modifier">{{ stat ? (testoModificatore(stat.modificatore) ?? '') : '' }}</div>
+    <div class="modifier" @click="showPopup">{{ stat ? (testoModificatore(stat.modificatore) ?? '') : '' }}</div>
     <div class="base">{{ stat ? (stat.valore ?? '') : '' }}</div>
   </div>
 </template>
@@ -11,6 +11,10 @@ import {computed, defineProps} from 'vue'
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import {testoModificatore} from "../../../../../function/Utils";
+import usePopup from "../../../../../function/usePopup";
+import Mobile_DettaglioCaratteristica from "../Dettaglio/Mobile_DettaglioCaratteristica.vue";
+
+const {openPopup} = usePopup()
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore);
@@ -29,6 +33,14 @@ const props = defineProps({
     default: undefined
   }
 });
+
+function showPopup() {
+  openPopup(
+      Mobile_DettaglioCaratteristica,
+      {stat},
+      {closable: true, autoClose: 0}
+  )
+}
 
 const stat = computed(() => {
   const statistiche = cache.value[props.idPersonaggio]?.modificatori;
@@ -50,17 +62,10 @@ const stat = computed(() => {
     }
     if (bonusAttacco) {
       const values = bonusAttacco.attacchiMultipli;
-      console.log("PORCAMADONNA", bonusAttacco, values);
-      let modificatore;
-
-
-      modificatore = values
+      bonusAttacco.modificatore = values
           .map(v => testoModificatore(v))
           .join(' / ');
-
-
-      console.log('ATTACCHI MULTIPLI', modificatore);
-      return {modificatore};
+      return bonusAttacco;
     }
     return null;
   }
