@@ -14,5 +14,5 @@ public class ItemDTO {
     private Integer id;
     private String nome;
     private TipoItem tipo;
-    private Boolean enabled;
+    private Boolean disabled;
 }

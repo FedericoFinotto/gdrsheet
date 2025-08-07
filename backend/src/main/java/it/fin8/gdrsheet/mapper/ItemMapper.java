@@ -18,6 +18,7 @@ public class ItemMapper {
         dto.setId(entity.getId());
         dto.setNome(entity.getNome());
         dto.setTipo(entity.getTipo());
+        dto.setDisabled(isDisabled(entity));
         return dto;
     }
 
@@ -57,5 +58,10 @@ public class ItemMapper {
             dto.setColpo(danno.getValore());
         }
         return dto;
+    }
+
+    public Boolean isDisabled(Item entity) {
+        ItemLabel disabledLabel = entity.getLabels().stream().filter(x -> x.getLabel().equals("DISABLED")).findFirst().orElse(null);
+        return disabledLabel != null && disabledLabel.getValore().equals("1");
     }
 }

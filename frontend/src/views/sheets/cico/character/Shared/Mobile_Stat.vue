@@ -69,7 +69,15 @@ const stat = computed(() => {
       return bonusAttacco;
     }
     if(attributo) {
-      return attributo;
+      const infinito = attributo.modificatori.filter(x => x.sempreAttivo && x.formula === '+INF');
+      let mod = attributo.modificatore;
+      if (infinito && infinito.length > 0) {
+        mod = '+∞';
+      }
+      return {
+        ...attributo,
+        modificatore: mod
+      };
     }
     return null;
   }

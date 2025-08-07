@@ -61,6 +61,7 @@ function modifica(delta: number) {
   text-align: center;
   margin-bottom: 0.3rem;
   color: #333;
+  text-transform: uppercase;
 }
 
 .stat-controls {

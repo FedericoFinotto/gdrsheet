@@ -2,7 +2,7 @@ import api from './api';
 import {ItemDB} from "../models/ItemDB";
 import {AxiosResponse} from "axios";
 import {Statistiche} from "../models/Modificatori";
-import {CalcoloRequest, CalcoloResponse} from "../models/Calcolo";
+import {CalcoloRequest, CalcoloResponse, UpdateContatoreRequest, UpdateHPRequest} from "../models/Calcolo";
 
 export const getPersonaggioById = (id) => {
     return api.get(`/personaggi/${id}`);
@@ -37,21 +37,21 @@ export function switchItemState(id: number): Promise<AxiosResponse<ItemDB>> {
 }
 
 export function updateHP(idPersonaggio: number, pf: string, pfTemp: string): Promise<AxiosResponse<Boolean>> {
-    const payload: CalcoloRequest = {
+    const payload: UpdateHPRequest = {
         idPersonaggio,
         pf,
         pfTemp
     };
     return api
-        .post<CalcoloResponse>('/personaggi/update-hp', payload)
+        .post<Boolean>('/personaggi/update-hp', payload)
 }
 
 export function updateContatore(idPersonaggio: number, statId: string, valore: string): Promise<AxiosResponse<Boolean>> {
-    const payload: CalcoloRequest = {
+    const payload: UpdateContatoreRequest = {
         idPersonaggio,
         id: statId,
         valore
     };
     return api
-        .post<CalcoloResponse>('/personaggi/update-counter', payload)
+        .post<Boolean>('/personaggi/update-counter', payload)
 }

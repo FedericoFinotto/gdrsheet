@@ -77,4 +77,23 @@ VALUES
     ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'per evitare i danni causati da soffocamento', 'VALORE')
 ;
 
+INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo) VALUES
+    ('Armatura in Pelle di Xenomorfo', 'EQUIPAGGIAMENTO', null, null, 1, null);
+
+INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
+((SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo'), 'RACID', '+INF', true, null, 'VALORE'),
+((SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo'), 'RINC', '+15', true, null, 'VALORE'),
+((SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo'), 'RTHUN', '+10', true, null, 'VALORE'),
+((SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo'), 'RFIRE', '+10', true, null, 'VALORE'),
+((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB1', -1, true, null, 'VALORE'),
+((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB7', -1, true, null, 'VALORE'),
+((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB19', -1, true, null, 'VALORE'),
+((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB19', +5, true, null, 'VALORE'),
+((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB21', -1, true, null, 'VALORE'),
+((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB30', -1, true, null, 'VALORE'),
+((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB28', -1, true, null, 'VALORE'),
+((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'CA', +5, true, null, 'CA_ARMOR')
+;
+
+
 

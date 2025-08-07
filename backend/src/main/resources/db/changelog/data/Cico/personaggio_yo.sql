@@ -141,7 +141,7 @@ VALUES
     ((SELECT id FROM items where descrizione = 'LIVELLO 4 QUI'), (SELECT id FROM items where nome = 'Druido')),
     ((SELECT id FROM items where descrizione = 'LIVELLO 5 QUI'), (SELECT id FROM items where nome = 'Druido')),
     ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Fucile Ammazzadivinita')),
-    ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Armatura in cuoio borchiato (naturale)')),
+    ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo')),
     ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Scudo in legno')),
     ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Tantoo')),
     ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Veste del druido')),
@@ -224,7 +224,5 @@ VALUES ((select id from personaggio where nome = 'Qui'), 'RINC', '0', null, fals
 
 
 INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
-((SELECT id FROM items where nome = 'Papera mostruosa'), 'RINC', '+15', true, null, 'VALORE'),
-((SELECT id FROM items where nome = 'Papera mostruosa'), 'RTHUN', '+10', true, null, 'VALORE'),
-((SELECT id FROM items where nome = 'Papera mostruosa'), 'RFIRE', '+10', true, null, 'VALORE'),
 ((SELECT id FROM items where nome = 'Papera mostruosa'), 'RIDDAN', '+10', true, null, 'VALORE');
+
