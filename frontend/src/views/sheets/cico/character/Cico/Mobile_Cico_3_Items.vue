@@ -85,19 +85,19 @@ watch(
 );
 
 const columnsOggetti = [
-  {field: 'nome', label: 'Oggetti'},
+  {field: 'nome', label: 'Oggetti', disabled: (row) => row.disabled},
 ];
 const columnsArmi = [
-  {field: 'nome', label: 'Armi'},
+  {field: 'nome', label: 'Armi', disabled: (row) => row.disabled},
 ];
 const columnsEquipaggiamento = [
-  {field: 'nome', label: 'Equipaggiamento'},
+  {field: 'nome', label: 'Equipaggiamento', disabled: (row) => row.disabled},
 ];
 const columnsConsumabili = [
-  {field: 'nome', label: 'Consumabili'},
+  {field: 'nome', label: 'Consumabili', disabled: (row) => row.disabled},
 ];
 const columnsMunizioni = [
-  {field: 'nome', label: 'Munizioni'},
+  {field: 'nome', label: 'Munizioni', disabled: (row) => row.disabled},
 ];
 </script>
 

@@ -41,15 +41,25 @@
       <Mobile_Contatore :id-stat="stat.id" :id-personaggio="idPersonaggio"></Mobile_Contatore>
     </template>
   </div>
+  <div class="spazietto"></div>
+
+  <Tabella v-if="itemsTrasformazioni.length > 0"
+           :columns="columnsTrasformazioni"
+           :expandable="true"
+           :items="itemsTrasformazioni"
+  >
+  </Tabella>
 </template>
 
 <script setup lang="ts">
-import {defineProps} from 'vue';
+import {defineProps, markRaw, ref, watch} from 'vue';
 import {storeToRefs} from "pinia";
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import Mobile_Stat from "../Shared/Mobile_Stat.vue";
 import Mobile_HP from "../Shared/Mobile_HP.vue";
 import Mobile_Contatore from "../Shared/Mobile_Contatore.vue";
+import Tabella from "../../../../../components/Tabella.vue";
+import Mobile_DettaglioItem from "../Dettaglio/Mobile_DettaglioItem.vue";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore);
@@ -60,6 +70,33 @@ const props = defineProps({
     required: true
   }
 });
+
+const itemsTrasformazioni = ref<any[]>([]);
+watch(
+    () => cache.value[props.idPersonaggio]?.items,
+    (newChar) => {
+      if (!newChar?.trasformazioni) {
+        itemsTrasformazioni.value = [];
+        return;
+      }
+
+      itemsTrasformazioni.value = newChar.trasformazioni
+          .map(itm => {
+            return {
+              ...itm,
+              expandedComponent: markRaw(Mobile_DettaglioItem),
+              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
+            };
+          })
+          .sort((a, b) => a.nome.localeCompare(b.nome));
+
+    },
+    {immediate: true, deep: true}
+);
+
+const columnsTrasformazioni = [
+  {field: 'nome', label: 'Trasformazioni', disabled: (row) => row.disabled},
+];
 
 </script>
 

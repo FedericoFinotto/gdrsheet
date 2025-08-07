@@ -12,13 +12,7 @@
            :items="itemsTalenti"
   >
   </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsTrasformazioni.length > 0"
-           :columns="columnsTrasformazioni"
-           :expandable="true"
-           :items="itemsTrasformazioni"
-  >
-  </Tabella>
+
 </template>
 
 <script setup lang="ts">
@@ -85,40 +79,15 @@ watch(
     {immediate: true, deep: true}
 );
 
-const itemsTrasformazioni = ref<any[]>([]);
-watch(
-    () => cache.value[props.idPersonaggio]?.items,
-    (newChar) => {
-      if (!newChar?.trasformazioni) {
-        itemsTrasformazioni.value = [];
-        return;
-      }
-
-      itemsTrasformazioni.value = newChar.trasformazioni
-          .map(itm => {
-            return {
-              ...itm,
-              expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
-            };
-          })
-          .sort((a, b) => a.nome.localeCompare(b.nome));
-
-    },
-    {immediate: true, deep: true}
-);
-
 const columnsAbilitaPassive = [
-  {field: 'nome', label: 'Abilita Passive'},
+  {field: 'nome', label: 'Abilita Passive', disabled: (row) => row.disabled},
 ];
 
 const columnsTalenti = [
-  {field: 'nome', label: 'Talenti'},
+  {field: 'nome', label: 'Talenti', disabled: (row) => row.disabled},
 ];
 
-const columnsTrasformazioni = [
-  {field: 'nome', label: 'Trasformazioni'},
-];
+
 
 
 </script>
