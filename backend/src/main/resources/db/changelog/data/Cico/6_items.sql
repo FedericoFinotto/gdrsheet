@@ -62,4 +62,19 @@ VALUES
     ((select id from items where nome = 'Extra Wild Shape'), 'NWS', '+2', true, null, 'VALORE'),
     ((select id from items where nome = 'Veste del druido'), 'NWS', '+1', true, null, 'VALORE');
 
+INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo) VALUES
+('Resistenza Fisica', 'TALENTO', 'Il personaggio ottiene un bonus di +4 alle prove e ai tiri salvezza elencati di seguito. Il personaggio può inoltre dormire con indosso armature medie senza svegliarsi affaticato.', null, 1, null);
+
+INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo)
+VALUES
+    -- Resistenza fisica
+    ((select id from items where nome = 'Resistenza Fisica'), 'AB21', '+4', false, 'per evitare i danni non letali', 'VALORE'), --NUOTARE
+    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'per non smettere di correre', 'VALORE'), -- COSTITUZIONE
+    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'danni non letali causati da marce forzate', 'VALORE'),
+    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'per trattenere il fiato', 'VALORE'),
+    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'per resistere alla fame o alla sete', 'VALORE'),
+    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'danni non letali causati da temperatura', 'VALORE'),
+    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'per evitare i danni causati da soffocamento', 'VALORE')
+;
+
 

@@ -50,6 +50,7 @@ const stat = computed(() => {
     const classeArmatura = statistiche.classeArmatura.find(x => x.id === props.id);
     const tiroSalvezza = statistiche.tiriSalvezza.find(x => x.id === props.id);
     const bonusAttacco = statistiche.bonusAttacco.find(x => x.id === props.id);
+    const attributo = statistiche.attributi.find(x => x.id === props.id);
 
     if (caratteristica) {
       return caratteristica;
@@ -67,6 +68,9 @@ const stat = computed(() => {
           .join(' / ');
       return bonusAttacco;
     }
+    if(attributo) {
+      return attributo;
+    }
     return null;
   }
 });
@@ -77,10 +81,10 @@ const stat = computed(() => {
   display: inline-flex;
   flex-direction: column;
   justify-content: space-between;
+  align-items: center; /* allinea al centro in verticale */
 
-  /* larghezza automatica in base al contenuto */
   width: auto;
-  min-width: 45px;
+  min-width: max-content; /* prende la larghezza minima del contenuto più largo */
   border: 1px solid var(--border-color);
   padding: 4px;
   background: transparent;
@@ -94,7 +98,9 @@ const stat = computed(() => {
   font-weight: bold;
   text-transform: uppercase;
   color: black;
+  white-space: nowrap; /* impedisce il ritorno a capo */
 }
+
 
 .modifier {
   font-size: 1.4rem;

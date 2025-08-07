@@ -352,4 +352,32 @@ public class ModificatoriService {
                 modsDto
         );
     }
+
+    AttributoDTO calcolaAttributo(
+            StatValue stat,
+            List<ModificatoreDTO> modsDto,
+            List<CaratteristicaDTO> carList
+    ) {
+        int modificatore = 0;
+        modsDto.forEach(x -> {
+            if (x.getValore() == null) {
+                x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), carList)));
+            }
+        });
+
+        List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(modsDto.stream().filter(x -> x.getSempreAttivo() && x.getTipo() == TipoModificatore.VALORE).toList());
+
+        if(stat.getMod() != null) {
+            ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
+                    .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel())).orElse(null);
+            modificatoriAttivi.add(baseMod);
+        }
+
+        modificatore = modificatoriAttivi.stream().filter(ModificatoreDTO::getSempreAttivo).mapToInt(ModificatoreDTO::getValore).sum();
+
+        return new AttributoDTO(
+                stat.getStat().getId(), stat.getStat().getLabel(),
+                modificatore, modificatoriAttivi
+        );
+    }
 }

@@ -183,6 +183,15 @@ INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
 ((SELECT id FROM items where nome = 'Papera mostruosa'), 'COS', '30', true, null, 'BASE'),
 ((SELECT id FROM items where nome = 'Papera mostruosa'), 'DES', '18', true, null, 'BASE');
 
+INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
+((SELECT id FROM items where nome = 'Papera mostruosa'), 'VLT', '+3', true, null, 'VALORE'),
+((SELECT id FROM items where nome = 'Papera mostruosa'), 'TMP', '+3', true, null, 'VALORE'),
+((SELECT id FROM items where nome = 'Papera mostruosa'), 'RFL', '+3', true, null, 'VALORE');
+
+INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
+((SELECT id FROM items where nome = 'Papera mostruosa'), 'CA', '+10', true, null, 'VALORE'),
+((SELECT id FROM items where nome = 'Papera mostruosa'), 'CA', '+5', true, null, 'VALORE');
+
 INSERT INTO item_label (id_item, label, valore)
 VALUES
     ((SELECT id FROM items WHERE nome = 'Pugno'), 'TPC', '@BAB+@FOR'),
@@ -190,3 +199,32 @@ VALUES
     ((SELECT id FROM items WHERE nome = 'Beccata'), 'TPC', '@BAB+@FOR'),
     ((SELECT id FROM items WHERE nome = 'Beccata'), 'TPD', '1d8+@FOR/2'),
     ((SELECT id FROM items WHERE nome = 'Soffio (Suono)'), 'TPD', '3d6');
+
+INSERT INTO collegamento (id_item_source, id_item_target) VALUES
+((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Resistenza Fisica'))
+
+INSERT INTO collegamento (id_item_source, id_item_target) VALUES
+    ((SELECT id FROM items where descrizione = 'LIVELLO 0 QUI'), (SELECT id FROM items where nome = 'Changeling'))
+
+INSERT INTO item_label (id_item, label, valore) VALUES
+((select id from items where nome = 'Papera mostruosa'), 'TAGLIA', '1');
+
+
+INSERT INTO stat_value (personaggio_id, stat_id, valore, mod, classe, addestramento)
+VALUES ((select id from personaggio where nome = 'Qui'), 'RINC', '0', null, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RFIRE', '0', null, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RCOLD', '0', null, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RTHUN', '0', null, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RACID', '0', null, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RSOUND', '0', null, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RFORCE', '0', null, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RPOS', '0', null, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RIDDAN', '0', null, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RNEG', '0', null, false, false);
+
+
+INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
+((SELECT id FROM items where nome = 'Papera mostruosa'), 'RINC', '+15', true, null, 'VALORE'),
+((SELECT id FROM items where nome = 'Papera mostruosa'), 'RTHUN', '+10', true, null, 'VALORE'),
+((SELECT id FROM items where nome = 'Papera mostruosa'), 'RFIRE', '+10', true, null, 'VALORE'),
+((SELECT id FROM items where nome = 'Papera mostruosa'), 'RIDDAN', '+10', true, null, 'VALORE');

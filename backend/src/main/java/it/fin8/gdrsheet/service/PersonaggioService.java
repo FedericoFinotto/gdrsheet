@@ -325,6 +325,18 @@ public class PersonaggioService {
             ).get();
             dto.getContatori().addAll(countList);
 
+            List<AttributoDTO> attrList = pool.submit(() ->
+                    stats.stream()
+                            .filter(sv -> TipoStat.ATT.equals(sv.getStat().getTipo()))
+                            .map(sv -> modificatoriService.calcolaAttributo(
+                                    sv,
+                                    modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
+                                    carList
+                            ))
+                            .toList()
+            ).get();
+            dto.getAttributi().addAll(attrList);
+
         } catch (Exception e) {
             throw new RuntimeException("Errore nel calcolo parallelo", e);
         } finally {

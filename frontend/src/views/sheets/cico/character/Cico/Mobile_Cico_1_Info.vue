@@ -35,6 +35,13 @@
       <Mobile_Contatore :id-stat="stat.id" :id-personaggio="idPersonaggio"></Mobile_Contatore>
     </template>
   </div>
+
+  <div class="stat-block">
+    <template
+        v-for="stat in cache[idPersonaggio].modificatori.attributi.filter(x => x.modificatori.length > 0)">
+      <Mobile_Stat :id="stat.id" :id-personaggio="idPersonaggio" :label="stat.nome"></Mobile_Stat>
+    </template>
+  </div>
 </template>
 
 <script setup lang="ts">

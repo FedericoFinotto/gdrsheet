@@ -72,3 +72,16 @@ VALUES ('FOR', 'CAR', 'Forza'),
        ('MSC', 'ATK', 'Mischia'),
        ('GTT', 'ATK', 'Gittata'),
        ('NWS', 'COUNT', 'Forma Selvaggia');
+
+
+INSERT INTO stats (id, tipo, label)
+VALUES ('RINC', 'ATT', 'Resistenza Incantesimi'),
+       ('RFIRE', 'ATT', 'Resistenza Fuoco'),
+       ('RCOLD', 'ATT', 'Resistenza Freddo'),
+       ('RTHUN', 'ATT', 'Resistenza Elettricita'),
+       ('RACID', 'ATT', 'Resistenza Acido'),
+       ('RSOUND', 'ATT', 'Resistenza Suono'),
+       ('RFORCE', 'ATT', 'Resistenza Forza'),
+       ('RPOS', 'ATT', 'Resistenza Energia Positiva'),
+       ('RIDDAN', 'ATT', 'Riduzione Danno'),
+       ('RNEG', 'ATT', 'Resistenza Energia Negativa');

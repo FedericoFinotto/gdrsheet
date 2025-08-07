@@ -47,3 +47,5 @@ FROM changeling c
 INSERT INTO item_label (id_item, label, valore)
 VALUES ((select id from items where nome = 'Changeling'), 'ABCLASSE', 'AB36');
 
+INSERT INTO item_label (id_item, label, valore) VALUES
+    ((select id from items where nome = 'Changeling'), 'TAGLIA', '0');
