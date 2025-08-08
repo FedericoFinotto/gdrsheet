@@ -1,54 +1,56 @@
 <template>
-  <div class="nome">
-    <h2>{{
-        cache[idPersonaggio].modificatori?.nome ?? ""
-      }}</h2>
-  </div>
-  <Mobile_HP v-if="cache[idPersonaggio].modificatori" :id-personaggio="idPersonaggio"/>
-  <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
-    <Mobile_Stat id="FOR" :id-personaggio="idPersonaggio"></Mobile_Stat>
-    <Mobile_Stat id="DES" :id-personaggio="idPersonaggio"></Mobile_Stat>
-    <Mobile_Stat id="COS" :id-personaggio="idPersonaggio"></Mobile_Stat>
-    <Mobile_Stat id="INT" :id-personaggio="idPersonaggio"></Mobile_Stat>
-    <Mobile_Stat id="SAG" :id-personaggio="idPersonaggio"></Mobile_Stat>
-    <Mobile_Stat id="CAR" :id-personaggio="idPersonaggio"></Mobile_Stat>
-  </div>
-  <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
-    <Mobile_Stat id="TMP" :id-personaggio="idPersonaggio" label="Tempra"></Mobile_Stat>
-    <Mobile_Stat id="RFL" :id-personaggio="idPersonaggio" label="Riflessi"></Mobile_Stat>
-    <Mobile_Stat id="VLT" :id-personaggio="idPersonaggio" label="Volonta"></Mobile_Stat>
-  </div>
-  <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
-    <Mobile_Stat id="CA" :id-personaggio="idPersonaggio" label="CA"></Mobile_Stat>
-    <Mobile_Stat id="CAC" :id-personaggio="idPersonaggio" label="Contatto"></Mobile_Stat>
-    <Mobile_Stat id="CAS" :id-personaggio="idPersonaggio" label="Sorpreso"></Mobile_Stat>
-  </div>
-  <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
-    <Mobile_Stat id="BAB" :id-personaggio="idPersonaggio" label="BAB"></Mobile_Stat>
-    <Mobile_Stat id="LTT" :id-personaggio="idPersonaggio" label="Lotta"></Mobile_Stat>
-    <Mobile_Stat id="MSC" :id-personaggio="idPersonaggio" label="Mischia"></Mobile_Stat>
-    <Mobile_Stat id="GTT" :id-personaggio="idPersonaggio" label="Distanza"></Mobile_Stat>
-  </div>
-  <div class="stat-block">
-    <template
-        v-for="stat in cache[idPersonaggio].modificatori.attributi.filter(x => x.modificatori.length > 0)">
-      <Mobile_Stat :id="stat.id" :id-personaggio="idPersonaggio" :label="stat.label"></Mobile_Stat>
-    </template>
-  </div>
-  <div class="stat-block">
-    <template
-        v-for="stat in cache[idPersonaggio].modificatori.contatori.filter(x => x.id !== 'PF' && x.id != 'PFTEMP')">
-      <Mobile_Contatore :id-stat="stat.id" :id-personaggio="idPersonaggio"></Mobile_Contatore>
-    </template>
-  </div>
-  <div class="spazietto"></div>
+  <div>
+    <div class="nome">
+      <h2>{{
+          cache[idPersonaggio].modificatori?.nome ?? ""
+        }}</h2>
+    </div>
+    <Mobile_HP v-if="cache[idPersonaggio].modificatori" :id-personaggio="idPersonaggio"/>
+    <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
+      <Mobile_Stat id="FOR" :id-personaggio="idPersonaggio"></Mobile_Stat>
+      <Mobile_Stat id="DES" :id-personaggio="idPersonaggio"></Mobile_Stat>
+      <Mobile_Stat id="COS" :id-personaggio="idPersonaggio"></Mobile_Stat>
+      <Mobile_Stat id="INT" :id-personaggio="idPersonaggio"></Mobile_Stat>
+      <Mobile_Stat id="SAG" :id-personaggio="idPersonaggio"></Mobile_Stat>
+      <Mobile_Stat id="CAR" :id-personaggio="idPersonaggio"></Mobile_Stat>
+    </div>
+    <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
+      <Mobile_Stat id="TMP" :id-personaggio="idPersonaggio" label="Tempra"></Mobile_Stat>
+      <Mobile_Stat id="RFL" :id-personaggio="idPersonaggio" label="Riflessi"></Mobile_Stat>
+      <Mobile_Stat id="VLT" :id-personaggio="idPersonaggio" label="Volonta"></Mobile_Stat>
+    </div>
+    <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
+      <Mobile_Stat id="CA" :id-personaggio="idPersonaggio" label="CA"></Mobile_Stat>
+      <Mobile_Stat id="CAC" :id-personaggio="idPersonaggio" label="Contatto"></Mobile_Stat>
+      <Mobile_Stat id="CAS" :id-personaggio="idPersonaggio" label="Sorpreso"></Mobile_Stat>
+    </div>
+    <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
+      <Mobile_Stat id="BAB" :id-personaggio="idPersonaggio" label="BAB"></Mobile_Stat>
+      <Mobile_Stat id="LTT" :id-personaggio="idPersonaggio" label="Lotta"></Mobile_Stat>
+      <Mobile_Stat id="MSC" :id-personaggio="idPersonaggio" label="Mischia"></Mobile_Stat>
+      <Mobile_Stat id="GTT" :id-personaggio="idPersonaggio" label="Distanza"></Mobile_Stat>
+    </div>
+    <div class="stat-block">
+      <template
+          v-for="stat in cache[idPersonaggio].modificatori.attributi.filter(x => x.modificatori.length > 0)">
+        <Mobile_Stat :id="stat.id" :id-personaggio="idPersonaggio" :label="stat.label"></Mobile_Stat>
+      </template>
+    </div>
+    <div class="stat-block">
+      <template
+          v-for="stat in cache[idPersonaggio].modificatori.contatori.filter(x => x.id !== 'PF' && x.id != 'PFTEMP')">
+        <Mobile_Contatore :id-stat="stat.id" :id-personaggio="idPersonaggio"></Mobile_Contatore>
+      </template>
+    </div>
+    <div class="spazietto"></div>
 
-  <Tabella v-if="itemsTrasformazioni.length > 0"
-           :columns="columnsTrasformazioni"
-           :expandable="true"
-           :items="itemsTrasformazioni"
-  >
-  </Tabella>
+    <Tabella v-if="itemsTrasformazioni.length > 0"
+             :columns="columnsTrasformazioni"
+             :expandable="true"
+             :items="itemsTrasformazioni"
+    >
+    </Tabella>
+  </div>
 </template>
 
 <script setup lang="ts">

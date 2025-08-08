@@ -1,17 +1,19 @@
 <template>
-  <Tabella v-if="itemsAbilitaPassive.length > 0"
-           :columns="columnsAbilitaPassive"
-           :expandable="true"
-           :items="itemsAbilitaPassive"
-  >
-  </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsTalenti.length > 0"
-           :columns="columnsTalenti"
-           :expandable="true"
-           :items="itemsTalenti"
-  >
-  </Tabella>
+  <div>
+    <Tabella v-if="itemsAbilitaPassive.length > 0"
+             :columns="columnsAbilitaPassive"
+             :expandable="true"
+             :items="itemsAbilitaPassive"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsTalenti.length > 0"
+             :columns="columnsTalenti"
+             :expandable="true"
+             :items="itemsTalenti"
+    >
+    </Tabella>
+  </div>
 
 </template>
 

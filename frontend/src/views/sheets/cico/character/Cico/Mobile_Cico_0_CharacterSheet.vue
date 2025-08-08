@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {onMounted, ref} from 'vue';
+import {computed, nextTick, onBeforeUpdate, onMounted, ref, watch} from 'vue';
 import {useRoute} from 'vue-router';
 import {storeToRefs} from 'pinia';
 import {useCharacterStore} from "../../../../../stores/personaggio";
@@ -34,10 +34,44 @@ onMounted(() => {
   characterStore.fetchCharacter(idPersonaggio).then(() => loaded.value = true);
 });
 
+/* --- refs per autoscroll header --- */
+const headerEl = ref<HTMLElement | null>(null);
+const tabBtns = ref<HTMLButtonElement[]>([]);
+onBeforeUpdate(() => { tabBtns.value = []; }); // reset tra i render
+
+function scrollHeaderToActive() {
+  nextTick(() => {
+    const btn = tabBtns.value[activeIndex.value];
+    if (!btn || !headerEl.value) return;
+    // centra il bottone attivo nella viewport orizzontale della header
+    btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  });
+}
+
+/* --- Transizione direzionale --- */
+const direction = ref<'none'|'forward'|'back'>('none');
+const transitionName = computed(() => {
+  if (direction.value === 'forward') return 'slide-left';
+  if (direction.value === 'back') return 'slide-right';
+  return 'fade';
+});
+
+// click su tab: setta direzione prima di cambiare indice
+function setActive(i: number) {
+  if (i === activeIndex.value) return;
+  direction.value = i > activeIndex.value ? 'forward' : 'back';
+  activeIndex.value = i;
+}
+
+// auto-scroll ogni volta che cambia tab
+watch(activeIndex, () => {
+  scrollHeaderToActive();
+});
+
 /* --- Swipe handling (solo orizzontale dentro la tab-content) --- */
 let startX = 0, startY = 0, moved = false;
-const THRESH_X = 60;   // px minimi per considerare swipe
-const THRESH_Y = 40;   // filtro: se muovi troppo in verticale, non è swipe orizz.
+const THRESH_X = 60;
+const THRESH_Y = 40;
 const onTouchStart = (e: TouchEvent) => {
   const t = e.changedTouches[0];
   startX = t.screenX;
@@ -48,9 +82,8 @@ const onTouchMove = (e: TouchEvent) => {
   const t = e.changedTouches[0];
   const dx = Math.abs(t.screenX - startX);
   const dy = Math.abs(t.screenY - startY);
-  // se sta iniziando un gesto orizzontale netto, preveniamo il pan-x che darebbe scatti
   if (!moved && dx > 10 && dy < 10) {
-    e.preventDefault();    // non blocca lo scroll verticale (dy piccolo)
+    e.preventDefault();
   }
   moved = true;
 };
@@ -58,11 +91,12 @@ const onTouchEnd = (e: TouchEvent) => {
   const t = e.changedTouches[0];
   const dx = t.screenX - startX;
   const dy = t.screenY - startY;
-  // cambia tab solo se swipe orizzontale "pulito"
   if (Math.abs(dx) >= THRESH_X && Math.abs(dy) <= THRESH_Y) {
     if (dx < 0 && activeIndex.value < tabs.length - 1) {
+      direction.value = 'forward';
       activeIndex.value++;
     } else if (dx > 0 && activeIndex.value > 0) {
+      direction.value = 'back';
       activeIndex.value--;
     }
   }
@@ -71,28 +105,31 @@ const onTouchEnd = (e: TouchEvent) => {
 
 <template>
   <div class="character-sheet" v-if="loaded">
-    <!-- Header tab: fisso sotto UpperBar, scrollabile orizzontalmente -->
-    <div class="tab-header-wrapper">
+    <!-- Header tab -->
+    <div class="tab-header-wrapper" ref="headerEl">
       <div class="tab-header">
         <button
             v-for="(tab, i) in tabs"
             :key="i"
             :class="{ active: activeIndex === i }"
-            @click="activeIndex = i"
+            @click="setActive(i)"
+            :ref="el => el && (tabBtns[i] = el as HTMLButtonElement)"
         >
           {{ tab.label }}
         </button>
       </div>
     </div>
 
-    <!-- Contenuto: scroll verticale, NO scroll orizzontale, swipe cambia tab -->
+    <!-- Contenuto con transizione -->
     <div
         class="tab-content"
         @touchstart.passive="onTouchStart"
         @touchmove="onTouchMove"
         @touchend="onTouchEnd"
     >
-      <component :is="tabs[activeIndex].comp" :id-personaggio="idPersonaggio"/>
+      <Transition :name="transitionName" mode="out-in">
+        <component :is="tabs[activeIndex].comp" :key="activeIndex" :id-personaggio="idPersonaggio"/>
+      </Transition>
     </div>
   </div>
 </template>
@@ -102,18 +139,17 @@ const onTouchEnd = (e: TouchEvent) => {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 0; /* evita gonfiaggio */
+  min-height: 0;
 }
 
-/* header fisso nel componente, scorrevole in orizzontale */
 .tab-header-wrapper {
   flex: 0 0 auto;
-  position: sticky; /* resta sotto la UpperBar */
-  top: 0; /* App.vue ha già margin-top della topbar */
+  position: sticky;
+  top: 0;
   background: var(--primary-color);
   border-bottom: 1px solid var(--border-color);
   z-index: 2;
-  overflow-x: auto; /* 👈 scroll orizzontale se non ci stanno */
+  overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -131,20 +167,55 @@ const onTouchEnd = (e: TouchEvent) => {
   font-weight: 600;
   cursor: pointer;
   color: #000;
-  white-space: nowrap; /* niente a capo */
+  white-space: nowrap;
 }
 
 .tab-header button.active {
   background: var(--secondary-color);
 }
 
-/* contenuto tab: unico scroll verticale, orizzontale bloccato */
+/* Contenuto */
 .tab-content {
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto; /* ✅ scroll solo verticale */
-  overflow-x: hidden; /* 🔒 blocca orizzontale */
+  overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain; /* riduce rimbalzi su mobile */
+  overscroll-behavior-y: contain;
+}
+
+/* --------- Transizioni --------- */
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active,
+.fade-enter-active,
+.fade-leave-active {
+  transition: transform 200ms ease, opacity 200ms ease;
+}
+
+.slide-left-enter-from { transform: translateX(100%); opacity: 0; }
+.slide-left-enter-to   { transform: translateX(0%);   opacity: 1; }
+.slide-left-leave-from { transform: translateX(0%);   opacity: 1; }
+.slide-left-leave-to   { transform: translateX(-15%); opacity: 0; }
+
+.slide-right-enter-from { transform: translateX(-100%); opacity: 0; }
+.slide-right-enter-to   { transform: translateX(0%);    opacity: 1; }
+.slide-right-leave-from { transform: translateX(0%);    opacity: 1; }
+.slide-right-leave-to   { transform: translateX(15%);   opacity: 0; }
+
+.fade-enter-from, .fade-leave-to { opacity: 0; transform: none; }
+.fade-enter-to,   .fade-leave-from { opacity: 1; transform: none; }
+
+/* Riduci motion per accessibilità */
+@media (prefers-reduced-motion: reduce) {
+  .slide-left-enter-active,
+  .slide-left-leave-active,
+  .slide-right-enter-active,
+  .slide-right-leave-active,
+  .fade-enter-active,
+  .fade-leave-active {
+    transition: none;
+  }
 }
 </style>

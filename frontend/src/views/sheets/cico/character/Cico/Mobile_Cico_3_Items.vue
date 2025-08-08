@@ -102,40 +102,42 @@ const columnsMunizioni = [
 </script>
 
 <template>
-  <Tabella v-if="itemsOggetti.length > 0"
-           :columns="columnsOggetti"
-           :expandable="true"
-           :items="itemsOggetti"
-  >
-  </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsArmi.length > 0"
-           :columns="columnsArmi"
-           :expandable="true"
-           :items="itemsArmi"
-  >
-  </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsEquipaggiamento.length > 0"
-           :columns="columnsEquipaggiamento"
-           :expandable="true"
-           :items="itemsEquipaggiamento"
-  >
-  </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsConsumabili.length > 0"
-           :columns="columnsConsumabili"
-           :expandable="true"
-           :items="itemsConsumabili"
-  >
-  </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsMunizioni.length > 0"
-           :columns="columnsMunizioni"
-           :expandable="true"
-           :items="itemsMunizioni"
-  >
-  </Tabella>
+  <div>
+    <Tabella v-if="itemsOggetti.length > 0"
+             :columns="columnsOggetti"
+             :expandable="true"
+             :items="itemsOggetti"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsArmi.length > 0"
+             :columns="columnsArmi"
+             :expandable="true"
+             :items="itemsArmi"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsEquipaggiamento.length > 0"
+             :columns="columnsEquipaggiamento"
+             :expandable="true"
+             :items="itemsEquipaggiamento"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsConsumabili.length > 0"
+             :columns="columnsConsumabili"
+             :expandable="true"
+             :items="itemsConsumabili"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsMunizioni.length > 0"
+             :columns="columnsMunizioni"
+             :expandable="true"
+             :items="itemsMunizioni"
+    >
+    </Tabella>
+  </div>
 </template>
 
 <style scoped>

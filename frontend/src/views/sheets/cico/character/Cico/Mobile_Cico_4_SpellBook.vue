@@ -98,76 +98,78 @@ const columnsLivello9 = [
 </script>
 
 <template>
-  <Tabella v-if="itemsLivello0.length > 0"
-           :columns="columnsLivello0"
-           :expandable="true"
-           :items="itemsLivello0"
-  >
-  </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsLivello1.length > 0"
-           :columns="columnsLivello1"
-           :expandable="true"
-           :items="itemsLivello1"
-  >
-  </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsLivello2.length > 0"
-           :columns="columnsLivello2"
-           :expandable="true"
-           :items="itemsLivello2"
-  >
-  </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsLivello3.length > 0"
-           :columns="columnsLivello3"
-           :expandable="true"
-           :items="itemsLivello3"
-  >
-  </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsLivello4.length > 0"
-           :columns="columnsLivello4"
-           :expandable="true"
-           :items="itemsLivello4"
-  >
-  </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsLivello5.length > 0"
-           :columns="columnsLivello5"
-           :expandable="true"
-           :items="itemsLivello5"
-  >
-  </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsLivello6.length > 0"
-           :columns="columnsLivello6"
-           :expandable="true"
-           :items="itemsLivello6"
-  >
-  </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsLivello7.length > 0"
-           :columns="columnsLivello7"
-           :expandable="true"
-           :items="itemsLivello7"
-  >
-  </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsLivello8.length > 0"
-           :columns="columnsLivello8"
-           :expandable="true"
-           :items="itemsLivello8"
-  >
-  </Tabella>
-  <div class="spazietto"/>
-  <Tabella v-if="itemsLivello9.length > 0"
-           :columns="columnsLivello9"
-           :expandable="true"
-           :items="itemsLivello9"
-  >
-  </Tabella>
-  <div class="spazietto"/>
+  <div>
+    <Tabella v-if="itemsLivello0.length > 0"
+             :columns="columnsLivello0"
+             :expandable="true"
+             :items="itemsLivello0"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsLivello1.length > 0"
+             :columns="columnsLivello1"
+             :expandable="true"
+             :items="itemsLivello1"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsLivello2.length > 0"
+             :columns="columnsLivello2"
+             :expandable="true"
+             :items="itemsLivello2"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsLivello3.length > 0"
+             :columns="columnsLivello3"
+             :expandable="true"
+             :items="itemsLivello3"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsLivello4.length > 0"
+             :columns="columnsLivello4"
+             :expandable="true"
+             :items="itemsLivello4"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsLivello5.length > 0"
+             :columns="columnsLivello5"
+             :expandable="true"
+             :items="itemsLivello5"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsLivello6.length > 0"
+             :columns="columnsLivello6"
+             :expandable="true"
+             :items="itemsLivello6"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsLivello7.length > 0"
+             :columns="columnsLivello7"
+             :expandable="true"
+             :items="itemsLivello7"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsLivello8.length > 0"
+             :columns="columnsLivello8"
+             :expandable="true"
+             :items="itemsLivello8"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsLivello9.length > 0"
+             :columns="columnsLivello9"
+             :expandable="true"
+             :items="itemsLivello9"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+  </div>
 </template>
 
 <style scoped>

@@ -34,6 +34,8 @@ const abilita = computed(() => {
 </script>
 
 <template>
+  <div>
+
   <Tabella
       :columns="[
       { field: 'nome', label: 'Abilità' },
@@ -43,4 +45,5 @@ const abilita = computed(() => {
       :expandable="true"
       :items="abilita"
   />
+  </div>
 </template>

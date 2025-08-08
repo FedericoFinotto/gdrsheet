@@ -69,10 +69,12 @@ const columnsAttacchi = [
 </script>
 
 <template>
-  <Tabella
-      v-if="itemsAttacchi.length > 0"
-      :columns="columnsAttacchi"
-      :expandable="false"
-      :items="itemsAttacchi"
-  />
+  <div>
+    <Tabella
+        v-if="itemsAttacchi.length > 0"
+        :columns="columnsAttacchi"
+        :expandable="false"
+        :items="itemsAttacchi"
+    />
+  </div>
 </template>
