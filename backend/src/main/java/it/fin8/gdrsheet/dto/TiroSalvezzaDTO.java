@@ -15,8 +15,6 @@ public class TiroSalvezzaDTO {
 
     String id;
     String label;
-    String idBase;
-    Integer modBase;
     Integer modificatore;
     List<ModificatoreDTO> modificatori;
 

@@ -11,7 +11,7 @@ public class StatMapper {
         CaratteristicaDTO result = new CaratteristicaDTO();
         result.setId(source.getId());
         result.setModificatore(source.getModificatore());
-        result.setLabel(source.getNome());
+        result.setLabel(source.getLabel());
         return result;
     }
 }

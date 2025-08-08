@@ -13,7 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 public class AttributoDTO {
     String id;
-    String nome;
+    String label;
     Integer modificatore;
     List<ModificatoreDTO> modificatori;
 }

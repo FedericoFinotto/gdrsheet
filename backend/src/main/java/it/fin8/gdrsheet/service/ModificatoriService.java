@@ -45,34 +45,22 @@ public class ModificatoriService {
             StatValue stat,
             List<ModificatoreDTO> modsDto
     ) {
-        int base = Integer.parseInt(stat.getValore());
-        ModificatoreDTO baseSovrascritto = prendiMaxDTO(modsDto, TipoModificatore.BASE);
-        if (baseSovrascritto != null) {
-            if (baseSovrascritto.getValore() > base) {
-                base = baseSovrascritto.getValore();
-            }
+        List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
+        if (!stat.getValore().equals("0")) {
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, true, "Temporaneo"));
         }
-        int bonusValore = modsDto.stream()
-                .filter(ModificatoreDTO::getSempreAttivo)
-                .filter(m -> TipoModificatore.VALORE.equals(m.getTipo()))
-                .mapToInt(ModificatoreDTO::getValore)
-                .sum();
-        int valore = base + bonusValore;
-        int modificatoreBase = (valore - 10) / 2;
-        int bonusMod = modsDto.stream()
-                .filter(ModificatoreDTO::getSempreAttivo)
-                .filter(m -> TipoModificatore.MOD.equals(m.getTipo()))
-                .mapToInt(ModificatoreDTO::getValore)
-                .sum();
-        int modificatore = modificatoreBase + bonusMod;
+        modificatoriAttivi.add(prendiMaxDTO(modsDto, TipoModificatore.BASE));
+
+        modificatoriAttivi.addAll(modsDto.stream().filter(m -> TipoModificatore.VALORE.equals(m.getTipo())).toList());
+
+        int valore = modificatoriAttivi.stream().filter(ModificatoreDTO::getSempreAttivo).mapToInt(ModificatoreDTO::getValore).sum();
 
         return new CaratteristicaDTO(
                 stat.getStat().getId(),
                 stat.getStat().getLabel(),
-                base,
                 valore,
-                modificatore,
-                modsDto
+                (valore - 10) / 2,
+                modificatoriAttivi
         );
     }
 
@@ -81,28 +69,21 @@ public class ModificatoriService {
             List<ModificatoreDTO> modsDto,
             List<CaratteristicaDTO> carList
     ) {
-        modsDto.forEach(x -> {
-            if (x.getValore() == null) {
-                x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), carList)));
-            }
-        });
-        int bonus = modsDto.stream()
+        applicaCalcoli(modsDto, carList);
+        List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
+        addModificatoreFromCaratteristica(modificatoriAttivi, stat, carList);
+        modificatoriAttivi.addAll(modsDto);
+
+        int modificatore = modificatoriAttivi.stream()
                 .filter(ModificatoreDTO::getSempreAttivo)
                 .mapToInt(ModificatoreDTO::getValore)
                 .sum();
-        CaratteristicaDTO baseCar = carList.stream()
-                .filter(c -> c.getId().equals(stat.getMod().getId()))
-                .findFirst().orElse(null);
-        int modBase = baseCar != null ? baseCar.getModificatore() : 0;
-        int total = modBase + bonus;
 
         return new TiroSalvezzaDTO(
                 stat.getStat().getId(),
                 stat.getStat().getLabel(),
-                baseCar != null ? baseCar.getId() : null,
-                modBase,
-                total,
-                modsDto
+                modificatore,
+                modificatoriAttivi
         );
     }
 
@@ -112,11 +93,7 @@ public class ModificatoriService {
             List<RankDTO> ranksDto,
             List<CaratteristicaDTO> carList
     ) {
-        modsDto.forEach(x -> {
-            if (x.getValore() == null) {
-                x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), carList)));
-            }
-        });
+        applicaCalcoli(modsDto, carList);
         String modStatId = stat.getMod() != null ? stat.getMod().getId() : null;
         CaratteristicaDTO cBase = null;
         Integer modBase = 0;
@@ -149,11 +126,7 @@ public class ModificatoriService {
 
     ClasseArmaturaDTO calcolaClasseArmatura(StatValue stat, List<ModificatoreDTO> modsDto, List<ModificatoreDTO> modsCADto, List<CaratteristicaDTO> carList) {
         int modificatore = 0;
-        modsDto.forEach(x -> {
-            if (x.getValore() == null) {
-                x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), carList)));
-            }
-        });
+        applicaCalcoli(modsDto, carList);
 
         ModificatoreDTO schivare = prendiMaxDTO(modsCADto, TipoModificatore.CA_SCHIVARE);
         ModificatoreDTO armor = prendiMaxDTO(modsCADto, TipoModificatore.CA_ARMOR);
@@ -166,18 +139,18 @@ public class ModificatoriService {
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(valore);
 
         ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
-                .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, null)).orElse(null);
+                .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel())).orElse(null);
 
 
         if (stat.getStat().getId().equals("CA")) {
             modificatoriAttivi.addAll(Stream.of(
-                    schivare, armor, naturale, deviazione, scudo, magici, baseMod
+                    baseMod, schivare, armor, naturale, deviazione, scudo, magici
             ).filter(Objects::nonNull).toList());
             modificatore = modificatoriAttivi.stream().mapToInt(ModificatoreDTO::getValore).sum();
         }
         if (stat.getStat().getId().equals("CAC")) {
             modificatoriAttivi.addAll(Stream.of(
-                    schivare, deviazione, magici, baseMod
+                    baseMod, schivare, deviazione, magici
             ).filter(Objects::nonNull).toList());
             modificatore = modificatoriAttivi.stream().mapToInt(ModificatoreDTO::getValore).sum();
         }
@@ -197,23 +170,18 @@ public class ModificatoriService {
     BonusAttaccoDTO calcolaBonusAttacco(StatValue stat, List<ModificatoreDTO> modsDto, List<ModificatoreDTO> modsBABDto, List<CaratteristicaDTO> carList, List<ItemLabel> taglie) {
         int modificatore = 0;
         int taglia = getTaglia(taglie);
-        List<Integer> attacchiMultipli;
 
-        modsDto.forEach(x -> {
-            if (x.getValore() == null) {
-                x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), carList)));
-            }
-        });
+        applicaCalcoli(modsDto, carList);
 
         List<ModificatoreDTO> valore = modsDto.stream().filter(x -> x.getSempreAttivo() && x.getTipo() == TipoModificatore.VALORE).toList();
         List<ModificatoreDTO> valoreBAB = modsBABDto.stream().filter(x -> x.getSempreAttivo() && x.getTipo() == TipoModificatore.VALORE).toList();
-        Integer modificatoreBAB = valoreBAB.stream().mapToInt(ModificatoreDTO::getValore).sum();
+        int modificatoreBAB = valoreBAB.stream().mapToInt(ModificatoreDTO::getValore).sum();
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(valore);
 
         ModificatoreDTO baseMod = null;
         if (stat.getMod() != null) {
             baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
-                    .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, null)).orElse(null);
+                    .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel())).orElse(null);
         }
 
         if (stat.getStat().getId().equals("BAB")) {
@@ -226,7 +194,7 @@ public class ModificatoriService {
         if (stat.getStat().getId().equals("LTT")) {
             modificatoriAttivi.addAll(valoreBAB);
             modificatoriAttivi.add(baseMod);
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), 4 * taglia, "4*TAGLIA", null, null, true, null));
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), 4 * taglia, "4*TAGLIA", null, null, true, "Taglia"));
             modificatore = Optional.of(modificatoriAttivi)
                     .map(list -> list.stream()
                             .mapToInt(ModificatoreDTO::getValore)
@@ -236,7 +204,7 @@ public class ModificatoriService {
         if (stat.getStat().getId().equals("GTT")) {
             modificatoriAttivi.addAll(valoreBAB);
             modificatoriAttivi.add(baseMod);
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, null));
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia"));
             modificatore = Optional.of(modificatoriAttivi)
                     .map(list -> list.stream()
                             .mapToInt(ModificatoreDTO::getValore)
@@ -246,7 +214,7 @@ public class ModificatoriService {
         if (stat.getStat().getId().equals("MSC")) {
             modificatoriAttivi.addAll(valoreBAB);
             modificatoriAttivi.add(baseMod);
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, null));
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia"));
             modificatore = Optional.of(modificatoriAttivi)
                     .map(list -> list.stream()
                             .mapToInt(ModificatoreDTO::getValore)
@@ -317,11 +285,7 @@ public class ModificatoriService {
                                          List<ModificatoreDTO> modsDto,
                                          List<CaratteristicaDTO> carList,
                                          List<Item> livelli) {
-        modsDto.forEach(x -> {
-            if (x.getValore() == null) {
-                x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), carList)));
-            }
-        });
+        applicaCalcoli(modsDto, carList);
 
         int bonus = modsDto.stream()
                 .filter(ModificatoreDTO::getSempreAttivo)
@@ -359,11 +323,7 @@ public class ModificatoriService {
             List<CaratteristicaDTO> carList
     ) {
         int modificatore = 0;
-        modsDto.forEach(x -> {
-            if (x.getValore() == null) {
-                x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), carList)));
-            }
-        });
+        applicaCalcoli(modsDto, carList);
 
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(modsDto.stream().filter(x -> x.getSempreAttivo() && x.getTipo() == TipoModificatore.VALORE).toList());
 
@@ -379,5 +339,33 @@ public class ModificatoriService {
                 stat.getStat().getId(), stat.getStat().getLabel(),
                 modificatore, modificatoriAttivi
         );
+    }
+
+    private void applicaCalcoli(List<ModificatoreDTO> modsDto, List<CaratteristicaDTO> carList) {
+        modsDto.forEach(x -> {
+            if (x.getValore() == null) {
+                x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), carList)));
+            }
+        });
+    }
+
+    private void addModificatoreFromCaratteristica(List<ModificatoreDTO> modificatoriAttivi, StatValue stat, List<CaratteristicaDTO> carList) {
+        if (stat.getMod() != null) {
+            carList.stream()
+                    .filter(c -> c.getId().equals(stat.getMod().getId()))
+                    .findFirst()
+                    .ifPresent(c -> modificatoriAttivi.add(
+                            new ModificatoreDTO(
+                                    null,
+                                    stat.getStat().getId(),
+                                    c.getModificatore(),
+                                    null,
+                                    null,
+                                    TipoModificatore.VALORE,
+                                    true,
+                                    stat.getMod().getLabel()
+                            )
+                    ));
+        }
     }
 }

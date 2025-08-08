@@ -44,7 +44,7 @@ const {
 <style>
 .onMobile {
   margin-top: 4rem;
-  height: calc(100vh - 3rem);
+  height: calc(100vh - 4rem);
   background-color: var(--tertiary-color);
 }
 </style>

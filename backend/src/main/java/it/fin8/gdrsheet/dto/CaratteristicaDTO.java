@@ -15,7 +15,6 @@ public class CaratteristicaDTO {
 
     String id;
     String label;
-    Integer base;
     Integer valore;
     Integer modificatore;
     List<ModificatoreDTO> modificatori;

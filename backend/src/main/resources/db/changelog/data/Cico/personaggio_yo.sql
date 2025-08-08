@@ -130,6 +130,14 @@ VALUES
        ((select id from items where descrizione = 'LIVELLO 5 QUI'), 'AB5', '+4', true, 'RANK'),   -- ASCOLTARE
        ((select id from items where descrizione = 'LIVELLO 5 QUI'), 'CO09', '+4', true, 'RANK'); -- CONOSCENZA ARCH;
 
+INSERT INTO modificatori (id_item, id_stat, valore, always, tipo)
+VALUES
+    ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'FOR', '19', true, 'BASE'),
+    ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'DES', '19', true, 'BASE'),
+    ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'COS', '20', true, 'BASE'),
+    ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'INT', '20', true, 'BASE'),
+    ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'SAG', '24', true, 'BASE'),
+    ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'CAR', '18', true, 'BASE');
 
 
 

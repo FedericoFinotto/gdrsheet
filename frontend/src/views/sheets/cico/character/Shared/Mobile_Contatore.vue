@@ -60,7 +60,7 @@ function modifica(delta: number) {
   font-size: 0.8rem;
   text-align: center;
   margin-bottom: 0.3rem;
-  color: #333;
+  color: black;
   text-transform: uppercase;
 }
 
@@ -88,6 +88,7 @@ button {
   font-weight: bold;
   font-size: 0.9rem;
   height: 100%;
+  color: black;
   border-radius: 4px;
 }
 </style>

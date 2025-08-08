@@ -13,7 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 public class BonusAttaccoDTO {
     String id;
-    String nome;
+    String label;
     Integer modificatore;
     List<Integer> attacchiMultipli;
     List<ModificatoreDTO> modificatori;

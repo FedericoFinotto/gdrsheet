@@ -177,8 +177,8 @@ function modifyHp(amount: number) {
   z-index: 2;
   font-weight: bold;
   font-size: 0.9rem;
+  color: black;
   white-space: nowrap;
-  text-shadow: 0 1px 0 rgba(255,255,255,.6);
 }
 
 .delta {
