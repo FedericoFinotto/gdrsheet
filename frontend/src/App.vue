@@ -5,10 +5,27 @@
       <router-view class="page"/>
     </main>
   </div>
+
+  <Popup
+      v-model="isVisible"
+      :dynamic-component="dynamicComp"
+      :dynamic-props="dynamicProps"
+      :closable="isClosable"
+  />
 </template>
 
 <script setup lang="ts">
 import UpperBar from '@/components/UpperBar.vue'
+import Popup from "./components/Popup.vue";
+import usePopup from './function/usePopup'
+
+const {
+  isVisible,
+  dynamicComp,
+  dynamicProps,
+  isClosable,
+  closePopup
+} = usePopup()
 </script>
 
 <style scoped>
@@ -19,30 +36,20 @@ import UpperBar from '@/components/UpperBar.vue'
   flex-direction: column;
 }
 
-/* compensa la topbar fixed */
-.tabs {
-
-  flex: 0 0 auto;
-  display: flex;
-  gap: .5rem;
-  align-items: center;
-  padding: .5rem .75rem;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--surface);
-}
-
-/* area contenuti: unica zona scrollabile */
+/* contenuto principale: parte sotto la UpperBar fissa */
 .content {
-  margin-top: var(--topbar-h);
-  max-height: calc(100% - 2 * var(--topbar-h));
-  padding: 0;
+  margin-top: var(--topbar-h); /* compensa la barra fissa */
   flex: 1 1 auto;
-  min-height: 0; /* evita overflow */
-  overflow: auto; /* scroll solo qui */
+  min-height: 0; /* evita overflow nei figli flex */
+  overflow: hidden; /* niente scroll qui */
+  padding: 0.1rem;
 }
 
+/* wrapper della pagina: prende tutto lo spazio della content */
 .page {
-  padding: .2rem;
-  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* fondamentale per far funzionare overflow interno */
 }
 </style>
