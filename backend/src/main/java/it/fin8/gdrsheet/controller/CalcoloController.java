@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import it.fin8.gdrsheet.dto.CalcoloRequest;
 import it.fin8.gdrsheet.dto.CalcoloResponse;
-import it.fin8.gdrsheet.dto.DatiPersonaggioDTO;
 import it.fin8.gdrsheet.service.CalcoloService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -32,16 +31,14 @@ public class CalcoloController {
             @Parameter(description = "Corpo della richiesta con formula e dati del personaggio", required = true)
             @Valid @RequestBody CalcoloRequest request
     ) {
-        // estrai formula e DTO
-        String formula = request.getFormula();
-        DatiPersonaggioDTO dati = request.getDatiPersonaggio();
 
         // fai il calcolo
-        String valore = calcoloService.calcola(formula, dati);
+        String valore = calcoloService.calcola(request.getFormula(), request.getDatiPersonaggio());
 
         // costruisci la risposta (puoi restituire anche altri campi se serve)
         CalcoloResponse resp = new CalcoloResponse();
         resp.setRisultato(valore);
+        resp.setFormula(request.getFormula());
 
         return ResponseEntity.ok(resp);
     }

@@ -325,7 +325,11 @@ public class ModificatoriService {
         int modificatore = 0;
         applicaCalcoli(modsDto, carList);
 
-        List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(modsDto.stream().filter(x -> x.getSempreAttivo() && x.getTipo() == TipoModificatore.VALORE).toList());
+        List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
+        if (!stat.getValore().equals("0")) {
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, true, "Base"));
+        }
+        modificatoriAttivi.addAll(new ArrayList<>(modsDto.stream().filter(x -> x.getSempreAttivo() && x.getTipo() == TipoModificatore.VALORE).toList()));
 
         if(stat.getMod() != null) {
             ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))

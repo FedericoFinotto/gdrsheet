@@ -85,3 +85,6 @@ VALUES ('RINC', 'ATT', 'Resistenza Incantesimi'),
        ('RPOS', 'ATT', 'Resistenza Energia Positiva'),
        ('RIDDAN', 'ATT', 'Riduzione Danno'),
        ('RNEG', 'ATT', 'Resistenza Energia Negativa');
+
+INSERT INTO stats (id, tipo, label)
+VALUES ('CD', 'ATT', 'CD Incantesimi');

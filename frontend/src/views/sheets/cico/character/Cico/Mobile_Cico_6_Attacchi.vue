@@ -4,7 +4,7 @@ import Tabella from "../../../../../components/Tabella.vue";
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import {getValoreFormula} from "../../../../../function/Calcolo";
-import {testoModificatore} from "../../../../../function/Utils";
+import {testoFormula, testoModificatore} from "../../../../../function/Utils";
 
 const characterStore = useCharacterStore();
 const {cache} = storeToRefs(characterStore);
@@ -31,7 +31,6 @@ watch(
       );
 
       // Enrich asincrono: trasforma ogni itm in { ...itm, atk }
-      console.log(sorted, 'TOMARE');
       const enriched = await Promise.all(
           sorted.map(async itm => {
             let atkVal: string | null = null;
@@ -40,7 +39,6 @@ watch(
             if (itm.attacco) {
               const resp = await getValoreFormula(cache.value[props.idPersonaggio].modificatori, itm.attacco);
               atkVal = testoModificatore(resp.data.risultato);
-              console.log('calcolo attacco', itm);
             }
 
             if (itm.colpo) {
@@ -51,7 +49,9 @@ watch(
             return {
               ...itm,
               atk: atkVal,
-              dmg: dannoVal
+              dmg: dannoVal,
+              attacco: testoFormula(itm.attacco),
+              colpo: testoFormula(itm.colpo),
             };
           })
       );

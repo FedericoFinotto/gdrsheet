@@ -1,22 +1,32 @@
 package it.fin8.gdrsheet.service;
 
+import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.dto.CaratteristicaDTO;
 import it.fin8.gdrsheet.dto.DatiPersonaggioDTO;
+import it.fin8.gdrsheet.entity.Collegamento;
+import it.fin8.gdrsheet.entity.Item;
 import it.fin8.gdrsheet.mapper.StatMapper;
+import it.fin8.gdrsheet.repository.ItemRepository;
 import net.objecthunter.exp4j.ExpressionBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Component
 public class CalcoloService {
 
     @Autowired
     private StatMapper statMapper;
+
+    @Autowired
+    private ItemRepository itemRepository;
 
     private static final Pattern PATTERN_PLACEH = Pattern.compile("@\\w+");
     private static final Pattern PATTERN_DICE = Pattern.compile("\\d+d\\d+(?:\\d+)?");
@@ -53,9 +63,9 @@ public class CalcoloService {
         long result = 0;
         if (!numericExpr.isBlank()) {
             try {
-                result = Math.round(new ExpressionBuilder(numericExpr).build().evaluate());
+                double eval = new ExpressionBuilder(numericExpr).build().evaluate();
+                result = (long) Math.floor(eval); // arrotonda sempre per difetto
             } catch (Exception e) {
-                result = 0;
             }
         }
 
@@ -78,7 +88,33 @@ public class CalcoloService {
                     .map(statMapper::toCaratteristicaDTO)
                     .toList());
         }
+        if (dati.getAttributi() != null) {
+            caratteristiche.addAll(dati.getAttributi().stream()
+                    .map(statMapper::toCaratteristicaDTO)
+                    .toList());
+        }
+
+        List<Item> initialRoots = itemRepository.findAllByPersonaggioIdWithChild(dati.getId());
+        Map<Item, Long> livelli = getLivelli(initialRoots);
+        long livelloTotale = livelli.values()
+                .stream()
+                .mapToLong(Long::longValue)
+                .sum();
+
+        caratteristiche.add(new CaratteristicaDTO("LVL", "Livello", null, Integer.parseInt(String.valueOf(livelloTotale)), null));
+
         return calcola(formula, caratteristiche);
+    }
+
+    public Map<Item, Long> getLivelli(List<Item> initialRoots) {
+        return initialRoots.stream()
+                .filter(i -> TipoItem.LIVELLO.equals(i.getTipo()))
+                .map(liv -> liv.getChild().stream()
+                        .map(Collegamento::getItemTarget)
+                        .filter(itemTarget -> TipoItem.CLASSE.equals(itemTarget.getTipo()))
+                        .findFirst().orElse(null))
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(c -> c, Collectors.counting()));
     }
 
 }

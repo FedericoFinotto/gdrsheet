@@ -17,3 +17,14 @@ export function testoModificatore(mod: number | string): string {
     // fallback: ritorna la stringa così com'è
     return str;
 }
+
+export function testoFormula(formula: string): string {
+    return formula
+        .replace(/@/g, '')        // rimuove tutte le @
+        .replace(/\*/g, '')      // sostituisce tutti i * con 'x'
+        .replace(/0\.5/g, '½')   // sostituisce tutti i 0.5 con ½
+        .replace('MSC', 'Mischia')
+        .replace('GTT', 'Distanza')
+        ;
+}
+

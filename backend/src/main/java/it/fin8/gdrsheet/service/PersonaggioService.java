@@ -42,6 +42,8 @@ public class PersonaggioService {
 
     @Autowired
     private ModificatoriService modificatoriService;
+    @Autowired
+    private CalcoloService calcoloService;
 
     /**
      * Flattens iteratively the item hierarchy into a list.
@@ -129,14 +131,7 @@ public class PersonaggioService {
         List<Item> initialRoots = itemRepository.findAllByPersonaggioIdWithChild(idPersonaggio);
 
         // Determina le classi e livelli dai soli rootItems
-        Map<Item, Long> classLevels = initialRoots.stream()
-                .filter(i -> TipoItem.LIVELLO.equals(i.getTipo()))
-                .map(liv -> liv.getChild().stream()
-                        .filter(c -> TipoItem.CLASSE.equals(c.getItemTarget().getTipo()))
-                        .map(Collegamento::getItemTarget)
-                        .findFirst().orElse(null))
-                .filter(Objects::nonNull)
-                .collect(Collectors.groupingBy(c -> c, Collectors.counting()));
+        Map<Item, Long> classLevels = calcoloService.getLivelli(initialRoots);
 
         // Raccogli root items aggiuntive dagli avanzamenti di classe
         List<Item> advanceRoots = new ArrayList<>();

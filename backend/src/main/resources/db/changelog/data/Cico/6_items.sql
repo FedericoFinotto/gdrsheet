@@ -48,8 +48,11 @@ INSERT INTO collegamento (id_item_source, id_item_target)
 VALUES
     ((SELECT id FROM items where nome = 'Fucile Ammazzadivinita'), (SELECT id FROM items where nome = 'Maledizione del fucile Ammazzadivinita')),
     ((SELECT id FROM items where nome = 'Maledizione del fucile Ammazzadivinita'), (SELECT id FROM items where nome = 'Olfatto Acuto'))
-
 ;
+
+INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo)
+VALUES ((select id from items where nome = 'Maledizione del fucile Ammazzadivinita'), 'CAR', '-2', true, null,
+        'VALORE');
 
 INSERT INTO collegamento (id_item_source, id_item_target)
 VALUES

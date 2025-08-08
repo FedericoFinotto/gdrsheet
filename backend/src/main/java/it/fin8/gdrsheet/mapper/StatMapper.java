@@ -1,5 +1,6 @@
 package it.fin8.gdrsheet.mapper;
 
+import it.fin8.gdrsheet.dto.AttributoDTO;
 import it.fin8.gdrsheet.dto.BonusAttaccoDTO;
 import it.fin8.gdrsheet.dto.CaratteristicaDTO;
 import org.springframework.stereotype.Component;
@@ -8,6 +9,14 @@ import org.springframework.stereotype.Component;
 public class StatMapper {
 
     public CaratteristicaDTO toCaratteristicaDTO(BonusAttaccoDTO source) {
+        CaratteristicaDTO result = new CaratteristicaDTO();
+        result.setId(source.getId());
+        result.setModificatore(source.getModificatore());
+        result.setLabel(source.getLabel());
+        return result;
+    }
+
+    public CaratteristicaDTO toCaratteristicaDTO(AttributoDTO source) {
         CaratteristicaDTO result = new CaratteristicaDTO();
         result.setId(source.getId());
         result.setModificatore(source.getModificatore());

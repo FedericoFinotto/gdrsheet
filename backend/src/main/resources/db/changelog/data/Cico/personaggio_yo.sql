@@ -230,7 +230,14 @@ VALUES ((select id from personaggio where nome = 'Qui'), 'RINC', '0', null, fals
        ((select id from personaggio where nome = 'Qui'), 'RIDDAN', '0', null, false, false),
        ((select id from personaggio where nome = 'Qui'), 'RNEG', '0', null, false, false);
 
+INSERT INTO stat_value (personaggio_id, stat_id, valore, mod, classe, addestramento)
+VALUES ((select id from personaggio where nome = 'Qui'), 'CD', '10', null, false, false);
+
+
 
 INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
 ((SELECT id FROM items where nome = 'Papera mostruosa'), 'RIDDAN', '+10', true, null, 'VALORE');
+
+INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
+    ((SELECT id FROM items where nome = 'Papera mostruosa'), 'CD', '+4', true, null, 'VALORE');
 
