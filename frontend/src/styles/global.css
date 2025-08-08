@@ -1,0 +1,23 @@
+/* base indispensabile */
+html, body, #app {
+    height: 100%;
+    margin: 0;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* variabili (opzionali, ma qui le DEFINISCO) */
+:root {
+    --topbar-h: 40px;
+    --border-color: '#FFFFFF';
+    --primary-color: '#FFFFFF';
+    --tertiary-color: '#FFFFFF';
+    --secondary-color: '#FFFFFF';
+    --accent-color: '#FFFFFF';
+}
+
+.spazietto {
+    height: 20px;
+}

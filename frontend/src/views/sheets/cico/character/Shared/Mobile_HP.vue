@@ -145,7 +145,6 @@ function modifyHp(amount: number) {
   height: 2rem;
   border: 1px solid var(--border-color, #ccc);
   overflow: hidden;
-  border-radius: .25rem;
 }
 
 .hp-btn {

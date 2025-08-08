@@ -139,7 +139,4 @@ const columnsMunizioni = [
 </template>
 
 <style scoped>
-.spazietto {
-  height: 20px;
-}
 </style>

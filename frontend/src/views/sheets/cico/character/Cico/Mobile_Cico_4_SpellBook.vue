@@ -171,7 +171,4 @@ const columnsLivello9 = [
 </template>
 
 <style scoped>
-.spazietto {
-  height: 20px;
-}
 </style>

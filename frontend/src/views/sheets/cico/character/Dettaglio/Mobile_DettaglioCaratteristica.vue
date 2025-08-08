@@ -61,8 +61,4 @@ li {
   margin-bottom: 6px;
   border-radius: 4px;
 }
-
-.spazietto {
-  height: 20px;
-}
 </style>

@@ -10,11 +10,18 @@ import TabPanel from 'primevue/tabpanel' // Correct import for individual tabs w
 import 'primevue/resources/themes/saga-blue/theme.css' // Your chosen theme
 import 'primevue/resources/primevue.min.css' // PrimeVue core CSS
 import 'primeicons/primeicons.css' // PrimeIcons for icons
+import './styles/global.css'
 import App from './App.vue'
 import router from './router'
 import {createPinia} from "pinia";
+import {ACCENT_COLOR, BORDER_COLOR, PRIMARY_COLOR, SECONDARY_COLOR, TERTIARY_COLOR} from "./function/Constants";
 
 const app = createApp(App)
+document.documentElement.style.setProperty('--primary-color', PRIMARY_COLOR);
+document.documentElement.style.setProperty('--secondary-color', SECONDARY_COLOR);
+document.documentElement.style.setProperty('--tertiary-color', TERTIARY_COLOR);
+document.documentElement.style.setProperty('--border-color', BORDER_COLOR);
+document.documentElement.style.setProperty('--accent-color', ACCENT_COLOR);
 
 // Use router and PrimeVue
 app.use(router)

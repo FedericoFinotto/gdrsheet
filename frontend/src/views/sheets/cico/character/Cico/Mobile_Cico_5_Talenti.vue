@@ -111,9 +111,4 @@ const columnsTalenti = [
 .p-tabview .p-tabview-panel {
   padding: 0 !important;
 }
-
-.spazietto {
-  height: 20px;
-}
-
 </style>
