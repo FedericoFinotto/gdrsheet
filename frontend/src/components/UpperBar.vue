@@ -1,47 +1,43 @@
 <template>
-  <div class="bottom-bar">
-    <!-- bottom navigation or status -->
-    <button class="hamburger" @click="toggle">
-      <i class="pi pi-bars"></i>
-    </button>
-  </div>
+  <header class="upperbar">
+    <div class="title">
+      <slot/>
+    </div>
+
+    <!-- hamburger a destra -->
+    <button class="menu" @click="goHome" aria-label="Vai alla home">☰</button>
+  </header>
 </template>
 
-<script setup>
-import {ref} from 'vue';
+<script setup lang="ts">
+import {useRouter} from 'vue-router'
 
-const open = ref(false);
-
-function toggle() {
-  open.value = !open.value;
-  // open menu logic
-}
+const router = useRouter()
+const goHome = () => router.push({path: '/'})
 </script>
 
 <style scoped>
-.bottom-bar {
+.upperbar {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3rem;
-  background: black;
+  inset: 0 0 auto 0; /* top:0; left:0; right:0 */
+  height: var(--topbar-h);
   display: flex;
   align-items: center;
-  justify-content: center;
-  box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.1);
+  padding: 0 .75rem;
+  background: var(--primary-color);
+  border-bottom: 1px solid var(--border-color);
+  z-index: 1000;
 }
 
-.hamburger {
-  position: fixed;
-  top: 0.1rem;
-  right: 0;
-  border: none;
-  background: black;
-  color: white;
-  padding: 0;
-  width: 5rem;
-  border-radius: 0;
-  font-size: 2rem;
+.title {
+  font-weight: 600;
+  margin-right: auto; /* spinge il bottone a destra */
+}
+
+.menu {
+  background: transparent;
+  border: 0;
+  font-size: 1.25rem;
+  cursor: pointer;
 }
 </style>

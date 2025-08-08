@@ -1,50 +1,48 @@
 <template>
-  <div
-      class="onMobile"
-      :style="{
-      '--primary-color': PRIMARY_COLOR,
-      '--secondary-color': SECONDARY_COLOR,
-      '--tertiary-color': TERTIARY_COLOR,
-      '--accent-color': ACCENT_COLOR,
-      '--border-color': BORDER_COLOR
-    }"
-  >
-    <router-view/>
+  <div class="layout">
+    <UpperBar/>
+    <main class="content">
+      <router-view class="page"/>
+    </main>
   </div>
-  <UpperBar/>
-  <HamburgerMenu/>
-
-  <!-- Popup dinamico -->
-  <Popup
-      v-model="isVisible"
-      :dynamic-component="dynamicComp"
-      :dynamic-props="dynamicProps"
-      :closable="isClosable"
-  />
 </template>
 
-<script setup>
-import UpperBar from './components/UpperBar.vue'
-import HamburgerMenu from './components/HamburgerMenu.vue'
-import Popup from './components/Popup.vue'
-import usePopup from './function/usePopup'
-
-import {ACCENT_COLOR, BORDER_COLOR, PRIMARY_COLOR, SECONDARY_COLOR, TERTIARY_COLOR} from './function/Constants'
-
-// Prendi SOLO le proprietà di stato e la close dal composable
-const {
-  isVisible,
-  dynamicComp,
-  dynamicProps,
-  isClosable,
-  closePopup
-} = usePopup()
+<script setup lang="ts">
+import UpperBar from '@/components/UpperBar.vue'
 </script>
 
-<style>
-.onMobile {
-  margin-top: 4rem;
-  height: calc(100vh - 4rem);
-  background-color: var(--tertiary-color);
+<style scoped>
+/* layout a tutta altezza */
+.layout {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* compensa la topbar fixed */
+.tabs {
+
+  flex: 0 0 auto;
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  padding: .5rem .75rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--surface);
+}
+
+/* area contenuti: unica zona scrollabile */
+.content {
+  margin-top: var(--topbar-h);
+  max-height: calc(100% - 2 * var(--topbar-h));
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0; /* evita overflow */
+  overflow: auto; /* scroll solo qui */
+}
+
+.page {
+  padding: .2rem;
+  box-sizing: border-box;
 }
 </style>
