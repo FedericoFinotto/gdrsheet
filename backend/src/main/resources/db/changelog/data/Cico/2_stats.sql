@@ -71,11 +71,8 @@ VALUES ('FOR', 'CAR', 'Forza'),
        ('LTT', 'ATK', 'Lotta'),
        ('MSC', 'ATK', 'Mischia'),
        ('GTT', 'ATK', 'Gittata'),
-       ('NWS', 'COUNT', 'Forma Selvaggia');
-
-
-INSERT INTO stats (id, tipo, label)
-VALUES ('RINC', 'ATT', 'Resistenza Incantesimi'),
+       ('NWS', 'COUNT', 'Forma Selvaggia'),
+       ('RINC', 'ATT', 'Resistenza Incantesimi'),
        ('RFIRE', 'ATT', 'Resistenza Fuoco'),
        ('RCOLD', 'ATT', 'Resistenza Freddo'),
        ('RTHUN', 'ATT', 'Resistenza Elettricita'),
@@ -84,7 +81,6 @@ VALUES ('RINC', 'ATT', 'Resistenza Incantesimi'),
        ('RFORCE', 'ATT', 'Resistenza Forza'),
        ('RPOS', 'ATT', 'Resistenza Energia Positiva'),
        ('RIDDAN', 'ATT', 'Riduzione Danno'),
-       ('RNEG', 'ATT', 'Resistenza Energia Negativa');
-
-INSERT INTO stats (id, tipo, label)
-VALUES ('CD', 'ATT', 'CD Incantesimi');
+       ('RNEG', 'ATT', 'Resistenza Energia Negativa'),
+       ('CD', 'ATT', 'CD Incantesimi'),
+       ('REGEN', 'ATT', 'Rigenerazione PF');

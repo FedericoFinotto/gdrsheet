@@ -7,9 +7,10 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
-public class IncantesimoDTO extends ItemDTO {
-    private String cd;
-    private Integer livello;
+@AllArgsConstructor
+public class UpdateSpellUsageRequest {
+    private Integer idPersonaggio;
+    private Integer newUsage;
+    private Integer spellId;
 }

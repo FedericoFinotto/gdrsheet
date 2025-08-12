@@ -4,6 +4,9 @@ VALUES ('dnd35e');
 insert into mondo (descrizione, sistema_id)
 VALUES ('Cico', 1);
 
+insert into party (nome, mondo_id)
+VALUES ('The Web', 1);
+
 insert into utente (id, username, password, name, ruolo)
 VALUES (0, 'compendio', '', '', 'ADMIN');
 

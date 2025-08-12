@@ -39,7 +39,7 @@ public class ParserController {
     @GetMapping("/file/all")
     @Transactional
     public ResponseEntity<List<Item>> elaboraTutti() throws Exception {
-        File cartella = new File("/opt/gdrsheet/spells/");
+        File cartella = new File("C://opt/gdrsheet/spells/");
 
         if (!cartella.exists() || !cartella.isDirectory()) {
             return ResponseEntity.notFound().build();

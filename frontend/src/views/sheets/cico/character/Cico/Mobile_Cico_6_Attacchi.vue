@@ -50,8 +50,8 @@ watch(
               ...itm,
               atk: atkVal,
               dmg: dannoVal,
-              attacco: testoFormula(itm.attacco),
-              colpo: testoFormula(itm.colpo),
+              attacco: itm.attacco ? testoFormula(itm.attacco) : '',
+              colpo: itm.colpo ? testoFormula(itm.colpo) : '',
             };
           })
       );

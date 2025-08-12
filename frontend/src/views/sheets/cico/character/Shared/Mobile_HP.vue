@@ -29,10 +29,10 @@
 
 <script setup lang="ts">
 import {computed, defineProps, onBeforeUnmount, ref, watch} from 'vue'
-import {useCharacterStore} from '@/stores/personaggio'
 import {storeToRefs} from 'pinia'
-import {updateHP} from '@/service/PersonaggioService'
 import debounce from 'lodash/debounce'
+import {updateHP} from "../../../../../service/PersonaggioService";
+import {useCharacterStore} from "../../../../../stores/personaggio";
 
 const props = defineProps<{ idPersonaggio: number }>()
 

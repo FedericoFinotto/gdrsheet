@@ -21,3 +21,11 @@ export interface UpdateContatoreRequest {
     id: string;
     valore: string;
 }
+
+export type UpdatePreparedPayload = {
+    idPersonaggio: number;
+    idClasse: number;
+    spellList: string;
+    livello: number;
+    prepared: Record<number, number>;
+};

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import {defineProps, onMounted, ref} from 'vue';
-import {testoModificatore} from "../../../../../function/Utils";
+import {computed, defineProps, onMounted, ref} from 'vue';
+import {testoFormula, testoModificatore} from "../../../../../function/Utils";
 import {getItem, switchItemState} from "../../../../../service/PersonaggioService";
 import {TIPO_ITEM} from "../../../../../function/Constants";
 import type {ItemDB} from "../../../../../models/ItemDB";
-import {getValoreLabel, thereIsValoreLabel} from "../../../../../function/Calcolo";
+import {getLabel, thereIsValoreLabel} from "../../../../../function/Calcolo";
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 
@@ -55,15 +55,26 @@ const mostraLabel = (label, val) => {
 
 async function switchState() {
   try {
+    itemInfo.disabled = !itemInfo.disabled;
     await switchItemState(itemInfo.id);
-    // usa personaggio.id, non personaggio.modificatori.id
-    console.log('RICALCOLO', personaggio.modificatori.id)
     await characterStore.fetchCharacter(personaggio.modificatori.id, true);
-
   } catch (e) {
     console.error('Errore nello switch dello stato:', e);
   }
 }
+
+const disableLabel = computed(() => {
+  console.log(itemInfo);
+  switch (itemInfo?.tipo) {
+    case TIPO_ITEM.EQUIPAGGIAMENTO:
+      return itemInfo.disabled ? 'Equipaggia' : 'Togli';
+    case TIPO_ITEM.TRASFORMAZIONE:
+      return itemInfo.disabled ? 'Trasformati' : 'Torna alla forma Base';
+    default:
+      return null;
+  }
+});
+
 
 onMounted(async () => {
   try {
@@ -91,13 +102,11 @@ onMounted(async () => {
 
     // Popola mappe TPC/TPD in modo asincrono
     for (const atk of listaAttacchi.value) {
-      if (await thereIsValoreLabel(personaggio, atk, 'TPC')) {
-        const resp = await getValoreLabel(personaggio, atk, 'TPC');
-        tpcMap.value[atk.id] = resp.data.risultato;
+      if (thereIsValoreLabel(personaggio, atk, 'TPC')) {
+        tpcMap.value[atk.id] = testoFormula(getLabel(personaggio, atk, 'TPC'))
       }
-      if (await thereIsValoreLabel(personaggio, atk, 'TPD')) {
-        const resp = await getValoreLabel(personaggio, atk, 'TPD');
-        tpdMap.value[atk.id] = resp.data.risultato;
+      if (thereIsValoreLabel(personaggio, atk, 'TPD')) {
+        tpdMap.value[atk.id] = testoFormula(getLabel(personaggio, atk, 'TPD'));
       }
     }
   } catch (e) {
@@ -110,13 +119,13 @@ onMounted(async () => {
 
 <template>
   <div class="abilita-detail-card" v-if="!loading && itemDetail">
-    <button class="bottone" @click="switchState">TOMARE</button>
+    <button class="bottone" @click="switchState" v-if="disableLabel">{{ disableLabel }}</button>
     <!-- Labels dinamiche -->
     <div v-if="Object.keys(labelMap).length">
       <div v-for="(val, key) in labelMap" :key="key">
         <span v-if="mostraLabel(key, val)"><strong>{{ mostraLabel(key) }}:</strong> {{ val }}</span>
       </div>
-      <br>
+      <div class="spazietto"/>
     </div>
 
     <!-- Descrizione -->
@@ -124,6 +133,7 @@ onMounted(async () => {
       <strong>Descrizione</strong><br>
       {{ itemDetail.descrizione }}
       <div style="height: 20px"></div>
+      <div class="spazietto"/>
     </div>
 
     <!-- Attacchi -->
@@ -134,6 +144,7 @@ onMounted(async () => {
         <span v-if="tpcMap[atk.id]">(TPC: {{ tpcMap[atk.id] }})</span>
         <span v-if="tpdMap[atk.id]">(TPD: {{ tpdMap[atk.id] }})</span>
       </p>
+      <div class="spazietto"/>
     </div>
 
     <!-- Abilità -->
@@ -142,6 +153,7 @@ onMounted(async () => {
       <p v-for="ability in listaAbilita" :key="ability.id">
         {{ ability.nome }}
       </p>
+      <div class="spazietto"/>
     </div>
 
     <!-- Maledizioni -->
@@ -150,6 +162,7 @@ onMounted(async () => {
       <p v-for="mal in listaMaledizioni" :key="mal.id">
         {{ mal.nome }}
       </p>
+      <div class="spazietto"/>
     </div>
 
     <!-- Modificatori -->
@@ -160,6 +173,7 @@ onMounted(async () => {
         {{ testoModificatore(mod.valore) }}
         <span v-if="mod.nota">- {{ mod.nota }}</span><br>
       </span>
+      <div class="spazietto"/>
     </div>
   </div>
 </template>
@@ -176,5 +190,9 @@ onMounted(async () => {
 .bottone {
   width: 30%;
   height: 30px;
+}
+
+p {
+  margin: 0;
 }
 </style>

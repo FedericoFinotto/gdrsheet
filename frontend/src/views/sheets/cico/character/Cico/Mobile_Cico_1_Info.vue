@@ -50,6 +50,22 @@
              :items="itemsTrasformazioni"
     >
     </Tabella>
+    <div class="spazietto"></div>
+
+    <Tabella v-if="itemsCompetenze.length > 0"
+             :columns="columnsCompetenze"
+             :expandable="false"
+             :items="itemsCompetenze"
+    >
+    </Tabella>
+    <div class="spazietto"></div>
+
+    <Tabella v-if="itemsLingue.length > 0"
+             :columns="columnsLingue"
+             :expandable="false"
+             :items="itemsLingue"
+    >
+    </Tabella>
   </div>
 </template>
 
@@ -74,11 +90,15 @@ const props = defineProps({
 });
 
 const itemsTrasformazioni = ref<any[]>([]);
+const itemsCompetenze = ref<any[]>([]);
+const itemsLingue = ref<any[]>([]);
 watch(
     () => cache.value[props.idPersonaggio]?.items,
     (newChar) => {
       if (!newChar?.trasformazioni) {
         itemsTrasformazioni.value = [];
+        itemsCompetenze.value = [];
+        itemsLingue.value = [];
         return;
       }
 
@@ -92,12 +112,26 @@ watch(
           })
           .sort((a, b) => a.nome.localeCompare(b.nome));
 
+      itemsCompetenze.value = newChar.competenze
+          .sort((a, b) => a.nome.localeCompare(b.nome));
+
+      itemsLingue.value = newChar.lingue
+          .sort((a, b) => a.nome.localeCompare(b.nome));
+
     },
     {immediate: true, deep: true}
 );
 
 const columnsTrasformazioni = [
-  {field: 'nome', label: 'Trasformazioni', disabled: (row) => row.disabled},
+  {field: 'nome', label: 'Trasformazioni'},
+];
+
+const columnsCompetenze = [
+  {field: 'nome', label: 'Competenze'},
+];
+
+const columnsLingue = [
+  {field: 'nome', label: 'Lingue',},
 ];
 
 </script>

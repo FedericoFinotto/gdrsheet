@@ -1,176 +1,356 @@
 <script setup lang="ts">
-import {defineProps, markRaw, ref, watch} from 'vue';
-import Tabella from "../../../../../components/Tabella.vue";
-import Mobile_DettaglioItem from "../Dettaglio/Mobile_DettaglioItem.vue";
-import {useCharacterStore} from "../../../../../stores/personaggio";
-import {storeToRefs} from "pinia";
+import {computed, defineProps, markRaw, reactive, ref, watch} from 'vue';
+import Tabella from '../../../../../components/Tabella.vue';
+import Mobile_DettaglioItem from '../Dettaglio/Mobile_DettaglioItem.vue';
+import {useCharacterStore} from '../../../../../stores/personaggio';
+import {storeToRefs} from 'pinia';
+import usePopup from '../../../../../function/usePopup';
+import Mobile_Cico_4_SpellBookPrepare from '../Dettaglio/Mobile_Cico_4_SpellBookPrepare.vue';
+import {updatePreparedSpells, updateSpellUsage} from '../../../../../service/PersonaggioService';
+import {getValoreFormula} from '../../../../../function/Calcolo';
 
 const props = defineProps({
-  idPersonaggio: {
-    type: Number,
-    required: true
-  }
+  idPersonaggio: {type: Number, required: true}
 });
 
-const characterStore = useCharacterStore()
-const {cache} = storeToRefs(characterStore)
+const characterStore = useCharacterStore();
+const {cache} = storeToRefs(characterStore);
+const {openPopup} = usePopup();
 
-const items = ref<any[]>([]);
-const itemsLivello0 = ref<any[]>([]);
-const itemsLivello1 = ref<any[]>([]);
-const itemsLivello2 = ref<any[]>([]);
-const itemsLivello3 = ref<any[]>([]);
-const itemsLivello4 = ref<any[]>([]);
-const itemsLivello5 = ref<any[]>([]);
-const itemsLivello6 = ref<any[]>([]);
-const itemsLivello7 = ref<any[]>([]);
-const itemsLivello8 = ref<any[]>([]);
-const itemsLivello9 = ref<any[]>([]);
+/* ----------------- Normalizzazione (sincrona) ----------------- */
+/** ATTENZIONE: qui rendiamo ogni riga REATTIVA con reactive(...) */
+function normalizeLevels(livelli: any): Array<{
+  livello: number; slot?: number; bonus?: any[]; incantesimi: any[];
+}> {
+  if (!livelli) return [];
+  const arr = Array.isArray(livelli) ? livelli : Object.values(livelli);
+  return arr
+      .map((lv: any) => ({
+        livello: Number(lv?.livello ?? 0),
+        slot: Number(lv?.slot ?? 0),        // base; i bonus arrivano async
+        bonus: Array.isArray(lv?.bonus) ? lv.bonus : [],
+        incantesimi: (lv?.incantesimi ?? []).map((itm: any) => {
+          const nprepared = Number(itm?.nprepared ?? 0);
+          const nused = Number(itm?.nused ?? 0);
+          // riga REATTIVA
+          const row = reactive({
+            ...itm,
+            nprepared,
+            nused,
+            get remaining() {
+              return Number(this.nprepared) - Number(this.nused);
+            }, // calcolato live
+            expandedComponent: markRaw(Mobile_DettaglioItem),
+            expandedProps: {
+              data: {item: {} as any, personaggio: cache.value?.[props.idPersonaggio]}
+            }
+          });
+          // evito copia pesante del dettaglio nell'expansion
+          row.expandedProps.data.item = row;
+          return row;
+        })
+      }))
+      .sort((a, b) => a.livello - b.livello)
+      .map(lv => ({
+        ...lv,
+        incantesimi: lv.incantesimi
+            .slice()
+            .sort((a: any, b: any) => (a?.nome ?? '').localeCompare(b?.nome ?? ''))
+      }));
+}
+
+const groupedByClassLevel = computed(() => {
+  const sbs = cache.value?.[props.idPersonaggio]?.items?.spellbooks ?? [];
+  return sbs
+      .map((sb: any) => ({
+        classe: sb?.nomeClasse ?? 'Sconosciuta',
+        idClasse: sb?.idClasse,
+        spellList: sb?.spellList,
+        levels: normalizeLevels(sb?.livelli)
+      }))
+      .sort((a: any, b: any) => (a.classe ?? '').localeCompare(b.classe ?? ''));
+});
+
+/* ----------------- Calcolo async BONUS slot ----------------- */
+const slotBonusMap = ref<Record<string, number>>({});
+const keySlot = (idClasse: number | string | undefined, livello: number) => `${idClasse ?? 'NA'}:${livello}`;
+let lastSlotsRun = 0;
+
+async function recomputeAllSlots() {
+  const runId = ++lastSlotsRun;
+  const personaggio = cache.value?.[props.idPersonaggio];
+  if (!personaggio) return;
+
+  const sbs: any[] = personaggio.items?.spellbooks ?? [];
+  const jobs: Promise<void>[] = [];
+
+  for (const sb of sbs) {
+    const idClasse = sb?.idClasse;
+    const levels = Array.isArray(sb?.livelli) ? sb.livelli : Object.values(sb?.livelli ?? {});
+    for (const lv of levels) {
+      jobs.push((async () => {
+        try {
+          const livello = Number(lv?.livello ?? 0);
+          const bonusList: any[] = Array.isArray(lv?.bonus) ? lv.bonus : [];
+          const modificatori = personaggio.modificatori;
+
+          let bonusTot = 0;
+          for (const b of bonusList) {
+            const expr = String(b).replace(/#L/g, String(livello));
+            const val = await getValoreFormula(modificatori, expr).catch(() => 0);
+            // getValoreFormula potrebbe restituire {data:{risultato}}: prova a leggere entrambe
+            const num = (val && typeof val === 'object' && 'data' in (val as any) && (val as any).data?.risultato != null)
+                ? Number((val as any).data.risultato)
+                : Number(val);
+            bonusTot += Number.isFinite(num) ? num : 0;
+          }
+
+          if (runId !== lastSlotsRun) return; // evita race
+          slotBonusMap.value[keySlot(idClasse, livello)] = bonusTot;
+        } catch {
+          // ignora errori singoli
+        }
+      })());
+    }
+  }
+
+  await Promise.all(jobs).catch(() => {
+  });
+}
 
 watch(
-    () => cache.value[props.idPersonaggio]?.items,
-    (newChar) => {
-      if (!newChar) {
-        items.value = [];
-        return;
-      }
-
-      items.value = newChar.incantesimi
-          .map(itm => {
-            return {
-              ...itm,
-              expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: cache[props.idPersonaggio]}}
-            };
-          })
-          .sort((a, b) => a.nome.localeCompare(b.nome));
-
-      console.log(items.value);
-
-      itemsLivello0.value = items.value.filter(itm => itm.livello === 0);
-      itemsLivello1.value = items.value.filter(itm => itm.livello === 1);
-      itemsLivello2.value = items.value.filter(itm => itm.livello === 2);
-      itemsLivello3.value = items.value.filter(itm => itm.livello === 3);
-      itemsLivello4.value = items.value.filter(itm => itm.livello === 4);
-      itemsLivello5.value = items.value.filter(itm => itm.livello === 5);
-      itemsLivello6.value = items.value.filter(itm => itm.livello === 6);
-      itemsLivello7.value = items.value.filter(itm => itm.livello === 7);
-      itemsLivello8.value = items.value.filter(itm => itm.livello === 8);
-      itemsLivello9.value = items.value.filter(itm => itm.livello === 9);
-
-      console.log(itemsLivello0.value, itemsLivello1.value, itemsLivello2.value, itemsLivello3.value);
-
-
+    () => cache.value?.[props.idPersonaggio]?.items?.spellbooks,
+    () => {
+      slotBonusMap.value = {};
+      recomputeAllSlots();
     },
     {immediate: true, deep: true}
 );
 
-const columnsLivello0 = [
-  {field: 'nome', label: 'Cantrip'},
-];
-const columnsLivello1 = [
-  {field: 'nome', label: 'Livello 1'},
-];
-const columnsLivello2 = [
-  {field: 'nome', label: 'Livello 2'},
-];
-const columnsLivello3 = [
-  {field: 'nome', label: 'Livello 3'},
-];
-const columnsLivello4 = [
-  {field: 'nome', label: 'Livello 4'},
-];
-const columnsLivello5 = [
-  {field: 'nome', label: 'Livello 5'},
-];
-const columnsLivello6 = [
-  {field: 'nome', label: 'Livello 6'},
-];
-const columnsLivello7 = [
-  {field: 'nome', label: 'Livello 7'},
-];
-const columnsLivello8 = [
-  {field: 'nome', label: 'Livello 8'},
-];
-const columnsLivello9 = [
-  {field: 'nome', label: 'Livello 9'},
-];
+/* Computed helper: base + bonus */
+const getSlotDisplay = computed<
+    (idClasse: number | undefined, livello: number, base?: number) => number
+>(() => (idClasse, livello, base = 0) => {
+  const bonus = slotBonusMap.value[keySlot(idClasse, livello)] ?? 0;
+  return Number(base ?? 0) + Number(bonus ?? 0);
+});
+
+/* ----------------- Interazioni UI (optimistic + save) ----------------- */
+const saving = ref<Set<number>>(new Set());
+
+function setSaving(id: number, on: boolean) {
+  const s = new Set(saving.value);
+  on ? s.add(id) : s.delete(id);
+  saving.value = s;
+}
+
+async function persistUsage(row: any, newUsage: number) {
+  // adatta al tuo servizio BE; qui uso un esempio /consumo delta-based
+  await updateSpellUsage({
+    idPersonaggio: props.idPersonaggio,
+    spellId: Number(row.id),
+    newUsage
+  });
+}
+
+async function consumeOne(row: any) {
+  const prepared = Number(row.nprepared ?? 0);
+  const used = Number(row.nused ?? 0);
+  if (prepared - used <= 0) return;
+  if (saving.value.has(row.id)) return;
+
+  // optimistic
+  const prev = used;
+  row.nused = used + 1;
+  setSaving(row.id, true);
+  try {
+    await persistUsage(row, row.nused);
+  } catch (e) {
+    // rollback
+    row.nused = prev;
+    console.error('Errore consumo:', e);
+  } finally {
+    setSaving(row.id, false);
+  }
+}
+
+async function refundOne(row: any) {
+  const used = Number(row.nused ?? 0);
+  if (used <= 0) return;
+  if (saving.value.has(row.id)) return;
+
+  // optimistic
+  const prev = used;
+  row.nused = used - 1;
+  setSaving(row.id, true);
+  try {
+    await persistUsage(row, row.nused);
+  } catch (e) {
+    // rollback
+    row.nused = prev;
+    console.error('Errore refund:', e);
+  } finally {
+    setSaving(row.id, false);
+  }
+}
+
+function columnsForLevel(_lvl: number, spellList?: string) {
+  const cols: any[] = [{field: 'nome', label: ''}];
+  if (spellList === 'SP_DRUID') {
+    cols.push({
+      field: 'remaining',
+      label: '',
+      type: 'counter',
+      counter: {
+        value: (row: any) => Number(row.remaining ?? 0),
+        max: (row: any) => Number.isFinite(row.nprepared) ? Number(row.nprepared) : null,
+        onSub: (row: any) => consumeOne(row),
+        onAdd: (row: any) => refundOne(row),
+        disableSub: (row: any) => saving.value.has(row.id) || Number(row.remaining ?? 0) <= 0,
+        disableAdd: (row: any) => saving.value.has(row.id) || Number(row.nused ?? 0) <= 0,
+        hide: (row: any) => row.alwaysPrep === true,
+      }
+    });
+  }
+  return cols;
+}
+
+type ShowPopupOpts = { idClasse?: number; classe: string; livello: number; spellList: string };
+
+function showPopup(opts: ShowPopupOpts) {
+  const idClasse = opts.idClasse!;
+  const livello = opts.livello;
+  const SENTINEL_ALWAYS = -54;
+
+  const personaggio = cache.value?.[props.idPersonaggio];
+  const sb = (personaggio?.items?.spellbooks ?? []).find((s: any) => s.idClasse === idClasse);
+  const lvList = Array.isArray(sb?.livelli) ? sb!.livelli : Object.values(sb?.livelli ?? {});
+  const lv = lvList.find((l: any) => Number(l?.livello) === livello);
+  const preparedInit: Record<number, number> = Object.fromEntries(
+      (lv?.incantesimi ?? []).map((s: any) => {
+        const raw = Number(s?.nprepared);
+        const isAlways = Boolean(s?.alwaysPrep ?? s?.alwaysPrepared ?? false) || raw === SENTINEL_ALWAYS;
+        const value = isAlways ? SENTINEL_ALWAYS : (Number.isFinite(raw) ? Math.max(0, Math.trunc(raw)) : 0);
+        return [Number(s.id), value];
+      })
+  );
+
+  openPopup(
+      Mobile_Cico_4_SpellBookPrepare,
+      {
+        idClasse,
+        classe: opts.classe,
+        livello,
+        spellList: opts.spellList,
+        idPersonaggio: props.idPersonaggio,
+        preparedInit,
+
+        async onConfirm(payload: {
+          idClasse: number;
+          classe: string;
+          livello: number;
+          spellList: string;
+          prepared: Record<number, number>;
+        }) {
+          await updatePreparedSpells({
+            idPersonaggio: props.idPersonaggio,
+            idClasse: payload.idClasse,
+            spellList: payload.spellList,
+            livello: payload.livello,
+            prepared: payload.prepared
+          });
+
+          await characterStore.fetchCharacter(props.idPersonaggio, true);
+          await recomputeAllSlots();
+        },
+        onClose() {
+        }
+      },
+      {closable: true, autoClose: 0}
+  );
+}
 </script>
 
 <template>
   <div>
-    <Tabella v-if="itemsLivello0.length > 0"
-             :columns="columnsLivello0"
-             :expandable="true"
-             :items="itemsLivello0"
-    >
-    </Tabella>
-    <div class="spazietto"/>
-    <Tabella v-if="itemsLivello1.length > 0"
-             :columns="columnsLivello1"
-             :expandable="true"
-             :items="itemsLivello1"
-    >
-    </Tabella>
-    <div class="spazietto"/>
-    <Tabella v-if="itemsLivello2.length > 0"
-             :columns="columnsLivello2"
-             :expandable="true"
-             :items="itemsLivello2"
-    >
-    </Tabella>
-    <div class="spazietto"/>
-    <Tabella v-if="itemsLivello3.length > 0"
-             :columns="columnsLivello3"
-             :expandable="true"
-             :items="itemsLivello3"
-    >
-    </Tabella>
-    <div class="spazietto"/>
-    <Tabella v-if="itemsLivello4.length > 0"
-             :columns="columnsLivello4"
-             :expandable="true"
-             :items="itemsLivello4"
-    >
-    </Tabella>
-    <div class="spazietto"/>
-    <Tabella v-if="itemsLivello5.length > 0"
-             :columns="columnsLivello5"
-             :expandable="true"
-             :items="itemsLivello5"
-    >
-    </Tabella>
-    <div class="spazietto"/>
-    <Tabella v-if="itemsLivello6.length > 0"
-             :columns="columnsLivello6"
-             :expandable="true"
-             :items="itemsLivello6"
-    >
-    </Tabella>
-    <div class="spazietto"/>
-    <Tabella v-if="itemsLivello7.length > 0"
-             :columns="columnsLivello7"
-             :expandable="true"
-             :items="itemsLivello7"
-    >
-    </Tabella>
-    <div class="spazietto"/>
-    <Tabella v-if="itemsLivello8.length > 0"
-             :columns="columnsLivello8"
-             :expandable="true"
-             :items="itemsLivello8"
-    >
-    </Tabella>
-    <div class="spazietto"/>
-    <Tabella v-if="itemsLivello9.length > 0"
-             :columns="columnsLivello9"
-             :expandable="true"
-             :items="itemsLivello9"
-    >
-    </Tabella>
-    <div class="spazietto"/>
+    <section v-for="group in groupedByClassLevel" :key="group.classe" class="mb-4">
+      <h3 class="classe-title">
+        {{ group.classe }}
+      </h3>
+
+      <div v-for="lv in group.levels" :key="`${group.idClasse ?? group.classe}-${lv.livello}`" class="level-block">
+        <div class="level-header">
+          <div class="level-title">
+            {{ lv.livello === 0 ? 'Cantrip' : `Livello ${lv.livello}` }}
+            <span class="muted"> · slot: {{ getSlotDisplay(group.idClasse, lv.livello, lv.slot) }}</span>
+          </div>
+          <button
+              class="prepare-btn"
+              @click="showPopup({ idClasse: group.idClasse, classe: group.classe, livello: lv.livello, spellList: group.spellList })"
+              title="Prepara incantesimi"
+          >
+            Prepara
+          </button>
+        </div>
+
+        <Tabella
+            class="mb-3"
+            :columns="columnsForLevel(lv.livello, group.spellList)"
+            :expandable="true"
+            :items="lv.incantesimi"
+        />
+      </div>
+    </section>
   </div>
 </template>
 
 <style scoped>
+.mb-4 {
+  margin-bottom: 1rem;
+}
+
+.mb-3 {
+  margin-bottom: 0.75rem;
+}
+
+.classe-title {
+  margin: 8px 0 6px;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.level-block {
+  border: 1px solid rgba(0, 0, 0, .08);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #fff;
+}
+
+.level-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 0 8px;
+}
+
+.level-title {
+  font-weight: 600;
+}
+
+.muted {
+  opacity: .7;
+}
+
+.prepare-btn {
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, .12);
+  background: #f7f7f7;
+  cursor: pointer;
+}
+
+.prepare-btn:hover {
+  background: #eee;
+}
 </style>

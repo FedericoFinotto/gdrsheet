@@ -26,8 +26,8 @@ public class Personaggio implements Serializable {
     private String nome;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "mondo_id")
-    private Mondo mondo;
+    @JoinColumn(name = "party_id")
+    private Party party;
 
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
     @JsonIgnoreProperties("personaggio")
@@ -36,5 +36,9 @@ public class Personaggio implements Serializable {
     @OneToMany(mappedBy = "personaggio", fetch = FetchType.LAZY)
     @JsonIgnoreProperties("personaggio")
     private List<StatValue> stats;
+
+    @OneToMany(mappedBy = "personaggio", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("personaggio")
+    private List<PersonaggioLabel> labels;
 
 }

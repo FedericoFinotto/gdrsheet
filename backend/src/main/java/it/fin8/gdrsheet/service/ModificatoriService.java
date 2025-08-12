@@ -1,5 +1,6 @@
 package it.fin8.gdrsheet.service;
 
+import it.fin8.gdrsheet.config.Constants;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoModificatore;
 import it.fin8.gdrsheet.dto.*;
@@ -53,7 +54,13 @@ public class ModificatoriService {
 
         modificatoriAttivi.addAll(modsDto.stream().filter(m -> TipoModificatore.VALORE.equals(m.getTipo())).toList());
 
-        int valore = modificatoriAttivi.stream().filter(ModificatoreDTO::getSempreAttivo).mapToInt(ModificatoreDTO::getValore).sum();
+        int valore = Optional.of(modificatoriAttivi)
+                .orElse(Collections.emptyList())
+                .stream()
+                .filter(ModificatoreDTO::getSempreAttivo)
+                .mapToInt(ModificatoreDTO::getValore)
+                .sum();
+
 
         return new CaratteristicaDTO(
                 stat.getStat().getId(),
@@ -251,8 +258,8 @@ public class ModificatoriService {
                     // controlla che NON esista una label “DISABLED” col valore “1”
                     .filter(c -> c.getItem().getLabels().stream()
                             .noneMatch(lbl ->
-                                    "DISABLED".equalsIgnoreCase(lbl.getLabel())
-                                            && "1".equals(lbl.getValore())
+                                    Constants.ITEM_LABEL_DISABILITATO.equalsIgnoreCase(lbl.getLabel())
+                                            && Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE.equals(lbl.getValore())
                             ))
                     .findFirst();
 

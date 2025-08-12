@@ -15,7 +15,12 @@ VALUES ('Fucile Ammazzadivinita', 'ARMA', 'Fucile Ammazzadivinita', null, 1, 1),
        ('Extra Wild Shape', 'TALENTO', '+2 Utilizzi della forma selvaggia', null, 1, 1),
        ('Forma Selvatica Veloce', 'TALENTO', 'Puoi trasformarti in forma selvaggia con azione veloce', null,
         1, 1),
-       ('Attacco', 'ATTACCO', 'ATTACCO TANTOO', null, 1, 1);
+       ('Attacco', 'ATTACCO', 'ATTACCO TANTOO', null, 1, 1),
+       ('Armatura in Pelle di Xenomorfo', 'EQUIPAGGIAMENTO', null, null, 1, null),
+       ('Resistenza Fisica', 'TALENTO',
+        'Il personaggio ottiene un bonus di +4 alle prove e ai tiri salvezza elencati di seguito. Il personaggio può inoltre dormire con indosso armature medie senza svegliarsi affaticato.',
+        null, 1, null);
+;
 
 INSERT INTO item_label (id_item, label, valore)
 VALUES
@@ -40,63 +45,43 @@ VALUES
     ((select id from items where nome = 'Scudo in legno'), 'AB21', -1, true, null, 'VALORE'),
     ((select id from items where nome = 'Scudo in legno'), 'AB30', -1, true, null, 'VALORE'),
     ((select id from items where nome = 'Scudo in legno'), 'AB28', -1, true, null, 'VALORE'),
-    ((select id from items where nome = 'Scudo in legno'), 'CA', +4, true, null, 'CA_SHIELD')
+    ((select id from items where nome = 'Scudo in legno'), 'CA', +4, true, null, 'CA_SHIELD'),
+    ((select id from items where nome = 'Maledizione del fucile Ammazzadivinita'), 'CAR', '-2', true, null, 'VALORE'),
+    ((select id from items where nome = 'Extra Wild Shape'), 'NWS', '+2', true, null, 'VALORE'),
+    ((select id from items where nome = 'Veste del druido'), 'NWS', '+1', true, null, 'VALORE'),
+    -- Resistenza fisica
+    ((select id from items where nome = 'Resistenza Fisica'), 'AB21', '+4', false, 'per evitare i danni non letali',
+     'VALORE'), --NUOTARE
+    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'per non smettere di correre',
+     'VALORE'), -- COSTITUZIONE
+    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false,
+     'danni non letali causati da marce forzate', 'VALORE'),
+    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'per trattenere il fiato', 'VALORE'),
+    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'per resistere alla fame o alla sete',
+     'VALORE'),
+    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false,
+     'danni non letali causati da temperatura', 'VALORE'),
+    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false,
+     'per evitare i danni causati da soffocamento', 'VALORE'),
+    ((SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo'), 'RACID', '+INF', true, null, 'VALORE'),
+    ((SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo'), 'RINC', '+15', true, null, 'VALORE'),
+    ((SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo'), 'RTHUN', '+10', true, null, 'VALORE'),
+    ((SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo'), 'RFIRE', '+10', true, null, 'VALORE'),
+    ((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB1', -1, true, null, 'VALORE'),
+    ((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB7', -1, true, null, 'VALORE'),
+    ((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB19', -1, true, null, 'VALORE'),
+    ((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB19', +5, true, null, 'VALORE'),
+    ((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB21', -1, true, null, 'VALORE'),
+    ((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB30', -1, true, null, 'VALORE'),
+    ((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB28', -1, true, null, 'VALORE'),
+    ((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'CA', +5, true, null, 'CA_ARMOR')
 
 ;
 
 INSERT INTO collegamento (id_item_source, id_item_target)
 VALUES
     ((SELECT id FROM items where nome = 'Fucile Ammazzadivinita'), (SELECT id FROM items where nome = 'Maledizione del fucile Ammazzadivinita')),
-    ((SELECT id FROM items where nome = 'Maledizione del fucile Ammazzadivinita'), (SELECT id FROM items where nome = 'Olfatto Acuto'))
-;
-
-INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo)
-VALUES ((select id from items where nome = 'Maledizione del fucile Ammazzadivinita'), 'CAR', '-2', true, null,
-        'VALORE');
-
-INSERT INTO collegamento (id_item_source, id_item_target)
-VALUES
+    ((SELECT id FROM items where nome = 'Maledizione del fucile Ammazzadivinita'),
+     (SELECT id FROM items where nome = 'Olfatto Acuto')),
     ((SELECT id FROM items where nome = 'Tantoo'), (SELECT id FROM items where descrizione = 'ATTACCO TANTOO'))
-
 ;
-
-INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo)
-VALUES
-    ((select id from items where nome = 'Extra Wild Shape'), 'NWS', '+2', true, null, 'VALORE'),
-    ((select id from items where nome = 'Veste del druido'), 'NWS', '+1', true, null, 'VALORE');
-
-INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo) VALUES
-('Resistenza Fisica', 'TALENTO', 'Il personaggio ottiene un bonus di +4 alle prove e ai tiri salvezza elencati di seguito. Il personaggio può inoltre dormire con indosso armature medie senza svegliarsi affaticato.', null, 1, null);
-
-INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo)
-VALUES
-    -- Resistenza fisica
-    ((select id from items where nome = 'Resistenza Fisica'), 'AB21', '+4', false, 'per evitare i danni non letali', 'VALORE'), --NUOTARE
-    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'per non smettere di correre', 'VALORE'), -- COSTITUZIONE
-    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'danni non letali causati da marce forzate', 'VALORE'),
-    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'per trattenere il fiato', 'VALORE'),
-    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'per resistere alla fame o alla sete', 'VALORE'),
-    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'danni non letali causati da temperatura', 'VALORE'),
-    ((select id from items where nome = 'Resistenza Fisica'), 'TMP', '+4', false, 'per evitare i danni causati da soffocamento', 'VALORE')
-;
-
-INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo) VALUES
-    ('Armatura in Pelle di Xenomorfo', 'EQUIPAGGIAMENTO', null, null, 1, null);
-
-INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
-((SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo'), 'RACID', '+INF', true, null, 'VALORE'),
-((SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo'), 'RINC', '+15', true, null, 'VALORE'),
-((SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo'), 'RTHUN', '+10', true, null, 'VALORE'),
-((SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo'), 'RFIRE', '+10', true, null, 'VALORE'),
-((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB1', -1, true, null, 'VALORE'),
-((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB7', -1, true, null, 'VALORE'),
-((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB19', -1, true, null, 'VALORE'),
-((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB19', +5, true, null, 'VALORE'),
-((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB21', -1, true, null, 'VALORE'),
-((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB30', -1, true, null, 'VALORE'),
-((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'AB28', -1, true, null, 'VALORE'),
-((select id from items where nome = 'Armatura in Pelle di Xenomorfo'), 'CA', +5, true, null, 'CA_ARMOR')
-;
-
-
-

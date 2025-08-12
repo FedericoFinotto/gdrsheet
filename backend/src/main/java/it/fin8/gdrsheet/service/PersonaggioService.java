@@ -1,5 +1,6 @@
 package it.fin8.gdrsheet.service;
 
+import it.fin8.gdrsheet.config.Constants;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoModificatore;
 import it.fin8.gdrsheet.def.TipoStat;
@@ -42,8 +43,12 @@ public class PersonaggioService {
 
     @Autowired
     private ModificatoriService modificatoriService;
+
     @Autowired
     private CalcoloService calcoloService;
+
+    @Autowired
+    private UtilService utilService;
 
     /**
      * Flattens iteratively the item hierarchy into a list.
@@ -58,14 +63,28 @@ public class PersonaggioService {
             result.add(cur);
             boolean isDisabled = cur.getLabels() != null &&
                     cur.getLabels().stream().anyMatch(
-                            l -> "DISABLED".equalsIgnoreCase(l.getLabel()) && "1".equals(l.getValore())
+                            l -> Constants.ITEM_LABEL_DISABILITATO.equalsIgnoreCase(l.getLabel()) && Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE.equals(l.getValore())
                     );
 
-            if (!isDisabled && cur.getChild() != null) {
-                for (Collegamento col : cur.getChild()) {
-                    stack.push(col.getItemTarget());
+            if (!isDisabled) {
+                List<Item> competenze = findCompetenze(cur);
+                List<Item> lingue = findLingue(cur);
+
+                if (cur.getChild() != null) {
+                    for (Collegamento col : cur.getChild().stream().filter(x -> !x.getItemTarget().getTipo().equals(TipoItem.CLASSE)).toList()) {
+                        stack.push(col.getItemTarget());
+                    }
+                }
+
+                if (competenze != null) {
+                    stack.addAll(competenze);
+                }
+
+                if (lingue != null) {
+                    stack.addAll(lingue);
                 }
             }
+
         }
 
         return result;
@@ -74,93 +93,87 @@ public class PersonaggioService {
 
     public ItemsDTO getAllPersonaggioItemsDTOByIdPersonaggio(Integer id) {
         ItemsDTO itemsDTO = new ItemsDTO();
-//        'ABILITA', 'TALENTO', 'OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO',
-//        'PERSONAGGIO', 'CLASSE', 'RAZZA', 'ATTACCO', 'ALTRO', 'LIVELLO', 'MALEDIZIONE', 'INCANTESIMO'
-        getAllPersonaggioItemsByIdPersonaggio(id).forEach(itm -> {
-                    if (TipoItem.ABILITA.equals(itm.getTipo())) {
-                        itemsDTO.getAbilita().add(itemMapper.toDTO(itm));
-                    }
-                    if (TipoItem.TALENTO.equals(itm.getTipo())) {
-                        itemsDTO.getTalenti().add(itemMapper.toDTO(itm));
-                    }
-                    if (TipoItem.OGGETTO.equals(itm.getTipo())) {
-                        itemsDTO.getOggetti().add(itemMapper.toDTO(itm));
-                    }
-                    if (TipoItem.CONSUMABILE.equals(itm.getTipo())) {
-                        itemsDTO.getConsumabili().add(itemMapper.toDTO(itm));
-                    }
-                    if (TipoItem.ARMA.equals(itm.getTipo())) {
-                        itemsDTO.getArmi().add(itemMapper.toDTO(itm));
-                    }
-                    if (TipoItem.MUNIZIONE.equals(itm.getTipo())) {
-                        itemsDTO.getMunizioni().add(itemMapper.toDTO(itm));
-                    }
-                    if (TipoItem.EQUIPAGGIAMENTO.equals(itm.getTipo())) {
-                        itemsDTO.getEquipaggiamento().add(itemMapper.toDTO(itm));
-                    }
-                    if (TipoItem.CLASSE.equals(itm.getTipo())) {
-                        itemsDTO.getClassi().add(itemMapper.toDTO(itm));
-                    }
-                    if (TipoItem.RAZZA.equals(itm.getTipo())) {
-                        itemsDTO.getRazze().add(itemMapper.toDTO(itm));
-                    }
-                    if (TipoItem.ATTACCO.equals(itm.getTipo())) {
-                        itemsDTO.getAttacchi().add(itemMapper.toAttaccoDTO(itm));
-                    }
-                    if (TipoItem.LIVELLO.equals(itm.getTipo())) {
-                        itemsDTO.getLivelli().add(itemMapper.toDTO(itm));
-                    }
-                    if (TipoItem.MALEDIZIONE.equals(itm.getTipo())) {
-                        itemsDTO.getMaledizioni().add(itemMapper.toDTO(itm));
-                    }
-                    if (TipoItem.INCANTESIMO.equals(itm.getTipo())) {
-                        itemsDTO.getIncantesimi().add(itemMapper.toIncantesimoDTO(itm));
-                    }
-                    if (TipoItem.TRASFORMAZIONE.equals(itm.getTipo())) {
-                        itemsDTO.getTrasformazioni().add(itemMapper.toDTO(itm));
-                    }
+        AllPersonaggioItems allPersonaggioItems = getAllPersonaggioItemsByIdPersonaggio(id);
+        for (Item itm : allPersonaggioItems.getItems()) {
+            if (TipoItem.ABILITA.equals(itm.getTipo())) {
+                itemsDTO.getAbilita().add(itemMapper.toDTO(itm));
+            }
+            if (TipoItem.TALENTO.equals(itm.getTipo())) {
+                itemsDTO.getTalenti().add(itemMapper.toDTO(itm));
+            }
+            if (TipoItem.OGGETTO.equals(itm.getTipo())) {
+                itemsDTO.getOggetti().add(itemMapper.toDTO(itm));
+            }
+            if (TipoItem.CONSUMABILE.equals(itm.getTipo())) {
+                itemsDTO.getConsumabili().add(itemMapper.toDTO(itm));
+            }
+            if (TipoItem.ARMA.equals(itm.getTipo())) {
+                itemsDTO.getArmi().add(itemMapper.toDTO(itm));
+            }
+            if (TipoItem.MUNIZIONE.equals(itm.getTipo())) {
+                itemsDTO.getMunizioni().add(itemMapper.toDTO(itm));
+            }
+            if (TipoItem.EQUIPAGGIAMENTO.equals(itm.getTipo())) {
+                itemsDTO.getEquipaggiamento().add(itemMapper.toDTO(itm));
+            }
+            if (TipoItem.RAZZA.equals(itm.getTipo())) {
+                itemsDTO.getRazze().add(itemMapper.toDTO(itm));
+            }
+            if (TipoItem.ATTACCO.equals(itm.getTipo())) {
+                itemsDTO.getAttacchi().add(itemMapper.toAttaccoDTO(itm));
+            }
+            if (TipoItem.LIVELLO.equals(itm.getTipo())) {
+                itemsDTO.getLivelli().add(itemMapper.toDTO(itm));
+            }
+            if (TipoItem.MALEDIZIONE.equals(itm.getTipo())) {
+                itemsDTO.getMaledizioni().add(itemMapper.toDTO(itm));
+            }
+            if (TipoItem.TRASFORMAZIONE.equals(itm.getTipo())) {
+                itemsDTO.getTrasformazioni().add(itemMapper.toDTO(itm));
+            }
+            if (TipoItem.COMP.equals(itm.getTipo())) {
+                itemsDTO.getCompetenze().add(itemMapper.toDTO(itm));
+            }
+            if (TipoItem.LINGUA.equals(itm.getTipo())) {
+                itemsDTO.getLingue().add(itemMapper.toDTO(itm));
+            }
+        }
 
-                }
-        );
+        for (Map.Entry<Item, Long> classe : allPersonaggioItems.getClassi().entrySet()) {
+            itemsDTO.getClassi().add(itemMapper.toClasseDTO(classe));
+
+            SpellBookDTO spellbook = generateSpellBook(classe.getKey(), classe.getValue(), id);
+            if (spellbook != null) {
+                itemsDTO.getSpellbooks().add(spellbook);
+            }
+        }
+
+        for (Map.Entry<Item, List<ItemLivelloDTO>> classeIncantesimo : allPersonaggioItems.getIncantesimi().entrySet()) {
+//            Item classe = classeIncantesimo.getKey();
+//            List<ItemLivelloDTO> incantesimi = classeIncantesimo.getValue();
+//            itemsDTO.getIncantesimi().addAll(incantesimi.stream().map(x -> itemMapper.toIncantesimoDTO(classe, x)).toList());
+        }
+
+
         return itemsDTO;
     }
 
-    public List<Item> getAllPersonaggioItemsByIdPersonaggio(Integer idPersonaggio) {
+    public AllPersonaggioItems getAllPersonaggioItemsByIdPersonaggio(Integer idPersonaggio) {
+        AllPersonaggioItems result = new AllPersonaggioItems();
 
         // Fetch Items principali con un solo join-fetch su child
         List<Item> initialRoots = itemRepository.findAllByPersonaggioIdWithChild(idPersonaggio);
 
         // Determina le classi e livelli dai soli rootItems
-        Map<Item, Long> classLevels = calcoloService.getLivelli(initialRoots);
+        result.setClassi(calcoloService.getLivelli(initialRoots));
 
         // Raccogli root items aggiuntive dagli avanzamenti di classe
         List<Item> advanceRoots = new ArrayList<>();
-        for (Map.Entry<Item, Long> entry : classLevels.entrySet()) {
+        Item preparedSpell = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_INCANTESIMI_PREPARATI, idPersonaggio);
+        for (Map.Entry<Item, Long> entry : result.getClassi().entrySet()) {
             Item classe = entry.getKey();
             long livello = entry.getValue();
-            List<ItemLivelloDTO> incantesimi = new ArrayList<>();
-//            List<ItemLivelloDTO> avanzamenti = new ArrayList<>();
-            ItemLabel spellDiClasse = classe.getLabels().stream().filter(x -> x.getLabel().equals("SPELL")).findFirst().orElse(null);
-            if (spellDiClasse != null) {
-                ItemLabel preparedSpell = itemLabelRepository.findByItemPersonaggioIdAndItemNome(idPersonaggio, "PreparedSpell").stream().filter(x -> x.getLabel().equals(spellDiClasse.getValore())).findFirst().orElse(null);
-                if (preparedSpell != null) {
-                    List<Integer> incantesimiIds = Stream.of(preparedSpell.getValore().split(","))
-                            .map(String::trim)
-                            .filter(s -> !s.isEmpty())
-                            .map(Integer::parseInt)
-                            .toList();
-                    incantesimi = itemRepository.findIncantesimiWithLivelloByLabelAndIds(spellDiClasse.getValore(), incantesimiIds);
-
-                    if (!incantesimi.isEmpty()) {
-                        incantesimi.forEach(item -> {
-                            item.getItem().getLabels().add(new ItemLabel(null, null, "CLIVELLO", item.getLivello()));
-                            item.getItem().getLabels().add(new ItemLabel(null, null, "CSLASSE", spellDiClasse.getValore()));
-                        });
-                        advanceRoots.addAll(incantesimi.stream().map(ItemLivelloDTO::getItem).toList());
-                    }
-                }
-
-            }
+            advanceRoots.add(classe);
 
             List<Avanzamento> aumentoStatistiche = new ArrayList<>();
             if (classe.getAvanzamento() != null) {
@@ -181,13 +194,15 @@ public class PersonaggioService {
 
         }
 
-        // Esegui un unico flatten di tutti i root (main + advance)
-        List<Item> allItems = flattenItems(
-                Stream.concat(initialRoots.stream(), advanceRoots.stream())
-                        .collect(Collectors.toList())
+        result.setItems(
+                flattenItems(
+                        Stream.of(initialRoots, advanceRoots)
+                                .filter(obj -> true)
+                                .flatMap(Collection::stream)
+                                .toList()
+                )
         );
-
-        return allItems;
+        return result;
     }
 
     /**
@@ -199,12 +214,12 @@ public class PersonaggioService {
         Personaggio p = personaggioRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Personaggio non trovato"));
 
-        List<Item> allItems = getAllPersonaggioItemsByIdPersonaggio(p.getId());
-        List<Item> filteredItems = new ArrayList<>(allItems.size());
+        List<Item> allItems = getAllPersonaggioItemsByIdPersonaggio(p.getId()).getItems();
+        List<Item> filteredItems = new ArrayList<>();
         for (Item item : allItems) {
             boolean isDisabled = false;
             for (ItemLabel lbl : item.getLabels()) {
-                if ("DISABLED".equalsIgnoreCase(lbl.getLabel()) && "1".equals(lbl.getValore())) {
+                if (Constants.ITEM_LABEL_DISABILITATO.equalsIgnoreCase(lbl.getLabel()) && Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE.equals(lbl.getValore())) {
                     isDisabled = true;
                     break;
                 }
@@ -217,10 +232,13 @@ public class PersonaggioService {
 
         // 6) Fetch Modificatori
         List<Integer> itemIds = filteredItems.stream().map(Item::getId).toList();
+        filteredItems.forEach(item -> {
+            System.out.println(item.getNome());
+        });
         List<Modificatore> allMods = modificatoreRepository.findAllByItemIdIn(itemIds);
 
-        List<ItemLabel> abClasse = itemLabelRepository.findByLabelAndItem_IdIn("ABCLASSE", itemIds);
-        List<ItemLabel> taglia = itemLabelRepository.findByLabelAndItem_IdIn("TAGLIA", itemIds);
+        List<ItemLabel> abClasse = itemLabelRepository.findByLabelAndItem_IdIn(Constants.ITEM_LABEL_ABILITA_CLASSE, itemIds);
+        List<ItemLabel> taglia = itemLabelRepository.findByLabelAndItem_IdIn(Constants.ITEM_LABEL_TAGLIA, itemIds);
 
         // 7) Raggruppa Modificatori e Rank in DTO
         Map<String, List<ModificatoreDTO>> modsDtoByStat = allMods.stream()
@@ -386,6 +404,96 @@ public class PersonaggioService {
         }
 
         return true;
+    }
+
+    private List<Item> findCompetenze(Item item) {
+        ItemLabel competenze = item.getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_LISTA_COMPETENZE)).findFirst().orElse(null);
+        if (competenze != null) {
+            List<Integer> competenzeIds = Stream.of(competenze.getValore().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(Integer::parseInt)
+                    .toList();
+            return itemRepository.findItemsByIds(competenzeIds);
+        }
+        return new ArrayList<>();
+    }
+
+    private List<Item> findLingue(Item item) {
+        ItemLabel lingue = item.getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_LISTA_LINGUE)).findFirst().orElse(null);
+        if (lingue != null) {
+            List<Integer> lingueIds = Stream.of(lingue.getValore().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(Integer::parseInt)
+                    .toList();
+            return itemRepository.findItemsByIds(lingueIds);
+        }
+        return new ArrayList<>();
+    }
+
+    private List<ItemLivelloDTO> findIncantesimi(Item item, Integer idPersonaggio) {
+        ItemLabel spellDiClasse = item.getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_LISTA_INCANTESIMI)).findFirst().orElse(null);
+        if (spellDiClasse != null) {
+            ItemLabel preparedSpell = itemLabelRepository.findByItemPersonaggioIdAndItemNome(idPersonaggio, Constants.ITEM_INCANTESIMI_PREPARATI).stream().filter(x -> x.getLabel().equals(spellDiClasse.getValore())).findFirst().orElse(null);
+            if (preparedSpell != null) {
+                List<Integer> incantesimiIds = Stream.of(preparedSpell.getValore().split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .map(Integer::parseInt)
+                        .toList();
+                List<ItemLivelloDTO> incantesimi = itemRepository.findIncantesimiWithLivelloByLabelAndIds(spellDiClasse.getValore(), incantesimiIds);
+
+                if (!incantesimi.isEmpty()) {
+                    incantesimi.forEach(itm -> {
+                        itm.getItem().getLabels().add(new ItemLabel(null, null, Constants.ITEM_LABEL_LIVELLO_INCANTESIMO, itm.getLivello()));
+                        itm.getItem().getLabels().add(new ItemLabel(null, null, Constants.ITEM_LABEL_CLASSE_INCANTESIMO, spellDiClasse.getValore()));
+                    });
+                    return incantesimi;
+                }
+            }
+        }
+        return new ArrayList<>();
+    }
+
+    private SpellBookDTO generateSpellBook(Item classe, Long lvl, Integer idPersonaggio) {
+        ItemLabel spellList = classe.getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_LISTA_INCANTESIMI)).findFirst().orElse(null);
+        if (spellList == null) return null;
+        SpellBookDTO spellBook = new SpellBookDTO();
+        spellBook.setIdClasse(classe.getId());
+        spellBook.setNomeClasse(classe.getNome());
+        spellBook.setSpellList(spellList.getValore());
+        String slotBonus = utilService.getItemLabel(classe, Constants.ITEM_LABEL_SPELL_SLOT_BONUS);
+
+        Avanzamento avanzamento = classe.getAvanzamento().stream().filter(y -> y.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO) && Math.toIntExact(lvl) == y.getLivello()).findFirst().orElse(null);
+        Item preparedSpell = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_INCANTESIMI_PREPARATI, idPersonaggio);
+        List<SpellBookIncantesimoDTO> incantesimi = preparedSpell.getChild().stream().map(x -> itemMapper.toIncantesimoDTO(classe, x)).toList();
+        if (avanzamento != null) {
+            ItemLabel spellSlot = avanzamento.getItemTarget().getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_SPELL_SLOT)).findFirst().orElse(null);
+            if (spellSlot != null) {
+                List<Integer> slots = Arrays.stream(spellSlot.getValore().split(","))
+                        .map(String::trim) // rimuove spazi eventuali
+                        .map(Integer::parseInt) // converte in Integer
+                        .toList();
+
+
+                for (int i = 0; i < slots.size(); i++) {
+                    if (slots.get(i) > 0) {
+                        SpellBookLivelloDTO spellBookLivello = new SpellBookLivelloDTO();
+                        spellBookLivello.setLivello(i);
+                        spellBookLivello.setSlot(slots.get(i));
+                        if (slotBonus != null && i > 0) {
+                            spellBookLivello.getBonus().add(slotBonus);
+                        }
+                        int finalI = i;
+                        spellBookLivello.getIncantesimi().addAll(incantesimi.stream().filter(x -> x.getLivello() == finalI && x.getSpellList().equals(spellList.getValore())).toList());
+                        spellBook.getLivelli().add(spellBookLivello);
+                    }
+                }
+
+            }
+        }
+        return spellBook;
     }
 
 }

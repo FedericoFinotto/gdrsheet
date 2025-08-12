@@ -17,8 +17,14 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
 
     Item findItemById(Integer id);
 
+    @Query("SELECT i FROM Item i WHERE i.id IN :ids")
+    List<Item> findItemsByIds(@Param("ids") List<Integer> ids);
+
+
     @Query("SELECT i FROM Item i LEFT JOIN FETCH i.child c WHERE i.personaggio.id = :personaggioId")
     List<Item> findAllByPersonaggioIdWithChild(@Param("personaggioId") Integer id);
+
+    Item findItemByNomeAndPersonaggio_Id(String name, Integer personaggioId);
 
     /**
      * Restituisce l'intera entità Item e il valore (livello) associato,
@@ -39,6 +45,24 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             @Param("label") String label,
             @Param("ids") List<Integer> ids
     );
+
+    @Query("""
+              SELECT DISTINCT new it.fin8.gdrsheet.dto.ItemLivelloDTO(
+                i,
+                il.valore
+              )
+              FROM Item i
+              JOIN i.labels il
+              WHERE i.tipo = 'INCANTESIMO'
+                AND il.label = :label
+                AND il.valore = :livello
+              ORDER BY il.valore ASC, i.nome ASC
+            """)
+    List<ItemLivelloDTO> findIncantesimiByLabelAndMaxLivello(
+            @Param("label") String label,
+            @Param("livello") Integer livello
+    );
+
 
     /**
      * Restituisce l'intera entità Item e il valore (livello) associato,

@@ -23,8 +23,11 @@ public class ItemsDTO {
     private List<AttaccoDTO> attacchi;
     private List<ItemDTO> livelli;
     private List<ItemDTO> maledizioni;
-    private List<IncantesimoDTO> incantesimi;
+    //    private List<IncantesimoDTO> incantesimi;
+    private List<SpellBookDTO> spellbooks;
     private List<ItemDTO> trasformazioni;
+    private List<ItemDTO> competenze;
+    private List<ItemDTO> lingue;
 
     public ItemsDTO() {
         abilita = new ArrayList<>();
@@ -39,7 +42,9 @@ public class ItemsDTO {
         attacchi = new ArrayList<>();
         livelli = new ArrayList<>();
         maledizioni = new ArrayList<>();
-        incantesimi = new ArrayList<>();
+        spellbooks = new ArrayList<>();
         trasformazioni = new ArrayList<>();
+        competenze = new ArrayList<>();
+        lingue = new ArrayList<>();
     }
 }

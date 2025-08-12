@@ -1,4 +1,4 @@
-INSERT INTO personaggio (nome, mondo_id)
+INSERT INTO personaggio (nome, party_id)
 VALUES ('Qui', 1);
 
 INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo)
@@ -8,28 +8,58 @@ VALUES ('Livello 0', 'LIVELLO', 'LIVELLO 0 QUI', (select id from personaggio whe
        ('Livello 3', 'LIVELLO', 'LIVELLO 3 QUI', (select id from personaggio where nome = 'Qui'), 1, 1),
        ('Livello 4', 'LIVELLO', 'LIVELLO 4 QUI', (select id from personaggio where nome = 'Qui'), 1, 1),
        ('Livello 5', 'LIVELLO', 'LIVELLO 5 QUI', (select id from personaggio where nome = 'Qui'), 1, 1),
-       ('Balbuzie', 'ALTRO', 'Balbuzie', (select id from personaggio where nome = 'Qui'), NULL, NULL),
-       ('FromCompendio', 'ALTRO', 'FromCompendio', (select id from personaggio where nome = 'Qui'), 1, 1)
-;
-
-INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo)
-VALUES ('PreparedSpell', 'ALTRO', 'PreparedSpell Qui', (select id from personaggio where nome = 'Qui'), 1, 1)
+       ('Balbuzie', 'MALEDIZIONE', 'Balbuzie', (select id from personaggio where nome = 'Qui'), NULL, NULL),
+       ('FromCompendio', 'ALTRO', 'FromCompendio', (select id from personaggio where nome = 'Qui'), 1, 1),
+       ('PreparedSpell', 'ALTRO', 'PreparedSpell Qui', (select id from personaggio where nome = 'Qui'), 1, 1),
+       ('Papera mostruosa', 'TRASFORMAZIONE', NULL, (select id from personaggio where nome = 'Qui'), 1, 1),
+       ('Pugno', 'ATTACCO', NULL, NULL, 1, 1),
+       ('Beccata', 'ATTACCO', NULL, NULL, 1, 1),
+       ('Soffio (Suono)', 'ATTACCO', NULL, NULL, 1, 1)
 ;
 
 INSERT INTO item_label (id_item, label, valore)
-VALUES ((select id from items where descrizione = 'PreparedSpell Qui'), 'SP_DRUID',
-        '1081, 1765, 1319,561,1017,597,1352,1152,830,424,657,1697,754,754,754,1795,1046,206,247,390');
+VALUES ((SELECT id FROM items WHERE nome = 'Pugno'), 'TPC', '@BAB+@FOR'),
+       ((SELECT id FROM items WHERE nome = 'Pugno'), 'TPD', '1d6+@FOR'),
+       ((SELECT id FROM items WHERE nome = 'Beccata'), 'TPC', '@BAB+@FOR'),
+       ((SELECT id FROM items WHERE nome = 'Beccata'), 'TPD', '1d8+@FOR/2'),
+       ((SELECT id FROM items WHERE nome = 'Soffio (Suono)'), 'TPD', '3d6'),
+       ((select id from items where nome = 'Papera mostruosa'), 'TAGLIA', '1'),
+       ((SELECT id from items where descrizione = 'LIVELLO 0 QUI'), 'LINGUE', '1894,1909,1895,1896,1897,1905');
 
 INSERT INTO collegamento (id_item_source, id_item_target)
-VALUES ((SELECT id from items where descrizione = 'LIVELLO 0 QUI'), (SELECT id from items where nome = 'Changeling'));
+VALUES ((SELECT id from items where descrizione = 'LIVELLO 0 QUI'), (SELECT id from items where nome = 'Changeling')),
+       ((SELECT id FROM items where descrizione = 'LIVELLO 1 QUI'), (SELECT id FROM items where nome = 'Druido')),
+       ((SELECT id FROM items where descrizione = 'LIVELLO 2 QUI'), (SELECT id FROM items where nome = 'Druido')),
+       ((SELECT id FROM items where descrizione = 'LIVELLO 3 QUI'), (SELECT id FROM items where nome = 'Druido')),
+       ((SELECT id FROM items where descrizione = 'LIVELLO 4 QUI'), (SELECT id FROM items where nome = 'Druido')),
+       ((SELECT id FROM items where descrizione = 'LIVELLO 5 QUI'), (SELECT id FROM items where nome = 'Druido')),
+       ((SELECT id FROM items where nome = 'FromCompendio'),
+        (SELECT id FROM items where nome = 'Fucile Ammazzadivinita')),
+       ((SELECT id FROM items where nome = 'FromCompendio'),
+        (SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo')),
+       ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Scudo in legno')),
+       ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Tantoo')),
+       ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Veste del druido')),
+       ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Anello Camaleonte')),
+       ((SELECT id FROM items where nome = 'FromCompendio'),
+        (SELECT id FROM items where nome = 'Anello Camminare sull''acqua')),
+       ((SELECT id FROM items where nome = 'FromCompendio'),
+        (SELECT id FROM items where nome = 'Sassolino ritornante')),
+       ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Extra Wild Shape')),
+       ((SELECT id FROM items where nome = 'Papera mostruosa'), (SELECT id FROM items where nome = 'Pugno')),
+       ((SELECT id FROM items where nome = 'Papera mostruosa'), (SELECT id FROM items where nome = 'Beccata')),
+       ((SELECT id FROM items where nome = 'Papera mostruosa'), (SELECT id FROM items where nome = 'Soffio (Suono)')),
+       ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Resistenza Fisica')),
+       ((SELECT id FROM items where descrizione = 'LIVELLO 0 QUI'), (SELECT id FROM items where nome = 'Changeling'))
+;
 
 INSERT INTO stat_value (personaggio_id, stat_id, valore, mod, classe, addestramento)
-VALUES ((select id from personaggio where nome = 'Qui'), 'FOR', '19', null, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'DES', '19', null, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'COS', '20', null, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'INT', '20', null, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'SAG', '24', null, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'CAR', '18', null, false, false),
+VALUES ((select id from personaggio where nome = 'Qui'), 'FOR', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'DES', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'COS', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'INT', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'SAG', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'CAR', '0', NULL, false, false),
        ((select id from personaggio where nome = 'Qui'), 'AB1', '0', 'DES', false, true),
        ((select id from personaggio where nome = 'Qui'), 'AB2', '0', 'CAR', false, true),
        ((select id from personaggio where nome = 'Qui'), 'AB3', '0', 'INT', false, false),
@@ -96,148 +126,80 @@ VALUES ((select id from personaggio where nome = 'Qui'), 'FOR', '19', null, fals
        ((select id from personaggio where nome = 'Qui'), 'PR03', '0', NULL, false, true),
        ((select id from personaggio where nome = 'Qui'), 'PR04', '0', NULL, false, true),
        ((select id from personaggio where nome = 'Qui'), 'PR05', '0', NULL, false, true),
-       ((select id from personaggio where nome = 'Qui'), 'PR06', '0', NULL, false, true);
+       ((select id from personaggio where nome = 'Qui'), 'PR06', '0', NULL, false, true),
+       ((select id from personaggio where nome = 'Qui'), 'RINC', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RFIRE', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RCOLD', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RTHUN', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RACID', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RSOUND', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RFORCE', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RPOS', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RIDDAN', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'RNEG', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'CD', '10', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'REGEN', '0', NULL, false, false),
+       ((select id from personaggio where nome = 'Qui'), 'NWS', '0', NULL, true, false)
+;
 
 INSERT INTO modificatori (id_item, id_stat, valore, always, tipo)
-VALUES ((select id from items where nome = 'Balbuzie'), 'AB12', '-4', true, 'VALORE'),  --DIPLOMAZIA
-       ((select id from items where nome = 'Balbuzie'), 'AB17', '-4', true, 'VALORE'),  --INTIMIDIRE
-       ((select id from items where nome = 'Balbuzie'), 'AB26', '-4', true, 'VALORE'),  --RAGGIRARE
-       ((select id from items where nome = 'Balbuzie'), 'AB32', '+4', true, 'VALORE'),  --SOPRAVVIVENZA
-       ((select id from items where nome = 'Balbuzie'), 'CO10', '+4', true, 'VALORE'),  --CONOSCENZE NATURA
-       ((select id from items where nome = 'Balbuzie'), 'AB30', '+4', true, 'VALORE'),  --SCALARE
-       ((select id from items where nome = 'Balbuzie'), 'AB21', '+4', true, 'VALORE');  -- NUOTARE
-
--- DA LEGARE A VARI OGGETTI LIVELLO PERSONAGGIO
-INSERT INTO modificatori (id_item, id_stat, valore, always, tipo)
-VALUES
-       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'CO10', '+4', true, 'RANK'),    -- CONOSCENZE NATURA
-       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB9', '+4', true, 'RANK'),   -- CONCENTRAZIONE
-       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB32', '+4', true, 'RANK'),  -- SOPRAVVIVENZA
-       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB2', '+1', true, 'RANK'),   -- ADDRESTRARE ANIMALI
-       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB29', '+4', true, 'RANK'),  -- SAPIENZA MAGICA
-       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB36', '+1', true, 'RANK'),  -- PARLARE LINGUAGGI
-       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB16', '+4', true, 'RANK'),  -- GUARIRE
-       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB21', '+4', true, 'RANK'),  -- NUOTARE
-       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB5', '+4', true, 'RANK'),   -- ASCOLTARE
-       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'CO09', '+2', true, 'RANK'),  -- CONOSCENZA ARCH
-       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB22', '+4', true, 'RANK'),  -- OSSERVARE
-       ((select id from items where descrizione = 'LIVELLO 2 QUI'), 'AB16', '+4', true, 'RANK'),  -- GUARIRE
-       ((select id from items where descrizione = 'LIVELLO 2 QUI'), 'AB21', '+4', true, 'RANK'),  -- NUOTARE
-       ((select id from items where descrizione = 'LIVELLO 3 QUI'), 'CO09', '+4', true, 'RANK'),  -- CONOSCENZA ARCH
-       ((select id from items where descrizione = 'LIVELLO 3 QUI'), 'AB9', '+4', true, 'RANK'),   -- CONCENTRAZIONE
-       ((select id from items where descrizione = 'LIVELLO 4 QUI'), 'AB29', '+4', true, 'RANK'),  -- SAPIENZA MAGICA
-       ((select id from items where descrizione = 'LIVELLO 4 QUI'), 'AB22', '+4', true, 'RANK'),  -- OSSERVARE
-       ((select id from items where descrizione = 'LIVELLO 5 QUI'), 'AB5', '+4', true, 'RANK'),   -- ASCOLTARE
-       ((select id from items where descrizione = 'LIVELLO 5 QUI'), 'CO09', '+4', true, 'RANK'); -- CONOSCENZA ARCH;
-
-INSERT INTO modificatori (id_item, id_stat, valore, always, tipo)
-VALUES
-    ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'FOR', '19', true, 'BASE'),
-    ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'DES', '19', true, 'BASE'),
-    ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'COS', '20', true, 'BASE'),
-    ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'INT', '20', true, 'BASE'),
-    ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'SAG', '24', true, 'BASE'),
-    ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'CAR', '18', true, 'BASE');
-
+VALUES ((select id from items where nome = 'Balbuzie'), 'AB12', '-4', true, 'VALORE'),           --DIPLOMAZIA
+       ((select id from items where nome = 'Balbuzie'), 'AB17', '-4', true, 'VALORE'),           --INTIMIDIRE
+       ((select id from items where nome = 'Balbuzie'), 'AB26', '-4', true, 'VALORE'),           --RAGGIRARE
+       ((select id from items where nome = 'Balbuzie'), 'AB32', '+4', true, 'VALORE'),           --SOPRAVVIVENZA
+       ((select id from items where nome = 'Balbuzie'), 'CO10', '+4', true, 'VALORE'),           --CONOSCENZE NATURA
+       ((select id from items where nome = 'Balbuzie'), 'AB30', '+4', true, 'VALORE'),           --SCALARE
+       ((select id from items where nome = 'Balbuzie'), 'AB21', '+4', true, 'VALORE'),           -- NUOTARE
+       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'CO10', '+4', true, 'RANK'), -- CONOSCENZE NATURA
+       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB9', '+4', true, 'RANK'),  -- CONCENTRAZIONE
+       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB32', '+4', true, 'RANK'), -- SOPRAVVIVENZA
+       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB2', '+1', true, 'RANK'),  -- ADDRESTRARE ANIMALI
+       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB29', '+4', true, 'RANK'), -- SAPIENZA MAGICA
+       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB36', '+1', true, 'RANK'), -- PARLARE LINGUAGGI
+       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB16', '+4', true, 'RANK'), -- GUARIRE
+       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB21', '+4', true, 'RANK'), -- NUOTARE
+       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB5', '+4', true, 'RANK'),  -- ASCOLTARE
+       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'CO09', '+2', true, 'RANK'), -- CONOSCENZA ARCH
+       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'AB22', '+4', true, 'RANK'), -- OSSERVARE
+       ((select id from items where descrizione = 'LIVELLO 2 QUI'), 'AB16', '+4', true, 'RANK'), -- GUARIRE
+       ((select id from items where descrizione = 'LIVELLO 2 QUI'), 'AB21', '+4', true, 'RANK'), -- NUOTARE
+       ((select id from items where descrizione = 'LIVELLO 3 QUI'), 'CO09', '+4', true, 'RANK'), -- CONOSCENZA ARCH
+       ((select id from items where descrizione = 'LIVELLO 3 QUI'), 'AB9', '+4', true, 'RANK'),  -- CONCENTRAZIONE
+       ((select id from items where descrizione = 'LIVELLO 4 QUI'), 'AB29', '+4', true, 'RANK'), -- SAPIENZA MAGICA
+       ((select id from items where descrizione = 'LIVELLO 4 QUI'), 'AB22', '+4', true, 'RANK'), -- OSSERVARE
+       ((select id from items where descrizione = 'LIVELLO 5 QUI'), 'AB5', '+4', true, 'RANK'),  -- ASCOLTARE
+       ((select id from items where descrizione = 'LIVELLO 5 QUI'), 'CO09', '+4', true, 'RANK'), -- CONOSCENZA ARCH;
+       ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'FOR', '19', true, 'BASE'),
+       ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'DES', '19', true, 'BASE'),
+       ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'COS', '20', true, 'BASE'),
+       ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'INT', '20', true, 'BASE'),
+       ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'SAG', '24', true, 'BASE'),
+       ((select id from items where descrizione = 'LIVELLO 0 QUI'), 'CAR', '18', true, 'BASE'),
+       ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'PF', '+8', true, 'VALORE'),
+       ((select id from items where descrizione = 'LIVELLO 2 QUI'), 'PF', '+7', true, 'VALORE'),
+       ((select id from items where descrizione = 'LIVELLO 3 QUI'), 'PF', '+7', true, 'VALORE'),
+       ((select id from items where descrizione = 'LIVELLO 4 QUI'), 'PF', '+7', true, 'VALORE'),
+       ((select id from items where descrizione = 'LIVELLO 5 QUI'), 'PF', '+7', true, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Papera mostruosa'), 'FOR', '30', true, 'BASE'),
+       ((SELECT id FROM items where nome = 'Papera mostruosa'), 'COS', '30', true, 'BASE'),
+       ((SELECT id FROM items where nome = 'Papera mostruosa'), 'DES', '18', true, 'BASE'),
+       ((SELECT id FROM items where nome = 'Papera mostruosa'), 'VLT', '+3', true, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Papera mostruosa'), 'TMP', '+3', true, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Papera mostruosa'), 'RFL', '+3', true, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Papera mostruosa'), 'CA', '+10', true, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Papera mostruosa'), 'CA', '+5', true, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Papera mostruosa'), 'RIDDAN', '+10', true, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Papera mostruosa'), 'REGEN', '5', true, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Papera mostruosa'), 'CD', '+4', true, 'VALORE');
 
 
 INSERT INTO collegamento (id_item_source, id_item_target)
-VALUES
-    ((SELECT id FROM items where descrizione = 'LIVELLO 1 QUI'), (SELECT id FROM items where nome = 'Druido')),
-    ((SELECT id FROM items where descrizione = 'LIVELLO 2 QUI'), (SELECT id FROM items where nome = 'Druido')),
-    ((SELECT id FROM items where descrizione = 'LIVELLO 3 QUI'), (SELECT id FROM items where nome = 'Druido')),
-    ((SELECT id FROM items where descrizione = 'LIVELLO 4 QUI'), (SELECT id FROM items where nome = 'Druido')),
-    ((SELECT id FROM items where descrizione = 'LIVELLO 5 QUI'), (SELECT id FROM items where nome = 'Druido')),
-    ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Fucile Ammazzadivinita')),
-    ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Armatura in Pelle di Xenomorfo')),
-    ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Scudo in legno')),
-    ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Tantoo')),
-    ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Veste del druido')),
-    ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Anello Camaleonte')),
-    ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Anello Camminare sull''acqua')),
-    ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Sassolino ritornante')),
-    ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Extra Wild Shape'))
-
-;
-
-INSERT INTO modificatori (id_item, id_stat, valore, always, tipo)
-VALUES
-    ((select id from items where descrizione = 'LIVELLO 1 QUI'), 'PF', '+8', true, 'VALORE'),
-    ((select id from items where descrizione = 'LIVELLO 2 QUI'), 'PF', '+7', true, 'VALORE'),
-    ((select id from items where descrizione = 'LIVELLO 3 QUI'), 'PF', '+7', true, 'VALORE'),
-    ((select id from items where descrizione = 'LIVELLO 4 QUI'), 'PF', '+7', true, 'VALORE'),
-    ((select id from items where descrizione = 'LIVELLO 5 QUI'), 'PF', '+7', true, 'VALORE');
-
-
-INSERT INTO stat_value (personaggio_id, stat_id, valore, mod, classe, addestramento, formula) VALUES
-    ((select id from personaggio where nome = 'Qui'), 'NWS', 0, null, true, false, null);
-
-INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo) VALUES
-('Papera mostruosa', 'TRASFORMAZIONE', null, (select id from personaggio where nome = 'Qui'), 1,1);
-
-INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo) VALUES
-('Pugno', 'ATTACCO', null, null, 1,1),
-('Beccata', 'ATTACCO', null, null, 1,1),
-('Soffio (Suono)', 'ATTACCO', null, null, 1,1)
-;
-
-INSERT INTO collegamento (id_item_source, id_item_target) VALUES
-((SELECT id FROM items where nome = 'Papera mostruosa'), (SELECT id FROM items where nome = 'Pugno')),
-((SELECT id FROM items where nome = 'Papera mostruosa'), (SELECT id FROM items where nome = 'Beccata')),
-((SELECT id FROM items where nome = 'Papera mostruosa'), (SELECT id FROM items where nome = 'Soffio (Suono)'));
-
-INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
-((SELECT id FROM items where nome = 'Papera mostruosa'), 'FOR', '30', true, null, 'BASE'),
-((SELECT id FROM items where nome = 'Papera mostruosa'), 'COS', '30', true, null, 'BASE'),
-((SELECT id FROM items where nome = 'Papera mostruosa'), 'DES', '18', true, null, 'BASE');
-
-INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
-((SELECT id FROM items where nome = 'Papera mostruosa'), 'VLT', '+3', true, null, 'VALORE'),
-((SELECT id FROM items where nome = 'Papera mostruosa'), 'TMP', '+3', true, null, 'VALORE'),
-((SELECT id FROM items where nome = 'Papera mostruosa'), 'RFL', '+3', true, null, 'VALORE');
-
-INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
-((SELECT id FROM items where nome = 'Papera mostruosa'), 'CA', '+10', true, null, 'VALORE'),
-((SELECT id FROM items where nome = 'Papera mostruosa'), 'CA', '+5', true, null, 'VALORE');
-
-INSERT INTO item_label (id_item, label, valore)
-VALUES
-    ((SELECT id FROM items WHERE nome = 'Pugno'), 'TPC', '@BAB+@FOR'),
-    ((SELECT id FROM items WHERE nome = 'Pugno'), 'TPD', '1d6+@FOR'),
-    ((SELECT id FROM items WHERE nome = 'Beccata'), 'TPC', '@BAB+@FOR'),
-    ((SELECT id FROM items WHERE nome = 'Beccata'), 'TPD', '1d8+@FOR/2'),
-    ((SELECT id FROM items WHERE nome = 'Soffio (Suono)'), 'TPD', '3d6');
-
-INSERT INTO collegamento (id_item_source, id_item_target) VALUES
-((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Resistenza Fisica'))
-
-INSERT INTO collegamento (id_item_source, id_item_target) VALUES
-    ((SELECT id FROM items where descrizione = 'LIVELLO 0 QUI'), (SELECT id FROM items where nome = 'Changeling'))
-
-INSERT INTO item_label (id_item, label, valore) VALUES
-((select id from items where nome = 'Papera mostruosa'), 'TAGLIA', '1');
-
-
-INSERT INTO stat_value (personaggio_id, stat_id, valore, mod, classe, addestramento)
-VALUES ((select id from personaggio where nome = 'Qui'), 'RINC', '0', null, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'RFIRE', '0', null, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'RCOLD', '0', null, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'RTHUN', '0', null, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'RACID', '0', null, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'RSOUND', '0', null, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'RFORCE', '0', null, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'RPOS', '0', null, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'RIDDAN', '0', null, false, false),
-       ((select id from personaggio where nome = 'Qui'), 'RNEG', '0', null, false, false);
-
-INSERT INTO stat_value (personaggio_id, stat_id, valore, mod, classe, addestramento)
-VALUES ((select id from personaggio where nome = 'Qui'), 'CD', '10', null, false, false);
-
-
-
-INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
-((SELECT id FROM items where nome = 'Papera mostruosa'), 'RIDDAN', '+10', true, null, 'VALORE');
-
-INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo) VALUES
-    ((SELECT id FROM items where nome = 'Papera mostruosa'), 'CD', '+4', true, null, 'VALORE');
+VALUES ((SELECT id FROM ITEMS where descrizione = 'PreparedSpell Qui'),
+        (SELECT id FROM ITEMS WHERE nome = 'Create water')),
+       ((SELECT id FROM ITEMS where descrizione = 'PreparedSpell Qui'),
+        (SELECT id FROM ITEMS WHERE nome = 'Cure minor wounds')),
+       ((SELECT id FROM ITEMS where descrizione = 'PreparedSpell Qui'),
+        (SELECT id FROM ITEMS WHERE nome = 'Flare')),
+       ((SELECT id FROM ITEMS where descrizione = 'PreparedSpell Qui'),
+        (SELECT id FROM ITEMS WHERE nome = 'Purify food and drink'));
 

@@ -18,4 +18,5 @@ public interface PersonaggioRepository extends JpaRepository<Personaggio, Intege
             " WHERE p.id = :id")
     Optional<Personaggio> findByIdWithEntireGraph(@Param("id") Integer id);
 
+    Personaggio findPersonaggioById(Integer idPersonaggio);
 }

@@ -17,6 +17,27 @@ public final class Constants {
     public static final String TIPO_ITEM_RAZZA = "RAZZA";
     public static final String TIPO_ITEM_ATTACCO = "ATTACCO";
 
-
+    public static final String ITEM_INCANTESIMI_PREPARATI = "PreparedSpell";
+    public static final String ITEM_LABEL_LIVELLO_INCANTESIMO = "CLIVELLO";
+    public static final String ITEM_LABEL_CLASSE_INCANTESIMO = "CCLASSE";
+    public static final String ITEM_LABEL_TIRO_PER_COLPIRE = "TPC";
+    public static final String ITEM_LABEL_DANNI = "TPD";
+    public static final String ITEM_LABEL_DISABILITATO = "DISABLED";
+    public static final String ITEM_LABEL_DISABILITATO_VALORE_TRUE = "1";
+    public static final String ITEM_LABEL_DISABILITATO_VALORE_FALSE = "0";
+    public static final String ITEM_LABEL_LISTA_INCANTESIMI = "SPELL";
+    public static final String ITEM_LABEL_COMPONENTE = "COMP_SP";
+    public static final String ITEM_LABEL_ABILITA_CLASSE = "ABCLASSE";
+    public static final String ITEM_LABEL_LISTA_COMPETENZE = "COMP";
+    public static final String ITEM_LABEL_LISTA_LINGUE = "LINGUE";
+    public static final String ITEM_LABEL_COMPETENZA_RICHIESTA = "REQ_COMP";
+    public static final String ITEM_LABEL_TAGLIA = "TAGLIA";
+    public static final String ITEM_LABEL_SPELL_SLOT = "SP_SLOT";
+    public static final String ITEM_LABEL_SPELL_SLOT_BONUS = "SP_SLOT_BONUS";
+    public static final String COLLEGAMENTO_LABEL_LIVELLO = "LIVELLO";
+    public static final String COLLEGAMENTO_LABEL_LISTA_INCANTESIMI = "SP_LIST";
+    public static final String COLLEGAMENTO_LABEL_N_USATI = "USED";
+    public static final String COLLEGAMENTO_LABEL_N_PREPARATI = "PREPARED";
+    public static final String COLLEGAMENTO_LABEL_ALWAYS_PREPARED = "ALWAYS";
 }
 

@@ -13,6 +13,13 @@
              :items="itemsTalenti"
     >
     </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsMaledizioni.length > 0"
+             :columns="columnsMaledizioni"
+             :expandable="true"
+             :items="itemsMaledizioni"
+    >
+    </Tabella>
   </div>
 
 </template>
@@ -81,12 +88,39 @@ watch(
     {immediate: true, deep: true}
 );
 
+const itemsMaledizioni = ref<any[]>([]);
+watch(
+    () => cache.value[props.idPersonaggio]?.items,
+    (newChar) => {
+      if (!newChar?.maledizioni) {
+        itemsMaledizioni.value = [];
+        return;
+      }
+
+      itemsMaledizioni.value = newChar.maledizioni
+          .map(itm => {
+            return {
+              ...itm,
+              expandedComponent: markRaw(Mobile_DettaglioItem),
+              expandedProps: {data: {item: {...itm}, personaggio: cache[props.idPersonaggio]}}
+            };
+          })
+          .sort((a, b) => a.nome.localeCompare(b.nome));
+
+    },
+    {immediate: true, deep: true}
+);
+
 const columnsAbilitaPassive = [
   {field: 'nome', label: 'Abilita Passive', disabled: (row) => row.disabled},
 ];
 
 const columnsTalenti = [
   {field: 'nome', label: 'Talenti', disabled: (row) => row.disabled},
+];
+
+const columnsMaledizioni = [
+  {field: 'nome', label: 'Maledizioni', disabled: (row) => row.disabled},
 ];
 
 

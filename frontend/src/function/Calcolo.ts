@@ -52,10 +52,16 @@ const REGEX_NUMERO = /^[+-]?\d+$/;
 // }
 //
 //
-export function getValoreLabel(personaggio, itemTarget: any, tipo: 'TPC' | 'TPD') {
+export function getValoreLabel(personaggio, itemTarget: any, tipo: 'TPC' | 'TPD' | 'TS') {
     const label = itemTarget.labels?.find((l: any) => l.label === tipo);
     if (!label) return null;
     return calcolaFormula(label.valore, personaggio.modificatori);
+}
+
+export function getLabel(personaggio, itemTarget: any, tipo: 'TPC' | 'TPD' | 'TS') {
+    const label = itemTarget.labels?.find((l: any) => l.label === tipo);
+    if (!label) return null;
+    return label.valore;
 }
 
 export function getValoreFormula(personaggio: Statistiche, formula: string) {
