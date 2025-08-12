@@ -2,10 +2,7 @@ package it.fin8.gdrsheet.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import it.fin8.gdrsheet.dto.DatiPersonaggioDTO;
-import it.fin8.gdrsheet.dto.ItemsDTO;
-import it.fin8.gdrsheet.dto.UpdateCounterRequest;
-import it.fin8.gdrsheet.dto.UpdateHPRequest;
+import it.fin8.gdrsheet.dto.*;
 import it.fin8.gdrsheet.entity.Personaggio;
 import it.fin8.gdrsheet.repository.PersonaggioRepository;
 import it.fin8.gdrsheet.service.PersonaggioService;
@@ -95,6 +92,19 @@ public class PersonaggioController {
     ) {
         Boolean resp = personaggioService.updateContatore(request);
         return ResponseEntity.ok(resp);
+    }
+
+    @Operation(
+            summary = "Aggiorna i prepared degli incantesimi",
+            description = "Aggiorna il numero di prepared per ciascun incantesimo (spellId -> nprepared) di un personaggio, filtrando per classe e livello."
+    )
+    @PostMapping("stat/update-base")
+    public ResponseEntity<Void> updataBaseStatValue(@Valid @RequestBody UpdateBaseStatValueRequest req) {
+
+        // Delego alla service (implementa la logica di persistenza lato tuo ItemService)
+        personaggioService.updateBaseStatValue(req);
+
+        return ResponseEntity.noContent().build();
     }
 
 

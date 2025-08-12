@@ -37,7 +37,7 @@ function modifica(delta: number) {
   if (!stat.value) return
   const nuovoValore = Math.max(0, Math.min(stat.value.max, stat.value.valore + delta))
   stat.value.valore = nuovoValore
-  updateContatore(props.idPersonaggio, props.idStat, nuovoValore).then((resp) => {
+  updateContatore(props.idPersonaggio, props.idStat, nuovoValore.toString()).then((resp) => {
     if (resp) console.log(resp);
   });
 }

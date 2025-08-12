@@ -73,3 +73,7 @@ export function updatePreparedSpells(payload: UpdatePreparedPayload) {
 export function updateSpellUsage(payload) {
     return api.post('/item/incantesimi/update-spellusage', payload);
 }
+
+export function updateTemporaryModifier(payload) {
+    return api.post('/personaggi/stat/update-base', payload);
+}

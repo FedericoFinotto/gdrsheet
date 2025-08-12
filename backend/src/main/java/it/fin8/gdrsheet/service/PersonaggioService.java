@@ -496,4 +496,15 @@ public class PersonaggioService {
         return spellBook;
     }
 
+    public void updateBaseStatValue(UpdateBaseStatValueRequest request) {
+        Personaggio p = personaggioRepository.findById(request.getIdPersonaggio()).orElse(null);
+        if (p == null) throw new RuntimeException("Personaggio non trovato");
+
+        StatValue s = p.getStats().stream().filter(x -> x.getStat().getId().equals(request.getIdStat())).findFirst().orElse(null);
+        if (s == null) throw new RuntimeException("Stat non trovato");
+
+        s.setValore(request.getValore().toString());
+        statValueRepository.save(s);
+    }
+
 }

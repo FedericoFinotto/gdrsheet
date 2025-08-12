@@ -37,7 +37,7 @@ const props = defineProps({
 function showPopup() {
   openPopup(
       Mobile_DettaglioCaratteristica,
-      {stat},
+      {stat, idPersonaggio: props.idPersonaggio},
       {closable: true, autoClose: 0}
   )
 }

@@ -379,4 +379,8 @@ public class ModificatoriService {
                     ));
         }
     }
+
+    public void updateValoreBaseStatValue(StatValue stat) {
+        stat.setValore(stat.getValore());
+    }
 }
