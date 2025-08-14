@@ -177,22 +177,3 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.abilita-detail-card {
-  margin-left: 30px;
-}
-
-.abilita-detail-card div {
-  margin-bottom: 4px;
-}
-
-.bottone {
-  width: 30%;
-  height: 30px;
-}
-
-p {
-  margin: 0;
-}
-</style>

@@ -85,3 +85,8 @@ VALUES
      (SELECT id FROM items where nome = 'Olfatto Acuto')),
     ((SELECT id FROM items where nome = 'Tantoo'), (SELECT id FROM items where descrizione = 'ATTACCO TANTOO'))
 ;
+
+
+
+
+

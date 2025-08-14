@@ -37,19 +37,21 @@ onMounted(() => {
 /* --- refs per autoscroll header --- */
 const headerEl = ref<HTMLElement | null>(null);
 const tabBtns = ref<HTMLButtonElement[]>([]);
-onBeforeUpdate(() => { tabBtns.value = []; }); // reset tra i render
+onBeforeUpdate(() => {
+  tabBtns.value = [];
+}); // reset tra i render
 
 function scrollHeaderToActive() {
   nextTick(() => {
     const btn = tabBtns.value[activeIndex.value];
     if (!btn || !headerEl.value) return;
     // centra il bottone attivo nella viewport orizzontale della header
-    btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    btn.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
   });
 }
 
 /* --- Transizione direzionale --- */
-const direction = ref<'none'|'forward'|'back'>('none');
+const direction = ref<'none' | 'forward' | 'back'>('none');
 const transitionName = computed(() => {
   if (direction.value === 'forward') return 'slide-left';
   if (direction.value === 'back') return 'slide-right';
@@ -134,88 +136,3 @@ const onTouchEnd = (e: TouchEvent) => {
   </div>
 </template>
 
-<style scoped>
-.character-sheet {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-.tab-header-wrapper {
-  flex: 0 0 auto;
-  position: sticky;
-  top: 0;
-  background: var(--primary-color);
-  border-bottom: 1px solid var(--border-color);
-  z-index: 2;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.tab-header {
-  display: flex;
-  flex-wrap: nowrap;
-  min-width: max-content;
-}
-
-.tab-header button {
-  flex: 0 0 auto;
-  padding: 1rem;
-  border: none;
-  background: transparent;
-  font-weight: 600;
-  cursor: pointer;
-  color: #000;
-  white-space: nowrap;
-}
-
-.tab-header button.active {
-  background: var(--secondary-color);
-}
-
-/* Contenuto */
-.tab-content {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-}
-
-/* --------- Transizioni --------- */
-.slide-left-enter-active,
-.slide-left-leave-active,
-.slide-right-enter-active,
-.slide-right-leave-active,
-.fade-enter-active,
-.fade-leave-active {
-  transition: transform 200ms ease, opacity 200ms ease;
-}
-
-.slide-left-enter-from { transform: translateX(100%); opacity: 0; }
-.slide-left-enter-to   { transform: translateX(0%);   opacity: 1; }
-.slide-left-leave-from { transform: translateX(0%);   opacity: 1; }
-.slide-left-leave-to   { transform: translateX(-15%); opacity: 0; }
-
-.slide-right-enter-from { transform: translateX(-100%); opacity: 0; }
-.slide-right-enter-to   { transform: translateX(0%);    opacity: 1; }
-.slide-right-leave-from { transform: translateX(0%);    opacity: 1; }
-.slide-right-leave-to   { transform: translateX(15%);   opacity: 0; }
-
-.fade-enter-from, .fade-leave-to { opacity: 0; transform: none; }
-.fade-enter-to,   .fade-leave-from { opacity: 1; transform: none; }
-
-/* Riduci motion per accessibilità */
-@media (prefers-reduced-motion: reduce) {
-  .slide-left-enter-active,
-  .slide-left-leave-active,
-  .slide-right-enter-active,
-  .slide-right-leave-active,
-  .fade-enter-active,
-  .fade-leave-active {
-    transition: none;
-  }
-}
-</style>

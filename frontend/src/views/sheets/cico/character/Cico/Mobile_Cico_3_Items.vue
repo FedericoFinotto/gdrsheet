@@ -139,6 +139,3 @@ const columnsMunizioni = [
     </Tabella>
   </div>
 </template>
-
-<style scoped>
-</style>

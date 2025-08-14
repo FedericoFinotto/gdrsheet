@@ -28,25 +28,3 @@ onMounted(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-
-.abilita-detail-card {
-  margin: 0;
-  margin-left: 30px;
-}
-
-p {
-  margin: 0;
-}
-
-ul {
-  padding: 0;
-}
-
-li {
-  margin-bottom: 6px;
-  border-radius: 4px;
-}
-
-</style>

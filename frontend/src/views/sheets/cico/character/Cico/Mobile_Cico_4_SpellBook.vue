@@ -305,52 +305,5 @@ function showPopup(opts: ShowPopupOpts) {
 </template>
 
 <style scoped>
-.mb-4 {
-  margin-bottom: 1rem;
-}
 
-.mb-3 {
-  margin-bottom: 0.75rem;
-}
-
-.classe-title {
-  margin: 8px 0 6px;
-  font-weight: 700;
-  font-size: 1.05rem;
-}
-
-.level-block {
-  border: 1px solid rgba(0, 0, 0, .08);
-  border-radius: 10px;
-  padding: 10px;
-  margin-bottom: 10px;
-  background: #fff;
-}
-
-.level-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 4px 0 8px;
-}
-
-.level-title {
-  font-weight: 600;
-}
-
-.muted {
-  opacity: .7;
-}
-
-.prepare-btn {
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(0, 0, 0, .12);
-  background: #f7f7f7;
-  cursor: pointer;
-}
-
-.prepare-btn:hover {
-  background: #eee;
-}
 </style>

@@ -1,32 +1,3 @@
-<template>
-  <div class="hp-container" :style="{ backgroundImage: barraGradient }">
-    <button class="hp-btn" @click="modifyHp(-1)">-</button>
-
-    <div class="hp-bar-wrapper">
-      <div class="hp-bar">
-        <div class="delta" v-if="delta < 0">
-          ({{ delta }})
-        </div>
-
-        <div class="hp-center">
-          <template v-if="pfTemp > 0">
-            {{ hp + pfTemp }} ({{ hp }} + {{ pfTemp }}) / {{ hpMax }}
-          </template>
-          <template v-else>
-            {{ hp }} / {{ hpMax }}
-          </template>
-        </div>
-
-        <div class="delta" v-if="delta > 0">
-          +{{ delta }}
-        </div>
-      </div>
-    </div>
-
-    <button class="hp-btn" @click="modifyHp(+1)">+</button>
-  </div>
-</template>
-
 <script setup lang="ts">
 import {computed, defineProps, onBeforeUnmount, ref, watch} from 'vue'
 import {storeToRefs} from 'pinia'
@@ -37,7 +8,7 @@ import {useCharacterStore} from "../../../../../stores/personaggio";
 const props = defineProps<{ idPersonaggio: number }>()
 
 // store slice
-const { cache } = storeToRefs(useCharacterStore())
+const {cache} = storeToRefs(useCharacterStore())
 
 // --- stati di sessione (solo UI) ---
 const delta = ref(0) // mostra l'ultima modifica cumulata (+/-)
@@ -91,7 +62,7 @@ const debouncedUpdate = debounce(() => {
   })
 }, 3000)
 
-watch([damageNeg, pfTemp], () => debouncedUpdate(), { flush: 'post' })
+watch([damageNeg, pfTemp], () => debouncedUpdate(), {flush: 'post'})
 onBeforeUnmount(() => debouncedUpdate.cancel())
 
 /**
@@ -138,67 +109,31 @@ function modifyHp(amount: number) {
 }
 </script>
 
-<style scoped>
-.hp-container {
-  display: flex;
-  align-items: center;
-  height: 2rem;
-  border: 1px solid var(--border-color, #ccc);
-  overflow: hidden;
-}
+<template>
+  <div class="hp-container" :style="{ backgroundImage: barraGradient }">
+    <button class="hp-btn" @click="modifyHp(-1)">-</button>
 
-.hp-btn {
-  background: transparent;
-  border: none;
-  font-size: 1.2rem;
-  padding: 0 0.6rem;
-  cursor: pointer;
-  flex-shrink: 0;
-  height: 100%;
-}
+    <div class="hp-bar-wrapper">
+      <div class="hp-bar">
+        <div class="delta" v-if="delta < 0">
+          ({{ delta }})
+        </div>
 
-.hp-bar-wrapper {
-  flex: 1;
-  position: relative;
-}
+        <div class="hp-center">
+          <template v-if="pfTemp > 0">
+            {{ hp + pfTemp }} ({{ hp }} + {{ pfTemp }}) / {{ hpMax }}
+          </template>
+          <template v-else>
+            {{ hp }} / {{ hpMax }}
+          </template>
+        </div>
 
-.hp-bar {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
+        <div class="delta" v-if="delta > 0">
+          +{{ delta }}
+        </div>
+      </div>
+    </div>
 
-.hp-center {
-  position: relative;
-  z-index: 2;
-  font-weight: bold;
-  font-size: 0.9rem;
-  color: black;
-  white-space: nowrap;
-}
-
-.delta {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  font-weight: bold;
-  font-size: 0.9rem;
-  z-index: 2;
-  color: #000;
-  text-shadow: 0 1px 0 rgba(255,255,255,.6);
-  padding: 0 .25rem;
-}
-
-.delta:first-of-type {
-  left: 0.5rem;
-}
-
-.delta:last-of-type {
-  right: 0.5rem;
-}
-</style>
+    <button class="hp-btn" @click="modifyHp(+1)">+</button>
+  </div>
+</template>

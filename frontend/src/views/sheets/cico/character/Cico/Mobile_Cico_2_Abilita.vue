@@ -36,14 +36,14 @@ const abilita = computed(() => {
 <template>
   <div>
 
-  <Tabella
-      :columns="[
+    <Tabella
+        :columns="[
       { field: 'nome', label: 'Abilità' },
       { field: 'valore', label: '' },
       { field: 'caratteristica', label: '' }
     ]"
-      :expandable="true"
-      :items="abilita"
-  />
+        :expandable="true"
+        :items="abilita"
+    />
   </div>
 </template>

@@ -1,29 +1,3 @@
-<template>
-  <div>
-    <Tabella v-if="itemsAbilitaPassive.length > 0"
-             :columns="columnsAbilitaPassive"
-             :expandable="true"
-             :items="itemsAbilitaPassive"
-    >
-    </Tabella>
-    <div class="spazietto"/>
-    <Tabella v-if="itemsTalenti.length > 0"
-             :columns="columnsTalenti"
-             :expandable="true"
-             :items="itemsTalenti"
-    >
-    </Tabella>
-    <div class="spazietto"/>
-    <Tabella v-if="itemsMaledizioni.length > 0"
-             :columns="columnsMaledizioni"
-             :expandable="true"
-             :items="itemsMaledizioni"
-    >
-    </Tabella>
-  </div>
-
-</template>
-
 <script setup lang="ts">
 import {defineProps, markRaw, ref, watch} from 'vue';
 import {storeToRefs} from "pinia";
@@ -123,28 +97,30 @@ const columnsMaledizioni = [
   {field: 'nome', label: 'Maledizioni', disabled: (row) => row.disabled},
 ];
 
-
-
-
 </script>
 
-<style>
-.stat-block {
-  width: 100%;
-  padding: 8px;
-  display: flex;
-  flex-wrap: wrap; /* ✅ Permette di andare a capo */
-  gap: 8px; /* (opzionale) spazio tra le stat */
-  justify-content: center;
-  background: transparent;
-  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
-}
+<template>
+  <div>
+    <Tabella v-if="itemsAbilitaPassive.length > 0"
+             :columns="columnsAbilitaPassive"
+             :expandable="true"
+             :items="itemsAbilitaPassive"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsTalenti.length > 0"
+             :columns="columnsTalenti"
+             :expandable="true"
+             :items="itemsTalenti"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsMaledizioni.length > 0"
+             :columns="columnsMaledizioni"
+             :expandable="true"
+             :items="itemsMaledizioni"
+    >
+    </Tabella>
+  </div>
 
-.p-tabview-panels {
-  padding: 0 !important; /* Usa !important per sovrascrivere gli stili di PrimeVue */
-}
-
-.p-tabview .p-tabview-panel {
-  padding: 0 !important;
-}
-</style>
+</template>

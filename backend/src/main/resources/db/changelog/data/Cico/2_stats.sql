@@ -84,3 +84,6 @@ VALUES ('FOR', 'CAR', 'Forza'),
        ('RNEG', 'ATT', 'Resistenza Energia Negativa'),
        ('CD', 'ATT', 'CD Incantesimi'),
        ('REGEN', 'ATT', 'Rigenerazione PF');
+
+INSERT INTO STATS (id, tipo, label)
+VALUES ('PSIO', 'COUNT', 'Punti Psionici');

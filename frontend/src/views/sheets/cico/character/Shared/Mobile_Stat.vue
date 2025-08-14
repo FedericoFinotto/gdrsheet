@@ -1,11 +1,3 @@
-<template>
-  <div class="stat-box">
-    <div class="label">{{ label ?? id }}</div>
-    <div class="modifier" @click="showPopup">{{ stat ? (testoModificatore(stat.modificatore) ?? '') : '' }}</div>
-    <div class="base">{{ stat ? (stat.valore ?? '') : '' }}</div>
-  </div>
-</template>
-
 <script setup>
 import {computed, defineProps} from 'vue'
 import {useCharacterStore} from "../../../../../stores/personaggio";
@@ -68,7 +60,7 @@ const stat = computed(() => {
           .join(' / ');
       return bonusAttacco;
     }
-    if(attributo) {
+    if (attributo) {
       const infinito = attributo.modificatori.filter(x => x.sempreAttivo && x.formula === '+INF');
       let mod = attributo.modificatore;
       if (infinito && infinito.length > 0) {
@@ -84,40 +76,10 @@ const stat = computed(() => {
 });
 </script>
 
-<style scoped>
-.stat-box {
-  display: inline-flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center; /* allinea al centro in verticale */
-
-  width: auto;
-  min-width: max-content; /* prende la larghezza minima del contenuto più largo */
-  border: 1px solid var(--border-color);
-  padding: 4px;
-  background: transparent;
-  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
-
-  text-align: center;
-}
-
-.label {
-  font-size: 0.8rem;
-  font-weight: bold;
-  text-transform: uppercase;
-  color: black;
-  white-space: nowrap; /* impedisce il ritorno a capo */
-}
-
-
-.modifier {
-  font-size: 1.4rem;
-  font-weight: bold;
-  color: black;
-}
-
-.base {
-  font-size: 1rem;
-  color: black;
-}
-</style>
+<template>
+  <div class="stat-box">
+    <div class="label">{{ label ?? id }}</div>
+    <div class="modifier" @click="showPopup">{{ stat ? (testoModificatore(stat.modificatore) ?? '') : '' }}</div>
+    <div class="base">{{ stat ? (stat.valore ?? '') : '' }}</div>
+  </div>
+</template>

@@ -6,6 +6,7 @@
     <file url="file://$PROJECT_DIR$/backend/src/main/resources/db/changelog/data/Cico/3_stat_default.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/backend/src/main/resources/db/changelog/data/Cico/4_changeling.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/backend/src/main/resources/db/changelog/data/Cico/5_druido.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/backend/src/main/resources/db/changelog/data/Cico/6_cdp_maestro_delle_molte_forme.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/backend/src/main/resources/db/changelog/data/Cico/6_items.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/backend/src/main/resources/db/changelog/data/Cico/7_competenze.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/backend/src/main/resources/db/changelog/data/Cico/personaggio_yo.sql" dialect="PostgreSQL" />

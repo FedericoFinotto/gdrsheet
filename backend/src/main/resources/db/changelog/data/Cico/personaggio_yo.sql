@@ -193,13 +193,64 @@ VALUES ((select id from items where nome = 'Balbuzie'), 'AB12', '-4', true, 'VAL
        ((SELECT id FROM items where nome = 'Papera mostruosa'), 'CD', '+4', true, 'VALORE');
 
 
+INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo)
+VALUES ('Livello 6', 'LIVELLO', 'LIVELLO 6 QUI', (select id from personaggio where nome = 'Qui'), 1, 1);
+
 INSERT INTO collegamento (id_item_source, id_item_target)
-VALUES ((SELECT id FROM ITEMS where descrizione = 'PreparedSpell Qui'),
-        (SELECT id FROM ITEMS WHERE nome = 'Create water')),
-       ((SELECT id FROM ITEMS where descrizione = 'PreparedSpell Qui'),
-        (SELECT id FROM ITEMS WHERE nome = 'Cure minor wounds')),
-       ((SELECT id FROM ITEMS where descrizione = 'PreparedSpell Qui'),
-        (SELECT id FROM ITEMS WHERE nome = 'Flare')),
-       ((SELECT id FROM ITEMS where descrizione = 'PreparedSpell Qui'),
-        (SELECT id FROM ITEMS WHERE nome = 'Purify food and drink'));
+VALUES ((SELECT id FROM ITEMS where descrizione = 'LIVELLO 6 QUI'),
+        (SELECT id FROM ITEMS WHERE nome = 'Maestro dalle molte forme'));
+
+INSERT INTO collegamento (id_item_source, id_item_target)
+VALUES ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Allerta'));
+
+INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo)
+VALUES ((SELECT id from items where descrizione = 'LIVELLO 2 QUI'), 'AB34', '+1', true, null, 'RANK'),
+       ((SELECT id from items where descrizione = 'LIVELLO 3 QUI'), 'AB34', '+1', true, null, 'RANK'),
+       ((SELECT id from items where descrizione = 'LIVELLO 4 QUI'), 'AB36', '+1', true, null, 'RANK'),
+       ((SELECT id from items where descrizione = 'LIVELLO 5 QUI'), 'AB36', '+1', true, null, 'RANK'),
+       ((SELECT id from items where descrizione = 'LIVELLO 6 QUI'), 'AB9', '+1', true, null, 'RANK'),  --CONCENTRAZIONE
+       ((SELECT id from items where descrizione = 'LIVELLO 6 QUI'), 'AB6', '+4', true, null, 'RANK'),  --CAMUFFARE
+       ((SELECT id from items where descrizione = 'LIVELLO 6 QUI'), 'CO10', '+1', true, null, 'RANK'), --NATURA
+       ((SELECT id from items where descrizione = 'LIVELLO 6 QUI'), 'AB2', '+3', true, null,
+        'RANK'); --ADDESTRARE ANIMALI
+
+INSERT INTO stat_value (personaggio_id, stat_id, valore, mod, classe, addestramento)
+VALUES ((select id from personaggio where nome = 'Qui'), 'PSIO', '0', NULL, false, false);
+
+Insert into items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo)
+VALUES ('Papera Psionica Viola Leggendaria', 'TRASFORMAZIONE', null, 1, null, 1),
+       ('Flagello Mentale', 'ABILITA',
+        'Costo: 3 Psio, Danno: 1d10, TS: CD 20 Tempa dimezza, +1 PSIO => +1 CD, +1d10 danni', null, null, 1),
+       ('Assorbimento danni', 'ABILITA', '1 PSIO => 5PF', null, null, 1),
+       ('Repulsione', 'ABILITA', 'Costo: 5 Psio, Distanza: 3m, TS: CD 20 Forza, +1 PSIO => +2 CD, +3m', null, null, 1),
+       ('Telecinesi', 'ABILITA',
+        'Costo: 3 Psio, +2 PSIO => +4 Lotta, Questa abilita permette di Spingere, Muovere, Bloccare o far andare oggetti contro un bersaglio. Per prima cosa viene fatta una prova di contatto a distanza, poi una prova di lotta a cui puo aggiungere INTELLIGENZA e livello. Telecinesi mirata su oggetto piccolo -8 TPC, oggetto medio -4 TPC.',
+        null, null, 1);
+
+insert into collegamento (id_item_source, id_item_target)
+VALUES ((SELECT id from items where nome = 'Papera Psionica Viola Leggendaria'),
+        (SELECT id from items where nome = 'Flagello Mentale')),
+       ((SELECT id from items where nome = 'Papera Psionica Viola Leggendaria'),
+        (SELECT id from items where nome = 'Assorbimento danni')),
+       ((SELECT id from items where nome = 'Papera Psionica Viola Leggendaria'),
+        (SELECT id from items where nome = 'Repulsione')),
+       ((SELECT id from items where nome = 'Papera Psionica Viola Leggendaria'),
+        (SELECT id from items where nome = 'Telecinesi'));
+
+insert into modificatori (id_item, id_stat, valore, always, nota, tipo)
+VALUES ((SELECT id from items where nome = 'Papera Psionica Viola Leggendaria'), 'INT', '40', true, null, 'BASE'),
+       ((SELECT id from items where nome = 'Papera Psionica Viola Leggendaria'), 'SAG', '40', true, null, 'BASE'),
+       ((SELECT id from items where nome = 'Papera Psionica Viola Leggendaria'), 'CAR', '40', true, null, 'BASE'),
+       ((SELECT id from items where nome = 'Papera Psionica Viola Leggendaria'), 'PSIO', '80', true, null, 'VALORE');
+
+insert into modificatori (id_item, id_stat, valore, always, nota, tipo)
+VALUES ((SELECT id from items where descrizione = 'LIVELLO 1 QUI'), 'PR02', '+1', true, null, 'VALORE'),
+       ((SELECT id from items where descrizione = 'LIVELLO 2 QUI'), 'PR02', '+1', true, null, 'VALORE'),
+       ((SELECT id from items where descrizione = 'LIVELLO 3 QUI'), 'PR02', '+1', true, null, 'VALORE'),
+       ((SELECT id from items where descrizione = 'LIVELLO 4 QUI'), 'PR02', '+1', true, null, 'VALORE'),
+       ((SELECT id from items where descrizione = 'LIVELLO 5 QUI'), 'PR02', '+1', true, null, 'VALORE'),
+       ((SELECT id from items where descrizione = 'LIVELLO 6 QUI'), 'PR02', '+1', true, null, 'VALORE');
+
+insert into modificatori (id_item, id_stat, valore, always, nota, tipo)
+VALUES ((SELECT id from items where descrizione = 'LIVELLO 6 QUI'), 'PF', '+6', true, null, 'VALORE');
 
