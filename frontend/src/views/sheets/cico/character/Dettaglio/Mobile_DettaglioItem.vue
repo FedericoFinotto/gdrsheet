@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, defineProps, onMounted, ref} from 'vue';
-import {testoFormula, testoModificatore} from "../../../../../function/Utils";
+import {mostraLabel, testoFormula, testoModificatore} from "../../../../../function/Utils";
 import {getItem, switchItemState} from "../../../../../service/PersonaggioService";
 import {TIPO_ITEM} from "../../../../../function/Constants";
 import type {ItemDB} from "../../../../../models/ItemDB";
@@ -32,35 +32,29 @@ const labelMap = ref<Record<string, string>>({});
 const tpcMap = ref<Record<number, string>>({});
 const tpdMap = ref<Record<number, string>>({});
 
-const mostraLabel = (label, val) => {
-  switch (label) {
-    case "TEMPO_SP":
-      return "Azione";
-      break;
-    case "RANGE_SP":
-      return "Range";
-      break;
-    case "DURATA_SP":
-      return "Durata";
-      break;
-    case "TS_SP":
-      if (val !== 'None') {
-        return "Tiro Salvezza";
-      }
-      break;
-    default:
-      return null;
-  }
-}
-
 async function switchState() {
+  let itemIdToSwitch = [];
+  if (itemInfo.disabled) {
+    switch (itemInfo.tipo) {
+      case 'TRASFORMAZIONE':
+        itemIdToSwitch.push(...personaggio.items.trasformazioni.filter(x => !x.disabled).map(x => x.id));
+        break;
+      case 'IDOLO':
+        itemIdToSwitch.push(...personaggio.items.idoli.filter(x => !x.disabled).map(x => x.id));
+        break;
+    }
+  }
+  itemIdToSwitch.push(itemInfo.id);
+  console.log("switchState", itemIdToSwitch);
   try {
-    itemInfo.disabled = !itemInfo.disabled;
-    await switchItemState(itemInfo.id, personaggio.modificatori.id);
+    for (const id of itemIdToSwitch) {
+      await switchItemState(Number(id), personaggio.modificatori.id);
+    }
     await characterStore.fetchCharacter(personaggio.modificatori.id, true);
   } catch (e) {
     console.error('Errore nello switch dello stato:', e);
   }
+
 }
 
 const disableLabel = computed(() => {
@@ -71,7 +65,7 @@ const disableLabel = computed(() => {
     case TIPO_ITEM.TRASFORMAZIONE:
       return itemInfo.disabled ? 'Trasformati' : 'Torna alla forma Base';
     case TIPO_ITEM.IDOLO:
-      return itemInfo.disabled ? 'Pregato' : 'Non Pregato';
+      return itemInfo.disabled ? 'Prega' : 'Disabilita';
     default:
       return null;
   }
@@ -125,7 +119,9 @@ onMounted(async () => {
     <!-- Labels dinamiche -->
     <div v-if="Object.keys(labelMap).length">
       <div v-for="(val, key) in labelMap" :key="key">
-        <span v-if="mostraLabel(key, val)"><strong>{{ mostraLabel(key) }}:</strong> {{ val }}</span>
+        <span v-if="mostraLabel(key, val)"><strong>{{
+            mostraLabel(key, val).label
+          }}:</strong> {{ mostraLabel(key, val).value }}</span>
       </div>
       <div class="spazietto"/>
     </div>

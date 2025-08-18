@@ -649,10 +649,9 @@ html, body, #app {
     background: transparent;
     border: none;
     font-size: 1rem;
-    padding: 0 .45rem;
+    padding: 0 .2rem;
     cursor: pointer;
     flex-shrink: 0;
-    height: 100%;
 }
 
 .bar-wrapper {

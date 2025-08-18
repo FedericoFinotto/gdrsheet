@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {useRouter} from 'vue-router'
+import Icona from "./Icona/Icona.vue";
 
 const router = useRouter()
 const goHome = () => router.push({path: '/'})
@@ -12,6 +13,6 @@ const goHome = () => router.push({path: '/'})
     </div>
 
     <!-- hamburger a destra -->
-    <button class="menu" @click="goHome" aria-label="Vai alla home">☰</button>
+    <Icona name="HAMBURGER" @click="goHome"></Icona>
   </header>
 </template>

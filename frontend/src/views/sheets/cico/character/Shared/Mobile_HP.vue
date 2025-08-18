@@ -4,6 +4,7 @@ import {storeToRefs} from 'pinia'
 import debounce from 'lodash/debounce'
 import {updateHP} from "../../../../../service/PersonaggioService";
 import {useCharacterStore} from "../../../../../stores/personaggio";
+import Icona from "../../../../../components/Icona/Icona.vue";
 
 const props = defineProps<{ idPersonaggio: number }>()
 
@@ -111,8 +112,7 @@ function modifyHp(amount: number) {
 
 <template>
   <div class="bar-container" :style="{ backgroundImage: barraGradient }">
-    <button class="bar-btn" @click="modifyHp(-1)">-</button>
-
+    <Icona name="SUB" class="bar-btn" @click.stop="modifyHp(-1)"/>
     <div class="bar-wrapper">
       <div class="bar">
         <div class="bar-delta" v-if="delta < 0">
@@ -133,7 +133,6 @@ function modifyHp(amount: number) {
         </div>
       </div>
     </div>
-
-    <button class="bar-btn" @click="modifyHp(+1)">+</button>
+    <Icona name="ADD" class="bar-btn" @click.stop="modifyHp(+1)"/>
   </div>
 </template>

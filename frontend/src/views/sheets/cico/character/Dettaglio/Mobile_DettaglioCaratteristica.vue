@@ -3,7 +3,9 @@ import {computed, defineProps, onMounted, ref, watch} from 'vue';
 import {testoModificatore} from '../../../../../function/Utils';
 // ⬇️ opzionale: collega un servizio reale; se non esiste, userà l'emit 'save-temp'
 import {updateTemporaryModifier} from '../../../../../service/PersonaggioService';
-import {useCharacterStore} from "../../../../../stores/personaggio"; // <-- crea questa API se non c'è
+import {useCharacterStore} from "../../../../../stores/personaggio";
+import Icona from "../../../../../components/Icona/Icona.vue";
+import Tabella from "../../../../../components/Tabella.vue"; // <-- crea questa API se non c'è
 
 const props = defineProps({
   stat: {
@@ -114,13 +116,31 @@ async function saveNow() {
     // tempValue.value = lastSentValue.value;
   } finally {
     isSaving.value = false;
-    await characterStore.fetchCharacter(props.idPersonaggio, true);
+    // await characterStore.fetchCharacter(props.idPersonaggio, true);
   }
 }
 
 const modificatoreModificatore = (mod) => {
   if (mod.tipo === 'BASE') return testoModificatore((mod.valore - 10) / 2);
   else return testoModificatore((mod.valore) / 2);
+}
+
+const mappaRiga = (mod) => {
+  const STAT_KEYS = new Set(['FOR', 'DES', 'COS', 'INT', 'SAG', 'CAR'])
+  const base = testoModificatore(mod.valore)
+  const extra = STAT_KEYS.has(String(props.stat.id).toUpperCase())
+      ? ` [${modificatoreModificatore(mod)}]`
+      : ''
+  console.log({
+    ...mod,
+    origine: mod.item ?? 'Sconosciuto',
+    valor: base + extra,
+  })
+  return {
+    ...mod,
+    origine: mod.item ?? 'Sconosciuto',
+    valor: base + extra,
+  }
 }
 
 </script>
@@ -136,35 +156,42 @@ const modificatoreModificatore = (mod) => {
 
     <!-- Sempre attivi -->
     <div v-if="modsSempre.length">
-      <p v-for="(mod, index) in modsSempre" :key="'sempre-' + index">
-        <strong>{{ mod.item || 'Sconosciuto' }}:</strong>
-        {{ testoModificatore(mod.valore) }}
-        <span v-if="['FOR', 'DES', 'COS', 'INT', 'SAG', 'CAR'].includes(stat.id)">
-          <span>[{{ modificatoreModificatore(mod) }}]</span>
-        </span>
-        <span v-if="mod.nota">{{ mod.nota }}</span>
-      </p>
+      <Tabella :items="modsSempre.map(x => mappaRiga(x))"
+               :columns="[{field: 'origine', subfield: 'nota', label: ''}, {field: 'valor'}]"/>
+      <!--      <p v-for="(mod, index) in modsSempre" :key="'sempre-' + index">-->
+      <!--        <strong>{{ mod.item || 'Sconosciuto' }}:</strong>-->
+      <!--        {{ testoModificatore(mod.valore) }}-->
+      <!--        <span v-if="['FOR', 'DES', 'COS', 'INT', 'SAG', 'CAR'].includes(stat.id)">-->
+      <!--          <span>[{{ modificatoreModificatore(mod) }}]</span>-->
+      <!--        </span>-->
+      <!--        <span v-if="mod.nota">{{ mod.nota }}</span>-->
+      <!--      </p>-->
     </div>
 
     <!-- separatore se ci sono entrambi -->
     <div class="spazietto" v-if="modsSempre.length > 0 && modsSituaz.length > 0"/>
 
     <!-- Situazionali (incluso 'Temporaneo' se presente/non zero) -->
+    <!--    <div v-if="modsSituaz.length">-->
+    <!--      <p v-for="(mod, index) in modsSituaz" :key="'sit-' + index">-->
+    <!--        <strong>{{ mod.item || 'Sconosciuto' }}:</strong>-->
+    <!--        {{ testoModificatore(mod.valore) }}-->
+    <!--        <span v-if="['FOR', 'DES', 'COS', 'INT', 'SAG', 'CAR'].includes(stat.id)">-->
+    <!--          <span>[{{ modificatoreModificatore(mod) }}]</span>-->
+    <!--        </span>-->
+    <!--        <span v-if="mod.nota">{{ mod.nota }}</span>-->
+    <!--      </p>-->
+    <!--    </div>-->
+
     <div v-if="modsSituaz.length">
-      <p v-for="(mod, index) in modsSituaz" :key="'sit-' + index">
-        <strong>{{ mod.item || 'Sconosciuto' }}:</strong>
-        {{ testoModificatore(mod.valore) }}
-        <span v-if="['FOR', 'DES', 'COS', 'INT', 'SAG', 'CAR'].includes(stat.id)">
-          <span>[{{ modificatoreModificatore(mod) }}]</span>
-        </span>
-        <span v-if="mod.nota">{{ mod.nota }}</span>
-      </p>
+      <Tabella :items="modsSituaz.map(x => mappaRiga(x))"
+               :columns="[{field: 'origine', subfield: 'nota', label: ''}, {field: 'valor'}]"/>
     </div>
 
     <!-- Barretta temporaneo -->
     <div class="spazietto" v-for="i in 4" :key="i"/>
     <div class="bar-container">
-      <button class="bar-btn" @click="dec()">−</button>
+      <Icona name="SUB" class="bar-btn" @click.stop="dec()"/>
       <div class="bar-wrapper">
 
         <div class="bar">
@@ -173,11 +200,12 @@ const modificatoreModificatore = (mod) => {
         </div>
 
       </div>
-      <button class="bar-btn" @click="inc()">+</button>
+      <Icona name="ADD" class="bar-btn" @click.stop="inc()"/>
+
       <div class="bar-btn">
-        <span v-if="isSaving" class="saving">salvataggio…</span>
-        <span v-else-if="tempValue !== lastSentValue" class="dirty">X</span>
-        <span v-else class="ok">✓</span>
+        <Icona v-if="isSaving" name="SPINNER" :spin="true"/>
+        <!--        <Icona v-else-if="tempValue !== lastSentValue" name="XMARK"/>-->
+        <!--        <Icona v-else name="CHECK"/>-->
       </div>
 
     </div>

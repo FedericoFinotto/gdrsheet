@@ -8,6 +8,7 @@
     "serve": "vite preview"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.0.0",
     "axios": "^1.10.0",
     "pinia": "^3.0.3",
     "primeicons": "^7.0.0",

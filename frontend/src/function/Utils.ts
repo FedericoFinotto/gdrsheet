@@ -28,3 +28,57 @@ export function testoFormula(formula: string): string {
         ;
 }
 
+// D&D 3.5 — mappa taglie (IT) centrata su Medium=0
+const SIZE_IT = new Map<number, string>([
+    [-4, 'Piccolissima'], // Fine
+    [-3, 'Minuta'],       // Diminutive
+    [-2, 'Minuscola'],    // Tiny
+    [-1, 'Piccola'],      // Small
+    [0, 'Media'],        // Medium
+    [1, 'Grande'],       // Large
+    [2, 'Enorme'],       // Huge
+    [3, 'Mastodontica'], // Gargantuan
+    [4, 'Colossale'],    // Colossal
+]);
+
+/**
+ * Converte un codice di taglia (stringa o numero) nella label italiana.
+ * Esempi: "0" -> "Media", "1" -> "Grande", "-1" -> "Piccola"
+ */
+export function testoTaglia(code: string | number): string {
+    const n = typeof code === 'number'
+        ? code
+        : parseInt(String(code).trim(), 10);
+
+    if (Number.isNaN(n)) return 'Sconosciuta';
+    return SIZE_IT.get(n) ?? 'Sconosciuta';
+}
+
+type LabeledValue = { label: string; value: string };
+
+export function mostraLabel(label: string, val: string): LabeledValue | null {
+    const v = String(val ?? '').trim();
+
+    switch (label) {
+        case 'TEMPO_SP':
+            return {label: 'Azione', value: v};
+
+        case 'RANGE_SP':
+            return {label: 'Range', value: v};
+
+        case 'DURATA_SP':
+            return {label: 'Durata', value: v};
+
+        case 'TS_SP':
+            if (v.toLowerCase() === 'none' || v === '') return null; // nascondi se "None"
+            return {label: 'Tiro Salvezza', value: v};
+
+        case 'TAGLIA':
+            return {label: 'Taglia', value: testoTaglia(v)};
+
+        default:
+            return null; // non mostrare
+    }
+}
+
+
