@@ -22,7 +22,8 @@ public enum TipoItem {
     TRASFORMAZIONE("Trasformazione"),
     AVANZAMENTO("Avanzamento"),
     COMP("Competenza"),
-    LINGUA("Lingua")
+    LINGUA("Lingua"),
+    IDOLO("Idolo")
     ;
 
     private final String label;

@@ -61,10 +61,7 @@ public class PersonaggioService {
             Item cur = stack.pop();
 
             result.add(cur);
-            boolean isDisabled = cur.getLabels() != null &&
-                    cur.getLabels().stream().anyMatch(
-                            l -> Constants.ITEM_LABEL_DISABILITATO.equalsIgnoreCase(l.getLabel()) && Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE.equals(l.getValore())
-                    );
+            boolean isDisabled = cur.getLabel(Constants.ITEM_LABEL_DISABILITATO) != null && cur.getLabel(Constants.ITEM_LABEL_DISABILITATO).equals("1");
 
             if (!isDisabled) {
                 List<Item> competenze = findCompetenze(cur);
@@ -72,6 +69,10 @@ public class PersonaggioService {
 
                 if (cur.getChild() != null) {
                     for (Collegamento col : cur.getChild().stream().filter(x -> !x.getItemTarget().getTipo().equals(TipoItem.CLASSE)).toList()) {
+                        boolean isColDisabled = col.getLabel(Constants.ITEM_LABEL_DISABILITATO) != null && col.getLabel(Constants.ITEM_LABEL_DISABILITATO).equals("1");
+                        if (isColDisabled) {
+                            col.getItemTarget().setLabel(Constants.ITEM_LABEL_DISABILITATO, Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE);
+                        }
                         stack.push(col.getItemTarget());
                     }
                 }
@@ -137,6 +138,9 @@ public class PersonaggioService {
             if (TipoItem.LINGUA.equals(itm.getTipo())) {
                 itemsDTO.getLingue().add(itemMapper.toDTO(itm));
             }
+            if (TipoItem.IDOLO.equals(itm.getTipo())) {
+                itemsDTO.getIdoli().add(itemMapper.toDTO(itm));
+            }
         }
 
         for (Map.Entry<Item, Long> classe : allPersonaggioItems.getClassi().entrySet()) {
@@ -147,13 +151,6 @@ public class PersonaggioService {
                 itemsDTO.getSpellbooks().add(spellbook);
             }
         }
-
-        for (Map.Entry<Item, List<ItemLivelloDTO>> classeIncantesimo : allPersonaggioItems.getIncantesimi().entrySet()) {
-//            Item classe = classeIncantesimo.getKey();
-//            List<ItemLivelloDTO> incantesimi = classeIncantesimo.getValue();
-//            itemsDTO.getIncantesimi().addAll(incantesimi.stream().map(x -> itemMapper.toIncantesimoDTO(classe, x)).toList());
-        }
-
 
         return itemsDTO;
     }
@@ -169,7 +166,6 @@ public class PersonaggioService {
 
         // Raccogli root items aggiuntive dagli avanzamenti di classe
         List<Item> advanceRoots = new ArrayList<>();
-        Item preparedSpell = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_INCANTESIMI_PREPARATI, idPersonaggio);
         for (Map.Entry<Item, Long> entry : result.getClassi().entrySet()) {
             Item classe = entry.getKey();
             long livello = entry.getValue();
@@ -232,9 +228,6 @@ public class PersonaggioService {
 
         // 6) Fetch Modificatori
         List<Integer> itemIds = filteredItems.stream().map(Item::getId).toList();
-        filteredItems.forEach(item -> {
-            System.out.println(item.getNome());
-        });
         List<Modificatore> allMods = modificatoreRepository.findAllByItemIdIn(itemIds);
 
         List<ItemLabel> abClasse = itemLabelRepository.findByLabelAndItem_IdIn(Constants.ITEM_LABEL_ABILITA_CLASSE, itemIds);

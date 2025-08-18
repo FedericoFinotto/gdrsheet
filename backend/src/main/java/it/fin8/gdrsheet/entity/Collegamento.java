@@ -59,12 +59,12 @@ public class Collegamento {
      * Se 'value' è null, la label viene rimossa.
      * Restituisce this per chaining.
      */
-    public Collegamento setLabel(String key, String value) {
-        if (key == null) return this;
+    public void setLabel(String key, String value) {
+        if (key == null) return;
 
         if (value == null) {
             removeLabel(key);
-            return this;
+            return;
         }
 
         if (labels == null) labels = new ArrayList<>();
@@ -72,7 +72,7 @@ public class Collegamento {
         for (CollegamentoLabel l : labels) {
             if (Objects.equals(key, l.getLabel())) {
                 l.setValore(value);
-                return this;
+                return;
             }
         }
 
@@ -82,14 +82,13 @@ public class Collegamento {
         nl.setLabel(key);
         nl.setValore(value);
         labels.add(nl);
-        return this;
     }
 
     /**
      * Rimuove la label 'key' se presente.
      */
-    public boolean removeLabel(String key) {
-        if (key == null || labels == null) return false;
+    public void removeLabel(String key) {
+        if (key == null || labels == null) return;
         boolean removed = false;
         for (Iterator<CollegamentoLabel> it = labels.iterator(); it.hasNext(); ) {
             CollegamentoLabel l = it.next();
@@ -99,7 +98,6 @@ public class Collegamento {
                 removed = true;
             }
         }
-        return removed;
     }
 
     /* ===================== Utility esistenti ===================== */

@@ -9,7 +9,10 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 @Getter
 @Setter
@@ -65,5 +68,53 @@ public class Item implements Serializable {
     @OneToMany(mappedBy = "itemSource", fetch = FetchType.LAZY)
     @JsonIgnoreProperties("itemSource")
     private List<Avanzamento> avanzamento;
+
+    public String getLabel(String key) {
+        if (key == null || labels == null) return null;
+        for (ItemLabel l : labels) {
+            if (Objects.equals(key, l.getLabel())) {
+                return l.getValore();
+            }
+        }
+        return null;
+    }
+    
+    public void setLabel(String key, String value) {
+        if (key == null) return;
+
+        if (value == null) {
+            removeLabel(key);
+            return;
+        }
+
+        if (labels == null) labels = new ArrayList<>();
+
+        for (ItemLabel l : labels) {
+            if (Objects.equals(key, l.getLabel())) {
+                l.setValore(value);
+                return;
+            }
+        }
+
+        // non esiste: crea nuova label
+        ItemLabel nl = new ItemLabel();
+        nl.setItem(this);  // back-reference per orphanRemoval
+        nl.setLabel(key);
+        nl.setValore(value);
+        labels.add(nl);
+    }
+
+    public void removeLabel(String key) {
+        if (key == null || labels == null) return;
+        boolean removed = false;
+        for (Iterator<ItemLabel> it = labels.iterator(); it.hasNext(); ) {
+            ItemLabel l = it.next();
+            if (Objects.equals(key, l.getLabel())) {
+                it.remove();                 // orphanRemoval -> delete
+                l.setItem(null);     // pulizia back-ref
+                removed = true;
+            }
+        }
+    }
 
 }

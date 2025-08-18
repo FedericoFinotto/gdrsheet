@@ -32,20 +32,6 @@ public class ItemMapper {
         return dto;
     }
 
-//    public IncantesimoDTO toIncantesimoDTO(Item entity) {
-//        List<ItemLabel> itemLabels = entity.getLabels();
-//        ItemLabel livello = itemLabels.stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_LIVELLO_INCANTESIMO)).findFirst().orElse(null);
-//        ItemLabel classe = itemLabels.stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_CLASSE_INCANTESIMO)).findFirst().orElse(null);
-//        IncantesimoDTO dto = new IncantesimoDTO();
-//        dto.setId(entity.getId());
-//        dto.setNome(entity.getNome());
-//        dto.setTipo(entity.getTipo());
-//        if (livello != null) {
-//            dto.setLivello(Integer.parseInt(livello.getValore()));
-//        }
-//        return dto;
-//    }
-
     public SpellBookIncantesimoDTO toIncantesimoDTO(Item classe, ItemLivelloDTO itemLivelloDTO) {
         Item entity = itemLivelloDTO.getItem();
         SpellBookIncantesimoDTO dto = new SpellBookIncantesimoDTO();
@@ -108,8 +94,8 @@ public class ItemMapper {
     }
 
     public Boolean isDisabled(Item entity) {
-        ItemLabel disabledLabel = entity.getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_DISABILITATO)).findFirst().orElse(null);
-        return disabledLabel != null && disabledLabel.getValore().equals("1");
+        String disabledLabel = entity.getLabel(Constants.ITEM_LABEL_DISABILITATO);
+        return disabledLabel != null && disabledLabel.equals("1");
     }
 
     public ClasseDTO toClasseDTO(Map.Entry<Item, Long> classe) {

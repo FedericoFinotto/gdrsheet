@@ -209,7 +209,8 @@ function columnsForLevel(_lvl: number, spellList?: string) {
         disableSub: (row: any) => saving.value.has(row.id) || Number(row.remaining ?? 0) <= 0,
         disableAdd: (row: any) => saving.value.has(row.id) || Number(row.nused ?? 0) <= 0,
         hide: (row: any) => row.alwaysPrep === true,
-      }
+      },
+      disabled: (row) => row.nprepared && row.nused === row.nprepared
     });
   }
   return cols;
@@ -303,7 +304,3 @@ function showPopup(opts: ShowPopupOpts) {
     </section>
   </div>
 </template>
-
-<style scoped>
-
-</style>

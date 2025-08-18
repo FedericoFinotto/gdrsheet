@@ -38,7 +38,7 @@ const abilita = computed(() => {
 
     <Tabella
         :columns="[
-      { field: 'nome', label: 'Abilità' },
+      { field: 'nome', label: '' },
       { field: 'valore', label: '' },
       { field: 'caratteristica', label: '' }
     ]"

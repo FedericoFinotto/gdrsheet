@@ -118,57 +118,69 @@ async function saveNow() {
   }
 }
 
+const modificatoreModificatore = (mod) => {
+  if (mod.tipo === 'BASE') return testoModificatore((mod.valore - 10) / 2);
+  else return testoModificatore((mod.valore) / 2);
+}
+
 </script>
 
 <template>
   <div class="abilita-detail-card">
-    <!-- Barretta temporaneo -->
-    <div class="tempbar">
-      <span class="tempbar__label">{{ TEMP_LABEL }}</span>
-      <div class="tempbar__ctrl">
-        <button class="btn minus" @click="dec()">−</button>
-        <input
-            class="tempbar__input"
-            type="number"
-            :value="tempValue"
-            @input="onInput"
-        />
-        <button class="btn plus" @click="inc()">+</button>
-      </div>
-      <div class="tempbar__status">
-        <span v-if="isSaving" class="saving">salvataggio…</span>
-        <span v-else-if="tempValue !== lastSentValue" class="dirty">X</span>
-        <span v-else class="ok">✓</span>
-      </div>
-    </div>
-
     <!-- Header principale -->
     <div class="abilita-detail-card__header">
       <strong>{{ props.stat.label }}</strong>:
       {{ testoModificatore(props.stat.modificatore) }}
     </div>
-
-    <br><br>
+    <div class="spazietto" v-for="i in 2" :key="i"/>
 
     <!-- Sempre attivi -->
     <div v-if="modsSempre.length">
       <p v-for="(mod, index) in modsSempre" :key="'sempre-' + index">
         <strong>{{ mod.item || 'Sconosciuto' }}:</strong>
         {{ testoModificatore(mod.valore) }}
+        <span v-if="['FOR', 'DES', 'COS', 'INT', 'SAG', 'CAR'].includes(stat.id)">
+          <span>[{{ modificatoreModificatore(mod) }}]</span>
+        </span>
         <span v-if="mod.nota">{{ mod.nota }}</span>
       </p>
     </div>
 
     <!-- separatore se ci sono entrambi -->
-    <div class="spazietto" v-if="modsSempre.length > 0 && modsSituaz.length > 0"></div>
+    <div class="spazietto" v-if="modsSempre.length > 0 && modsSituaz.length > 0"/>
 
     <!-- Situazionali (incluso 'Temporaneo' se presente/non zero) -->
     <div v-if="modsSituaz.length">
       <p v-for="(mod, index) in modsSituaz" :key="'sit-' + index">
         <strong>{{ mod.item || 'Sconosciuto' }}:</strong>
         {{ testoModificatore(mod.valore) }}
+        <span v-if="['FOR', 'DES', 'COS', 'INT', 'SAG', 'CAR'].includes(stat.id)">
+          <span>[{{ modificatoreModificatore(mod) }}]</span>
+        </span>
         <span v-if="mod.nota">{{ mod.nota }}</span>
       </p>
     </div>
+
+    <!-- Barretta temporaneo -->
+    <div class="spazietto" v-for="i in 4" :key="i"/>
+    <div class="bar-container">
+      <button class="bar-btn" @click="dec()">−</button>
+      <div class="bar-wrapper">
+
+        <div class="bar">
+          <div class="bar-center">TEMP: {{ tempValue }}</div>
+
+        </div>
+
+      </div>
+      <button class="bar-btn" @click="inc()">+</button>
+      <div class="bar-btn">
+        <span v-if="isSaving" class="saving">salvataggio…</span>
+        <span v-else-if="tempValue !== lastSentValue" class="dirty">X</span>
+        <span v-else class="ok">✓</span>
+      </div>
+
+    </div>
   </div>
 </template>
+

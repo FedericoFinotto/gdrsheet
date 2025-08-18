@@ -7,7 +7,6 @@ import it.fin8.gdrsheet.dto.UpdatePreparedRequest;
 import it.fin8.gdrsheet.dto.UpdateSpellUsageRequest;
 import it.fin8.gdrsheet.entity.Collegamento;
 import it.fin8.gdrsheet.entity.Item;
-import it.fin8.gdrsheet.entity.ItemLabel;
 import it.fin8.gdrsheet.entity.Personaggio;
 import it.fin8.gdrsheet.mapper.ItemMapper;
 import it.fin8.gdrsheet.repository.CollegamentoLabelRepository;
@@ -20,7 +19,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 @Component
 public class ItemService {
@@ -40,26 +40,28 @@ public class ItemService {
     @Autowired
     private CollegamentoRepository collegamentoRepository;
 
-    public Item switchItemState(Integer itemId) {
+    public Item switchItemState(Integer itemId, Integer personaggioId) {
         Item itm = itemRepository.findItemById(itemId);
-        Optional<ItemLabel> label = itm.getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_DISABILITATO)).findFirst();
-        if (label.isPresent()) {
-            ItemLabel itemLabel = label.get();
-            String valore = itemLabel.getValore();
-            if (valore.equals("0")) {
-                itemLabel.setValore("1");
-            } else {
-                itemLabel.setValore("0");
-            }
+
+        if (itm.getPersonaggio() == null) {
+            Collegamento link = utilService.findRightConnectionLink(itm, personaggioId)
+                    .orElseThrow(() -> new RuntimeException("Impossibile definire collegamento oggetto"));
+
+            toggleDisabled(() -> link.getLabel(Constants.ITEM_LABEL_DISABILITATO), val -> link.setLabel(Constants.ITEM_LABEL_DISABILITATO, val));
+            collegamentoRepository.save(link);
+
         } else {
-            ItemLabel itemLabel = new ItemLabel();
-            itemLabel.setItem(itm);
-            itemLabel.setLabel(Constants.ITEM_LABEL_DISABILITATO);
-            itemLabel.setValore("1");
-            itm.getLabels().add(itemLabel);
+            toggleDisabled(() -> itm.getLabel(Constants.ITEM_LABEL_DISABILITATO), val -> itm.setLabel(Constants.ITEM_LABEL_DISABILITATO, val));
+            itemRepository.save(itm);
         }
-        itemRepository.save(itm);
+
         return itm;
+    }
+
+    private static void toggleDisabled(Supplier<String> getter, Consumer<String> setter) {
+        String v = getter.get();
+        v = (v == null) ? "" : v.trim();
+        setter.accept(v.isEmpty() || v.equals(Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE) ? Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE : Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
     }
 
     public List<SpellBookIncantesimoDTO> getListIncantesimiByClasseAndLevel(Integer idClasse, Integer livello) {

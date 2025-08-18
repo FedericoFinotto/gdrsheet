@@ -56,7 +56,7 @@ const mostraLabel = (label, val) => {
 async function switchState() {
   try {
     itemInfo.disabled = !itemInfo.disabled;
-    await switchItemState(itemInfo.id);
+    await switchItemState(itemInfo.id, personaggio.modificatori.id);
     await characterStore.fetchCharacter(personaggio.modificatori.id, true);
   } catch (e) {
     console.error('Errore nello switch dello stato:', e);
@@ -70,6 +70,8 @@ const disableLabel = computed(() => {
       return itemInfo.disabled ? 'Equipaggia' : 'Togli';
     case TIPO_ITEM.TRASFORMAZIONE:
       return itemInfo.disabled ? 'Trasformati' : 'Torna alla forma Base';
+    case TIPO_ITEM.IDOLO:
+      return itemInfo.disabled ? 'Pregato' : 'Non Pregato';
     default:
       return null;
   }

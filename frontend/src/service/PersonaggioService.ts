@@ -41,9 +41,9 @@ export function calcolaFormula(formula: string, datiPersonaggio: Statistiche): P
         .post<CalcoloResponse>('/calcolo/formula', payload)
 }
 
-export function switchItemState(id: number): Promise<AxiosResponse<ItemDB>> {
+export function switchItemState(id: number, idPersonaggio: number): Promise<AxiosResponse<ItemDB>> {
     return api
-        .get<ItemDB>(`/item/switch-state/${id}`);
+        .get<ItemDB>(`/item/switch-state/${idPersonaggio}/${id}`);
 }
 
 export function updateHP(idPersonaggio: number, pf: string, pfTemp: string): Promise<AxiosResponse<Boolean>> {

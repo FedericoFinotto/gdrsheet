@@ -110,16 +110,16 @@ function modifyHp(amount: number) {
 </script>
 
 <template>
-  <div class="hp-container" :style="{ backgroundImage: barraGradient }">
-    <button class="hp-btn" @click="modifyHp(-1)">-</button>
+  <div class="bar-container" :style="{ backgroundImage: barraGradient }">
+    <button class="bar-btn" @click="modifyHp(-1)">-</button>
 
-    <div class="hp-bar-wrapper">
-      <div class="hp-bar">
-        <div class="delta" v-if="delta < 0">
+    <div class="bar-wrapper">
+      <div class="bar">
+        <div class="bar-delta" v-if="delta < 0">
           ({{ delta }})
         </div>
 
-        <div class="hp-center">
+        <div class="bar-center">
           <template v-if="pfTemp > 0">
             {{ hp + pfTemp }} ({{ hp }} + {{ pfTemp }}) / {{ hpMax }}
           </template>
@@ -128,12 +128,12 @@ function modifyHp(amount: number) {
           </template>
         </div>
 
-        <div class="delta" v-if="delta > 0">
+        <div class="bar-delta" v-if="delta > 0">
           +{{ delta }}
         </div>
       </div>
     </div>
 
-    <button class="hp-btn" @click="modifyHp(+1)">+</button>
+    <button class="bar-btn" @click="modifyHp(+1)">+</button>
   </div>
 </template>

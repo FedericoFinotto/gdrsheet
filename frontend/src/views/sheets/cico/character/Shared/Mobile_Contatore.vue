@@ -44,11 +44,26 @@ function modifica(delta: number) {
     <div class="stat-nome">{{ stat?.nome ?? props.idStat }}</div>
 
     <div class="stat-controls">
-      <button class="button-contatore" @click="modifica(-1)">-</button>
+      <button
+          class="button-contatore"
+          @click="modifica(-1)"
+          :disabled="mostrato === 0"
+          aria-label="diminuisci"
+      >-
+      </button>
+
       <div class="stat-bar">
         <span>{{ mostrato }} / {{ max }}</span>
       </div>
-      <button class="button-contatore" click="modifica(1)">+</button>
+
+      <button
+          class="button-contatore"
+          @click="modifica(1)"
+          :disabled="mostrato === max"
+          aria-label="aumenta"
+      >+
+      </button>
     </div>
   </div>
 </template>
+

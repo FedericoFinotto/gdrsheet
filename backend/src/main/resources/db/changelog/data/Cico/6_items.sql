@@ -9,7 +9,7 @@ VALUES ('Fucile Ammazzadivinita', 'ARMA', 'Fucile Ammazzadivinita', null, 1, 1),
        ('Scudo in legno', 'EQUIPAGGIAMENTO', 'Scudo', null, 1, 1),
        ('Tantoo', 'ARMA', 'Tantoo', null, 1, 1),
        ('Veste del druido', 'EQUIPAGGIAMENTO', 'Veste del druido', null, 1, 1),
-       ('Anello Camaleonte', 'EQUIPAGGIAMENTO', 'Anello Camaleonte', null, 1, 1),
+
        ('Anello Camminare sull''acqua', 'EQUIPAGGIAMENTO', 'Anello Camminare sull''acqua', null, 1, 1),
        ('Sassolino ritornante', 'OGGETTO', 'Sassolino ritornante', null, 1, 1),
        ('Extra Wild Shape', 'TALENTO', '+2 Utilizzi della forma selvaggia', null, 1, 1),
@@ -87,6 +87,29 @@ VALUES
 ;
 
 
+INSERT INTO ITEMS (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo)
+VALUES ('Anello Della Deviazione 2', 'EQUIPAGGIAMENTO', null, null, 1, 1);
+
+INSERT INTO MODIFICATORI (id_item, id_stat, valore, always, nota, tipo)
+VALUES ((SELECT id FROM items where nome = 'Anello Della Deviazione 2'), 'CA', '+2', true, null, 'CA_DEVIAZIONE');
+
+INSERT INTO ITEMS (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo)
+VALUES ('Idolo Volpe', 'IDOLO', 'Ti crescono delle orecche da volpe', null, null, 1),
+       ('Idolo Dracode', 'IDOLO', 'Diventi rosa, la gente tende ad essere più ostile nei tuoi confronti', null, null,
+        1);
+
+INSERT INTO STATS (id, tipo, label)
+VALUES ('SPLLVLB', 'ATT', 'Spell Cast Bonus');
+
+
+
+INSERT INTO MODIFICATORI (id_item, id_stat, valore, always, nota, tipo)
+VALUES ((SELECT id FROM items where nome = 'Idolo Volpe'), 'SPLLVLB', '+2', true, null, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Idolo Volpe'), 'INT', '+8', true, null, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Idolo Volpe'), 'CAR', '-8', true, null, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Idolo Volpe'), 'AB5', '+8', true, null, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Idolo Dracode'), 'SPLLVLB', '+1', true, null, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Idolo Dracode'), 'CAR', '+8', true, null, 'VALORE');
 
 
 

@@ -21,6 +21,7 @@ const props = defineProps({
 const itemsTrasformazioni = ref<any[]>([]);
 const itemsCompetenze = ref<any[]>([]);
 const itemsLingue = ref<any[]>([]);
+const itemsIdoli = ref<any[]>([]);
 watch(
     () => cache.value[props.idPersonaggio]?.items,
     (newChar) => {
@@ -28,10 +29,21 @@ watch(
         itemsTrasformazioni.value = [];
         itemsCompetenze.value = [];
         itemsLingue.value = [];
+        itemsIdoli.value = [];
         return;
       }
 
       itemsTrasformazioni.value = newChar.trasformazioni
+          .map(itm => {
+            return {
+              ...itm,
+              expandedComponent: markRaw(Mobile_DettaglioItem),
+              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
+            };
+          })
+          .sort((a, b) => a.nome.localeCompare(b.nome));
+
+      itemsIdoli.value = newChar.idoli
           .map(itm => {
             return {
               ...itm,
@@ -52,7 +64,11 @@ watch(
 );
 
 const columnsTrasformazioni = [
-  {field: 'nome', label: 'Trasformazioni'},
+  {field: 'nome', label: 'Trasformazioni', disabled: (row) => row.disabled},
+];
+
+const columnsIdoli = [
+  {field: 'nome', label: 'Idoli', disabled: (row) => row.disabled},
 ];
 
 const columnsCompetenze = [
@@ -60,7 +76,7 @@ const columnsCompetenze = [
 ];
 
 const columnsLingue = [
-  {field: 'nome', label: 'Lingue',},
+  {field: 'nome', label: 'Lingue'},
 ];
 
 </script>
@@ -98,16 +114,13 @@ const columnsLingue = [
       <Mobile_Stat id="GTT" :id-personaggio="idPersonaggio" label="Distanza"></Mobile_Stat>
     </div>
     <div class="stat-block">
-      <template
-          v-for="stat in cache[idPersonaggio].modificatori.attributi.filter(x => x.modificatori.length > 0)">
-        <Mobile_Stat :id="stat.id" :id-personaggio="idPersonaggio" :label="stat.label"></Mobile_Stat>
-      </template>
+      <Mobile_Stat v-for="stat in cache[idPersonaggio].modificatori.attributi.filter(x => x.modificatori.length > 0)"
+                   :id="stat.id" :id-personaggio="idPersonaggio" :label="stat.label"></Mobile_Stat>
     </div>
     <div class="stat-block">
-      <template
-          v-for="stat in cache[idPersonaggio].modificatori.contatori.filter(x => x.id !== 'PF' && x.id != 'PFTEMP' && x.max > 0)">
-        <Mobile_Contatore :id-stat="stat.id" :id-personaggio="idPersonaggio"></Mobile_Contatore>
-      </template>
+      <Mobile_Contatore
+          v-for="stat in cache[idPersonaggio].modificatori.contatori.filter(x => x.id !== 'PF' && x.id != 'PFTEMP' && x.max > 0)"
+          :id-stat="stat.id" :id-personaggio="idPersonaggio"></Mobile_Contatore>
     </div>
     <div class="spazietto"></div>
 
@@ -115,6 +128,14 @@ const columnsLingue = [
              :columns="columnsTrasformazioni"
              :expandable="true"
              :items="itemsTrasformazioni"
+    >
+    </Tabella>
+    <div class="spazietto"></div>
+
+    <Tabella v-if="itemsIdoli.length > 0"
+             :columns="columnsIdoli"
+             :expandable="true"
+             :items="itemsIdoli"
     >
     </Tabella>
     <div class="spazietto"></div>

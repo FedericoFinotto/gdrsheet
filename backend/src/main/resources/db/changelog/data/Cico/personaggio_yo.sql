@@ -8,10 +8,10 @@ VALUES ('Livello 0', 'LIVELLO', 'LIVELLO 0 QUI', (select id from personaggio whe
        ('Livello 3', 'LIVELLO', 'LIVELLO 3 QUI', (select id from personaggio where nome = 'Qui'), 1, 1),
        ('Livello 4', 'LIVELLO', 'LIVELLO 4 QUI', (select id from personaggio where nome = 'Qui'), 1, 1),
        ('Livello 5', 'LIVELLO', 'LIVELLO 5 QUI', (select id from personaggio where nome = 'Qui'), 1, 1),
-       ('Balbuzie', 'MALEDIZIONE', 'Balbuzie', (select id from personaggio where nome = 'Qui'), NULL, NULL),
+       ('Balbuzie', 'MALEDIZIONE', 'Balbuzie', null, NULL, NULL),
        ('FromCompendio', 'ALTRO', 'FromCompendio', (select id from personaggio where nome = 'Qui'), 1, 1),
        ('PreparedSpell', 'ALTRO', 'PreparedSpell Qui', (select id from personaggio where nome = 'Qui'), 1, 1),
-       ('Papera mostruosa', 'TRASFORMAZIONE', NULL, (select id from personaggio where nome = 'Qui'), 1, 1),
+       ('Papera mostruosa', 'TRASFORMAZIONE', NULL, null, 1, 1),
        ('Pugno', 'ATTACCO', NULL, NULL, 1, 1),
        ('Beccata', 'ATTACCO', NULL, NULL, 1, 1),
        ('Soffio (Suono)', 'ATTACCO', NULL, NULL, 1, 1)
@@ -218,7 +218,7 @@ INSERT INTO stat_value (personaggio_id, stat_id, valore, mod, classe, addestrame
 VALUES ((select id from personaggio where nome = 'Qui'), 'PSIO', '0', NULL, false, false);
 
 Insert into items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo)
-VALUES ('Papera Psionica Viola Leggendaria', 'TRASFORMAZIONE', null, 1, null, 1),
+VALUES ('Papera Psionica Viola Leggendaria', 'TRASFORMAZIONE', null, null, null, 1),
        ('Flagello Mentale', 'ABILITA',
         'Costo: 3 Psio, Danno: 1d10, TS: CD 20 Tempa dimezza, +1 PSIO => +1 CD, +1d10 danni', null, null, 1),
        ('Assorbimento danni', 'ABILITA', '1 PSIO => 5PF', null, null, 1),
@@ -237,6 +237,12 @@ VALUES ((SELECT id from items where nome = 'Papera Psionica Viola Leggendaria'),
        ((SELECT id from items where nome = 'Papera Psionica Viola Leggendaria'),
         (SELECT id from items where nome = 'Telecinesi'));
 
+insert into collegamento (id_item_source, id_item_target)
+VALUES ((SELECT id FROM items where nome = 'FromCompendio'),
+        (SELECT id from items where nome = 'Papera Psionica Viola Leggendaria')),
+       ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id from items where nome = 'Papera mostruosa'));
+
+
 insert into modificatori (id_item, id_stat, valore, always, nota, tipo)
 VALUES ((SELECT id from items where nome = 'Papera Psionica Viola Leggendaria'), 'INT', '40', true, null, 'BASE'),
        ((SELECT id from items where nome = 'Papera Psionica Viola Leggendaria'), 'SAG', '40', true, null, 'BASE'),
@@ -253,4 +259,20 @@ VALUES ((SELECT id from items where descrizione = 'LIVELLO 1 QUI'), 'PR02', '+1'
 
 insert into modificatori (id_item, id_stat, valore, always, nota, tipo)
 VALUES ((SELECT id from items where descrizione = 'LIVELLO 6 QUI'), 'PF', '+6', true, null, 'VALORE');
+
+insert into collegamento (id_item_source, id_item_target)
+VALUES ((SELECT id FROM items where nome = 'FromCompendio'),
+        (SELECT id FROM items where nome = 'Anello Della Deviazione 2'));
+
+INSERT INTO stat_value (personaggio_id, stat_id, valore, mod, classe, addestramento, formula)
+VALUES (1, 'SPLLVLB', '0', null, false, false, null);
+
+insert into collegamento (id_item_source, id_item_target)
+VALUES ((SELECT id FROM items where nome = 'FromCompendio'),
+        (SELECT id FROM items where nome = 'Idolo Volpe'));
+
+insert into collegamento (id_item_source, id_item_target)
+VALUES ((SELECT id FROM items where nome = 'FromCompendio'),
+        (SELECT id FROM items where nome = 'Idolo Dracode'));
+
 

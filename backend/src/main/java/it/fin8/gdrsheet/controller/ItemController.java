@@ -60,12 +60,14 @@ public class ItemController {
             summary = "Abilita/Disabilita Item",
             description = "Abilita/Disabilita Item"
     )
-    @GetMapping("switch-state/{id}")
+    @GetMapping("switch-state/{idPersonaggio}/{id}")
     public ResponseEntity<Item> switchItemState(
             @Parameter(description = "Id Item", required = true)
-            @PathVariable Integer id
+            @PathVariable Integer id,
+            @Parameter(description = "Id Personaggio", required = true)
+            @PathVariable Integer idPersonaggio
     ) {
-        Item itm = itemService.switchItemState(id);
+        Item itm = itemService.switchItemState(id, idPersonaggio);
 
         return ResponseEntity.ok(itm);
     }
