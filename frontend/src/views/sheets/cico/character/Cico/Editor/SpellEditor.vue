@@ -113,7 +113,6 @@ type SpellDraft = {
 function emptyBoolMap(list: string[]): BoolMap {
   return Object.fromEntries(list.map(s => [s, false])) as BoolMap
 }
-
 function emptyClassLevels(): ClassLevelMap {
   return Object.fromEntries(CLASS_CODES.map(c => [c, ''])) as ClassLevelMap
 }
@@ -157,7 +156,6 @@ function splitTokens(s: string): string[] {
 function tcase(s: string) {
   return s.trim().replace(/\s+/g, ' ').replace(/(^|\s)\w/g, m => m.toUpperCase())
 }
-
 function normalizeDescToken(s: string) {
   const raw = s.trim().toLowerCase().replace(/\s+/g, ' ')
   return DESC_ALIASES[raw] ?? tcase(raw)
@@ -242,23 +240,12 @@ function parseSchoolAny(line: string) {
   return parseSchoolIT(line)
 }
 
-/* ========= TS Parser/Renderer (solo per preload) ========= */
+/* ========= TS Parser/Renderer ========= */
 type TSTypeEN = 'Will' | 'Fortitude' | 'Reflex' | 'None'
 type TSEffectEN = 'negates' | 'half' | 'partial' | 'disbelief' | 'special'
 type TSOp = 'or' | 'and' | 'then'
-
-interface TSClause {
-  type: TSTypeEN;
-  effect?: TSEffectEN;
-  qualifiers: string[]
-}
-
-interface TSParsed {
-  clauses: TSClause[];
-  ops: TSOp[];
-  notes: string[];
-  raw: string
-}
+interface TSClause { type: TSTypeEN; effect?: TSEffectEN; qualifiers: string[] }
+interface TSParsed { clauses: TSClause[]; ops: TSOp[]; notes: string[]; raw: string }
 
 const TYPE_RE = /\b(will|fortitude|reflex|none|no|yes)\b/i
 const EFFECT_WORDS: Record<string, TSEffectEN> = {
@@ -270,13 +257,8 @@ const QUALI_MAP: Record<string, string> = {
 }
 const NOTE_WORDS = ['see text', 'see below', 'below', 'varies']
 
-function norm(s: string) {
-  return s.trim().replace(/\s+/g, ' ').toLowerCase()
-}
-
-function titleCase(s: string) {
-  return s.replace(/(^|\s)\w/g, m => m.toUpperCase())
-}
+function norm(s: string) { return s.trim().replace(/\s+/g, ' ').toLowerCase() }
+function titleCase(s: string) { return s.replace(/(^|\s)\w/g, m => m.toUpperCase()) }
 
 function splitTsClauses(line: string) {
   const L = ' ' + line.replace(/;+/g, ' ; ').replace(/,+/g, ' , ') + ' '
@@ -295,7 +277,6 @@ function splitTsClauses(line: string) {
   }
   return {clauses, ops}
 }
-
 function extractParens(s: string) {
   const quals: string[] = []
   const parens = [...s.matchAll(/\((.*?)\)/g)].map(m => m[1])
@@ -310,13 +291,11 @@ function extractParens(s: string) {
   const rest = s.replace(/\(.*?\)/g, '').trim()
   return {rest, qualifiers: quals}
 }
-
 function parseTsClauseEN(raw: string): { clause?: TSClause, notes: string[] } {
   const {rest, qualifiers} = extractParens(raw)
   const r = norm(rest)
   const notes: string[] = []
   for (const w of NOTE_WORDS) if (r.includes(w)) notes.push(w)
-
   const m = r.match(TYPE_RE)
   if (!m) {
     if (r.includes('disbelief')) return {clause: {type: 'Will', effect: 'disbelief', qualifiers}, notes}
@@ -324,22 +303,12 @@ function parseTsClauseEN(raw: string): { clause?: TSClause, notes: string[] } {
   }
   let typeWord = m[1].toLowerCase()
   if (typeWord === 'no') typeWord = 'none'
-  if (typeWord === 'yes') {
-    notes.push('yes');
-    return {notes}
-  }
+  if (typeWord === 'yes') { notes.push('yes'); return {notes} }
   const type = titleCase(typeWord) as TSTypeEN
-
   let eff: TSEffectEN | undefined
-  for (const k of Object.keys(EFFECT_WORDS)) {
-    if (r.includes(k)) {
-      eff = EFFECT_WORDS[k];
-      break
-    }
-  }
+  for (const k of Object.keys(EFFECT_WORDS)) if (r.includes(k)) { eff = EFFECT_WORDS[k]; break }
   return {clause: {type, effect: eff, qualifiers}, notes}
 }
-
 function parseSavingThrow(line: string): TSParsed {
   const raw = (line ?? '').trim().replace(/^"|"$/g, '')
   if (!raw) return {clauses: [], ops: [], notes: [], raw}
@@ -359,7 +328,6 @@ function parseSavingThrow(line: string): TSParsed {
   }
   return {clauses, ops, notes: Array.from(new Set(notes)), raw}
 }
-
 function renderSavingThrowIt(parsed: TSParsed): string {
   if (!parsed.clauses.length && !parsed.notes.length) return '—'
   const TTYPE: Record<TSTypeEN, string> = {Will: 'Volontà', Fortitude: 'Tempra', Reflex: 'Riflessi', None: 'Nessuno'}
@@ -387,92 +355,45 @@ function renderSavingThrowIt(parsed: TSParsed): string {
 }
 
 /* ========= Normalizzatori TEMPO / DURATA / RANGE ========= */
-// --- TEMPO ---
-/* helpers già presenti */
-function pluralize(itSing: string, itPl: string, n: number) {
-  return n === 1 ? itSing : itPl
-}
-
+function pluralize(itSing: string, itPl: string, n: number) { return n === 1 ? itSing : itPl }
 const WORDNUM: Record<string, number> = {
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
   twelve: 12, twenty: 20, thirty: 30, sixty: 60
 }
-
-function wordToNumber(s: string): string {
-  const n = WORDNUM[s.toLowerCase()]
-  return n != null ? String(n) : s
-}
-
+function wordToNumber(s: string): string { const n = WORDNUM[s.toLowerCase()]; return n != null ? String(n) : s }
 
 function normalizeTempo(raw: string): string {
   if (!raw) return ''
   let s = raw.trim().replace(/^"|"$/g, '')
-
-  // normalizza testo e numeri in parola -> cifre
   s = s.replace(/\bSee text\b/gi, 'vedi testo')
       .replace(/\bsee text\b/gi, 'vedi testo')
-      .replace(/\b(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Twelve|Twenty|Thirty|Sixty)\b/gi,
-          m => wordToNumber(m))
-
-  // mappa *specifiche* prima (evita sovrapposizioni)
-  s = s
-      // full-round action
-      .replace(/\b(\d+)\s*full[-\s]?round\s*action(s)?\b/gi,
-          (_m, n) => `${n} ${pluralize('azione di round completo', 'azioni di round completo', Number(n))}`)
-      // full round
-      .replace(/\b(\d+)\s*full\s*rounds?\b/gi,
-          (_m, n) => `${n} ${pluralize('round completo', 'round completi', Number(n))}`)
+      .replace(/\b(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Twelve|Twenty|Thirty|Sixty)\b/gi, m => wordToNumber(m))
+      .replace(/\b(\d+)\s*full[-\s]?round\s*action(s)?\b/gi, (_m, n) => `${n} ${pluralize('azione di round completo', 'azioni di round completo', Number(n))}`)
+      .replace(/\b(\d+)\s*full\s*rounds?\b/gi, (_m, n) => `${n} ${pluralize('round completo', 'round completi', Number(n))}`)
       .replace(/\b1\s*full\s*round\b/gi, '1 round completo')
-
-      // standard / swift / immediate / free
-      .replace(/\b(\d+)\s*standard\s*actions?\b/gi,
-          (_m, n) => `${n} ${pluralize('azione standard', 'azioni standard', Number(n))}`)
-      .replace(/\b(\d+)\s*swift\s*actions?\b/gi,
-          (_m, n) => `${n} ${pluralize('azione rapida', 'azioni rapide', Number(n))}`)
-      .replace(/\b(\d+)\s*immediate\s*actions?\b/gi,
-          (_m, n) => `${n} ${pluralize('azione immediata', 'azioni immediate', Number(n))}`)
-      .replace(/\b(\d+)\s*free\s*actions?\b/gi,
-          (_m, n) => `${n} ${pluralize('azione gratuita', 'azioni gratuite', Number(n))}`)
-
-      // generico "N action(s)" (solo se non specificato sopra)
-      .replace(/\b(\d+)\s*actions?\b/gi,
-          (_m, n) => `${n} ${pluralize('azione', 'azioni', Number(n))}`)
-
-      // round / minute / hour semplici
-      .replace(/\b(\d+)\s*rounds?\b/gi,
-          (_m, n) => `${n} ${pluralize('round', 'round', Number(n))}`)
-      .replace(/\b(\d+)\s*minutes?\b/gi,
-          (_m, n) => `${n} ${pluralize('minuto', 'minuti', Number(n))}`)
-      .replace(/\b(\d+)\s*hours?\b/gi,
-          (_m, n) => `${n} ${pluralize('ora', 'ore', Number(n))}`)
-
-      // frasi comuni
-      .replace(/\bAt least (\d+)\s*minutes?\b/gi,
-          (_m, n) => `Almeno ${n} ${pluralize('minuto', 'minuti', Number(n))}`)
-
-  // connettivi
-  s = s.replace(/\bor\b/gi, 'o').replace(/\band\b/gi, 'e')
-
+      .replace(/\b(\d+)\s*standard\s*actions?\b/gi, (_m, n) => `${n} ${pluralize('azione standard', 'azioni standard', Number(n))}`)
+      .replace(/\b(\d+)\s*swift\s*actions?\b/gi, (_m, n) => `${n} ${pluralize('azione rapida', 'azioni rapide', Number(n))}`)
+      .replace(/\b(\d+)\s*immediate\s*actions?\b/gi, (_m, n) => `${n} ${pluralize('azione immediata', 'azioni immediate', Number(n))}`)
+      .replace(/\b(\d+)\s*free\s*actions?\b/gi, (_m, n) => `${n} ${pluralize('azione gratuita', 'azioni gratuite', Number(n))}`)
+      .replace(/\b(\d+)\s*actions?\b/gi, (_m, n) => `${n} ${pluralize('azione', 'azioni', Number(n))}`)
+      .replace(/\b(\d+)\s*rounds?\b/gi, (_m, n) => `${n} ${pluralize('round', 'round', Number(n))}`)
+      .replace(/\b(\d+)\s*minutes?\b/gi, (_m, n) => `${n} ${pluralize('minuto', 'minuti', Number(n))}`)
+      .replace(/\b(\d+)\s*hours?\b/gi, (_m, n) => `${n} ${pluralize('ora', 'ore', Number(n))}`)
+      .replace(/\bAt least (\d+)\s*minutes?\b/gi, (_m, n) => `Almeno ${n} ${pluralize('minuto', 'minuti', Number(n))}`)
+      .replace(/\bor\b/gi, 'o').replace(/\band\b/gi, 'e')
   return s.replace(/\s+/g, ' ').trim()
 }
 
-
-// --- DURATA ---
 function normalizeDurata(raw: string): string {
   if (!raw) return ''
   let s = raw.trim().replace(/^"|"$/g, '')
-  // tipici token
   s = s.replace(/\bInstantaneous\b/gi, 'Istantanea')
       .replace(/\bConcentration\b/gi, 'Concentrazione')
       .replace(/\bSee text\b/gi, 'vedi testo')
       .replace(/\bSee below\b/gi, 'vedi sotto')
       .replace(/\bmax(?:imum)?\b/gi, 'massimo')
-
-  // numeri in parola
-  s = s.replace(/\b(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten)\b/gi, m => wordToNumber(m))
-
-  // unità /livello
-  s = s.replace(/\bmin\.\s*\/\s*level\b/gi, 'min./livello')
+      .replace(/\b(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten)\b/gi, m => wordToNumber(m))
+      .replace(/\bmin\.\s*\/\s*level\b/gi, 'min./livello')
       .replace(/\bmin\.\s*\/\s* level\b/gi, 'min./livello')
       .replace(/\bminute\s*\/\s*level\b/gi, 'minuto/livello')
       .replace(/\bminutes\s*\/\s*level\b/gi, 'minuti/livello')
@@ -480,75 +401,49 @@ function normalizeDurata(raw: string): string {
       .replace(/\bhours\s*\/\s*level\b/gi, 'ore/livello')
       .replace(/\bround\s*\/\s*level\b/gi, 'round/livello')
       .replace(/\brounds\s*\/\s*level\b/gi, 'round/livello')
-
-  // forme “X day/level”
-  s = s.replace(/\b(\d+)\s*day\/level\b/gi, (_m, n) => `${n} giorno/livello`)
+      .replace(/\b(\d+)\s*day\/level\b/gi, (_m, n) => `${n} giorno/livello`)
       .replace(/\b(\d+)\s*days\/level\b/gi, (_m, n) => `${n} giorni/livello`)
       .replace(/\bOne\s*day\/level\b/gi, '1 giorno/livello')
-
-  // unità semplici
-  s = s.replace(/\b(\d+)\s*rounds?\b/gi, (_m, n) => `${n} ${pluralize('round', 'round', Number(n))}`)
+      .replace(/\b(\d+)\s*rounds?\b/gi, (_m, n) => `${n} ${pluralize('round', 'round', Number(n))}`)
       .replace(/\b(\d+)\s*minutes?\b/gi, (_m, n) => `${n} ${pluralize('minuto', 'minuti', Number(n))}`)
       .replace(/\b(\d+)\s*min\.\b/gi, (_m, n) => `${n} ${pluralize('minuto', 'minuti', Number(n))}`)
       .replace(/\b(\d+)\s*hours?\b/gi, (_m, n) => `${n} ${pluralize('ora', 'ore', Number(n))}`)
       .replace(/\b(\d+)\s*weeks?\b/gi, (_m, n) => `${n} ${pluralize('settimana', 'settimane', Number(n))}`)
       .replace(/\b(\d+)\s*months?\b/gi, (_m, n) => `${n} ${pluralize('mese', 'mesi', Number(n))}`)
       .replace(/\b(\d+)\s*years?\b/gi, (_m, n) => `${n} ${pluralize('anno', 'anni', Number(n))}`)
-
-  // frasi comuni
-  s = s.replace(/\buntil discharged\b/gi, 'fino a scaricarsi')
+      .replace(/\buntil discharged\b/gi, 'fino a scaricarsi')
       .replace(/\buntil expended\b/gi, 'fino a esaurimento')
       .replace(/\buntil used\b/gi, 'fino a utilizzo')
       .replace(/\buntil triggered\b/gi, 'fino ad attivazione')
       .replace(/\buntil completed\b/gi, 'fino a completamento')
       .replace(/\buntil escaped\b/gi, 'fino a fuga')
       .replace(/\buntil landing\b/gi, 'fino all’atterraggio')
-
-  s = s.replace(/\bPermanent\b/gi, 'Permanente')
+      .replace(/\bPermanent\b/gi, 'Permanente')
       .replace(/\bpermanent\b/gi, 'permanente')
-
-  // connettivi
-  s = s.replace(/\bor\b/gi, 'o').replace(/\band\b/gi, 'e').replace(/\bthen\b/gi, 'poi')
-
-  // + e / spaziature
+      .replace(/\bor\b/gi, 'o').replace(/\band\b/gi, 'e').replace(/\bthen\b/gi, 'poi')
   return s.replace(/\s+/g, ' ').trim()
 }
 
-// --- RANGE --- (conversione ft -> m con 5 ft = 1,5 m)
 function ftToMetersStr(feet: number): string {
-  // regola: 5 ft -> 1,5 m  (≈ 0,3 m per ft)
   const m = feet * 0.3
   const rounded = Math.round(m * 10) / 10
   const s = rounded.toFixed(rounded % 1 === 0 ? 0 : 1)
   return s.replace('.', ',') + ' m'
 }
-
 function convertFeetEverywhere(s: string): string {
-  // fix vari
   s = s.replace(/ft\.(\d+)/gi, 'ft.')
       .replace(/(100)\s*ft\.\s*\+\s*(10)\s*ft\.\s*level/gi, '$1 ft. + $2 ft./level')
       .replace(/(400)\s*ft\.\s*\+\s*(40)\s*ft\.\s*level/gi, '$1 ft. + $2 ft./level')
       .replace(/(25)\s*ft\.\s*\+\s*(5)\s*ft\.\s*(?:2\s*)?level[s]?/gi, '$1 ft. + $2 ft./2 levels')
       .replace(/\bft\b/gi, 'ft.')
-
-  // ft./N levels  -> m/N livelli
-  s = s.replace(/(\d+(?:\.\d+)?)\s*ft\.\s*\/\s*(\d+)\s*levels?\b/gi,
-      (_m, n, div) => `${ftToMetersStr(Number(n))}/${div} livelli`)
-  // ft./level -> m/livello
-  s = s.replace(/(\d+(?:\.\d+)?)\s*ft\.\s*\/\s*level\b/gi,
-      (_m, n) => `${ftToMetersStr(Number(n))}/livello`)
-  // N ft. -> X m
-  s = s.replace(/(\d+(?:\.\d+)?)\s*ft\./gi,
-      (_m, n) => ftToMetersStr(Number(n)))
-
+      .replace(/(\d+(?:\.\d+)?)\s*ft\.\s*\/\s*(\d+)\s*levels?\b/gi, (_m, n, div) => `${ftToMetersStr(Number(n))}/${div} livelli`)
+      .replace(/(\d+(?:\.\d+)?)\s*ft\.\s*\/\s*level\b/gi, (_m, n) => `${ftToMetersStr(Number(n))}/livello`)
+      .replace(/(\d+(?:\.\d+)?)\s*ft\./gi, (_m, n) => ftToMetersStr(Number(n)))
   return s
 }
-
 function normalizeRange(raw: string): string {
   if (!raw) return ''
   let s = raw.trim().replace(/^"|"$/g, '')
-
-  // etichette
   s = s.replace(/\bPersonal\b/gi, 'Personale')
       .replace(/\bTouch\b/gi, 'Contatto')
       .replace(/\bClose\b/gi, 'Vicino')
@@ -559,28 +454,29 @@ function normalizeRange(raw: string): string {
       .replace(/\bSpecial\b/gi, 'Speciale')
       .replace(/\bSee text\b/gi, 'vedi testo')
       .replace(/\bSee below\b/gi, 'vedi sotto')
-
-  // etichette di sezione
-  s = s.replace(/\bTargets?\b/gi, m => m[0] === 'T' ? 'Bersagli' : 'bersagli')
+      .replace(/\bTargets?\b/gi, m => m[0] === 'T' ? 'Bersagli' : 'bersagli')
       .replace(/\bEffect\b/gi, 'Effetto')
       .replace(/\bArea\b/gi, 'Area')
-
-  // conversioni in metri
   s = convertFeetEverywhere(s)
-
-  // normalizza "level/levels" ovunque (anche quando non seguono ft.)
-  s = s
-      .replace(/\/\s*(\d+)\s*levels?\b/gi, (_m, n) => `/${n} livelli`)
+  s = s.replace(/\/\s*(\d+)\s*levels?\b/gi, (_m, n) => `/${n} livelli`)
       .replace(/\/\s*level\b/gi, '/livello')
       .replace(/\blevels\b/gi, 'livelli')
       .replace(/\blevel\b/gi, 'livello')
-
-  // connettivi
-  s = s.replace(/\bor\b/gi, 'o').replace(/\band\b/gi, 'e')
-
+      .replace(/\bor\b/gi, 'o').replace(/\band\b/gi, 'e')
   return s.replace(/\s+/g, ' ').trim()
 }
 
+/* ========= TS: fallback-first ========= */
+const ITALIAN_TS_HINTS = /(tempra|riflessi|volontà|nessuno|nega|parziale|mezzi|incredulità|vedi testo|sì|si\b)/i
+function normalizeOrRawTS(raw: string | null | undefined): string {
+  const s = String(raw ?? '').trim()
+  if (!s) return 'Nessuno'
+  // Se già italiano (o plausibile), non toccare
+  if (ITALIAN_TS_HINTS.test(s)) return s
+  // Prova a parsare EN -> IT
+  const rendered = renderSavingThrowIt(parseSavingThrow(s))
+  return rendered && rendered !== '—' ? rendered : s
+}
 
 /* ========= Preload una volta ========= */
 function parseComponenti(labels?: ItemLabel[], fromItem?: string[]) {
@@ -590,12 +486,13 @@ function parseComponenti(labels?: ItemLabel[], fromItem?: string[]) {
   if (fromItem?.length) fromItem.forEach(t => tokens.add(String(t).toUpperCase()))
   return tokens
 }
+
 onMounted(() => {
   Object.assign(form, emptyDraft())
   form.nome = props.item.nome ?? ''
   form.descrizione = props.item.descrizione ?? ''
 
-  // Tempo / Durata / Range: prendi eventuale label legacy o campo item, normalizza in IT
+  // Tempo / Durata / Range: normalizza in IT (non distruttivo)
   const tempoRaw = getLabel(props.item.labels, L.TEMPO) || (props.item.tempo ?? '')
   const durataRaw = getLabel(props.item.labels, L.DURATA) || (props.item.durata ?? '')
   const rangeRaw = getLabel(props.item.labels, L.RANGE) || (props.item.range ?? '')
@@ -603,15 +500,13 @@ onMounted(() => {
   form.durata = normalizeDurata(durataRaw)
   form.range = normalizeRange(rangeRaw)
 
-  // TS: normalizza in IT e scrivi direttamente nel campo unico
+  // TS: fallback-first -> se italiano/ignoto, usa il salvato
   const tsRaw = getLabel(props.item.labels, L.TS) || (props.item.ts ?? '')
-  form.ts = renderSavingThrowIt(parseSavingThrow(tsRaw || 'None')) || 'Nessuno'
+  form.ts = normalizeOrRawTS(tsRaw)
 
   // Componenti
   const compTokens = parseComponenti(props.item.labels, props.item.componenti)
-  ;(Object.keys(form.comp) as ComponentKey[]).forEach(k => {
-    form.comp[k] = compTokens.has(k)
-  })
+  ;(Object.keys(form.comp) as ComponentKey[]).forEach(k => { form.comp[k] = compTokens.has(k) })
 
   // Scuole/Sub/Descrittori
   const scuolaLine = getLabel(props.item.labels, L.SCUOLA)
@@ -633,26 +528,19 @@ onMounted(() => {
 })
 
 /* ========= Summaries ========= */
-function arrFromBoolMap(m: BoolMap) {
-  return Object.keys(m).filter(k => m[k])
-}
-
+function arrFromBoolMap(m: BoolMap) { return Object.keys(m).filter(k => m[k]) }
 const sumScuole = computed(() => arrFromBoolMap(form.scuole).join(' / ') || '—')
 const sumSub = computed(() => arrFromBoolMap(form.subscuole).join(', ') || '—')
 const sumDesc = computed(() => arrFromBoolMap(form.descrittori).join(', ') || '—')
 const sumComp = computed(() => {
   const picked: string[] = []
-  ;(Object.keys(form.comp) as ComponentKey[]).forEach(k => {
-    if (form.comp[k]) picked.push(k)
-  })
+  ;(Object.keys(form.comp) as ComponentKey[]).forEach(k => { if (form.comp[k]) picked.push(k) })
   return picked.join(', ') || '—'
 })
-
 function friendlyNameFromCode(code: string): string {
   if (CLASS_LABELS[code]) return CLASS_LABELS[code]
   return code.replace(/^SP_/, '').toLowerCase().replace(/_/g, ' ').replace(/(^|\s)\w/g, m => m.toUpperCase())
 }
-
 const sumClassi = computed(() => {
   const items: string[] = []
   for (const code of CLASS_CODES) {
@@ -694,14 +582,14 @@ async function onSave() {
       tempo: form.tempo,
       range: form.range,
       durata: form.durata,
-      ts: form.ts,
+      ts: form.ts, // <-- salva esattamente il valore visibile (già italiano o raw)
       componenti: (Object.entries(form.comp) as [ComponentKey, boolean][])
           .filter(([, v]) => v).map(([k]) => k),
       scuole: scuoleArr,
       subscuole: subsArr,
       descrittori: descArr,
       classi,
-      labelsPatch: {[L.SCUOLA]: buildScuolaStringIT(scuoleArr, subsArr, descArr)}
+      labelsPatch: { [L.SCUOLA]: buildScuolaStringIT(scuoleArr, subsArr, descArr) }
     })
 
     await saveSpell(props.item.id, payload)
@@ -712,10 +600,7 @@ async function onSave() {
     busy.value = false
   }
 }
-
-function onCancel() {
-  emit('cancel')
-}
+function onCancel() { emit('cancel') }
 </script>
 
 <template>
@@ -867,214 +752,65 @@ function onCancel() {
 </template>
 
 <style scoped>
-.spell-editor {
-  display: grid;
-  gap: .75rem;
-  margin: 0;
-}
+.spell-editor { display: grid; gap: .75rem; margin: 0; }
+.sp-head { display: flex; align-items: baseline; gap: .5rem; margin: 0; }
+.sp-head h2 { margin: 0; font-size: 1rem; }
+.muted { opacity: .7; font-size: .85rem; }
 
-.sp-head {
-  display: flex;
-  align-items: baseline;
-  gap: .5rem;
-  margin: 0;
-}
+.row { display: grid; gap: .5rem; }
+.row.three { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 900px) { .row.three { grid-template-columns: 1fr; } }
 
-.sp-head h2 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.muted {
-  opacity: .7;
-  font-size: .85rem;
-}
-
-.row {
-  display: grid;
-  gap: .5rem;
-}
-
-.row.three {
-  grid-template-columns: 1fr 1fr 1fr;
-}
-
-@media (max-width: 900px) {
-  .row.three {
-    grid-template-columns: 1fr;
-  }
-}
-
-.field {
-  display: grid;
-  gap: .35rem;
-  margin: 0;
-}
-
-.lbl {
-  font-size: .8rem;
-  font-weight: 600;
-  opacity: .85;
-  margin: 0;
-}
+.field { display: grid; gap: .35rem; margin: 0; }
+.lbl { font-size: .8rem; font-weight: 600; opacity: .85; margin: 0; }
 
 input[type="text"], select, textarea {
-  width: 100%;
-  padding: .5rem .6rem;
-  border: 1px solid #d0d5dd;
-  border-radius: .5rem;
-  background: #fff;
-  margin: 0;
+  width: 100%; padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff; margin: 0;
 }
-
-textarea {
-  resize: vertical;
-  min-height: 16rem;
-}
+textarea { resize: vertical; min-height: 16rem; }
 
 /* folds */
-.fold {
-  border: 1px solid #e5e7eb;
-  border-radius: .5rem;
-  background: #fff;
-}
-
-.fold + .fold {
-  margin-top: .25rem;
-}
-
+.fold { border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff; }
+.fold + .fold { margin-top: .25rem; }
 .fold-head {
-  width: 100%;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: .5rem;
-  padding: .5rem .75rem;
-  background: #f9fafb;
-  border: 0;
-  border-bottom: 1px solid #e5e7eb;
-  cursor: pointer;
-  text-align: left;
+  width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .5rem;
+  padding: .5rem .75rem; background: #f9fafb; border: 0; border-bottom: 1px solid #e5e7eb; cursor: pointer; text-align: left;
 }
+.fold-title { font-weight: 600; }
+.fold-summary { color: #374151; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chev { transition: transform .15s ease; transform: rotate(0deg); }
+.chev.open { transform: rotate(90deg); }
+.fold-body { padding: .6rem .75rem; }
 
-.fold-title {
-  font-weight: 600;
-}
-
-.fold-summary {
-  color: #374151;
-  opacity: .8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.chev {
-  transition: transform .15s ease;
-  transform: rotate(0deg);
-}
-
-.chev.open {
-  transform: rotate(90deg);
-}
-
-.fold-body {
-  padding: .6rem .75rem;
-}
-
-.components {
-  margin: 0;
-  border: 0;
-  padding: 0;
-}
-
-.components legend {
-  display: none;
-}
-
-.chk {
-  display: inline-flex;
-  align-items: center;
-  gap: .5rem;
-  margin: 0 .75rem .5rem 0;
-}
-
-.chk input {
-  accent-color: #2563eb;
-}
+.components { margin: 0; border: 0; padding: 0; }
+.components legend { display: none; }
+.chk { display: inline-flex; align-items: center; gap: .5rem; margin: 0 .75rem .5rem 0; }
+.chk input { accent-color: #2563eb; }
 
 /* classi/domìni grid */
-.class-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: .5rem .75rem;
-}
-
+.class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .5rem .75rem; }
 .class-row {
-  display: grid;
-  grid-template-columns: 1fr 5rem;
-  align-items: center;
-  gap: .5rem;
-  padding: .25rem .4rem;
-  border: 1px solid #e5e7eb;
-  border-radius: .5rem;
-  background: #fff;
+  display: grid; grid-template-columns: 1fr 5rem; align-items: center; gap: .5rem;
+  padding: .25rem .4rem; border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff;
 }
-
-.class-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.level-select {
-  width: 100%;
-}
+.class-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.level-select { width: 100%; }
 
 /* actions sticky */
 .actions {
-  position: sticky;
-  bottom: 0;
-  background: #fff;
+  position: sticky; bottom: 0; background: #fff;
   padding: .5rem 0 calc(.5rem + env(safe-area-inset-bottom, 0px));
-  margin-top: .25rem;
-  border-top: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: flex-end;
-  gap: .5rem;
+  margin-top: .25rem; border-top: 1px solid #e5e7eb;
+  display: flex; justify-content: flex-end; gap: .5rem;
 }
 
-.btn {
-  padding: .5rem .9rem;
-  border-radius: .5rem;
-  border: 1px solid transparent;
-  cursor: pointer;
-}
-
-.btn.ghost {
-  border-color: #d0d5dd;
-  background: #fff;
-}
-
-.btn.primary {
-  background: #2563eb;
-  color: white;
-}
-
-.btn:disabled {
-  opacity: .6;
-  cursor: default;
-}
+.btn { padding: .5rem .9rem; border-radius: .5rem; border: 1px solid transparent; cursor: pointer; }
+.btn.ghost { border-color: #d0d5dd; background: #fff; }
+.btn.primary { background: #2563eb; color: white; }
+.btn:disabled { opacity: .6; cursor: default; }
 
 /* a11y */
 .sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  border: 0;
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;
 }
 </style>
