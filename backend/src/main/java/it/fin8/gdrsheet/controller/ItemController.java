@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import it.fin8.gdrsheet.dto.SpellBookIncantesimoDTO;
 import it.fin8.gdrsheet.dto.UpdatePreparedRequest;
+import it.fin8.gdrsheet.dto.UpdateSpellRequest;
 import it.fin8.gdrsheet.dto.UpdateSpellUsageRequest;
 import it.fin8.gdrsheet.entity.Item;
 import it.fin8.gdrsheet.repository.ItemRepository;
@@ -101,4 +102,16 @@ public class ItemController {
 
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(
+            summary = "Aggiorna un incantesimo",
+            description = "Aggiorna un incantesimo"
+    )
+    @PostMapping("/editspell/{id}")
+    public ResponseEntity<Item> updateSpell(@PathVariable Integer id,
+                                            @RequestBody UpdateSpellRequest dto) {
+        // service.updateSpell(id, dto);
+        return ResponseEntity.ok(itemService.updateSpell(id, dto));
+    }
+
 }

@@ -14,6 +14,7 @@ export const ICONS = {
     SPINNER: {kind: 'fa', classes: 'fa-solid fa-circle-notch'},
     XMARK: {kind: 'fa', classes: 'fa-solid fa-xmark'},
     CHECK: {kind: 'fa', classes: 'fa-solid fa-check'},
+    EDIT: {kind: 'fa', classes: 'fa-solid fa-pen-to-square'},
     DUCK: {kind: 'img', src: P('icons/duck-rubber-debugging.svg'), alt: 'Duck'},
     COMP_V: {kind: 'fa', classes: 'fa-solid fa-v'},    // Verbale
     COMP_S: {kind: 'fa', classes: 'fa-solid fa-s'},         // Somatico

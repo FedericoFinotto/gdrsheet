@@ -75,6 +75,9 @@ export function mostraLabel(label: string, val: string): LabeledValue | null {
             if (v.toLowerCase() === 'none' || v === '') return null; // nascondi se "None"
             return {label: 'Tiro Salvezza', value: v};
 
+        case 'SCUOLA_SP':
+            return {label: 'Scuola', value: v};
+
         case 'TAGLIA':
             return {label: 'Taglia', value: testoTaglia(v)};
 

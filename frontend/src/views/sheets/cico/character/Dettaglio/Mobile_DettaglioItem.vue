@@ -8,6 +8,9 @@ import {getLabel, thereIsValoreLabel} from "../../../../../function/Calcolo";
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import Icona from "../../../../../components/Icona/Icona.vue";
+import {useRouter} from "vue-router";
+
+const router = useRouter()
 
 interface PropsData {
   item: ItemDB;            // l'oggetto item con id e tipo
@@ -117,6 +120,12 @@ onMounted(async () => {
 <template>
   <div class="abilita-detail-card" v-if="!loading && itemDetail">
     <button class="bottone" @click="switchState" v-if="disableLabel">{{ disableLabel }}</button>
+    <div class="icona-wrapper">
+      <Icona
+          name="EDIT"
+          @click.stop="router.push(`/itemeditor/${itemDetail.id}`)"
+      />
+    </div>
 
     <div v-if="itemDetail?.labels?.length" style="display: flex">
       <div v-for="comp in itemDetail.labels">

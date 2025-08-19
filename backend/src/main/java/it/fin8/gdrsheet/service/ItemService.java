@@ -1,22 +1,19 @@
 package it.fin8.gdrsheet.service;
 
 import it.fin8.gdrsheet.config.Constants;
-import it.fin8.gdrsheet.dto.ItemLivelloDTO;
-import it.fin8.gdrsheet.dto.SpellBookIncantesimoDTO;
-import it.fin8.gdrsheet.dto.UpdatePreparedRequest;
-import it.fin8.gdrsheet.dto.UpdateSpellUsageRequest;
+import it.fin8.gdrsheet.dto.*;
 import it.fin8.gdrsheet.entity.Collegamento;
 import it.fin8.gdrsheet.entity.Item;
+import it.fin8.gdrsheet.entity.ItemLabel;
 import it.fin8.gdrsheet.entity.Personaggio;
 import it.fin8.gdrsheet.mapper.ItemMapper;
-import it.fin8.gdrsheet.repository.CollegamentoLabelRepository;
-import it.fin8.gdrsheet.repository.CollegamentoRepository;
-import it.fin8.gdrsheet.repository.ItemRepository;
-import it.fin8.gdrsheet.repository.PersonaggioRepository;
+import it.fin8.gdrsheet.repository.*;
 import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -33,6 +30,8 @@ public class ItemService {
     private UtilService utilService;
     @Autowired
     private PersonaggioRepository personaggioRepository;
+    @Autowired
+    private ItemLabelRepository itemLabelRepository;
     @Autowired
     EntityManager em;
     @Autowired
@@ -116,6 +115,83 @@ public class ItemService {
         spell.setLabel(Constants.COLLEGAMENTO_LABEL_N_USATI, request.getNewUsage().toString());
         collegamentoRepository.save(spell);
     }
+
+    @Transactional
+    public Item updateSpell(Integer id, UpdateSpellRequest request) {
+        Item itm = itemRepository.findById(id).orElseThrow(() -> new RuntimeException("Item non trovato"));
+
+        // --- aggiorna campi base ---
+        if (request.getNome() != null) itm.setNome(request.getNome());
+        if (request.getDescrizione() != null) itm.setDescrizione(request.getDescrizione());
+
+        // --- SVUOTA labels IN PLACE (no setLabels(...)) ---
+        if (itm.getLabels() != null) {
+            Iterator<ItemLabel> it = itm.getLabels().iterator();
+            while (it.hasNext()) {
+                ItemLabel l = it.next();
+                it.remove();         // rimuove dalla collection
+                l.setItem(null);     // rompe la back-ref -> orphanRemoval
+            }
+        }
+
+        // --- LABELS "singole" (usa setLabel che gestisce update/crea) ---
+        putSingleLabel(itm, "TEMPO_SP", request.getTempo());
+        putSingleLabel(itm, "RANGE_SP", request.getRange());
+        putSingleLabel(itm, "DURATA_SP", request.getDurata());
+
+        // TS: normalizza "None" -> "Nessuno" come fallback
+        String ts = request.getTs();
+        if (ts != null && ts.trim().equalsIgnoreCase("None")) ts = "Nessuno";
+        putSingleLabel(itm, "TS_SP", ts);
+
+        // --- COMPONENTI (multi-riga: una label per valore) ---
+        if (request.getComponenti() != null) {
+            for (String comp : request.getComponenti()) {
+                addLabelRow(itm, "COMP_SP", comp);
+            }
+        }
+
+        // --- CLASSI / DOMINI SP_* (multi-riga) ---
+        if (request.getClassi() != null) {
+            for (ClassLevelDTO c : request.getClassi()) {
+                if (c.getClasse() != null && c.getLivello() != null) {
+                    addLabelRow(itm, c.getClasse(), String.valueOf(c.getLivello()));
+                }
+            }
+        }
+
+        // --- PATCH dirette (singole chiavi) ---
+        if (request.getLabelsPatch() != null) {
+            request.getLabelsPatch().forEach((k, v) -> putSingleLabel(itm, k, v));
+        }
+
+        return itemRepository.save(itm);
+    }
+
+    /**
+     * Crea/aggiorna una label "singola" (chiavi univoche). Se value null/blank -> rimuove.
+     */
+    private void putSingleLabel(Item item, String key, String value) {
+        if (key == null) return;
+        if (value == null || value.trim().isEmpty()) {
+            item.removeLabel(key); // tuo helper nell'entità
+        } else {
+            item.setLabel(key, value); // tuo helper: update se esiste, altrimenti crea
+        }
+    }
+
+    /**
+     * Aggiunge una riga label (per chiavi multi-valore: COMP_SP, SP_*). Ignora null/blank.
+     */
+    private void addLabelRow(Item item, String key, String value) {
+        if (key == null || value == null || value.trim().isEmpty()) return;
+        ItemLabel nl = new ItemLabel();
+        nl.setItem(item);      // back-ref
+        nl.setLabel(key);
+        nl.setValore(value.trim());
+        item.getLabels().add(nl); // orphanRemoval + cascade ALL farà il resto
+    }
+
 
 }
 

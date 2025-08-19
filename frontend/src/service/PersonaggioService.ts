@@ -79,5 +79,5 @@ export function updateTemporaryModifier(payload) {
 }
 
 export function saveSpell(id, payload) {
-    console.log('salvato', id, payload);
+    return api.post(`/item/editspell/${id}`, payload);
 }
