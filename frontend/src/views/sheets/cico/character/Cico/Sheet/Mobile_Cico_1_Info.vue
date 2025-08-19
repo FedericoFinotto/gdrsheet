@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import {defineProps, markRaw, ref, watch} from 'vue';
 import {storeToRefs} from "pinia";
-import {useCharacterStore} from "../../../../../stores/personaggio";
-import Mobile_Stat from "../Shared/Mobile_Stat.vue";
-import Mobile_HP from "../Shared/Mobile_HP.vue";
-import Mobile_Contatore from "../Shared/Mobile_Contatore.vue";
-import Tabella from "../../../../../components/Tabella.vue";
-import Mobile_DettaglioItem from "../Dettaglio/Mobile_DettaglioItem.vue";
+import {useCharacterStore} from "../../../../../../stores/personaggio";
+import Mobile_Stat from "../../Shared/Mobile_Stat.vue";
+import Mobile_HP from "../../Shared/Mobile_HP.vue";
+import Mobile_Contatore from "../../Shared/Mobile_Contatore.vue";
+import Tabella from "../../../../../../components/Tabella.vue";
+import Mobile_DettaglioItem from "../../Dettaglio/Mobile_DettaglioItem.vue";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore);

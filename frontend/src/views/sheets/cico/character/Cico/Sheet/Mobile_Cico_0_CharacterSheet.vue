@@ -2,7 +2,7 @@
 import {computed, nextTick, onBeforeUpdate, onMounted, ref, watch} from 'vue';
 import {useRoute} from 'vue-router';
 import {storeToRefs} from 'pinia';
-import {useCharacterStore} from "../../../../../stores/personaggio";
+import {useCharacterStore} from "../../../../../../stores/personaggio";
 
 import Mobile_Cico_Info from './Mobile_Cico_1_Info.vue';
 import Mobile_Cico_Abilita from './Mobile_Cico_2_Abilita.vue';

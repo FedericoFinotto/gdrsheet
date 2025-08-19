@@ -77,3 +77,7 @@ export function updateSpellUsage(payload) {
 export function updateTemporaryModifier(payload) {
     return api.post('/personaggi/stat/update-base', payload);
 }
+
+export function saveSpell(id, payload) {
+    console.log('salvato', id, payload);
+}

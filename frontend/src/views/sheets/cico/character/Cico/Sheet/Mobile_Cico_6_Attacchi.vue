@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {defineProps, ref, watch} from 'vue';
-import Tabella from "../../../../../components/Tabella.vue";
-import {useCharacterStore} from "../../../../../stores/personaggio";
+import Tabella from "../../../../../../components/Tabella.vue";
+import {useCharacterStore} from "../../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
-import {getValoreFormula} from "../../../../../function/Calcolo";
-import {testoFormula, testoModificatore} from "../../../../../function/Utils";
+import {getValoreFormula} from "../../../../../../function/Calcolo";
+import {testoFormula, testoModificatore} from "../../../../../../function/Utils";
 
 const characterStore = useCharacterStore();
 const {cache} = storeToRefs(characterStore);

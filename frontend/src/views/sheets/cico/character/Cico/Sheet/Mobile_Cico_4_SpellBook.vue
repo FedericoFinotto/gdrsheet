@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import {computed, defineProps, markRaw, reactive, ref, watch} from 'vue';
-import Tabella from '../../../../../components/Tabella.vue';
-import Mobile_DettaglioItem from '../Dettaglio/Mobile_DettaglioItem.vue';
-import {useCharacterStore} from '../../../../../stores/personaggio';
+import Tabella from '../../../../../../components/Tabella.vue';
+import Mobile_DettaglioItem from '../../Dettaglio/Mobile_DettaglioItem.vue';
+import {useCharacterStore} from '../../../../../../stores/personaggio';
 import {storeToRefs} from 'pinia';
-import usePopup from '../../../../../function/usePopup';
-import Mobile_Cico_4_SpellBookPrepare from '../Dettaglio/Mobile_Cico_4_SpellBookPrepare.vue';
-import {updatePreparedSpells, updateSpellUsage} from '../../../../../service/PersonaggioService';
-import {getValoreFormula} from '../../../../../function/Calcolo';
+import usePopup from '../../../../../../function/usePopup';
+import Mobile_Cico_4_SpellBookPrepare from '../../Dettaglio/Mobile_Cico_4_SpellBookPrepare.vue';
+import {updatePreparedSpells, updateSpellUsage} from '../../../../../../service/PersonaggioService';
+import {getValoreFormula} from '../../../../../../function/Calcolo';
+import {iconForComponent} from "../../../../../../function/Utils";
 
 const props = defineProps({
   idPersonaggio: {type: Number, required: true}
@@ -197,6 +198,12 @@ async function refundOne(row: any) {
 function columnsForLevel(_lvl: number, spellList?: string) {
   const cols: any[] = [{field: 'nome', label: ''}];
   if (spellList === 'SP_DRUID') {
+    cols.push({
+      field: 'icons',
+      label: '',
+      type: 'icons',
+      list: (row) => row.componenti.map(c => iconForComponent(c))
+    })
     cols.push({
       field: 'remaining',
       label: '',
