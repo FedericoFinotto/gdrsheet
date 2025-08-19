@@ -298,7 +298,7 @@ public class PersonaggioService {
                                     sv,
                                     modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
                                     modsDtoByStat.getOrDefault("CA", Collections.emptyList()),
-                                    carList
+                                    carList, taglia
                             ))
                             .toList()
             ).get();

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import {computed, defineProps, onMounted, ref} from 'vue';
-import {mostraLabel, testoFormula, testoModificatore} from "../../../../../function/Utils";
+import {iconForComponent, mostraLabel, testoFormula, testoModificatore} from "../../../../../function/Utils";
 import {getItem, switchItemState} from "../../../../../service/PersonaggioService";
 import {TIPO_ITEM} from "../../../../../function/Constants";
 import type {ItemDB} from "../../../../../models/ItemDB";
 import {getLabel, thereIsValoreLabel} from "../../../../../function/Calcolo";
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
+import Icona from "../../../../../components/Icona/Icona.vue";
 
 interface PropsData {
   item: ItemDB;            // l'oggetto item con id e tipo
@@ -116,6 +117,13 @@ onMounted(async () => {
 <template>
   <div class="abilita-detail-card" v-if="!loading && itemDetail">
     <button class="bottone" @click="switchState" v-if="disableLabel">{{ disableLabel }}</button>
+
+    <div v-if="itemDetail?.labels?.length" style="display: flex">
+      <div v-for="comp in itemDetail.labels">
+        <Icona v-if="comp.label==='COMP_SP'" :name="iconForComponent(comp.valore)"></Icona>
+      </div>
+    </div>
+
     <!-- Labels dinamiche -->
     <div v-if="Object.keys(labelMap).length">
       <div v-for="(val, key) in labelMap" :key="key">

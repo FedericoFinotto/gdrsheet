@@ -15,6 +15,17 @@ export const ICONS = {
     XMARK: {kind: 'fa', classes: 'fa-solid fa-xmark'},
     CHECK: {kind: 'fa', classes: 'fa-solid fa-check'},
     DUCK: {kind: 'img', src: P('icons/duck-rubber-debugging.svg'), alt: 'Duck'},
+    COMP_V: {kind: 'fa', classes: 'fa-solid fa-v'},    // Verbale
+    COMP_S: {kind: 'fa', classes: 'fa-solid fa-s'},         // Somatico
+    COMP_M: {kind: 'fa', classes: 'fa-solid fa-M'},         // Materiale
+    COMP_F: {kind: 'fa', classes: 'fa-solid fa-wand-sparkles'},      // Focus
+    COMP_DF: {kind: 'fa', classes: 'fa-solid fa-wand-sparkles'}, // Focus divino
+    COMP_XP: {kind: 'fa', classes: 'fa-solid fa-star'},          // Costo PE
+    COMP_X: {kind: 'fa', classes: 'fa-solid fa-coins'},         // Costo in mo (vedi testo)
+    COMP_CORRUPT: {kind: 'fa', classes: 'fa-solid fa-skull'},         // Corrupt (BoVD)
+    COMP_COLDFIRE: {kind: 'fa', classes: 'fa-solid fa-snowflake'},     // Coldfire (Frostburn) — puoi sostituire con SVG
+    COMP_FROSTFELL: {kind: 'fa', classes: 'fa-solid fa-snowflake'},     // Ambiente Frostfell
+    COMP_BREATH: {kind: 'fa', classes: 'fa-solid fa-wind'},          // Soffio (B)
 } as const satisfies Record<string, IconDef>;
 
 export type IconKey = keyof typeof ICONS;

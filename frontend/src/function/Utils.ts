@@ -1,3 +1,5 @@
+import {IconKey} from "../components/Icona/ListaIcone";
+
 const REGEX_DICE = /^\d+d\d+(?:[+-]\d+)?$/i;
 
 export function testoModificatore(mod: number | string): string {
@@ -78,6 +80,37 @@ export function mostraLabel(label: string, val: string): LabeledValue | null {
 
         default:
             return null; // non mostrare
+    }
+}
+
+export function iconForComponent(raw: string): IconKey {
+    const t = String(raw).trim().toUpperCase();
+    console.log('icona', t);
+    switch (t) {
+        case 'V':
+            return 'COMP_V';
+        case 'S':
+            return 'COMP_S';
+        case 'M':
+            return 'COMP_M';
+        case 'F':
+            return 'COMP_F';
+        case 'DF':
+            return 'COMP_DF';
+        case 'XP':
+            return 'COMP_XP';
+        case 'X':
+            return 'COMP_X';
+        case 'Corrupt':
+            return 'COMP_CORRUPT';
+        case 'Coldfire':
+            return 'COMP_COLDFIRE';
+        case 'Frostfell':
+            return 'COMP_FROSTFELL';
+        case 'B':
+            return 'COMP_BREATH';        // “Breath” (soffio)
+        default:
+            return 'COMP_M';              // fallback a qualcosa di neutro
     }
 }
 

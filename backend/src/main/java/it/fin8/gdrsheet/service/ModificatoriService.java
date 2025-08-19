@@ -135,9 +135,10 @@ public class ModificatoriService {
         );
     }
 
-    ClasseArmaturaDTO calcolaClasseArmatura(StatValue stat, List<ModificatoreDTO> modsDto, List<ModificatoreDTO> modsCADto, List<CaratteristicaDTO> carList) {
+    ClasseArmaturaDTO calcolaClasseArmatura(StatValue stat, List<ModificatoreDTO> modsDto, List<ModificatoreDTO> modsCADto, List<CaratteristicaDTO> carList, List<ItemLabel> taglie) {
         int modificatore = 0;
         applicaCalcoli(modsDto, carList);
+        int taglia = getTaglia(taglie);
 
         ModificatoreDTO schivare = prendiMaxDTO(modsCADto, TipoModificatore.CA_SCHIVARE);
         ModificatoreDTO armor = prendiMaxDTO(modsCADto, TipoModificatore.CA_ARMOR);
@@ -147,7 +148,9 @@ public class ModificatoriService {
         ModificatoreDTO magici = prendiMaxDTO(modsCADto, TipoModificatore.CA_MAGIC);
 
         List<ModificatoreDTO> valore = modsDto.stream().filter(x -> x.getSempreAttivo() && x.getTipo() == TipoModificatore.VALORE).toList();
+        List<ModificatoreDTO> valoreCA = modsCADto.stream().filter(x -> x.getSempreAttivo() && x.getTipo() == TipoModificatore.VALORE).toList();
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(valore);
+        modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia"));
 
         ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
                 .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel())).orElse(null);
@@ -164,12 +167,14 @@ public class ModificatoriService {
             modificatore = modificatoriAttivi.stream().mapToInt(ModificatoreDTO::getValore).sum();
         }
         if (stat.getStat().getId().equals("CAC")) {
+            modificatoriAttivi.addAll(valoreCA);
             modificatoriAttivi.addAll(Stream.of(
                     baseMod, schivare, deviazione, magici
             ).filter(Objects::nonNull).toList());
             modificatore = modificatoriAttivi.stream().mapToInt(ModificatoreDTO::getValore).sum();
         }
         if (stat.getStat().getId().equals("CAS")) {
+            modificatoriAttivi.addAll(valoreCA);
             modificatoriAttivi.addAll(Stream.of(
                     armor, naturale, deviazione, scudo, magici
             ).filter(Objects::nonNull).toList());
