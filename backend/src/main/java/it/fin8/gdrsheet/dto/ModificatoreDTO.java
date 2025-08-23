@@ -1,5 +1,6 @@
 package it.fin8.gdrsheet.dto;
 
+import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoModificatore;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -23,7 +24,9 @@ public class ModificatoreDTO {
 
     private TipoModificatore tipo;
 
-    private Boolean sempreAttivo;
+    private Boolean permanente;
 
     private String item;
+
+    private TipoItem tipoItem;
 }

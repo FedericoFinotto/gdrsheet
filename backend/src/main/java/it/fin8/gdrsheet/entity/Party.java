@@ -19,7 +19,8 @@ public class Party {
     @Column(name = "nome", nullable = false, length = Integer.MAX_VALUE)
     private String nome;
 
-    @Column(name = "mondo_id")
-    private Integer mondoId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "mondo_id")
+    private Mondo mondo;
 
 }

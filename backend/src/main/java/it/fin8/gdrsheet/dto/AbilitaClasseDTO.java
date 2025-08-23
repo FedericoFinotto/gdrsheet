@@ -11,13 +11,10 @@ import java.util.List;
 @AllArgsConstructor
 @Setter
 @NoArgsConstructor
-public class CaratteristicaDTO {
+public class AbilitaClasseDTO {
 
+    List<IdNomeDTO> classe;
     String id;
-    String label;
-    Integer valore;
-    Integer modificatore;
-    Integer modificatorePermanente;
-    List<ModificatoreDTO> modificatori;
+    Boolean all;
 
 }

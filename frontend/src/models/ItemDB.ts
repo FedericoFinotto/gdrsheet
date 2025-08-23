@@ -88,3 +88,14 @@ export interface ItemDB {
     labels: ItemLabel[];
     avanzamento: Avanzamento[];
 }
+
+export interface AbilitaClasse {
+    id: string;
+    classe: IdNome[];
+    all: boolean;
+}
+
+export interface IdNome {
+    id: number;
+    nome: string;
+}

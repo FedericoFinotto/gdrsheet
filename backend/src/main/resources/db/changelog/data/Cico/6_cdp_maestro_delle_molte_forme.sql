@@ -165,3 +165,30 @@ VALUES ((select id from items where nome = 'Maestro dalle molte forme 1'), 'BAB'
 INSERT into modificatori (id_item, id_stat, valore, always, nota, tipo)
 VALUES ((select id from items where nome = 'Allerta'), 'AB5', '+2', true, null, 'VALORE'),
        ((select id from items where nome = 'Allerta'), 'AB22', '+2', true, null, 'VALORE');
+
+INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo)
+VALUES ((select id from items where nome = 'Maestro dalle molte forme 1'), 'DV', '1d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 2'), 'DV', '2d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 3'), 'DV', '3d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 4'), 'DV', '4d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 5'), 'DV', '5d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 6'), 'DV', '6d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 7'), 'DV', '7d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 8'), 'DV', '8d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 9'), 'DV', '9d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 10'), 'DV', '10d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 1'), 'GRADI', '4*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 2'), 'GRADI', '5*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 3'), 'GRADI', '6*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 4'), 'GRADI', '7*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 5'), 'GRADI', '8*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 6'), 'GRADI', '9*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 7'), 'GRADI', '10*(@INT+4)', true, null,
+        'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 8'), 'GRADI', '11*(@INT+4)', true, null,
+        'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 9'), 'GRADI', '12*(@INT+4)', true, null,
+        'VALORE'),
+       ((select id from items where nome = 'Maestro dalle molte forme 10'), 'GRADI', '13*(@INT+4)', true, null,
+        'VALORE');
+

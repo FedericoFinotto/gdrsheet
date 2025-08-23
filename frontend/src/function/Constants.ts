@@ -17,6 +17,7 @@ export const TIPO_ITEM = {
     INCANTESIMO: 'INCANTESIMO',
     TRASFORMAZIONE: 'TRASFORMAZIONE',
     IDOLO: 'IDOLO',
+    AVANZAMENTO: 'AVANZAMENTO',
 } as const;
 
 export type TipoItem = typeof TIPO_ITEM[keyof typeof TIPO_ITEM];
@@ -55,6 +56,7 @@ export type TipoRuolo = typeof TIPO_RUOLO[keyof typeof TIPO_RUOLO];
 // Tipo modificatore (tipo_modificatore)
 export const TIPO_MODIFICATORE = {
     RANK: 'RANK',
+    BASE: 'BASE',
     VALORE: 'VALORE',
     CA_SCHIVARE: 'CA_SCHIVARE',
     CA_ARMOR: 'CA_ARMOR',

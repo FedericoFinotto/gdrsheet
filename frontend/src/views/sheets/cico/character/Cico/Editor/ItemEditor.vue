@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import {onMounted, ref, watch} from 'vue'
+import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import type {AxiosResponse} from 'axios'
-import {getItem} from "../../../../../../service/PersonaggioService"
-import SpellEditor from "./SpellEditor.vue"
+import {getItem} from '../../../../../../service/PersonaggioService'
+
+// Editors
+import SpellEditor from './SpellEditor.vue'
+import LivelloEditor from './LivelloEditor.vue' // <-- nuovo import
 
 const route = useRoute();
 const idItem = Number(route.params.id);
@@ -26,6 +29,18 @@ const router = useRouter()
 const loading = ref(false)
 const errorMsg = ref<string | null>(null)
 const item = ref<ItemDB | null>(null)
+
+// mappa tipo -> componente editor
+const EDITOR_BY_TYPE: Record<string, any> = {
+  INCANTESIMO: SpellEditor,
+  LIVELLO: LivelloEditor,     // <-- gestisce i "Livello"
+  // aggiungi qui altri tipi quando servirà
+}
+
+const EditorComp = computed(() => {
+  const t = item.value?.tipo
+  return t ? EDITOR_BY_TYPE[t] ?? null : null
+})
 
 function parseId(v: unknown): number | null {
   const n = Number(v);
@@ -50,7 +65,6 @@ onMounted(() => {
   load(idItem)
 })
 
-// 🔧 qui ascolto il param giusto
 watch(() => route.params.id, v => {
   const id = parseId(v);
   if (id != null) load(id)
@@ -77,12 +91,15 @@ function goBack() {
       <div v-else-if="!item" class="state empty">Nessun dato.</div>
 
       <template v-else>
-        <SpellEditor
-            v-if="item.tipo === 'INCANTESIMO'"
+        <!-- editor dinamico per tipo -->
+        <component
+            v-if="EditorComp"
+            :is="EditorComp"
             :item="item"
             @cancel="goBack"
             @saved="goBack"
         />
+
         <div v-else class="state unsupported">
           <p><strong>Tipo non gestito:</strong> {{ item.tipo }}</p>
           <button class="btn" @click="goBack">Torna indietro</button>
@@ -133,7 +150,6 @@ function goBack() {
   color: #3730a3;
 }
 
-/* 👇 scroll area con spazio extra in fondo per evitare tagli su mobile */
 .editor-scroll {
   flex: 1;
   min-height: 0;

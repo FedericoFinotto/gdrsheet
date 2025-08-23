@@ -101,7 +101,7 @@ public class CalcoloService {
                 .mapToLong(Long::longValue)
                 .sum();
 
-        caratteristiche.add(new CaratteristicaDTO("LVL", "Livello", null, Integer.parseInt(String.valueOf(livelloTotale)), null));
+        caratteristiche.add(new CaratteristicaDTO("LVL", "Livello", null, Integer.parseInt(String.valueOf(livelloTotale)), null, null));
 
         return calcola(formula, caratteristiche);
     }

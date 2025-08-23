@@ -63,6 +63,10 @@ const stat = computed(() => {
     if (attributo) {
       const infinito = attributo.modificatori.filter(x => x.sempreAttivo && x.formula === '+INF');
       let mod = attributo.modificatore;
+      if (mod === 0) {
+        mod = attributo.modificatori.map(v => v.formula)
+            .join(' + ');
+      }
       if (infinito && infinito.length > 0) {
         mod = '+∞';
       }

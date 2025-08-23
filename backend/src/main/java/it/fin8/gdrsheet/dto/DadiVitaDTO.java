@@ -8,16 +8,13 @@ import lombok.Setter;
 import java.util.List;
 
 @Getter
-@AllArgsConstructor
 @Setter
+@AllArgsConstructor
 @NoArgsConstructor
-public class CaratteristicaDTO {
-
+public class DadiVitaDTO {
     String id;
     String label;
-    Integer valore;
-    Integer modificatore;
-    Integer modificatorePermanente;
+    Integer totale;
+    String totaleStringa;
     List<ModificatoreDTO> modificatori;
-
 }

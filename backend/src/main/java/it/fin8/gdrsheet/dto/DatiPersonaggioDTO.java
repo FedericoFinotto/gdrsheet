@@ -25,6 +25,7 @@ public class DatiPersonaggioDTO {
     List<BonusAttaccoDTO> bonusAttacco;
     List<ContatoreDTO> contatori;
     List<AttributoDTO> attributi;
+    DadiVitaDTO dadiVita;
 
     public DatiPersonaggioDTO(Personaggio personaggio) {
         id = personaggio.getId();

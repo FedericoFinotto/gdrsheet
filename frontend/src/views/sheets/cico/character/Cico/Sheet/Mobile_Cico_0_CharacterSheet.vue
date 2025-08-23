@@ -10,6 +10,7 @@ import Mobile_Cico_Items from './Mobile_Cico_3_Items.vue';
 import Mobile_Cico_SpellBook from './Mobile_Cico_4_SpellBook.vue';
 import Mobile_Cico_Talenti from "./Mobile_Cico_5_Talenti.vue";
 import Mobile_Cico_Attacchi from "./Mobile_Cico_6_Attacchi.vue";
+import Mobile_Cico_Livelli from "./Mobile_Cico_7_Livelli.vue";
 
 const route = useRoute();
 const idPersonaggio = Number(route.params.id);
@@ -22,6 +23,7 @@ const tabs = [
   {label: 'Incantesimi', comp: Mobile_Cico_SpellBook},
   {label: 'Talenti', comp: Mobile_Cico_Talenti},
   {label: 'Attacchi', comp: Mobile_Cico_Attacchi},
+  {label: 'Livelli', comp: Mobile_Cico_Livelli}
 ];
 
 const activeIndex = ref(0);

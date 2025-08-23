@@ -1,5 +1,5 @@
 import api from './api';
-import {ItemDB} from "../models/ItemDB";
+import {AbilitaClasse, ItemDB} from "../models/ItemDB";
 import {AxiosResponse} from "axios";
 import {Statistiche} from "../models/Modificatori";
 import {
@@ -80,4 +80,29 @@ export function updateTemporaryModifier(payload) {
 
 export function saveSpell(id, payload) {
     return api.post(`/item/editspell/${id}`, payload);
+}
+
+export function getIdPersonaggioFromLivello(id: number) {
+    return api.get(`/personaggi/id-personaggio-da-livello/${id}`);
+}
+
+export function getListaAbilitaPerPersonaggio(id: number) {
+    return api.get(`/personaggi/stats/${id}`);
+}
+
+export function getListaClassiPerPersonaggio(id: number) {
+    return api.get(`/personaggi/classi-associabili/${id}`);
+}
+
+export function getListaMaledizioniPerPersonaggio(id: number) {
+    return api.get(`/personaggi/maledizioni-associabili/${id}`);
+}
+
+export function getAbilitaClasseByPersonaggioLivelloClasse(idPersonaggio: number, livello: number, idClasse: number): Promise<AxiosResponse<AbilitaClasse[]>> {
+    return api.get(`/personaggi/abilita-classe/${idPersonaggio}/${livello}/${idClasse}`);
+}
+
+export function saveLivello(payload) {
+    console.log(payload);
+    return null;
 }

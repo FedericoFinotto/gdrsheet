@@ -47,6 +47,7 @@ public class Item implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_mondo")
+    @JsonIgnoreProperties("items")
     private Mondo mondo;
 
     @OneToMany(mappedBy = "itemSource", fetch = FetchType.LAZY)

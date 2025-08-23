@@ -39,5 +39,6 @@ public final class Constants {
     public static final String COLLEGAMENTO_LABEL_N_USATI = "USED";
     public static final String COLLEGAMENTO_LABEL_N_PREPARATI = "PREPARED";
     public static final String COLLEGAMENTO_LABEL_ALWAYS_PREPARED = "ALWAYS";
+    public static final String ITEM_LIVELLO_LVL = "LVL";
 }
 

@@ -1,4 +1,6 @@
 import {IconKey} from "../components/Icona/ListaIcone";
+import {Avanzamento, ItemDB, Modificatore} from "../models/ItemDB";
+import {TIPO_ITEM} from "./Constants";
 
 const REGEX_DICE = /^\d+d\d+(?:[+-]\d+)?$/i;
 
@@ -27,6 +29,7 @@ export function testoFormula(formula: string): string {
         .replace(/0\.5/g, '½')   // sostituisce tutti i 0.5 con ½
         .replace('MSC', 'Mischia')
         .replace('GTT', 'Distanza')
+        .replace('INF', '∞')
         ;
 }
 
@@ -81,6 +84,9 @@ export function mostraLabel(label: string, val: string): LabeledValue | null {
         case 'TAGLIA':
             return {label: 'Taglia', value: testoTaglia(v)};
 
+        case 'SPELL':
+            return {label: 'Lista Incantesimi', value: v};
+
         default:
             return null; // non mostrare
     }
@@ -115,6 +121,65 @@ export function iconForComponent(raw: string): IconKey {
         default:
             return 'COMP_M';              // fallback a qualcosa di neutro
     }
+}
+
+function toLevel(a: Avanzamento): number {
+    const n = Number.parseInt((a as any).livello ?? '', 10);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function hasDerivedItem(a: Avanzamento): boolean {
+    const tgt: any = (a as any).itemTarget ?? (a as any).item ?? null;
+    return !!tgt && tgt.tipo !== TIPO_ITEM.AVANZAMENTO;
+}
+
+function hasDerivedMod(a: Avanzamento): boolean {
+    const tgt: any = (a as any).itemTarget ?? (a as any).item ?? null;
+    return !!tgt && tgt.modificatori.length > 0;
+}
+
+export function buildMappaItemAvanzamenti(list: Avanzamento[] | null | undefined, livello: number[] = null): Record<number, Avanzamento[]> {
+    if (!Array.isArray(list) || list.length === 0) return {};
+
+    const aaa = list.filter(x => livello === null || livello.includes(x.livello)).reduce<Record<number, Avanzamento[]>>((acc, a) => {
+        if (!hasDerivedItem(a)) return acc;
+
+        const lvl = toLevel(a);
+        if (!Number.isFinite(lvl)) return acc;
+
+        (acc[lvl] ??= []).push(a);
+        return acc;
+    }, {});
+    return aaa;
+}
+
+function getModsFromAvanzamento(a: Avanzamento): Modificatore[] {
+    // prendi i modificatori dell'item derivato; aggiungi altri fallback se servono
+    const target: ItemDB | undefined = (a as any).itemTarget ?? (a as any).item
+    const mods = target?.modificatori ?? []
+    // se l'itemTarget è di tipo AVANZAMENTO o non ha mods, ritorna []
+    if (!mods.length) return []
+    return mods
+}
+
+export function buildMappaModificatoriAvanzamenti(
+    list: Avanzamento[] | null | undefined,
+    livello: number[] = null
+): Record<number, Modificatore[]> {
+    const out: Record<number, Modificatore[]> = {}
+    if (!Array.isArray(list) || list.length === 0) return out
+
+    for (const a of list.filter(x => livello === null || livello.includes(x.livello))) {
+        const lvl = toLevel(a)
+        if (!Number.isFinite(lvl)) continue
+
+        const mods = getModsFromAvanzamento(a)
+        if (!mods.length) continue
+
+            ;
+        (out[lvl] ??= []).push(...mods)
+    }
+    return out
 }
 
 

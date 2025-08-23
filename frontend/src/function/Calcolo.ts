@@ -64,6 +64,12 @@ export function getLabel(personaggio, itemTarget: any, tipo: 'TPC' | 'TPD' | 'TS
     return label.valore;
 }
 
+export function getItemLabel(itemTarget: any, label: string) {
+    const lab = itemTarget.labels?.find((l: any) => l.label === label);
+    if (!lab) return null;
+    return lab.valore;
+}
+
 export function getValoreFormula(personaggio: Statistiche, formula: string) {
     if (!formula) return null;
     return calcolaFormula(formula, personaggio);

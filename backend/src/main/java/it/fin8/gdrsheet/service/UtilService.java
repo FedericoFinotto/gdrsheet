@@ -1,10 +1,15 @@
 package it.fin8.gdrsheet.service;
 
 import it.fin8.gdrsheet.config.Constants;
+import it.fin8.gdrsheet.dto.DiceSummary;
 import it.fin8.gdrsheet.entity.*;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Component
 public class UtilService {
@@ -176,6 +181,31 @@ public class UtilService {
             // } catch (Exception ignore) { }
             return "";
         }
+    }
+
+    public <T> DiceSummary combineDice(Collection<T> mods, Function<T, String> formulaExtractor) {
+        // cattura "NdM" con eventuali spazi, case-insensitive
+        final Pattern DICE_RE = Pattern.compile("\\b(\\d+)\\s*[dD]\\s*(\\d+)\\b");
+
+        Map<Integer, Integer> byFaces = new TreeMap<>(); // M -> somma N, ordinato per M
+        int totalN = 0;
+
+        for (T mod : mods) {
+            String f = Optional.ofNullable(formulaExtractor.apply(mod)).orElse("");
+            Matcher m = DICE_RE.matcher(f);
+            while (m.find()) {
+                int n = Integer.parseInt(m.group(1));
+                int faces = Integer.parseInt(m.group(2));
+                byFaces.merge(faces, n, Integer::sum);
+                totalN += n;
+            }
+        }
+
+        String combined = byFaces.entrySet().stream()
+                .map(e -> e.getValue() + "d" + e.getKey())
+                .collect(Collectors.joining(" + "));
+
+        return new DiceSummary(combined, totalN);
     }
 }
 

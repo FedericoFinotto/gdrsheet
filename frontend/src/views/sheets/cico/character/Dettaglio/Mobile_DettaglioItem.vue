@@ -1,16 +1,26 @@
 <script setup lang="ts">
 import {computed, defineProps, onMounted, ref} from 'vue';
-import {iconForComponent, mostraLabel, testoFormula, testoModificatore} from "../../../../../function/Utils";
+import {
+  buildMappaItemAvanzamenti,
+  buildMappaModificatoriAvanzamenti,
+  iconForComponent,
+  mostraLabel,
+  testoFormula,
+  testoModificatore
+} from "../../../../../function/Utils";
 import {getItem, switchItemState} from "../../../../../service/PersonaggioService";
 import {TIPO_ITEM} from "../../../../../function/Constants";
-import type {ItemDB} from "../../../../../models/ItemDB";
+import {Avanzamento, ItemDB, Modificatore} from "../../../../../models/ItemDB";
 import {getLabel, thereIsValoreLabel} from "../../../../../function/Calcolo";
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import Icona from "../../../../../components/Icona/Icona.vue";
 import {useRouter} from "vue-router";
+import usePopup from "../../../../../function/usePopup";
+import Mobile_DettaglioItem from "./Mobile_DettaglioItem.vue";
 
 const router = useRouter()
+const {openPopup} = usePopup()
 
 interface PropsData {
   item: ItemDB;            // l'oggetto item con id e tipo
@@ -26,6 +36,10 @@ const {cache} = storeToRefs(characterStore);
 const listaAbilita = ref<ItemDB[]>([]);
 const listaAttacchi = ref<ItemDB[]>([]);
 const listaMaledizioni = ref<ItemDB[]>([]);
+const mappaAvanzamenti = ref<Record<number, Avanzamento[]>>({});
+const mappaModificatori = ref<Record<number, Modificatore[]>>({});
+const listaAvanzamenti = ref<Avanzamento[]>([]);
+
 const itemDetail = ref<ItemDB | null>(null);
 const loading = ref(true);
 
@@ -90,6 +104,7 @@ onMounted(async () => {
 
     // Lista dei children
     const children = data.child ?? [];
+    const avanzamenti = data.avanzamento ?? [];
     listaAbilita.value = children
         .filter(c => c.itemTarget.tipo === TIPO_ITEM.ABILITA)
         .map(c => c.itemTarget);
@@ -99,6 +114,9 @@ onMounted(async () => {
     listaMaledizioni.value = children
         .filter(c => c.itemTarget.tipo === TIPO_ITEM.MALEDIZIONE)
         .map(c => c.itemTarget);
+    listaAvanzamenti.value = avanzamenti;
+    mappaAvanzamenti.value = buildMappaItemAvanzamenti(avanzamenti)
+    mappaModificatori.value = buildMappaModificatoriAvanzamenti(avanzamenti)
 
     // Popola mappe TPC/TPD in modo asincrono
     for (const atk of listaAttacchi.value) {
@@ -115,6 +133,14 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+function showInfoItemPopup(itm) {
+  openPopup(
+      Mobile_DettaglioItem,
+      {data: {item: {...itm}, personaggio: {id: props.data.idPersonaggio}}},
+      {closable: true, autoClose: 0}
+  )
+}
 </script>
 
 <template>
@@ -132,6 +158,58 @@ onMounted(async () => {
         <Icona v-if="comp.label==='COMP_SP'" :name="iconForComponent(comp.valore)"></Icona>
       </div>
     </div>
+
+    <div v-if="Object.keys(mappaAvanzamenti).length">
+      <table class="custom-table">
+        <tbody>
+        <tr>
+          <td><strong>Livello</strong></td>
+          <td><strong>Item derivati</strong></td>
+        </tr>
+        <tr v-for="(val, key) in mappaAvanzamenti" :key="`key`">
+          <td>{{ key }}</td>
+          <td>
+            <template v-for="av in val.filter(x => x.itemTarget.tipo !== TIPO_ITEM.AVANZAMENTO)">
+              <button
+                  v-if="av.itemTarget"
+                  type="button"
+                  class="pill"
+                  @click.stop="showInfoItemPopup(av.itemTarget)"
+                  :title="`${av.itemTarget.nome}`"
+              >
+                {{ av.itemTarget.nome }}
+              </button>
+            </template>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+      <div class="spazietto"/>
+    </div>
+
+    <div v-if="Object.keys(mappaModificatori).length">
+      <table class="custom-table">
+        <tbody>
+        <tr>
+          <td><strong>Livello</strong></td>
+          <td><strong>Modificatori</strong></td>
+        </tr>
+        <tr v-for="(val, key) in mappaModificatori" :key="`key`">
+          <td>{{ key }}</td>
+          <td>
+            <template v-for="av in val">
+              <span
+              >
+                <p>{{ testoFormula(testoModificatore(av.valore)) }} <strong>{{ av.stat.label }}</strong></p>
+              </span>
+            </template>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+      <div class="spazietto"/>
+    </div>
+
 
     <!-- Labels dinamiche -->
     <div v-if="Object.keys(labelMap).length">
@@ -163,13 +241,17 @@ onMounted(async () => {
     </div>
 
     <!-- Abilità -->
-    <div v-if="listaAbilita.length">
+    <div v-if="listaAbilita && listaAbilita.length">
       <p><strong>Abilità:</strong></p>
+
       <p v-for="ability in listaAbilita" :key="ability.id">
         {{ ability.nome }}
+        <Icona name="INFO" @click.stop="showInfoItemPopup(ability)"/>
       </p>
-      <div class="spazietto"/>
+
+      <div class="spazietto"></div>
     </div>
+
 
     <!-- Maledizioni -->
     <div v-if="listaMaledizioni.length">

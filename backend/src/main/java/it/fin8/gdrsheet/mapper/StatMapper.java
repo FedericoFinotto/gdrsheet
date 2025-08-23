@@ -23,4 +23,5 @@ public class StatMapper {
         result.setLabel(source.getLabel());
         return result;
     }
+
 }

@@ -1,5 +1,6 @@
 package it.fin8.gdrsheet.service;
 
+import it.fin8.gdrsheet.StatDefault;
 import it.fin8.gdrsheet.config.Constants;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoModificatore;
@@ -36,7 +37,7 @@ public class PersonaggioService {
     private ItemLabelRepository itemLabelRepository;
 
     @Autowired
-    private ModificatoreMapper modificatoreMapper;
+    public ModificatoreMapper modificatoreMapper;
 
     @Autowired
     private ItemMapper itemMapper;
@@ -225,12 +226,24 @@ public class PersonaggioService {
             }
         }
         List<Item> livelloItems = filteredItems.stream().filter(x -> x.getTipo().equals(TipoItem.LIVELLO)).toList();
+        Map<String, List<AbilitaClasseDTO>> abilitaClassePerLivello = new HashMap<>();
+        for (Item livello : livelloItems) {
+            livello.getChild().stream().map(Collegamento::getItemTarget).filter(itemTarget -> itemTarget.getTipo().equals(TipoItem.CLASSE)).findFirst()
+                    .ifPresent(classe -> abilitaClassePerLivello.put(
+                            livello.getLabel(Constants.ITEM_LIVELLO_LVL),
+                            modificatoriService.getAbilitaClasse(
+                                    livello.getPersonaggio().getId(),
+                                    Integer.parseInt(livello.getLabel(Constants.ITEM_LIVELLO_LVL)),
+                                    classe.getId()
+                            )
+                    ));
+        }
 
         // 6) Fetch Modificatori
         List<Integer> itemIds = filteredItems.stream().map(Item::getId).toList();
         List<Modificatore> allMods = modificatoreRepository.findAllByItemIdIn(itemIds);
 
-        List<ItemLabel> abClasse = itemLabelRepository.findByLabelAndItem_IdIn(Constants.ITEM_LABEL_ABILITA_CLASSE, itemIds);
+//        List<ItemLabel> abClasse = itemLabelRepository.findByLabelAndItem_IdIn(Constants.ITEM_LABEL_ABILITA_CLASSE, itemIds);
         List<ItemLabel> taglia = itemLabelRepository.findByLabelAndItem_IdIn(Constants.ITEM_LABEL_TAGLIA, itemIds);
 
         // 7) Raggruppa Modificatori e Rank in DTO
@@ -244,7 +257,7 @@ public class PersonaggioService {
                 .filter(m -> TipoModificatore.RANK.equals(m.getTipo()))
                 .collect(Collectors.groupingBy(
                         m -> m.getStat().getId(),
-                        Collectors.mapping(x -> modificatoreMapper.toRankDTO(x, abClasse), Collectors.toList())
+                        Collectors.mapping(x -> modificatoreMapper.toRankDTO(x, abilitaClassePerLivello), Collectors.toList())
                 ));
 
         // 8) Fetch StatValues con join fetch di Stat
@@ -262,6 +275,18 @@ public class PersonaggioService {
                 ))
                 .toList();
         dto.getCaratteristiche().addAll(carList);
+
+        Optional<DadiVitaDTO> dvOpt = stats.stream()
+                .filter(sv -> TipoStat.ATT.equals(sv.getStat().getTipo()) && "DV".equals(sv.getStat().getId()))
+                .findFirst()
+                .map(sv -> modificatoriService.calcolaDadiVita(
+                        sv,
+                        modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
+                        carList
+                ));
+
+        dvOpt.ifPresent(dto::setDadiVita);
+
 
         // 9b) Calcolo parallelo di Tiri Salvezza e Abilità
         ForkJoinPool pool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
@@ -325,7 +350,7 @@ public class PersonaggioService {
                                     sv,
                                     modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
                                     carList,
-                                    livelloItems
+                                    dto.getDadiVita()
                             ))
                             .toList()
             ).get();
@@ -333,7 +358,7 @@ public class PersonaggioService {
 
             List<AttributoDTO> attrList = pool.submit(() ->
                     stats.stream()
-                            .filter(sv -> TipoStat.ATT.equals(sv.getStat().getTipo()))
+                            .filter(sv -> TipoStat.ATT.equals(sv.getStat().getTipo()) && !sv.getStat().getId().equals("GRADI") && !sv.getStat().getId().equals("DV"))
                             .map(sv -> modificatoriService.calcolaAttributo(
                                     sv,
                                     modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
@@ -500,4 +525,26 @@ public class PersonaggioService {
         statValueRepository.save(s);
     }
 
+    public Integer getPersonaggioIdDaLivello(Integer idLivello) {
+        Item livello = itemRepository.findById(idLivello).orElseThrow(() -> new RuntimeException("Livello non trovato"));
+        if (!livello.getTipo().equals(TipoItem.LIVELLO)) {
+            throw new RuntimeException("L'item non e' un livello");
+        }
+        return livello.getPersonaggio().getId();
+    }
+
+    public List<AbilitaDTO> getStatsDaPersonaggio(Integer idPersonaggio) {
+        Personaggio personaggio = personaggioRepository.findById(idPersonaggio).orElseThrow(() -> new RuntimeException("Personaggio non trovato"));
+        List<StatDefault> listaDefault = personaggio.getParty().getMondo().getDefaultStats();
+        DatiPersonaggioDTO datiPersonaggio = getDatiPersonaggio(idPersonaggio);
+        return datiPersonaggio.getAbilita();
+    }
+
+    public List<Item> getItemAssociabili(Integer idPersonaggio, TipoItem tipoItem) {
+        Personaggio personaggio = personaggioRepository.findById(idPersonaggio).orElseThrow(() -> new RuntimeException("Personaggio non trovato"));
+        return personaggio.getParty().getMondo().getItems().stream().filter(x -> x.getTipo().equals(tipoItem)).toList();
+    }
+
 }
+
+

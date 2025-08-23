@@ -211,3 +211,50 @@ VALUES ((select id from items where nome = 'Senso della natura'), 'CO10', +2, tr
        ((select id from items where nome = 'DRUIDO 19'), 'VLT', '+11', true, null, 'VALORE'),
        ((select id from items where nome = 'DRUIDO 20'), 'VLT', '+12', true, null, 'VALORE'),
        ((select id from items where nome = 'DRUIDO 5'), 'NWS', '+1', true, null, 'VALORE');
+
+
+INSERT INTO modificatori (id_item, id_stat, valore, always, nota, tipo)
+VALUES ((select id from items where nome = 'DRUIDO 1'), 'DV', '1d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 2'), 'DV', '2d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 3'), 'DV', '3d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 4'), 'DV', '4d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 5'), 'DV', '5d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 6'), 'DV', '6d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 7'), 'DV', '7d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 8'), 'DV', '8d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 9'), 'DV', '9d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 10'), 'DV', '10d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 11'), 'DV', '11d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 12'), 'DV', '12d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 13'), 'DV', '13d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 14'), 'DV', '14d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 15'), 'DV', '15d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 16'), 'DV', '16d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 17'), 'DV', '17d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 18'), 'DV', '18d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 19'), 'DV', '19d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 20'), 'DV', '20d8', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 1'), 'GRADI', '4*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 2'), 'GRADI', '5*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 3'), 'GRADI', '6*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 4'), 'GRADI', '7*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 5'), 'GRADI', '8*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 6'), 'GRADI', '9*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 7'), 'GRADI', '10*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 8'), 'GRADI', '11*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 9'), 'GRADI', '12*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 10'), 'GRADI', '13*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 11'), 'GRADI', '14*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 12'), 'GRADI', '15*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 13'), 'GRADI', '16*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 14'), 'GRADI', '17*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 15'), 'GRADI', '18*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 16'), 'GRADI', '19*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 17'), 'GRADI', '20*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 18'), 'GRADI', '21*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 19'), 'GRADI', '22*(@INT+4)', true, null, 'VALORE'),
+       ((select id from items where nome = 'DRUIDO 20'), 'GRADI', '23*(@INT+4)', true, null, 'VALORE');
+
+
+INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo) VALUES
+                                                                                      ()
