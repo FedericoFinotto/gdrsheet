@@ -545,6 +545,60 @@ public class PersonaggioService {
         return personaggio.getParty().getMondo().getItems().stream().filter(x -> x.getTipo().equals(tipoItem)).toList();
     }
 
+    public GradiDTO getGradi(Integer idPersonaggio, Integer livello, Integer idClasse, String livelli) {
+
+        List<Integer> listaLivelli = Arrays.stream(livelli.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Integer::parseInt)
+                .toList();
+
+        DatiPersonaggioDTO dati = getDatiPersonaggio(idPersonaggio);
+        CaratteristicaDTO INT = dati.getCaratteristica("INT");
+        INT.setModificatore(INT.getModificatorePermanente());
+        List<CaratteristicaDTO> caratteristiche = List.of(INT);
+
+        int total = 0;
+        List<String> formule = new ArrayList<>();
+
+        Item classe = itemRepository.findById(idClasse)
+                .orElseThrow(() -> new RuntimeException("Classe non trovata"));
+
+        List<Item> lvls = classe.getAvanzamento().stream()
+                .filter(x -> listaLivelli.contains(x.getLivello()))
+                .map(Avanzamento::getItemTarget)
+                .filter(it -> it.getTipo().equals(TipoItem.AVANZAMENTO))
+                .toList();
+
+        for (Item item : lvls) {
+            Modificatore mod = item.getModificatori().stream()
+                    .filter(x -> "GRADI".equals(x.getStat().getId()))
+                    .findFirst().orElse(null);
+
+            if (mod != null) {
+                String formula = mod.getValore();
+                if (formula == null || formula.isBlank()) continue;
+
+                // se la formula contiene 4* e il livello passato non è 1, rimuovi il moltiplicatore iniziale "4*"
+                // gestisce anche spazi: "4*X", "4 * X", ecc.
+                String formulaEff = (livello != 1)
+                        ? formula.replaceFirst("^\\s*4\\s*\\*\\s*", "")
+                        : formula;
+
+                // (opzionale) normalizza il simbolo × se mai usato
+                // formulaEff = formulaEff.replace('×','*');
+
+                formule.add(formulaEff);
+
+                String valore = calcoloService.calcola(formulaEff, caratteristiche);
+                total += Integer.parseInt(valore);
+            }
+        }
+
+        return new GradiDTO(formule, total, livello + 3);
+    }
+
+
 }
 
 

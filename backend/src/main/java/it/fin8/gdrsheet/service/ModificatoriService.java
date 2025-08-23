@@ -514,4 +514,5 @@ public class ModificatoriService {
         return abilitaClasse.stream().filter(x -> x.getAll() || x.getClasse().stream().anyMatch(y -> y.getId().equals(idClasse))).toList();
     }
 
+
 }

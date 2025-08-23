@@ -61,7 +61,7 @@ const stat = computed(() => {
       return bonusAttacco;
     }
     if (attributo) {
-      const infinito = attributo.modificatori.filter(x => x.sempreAttivo && x.formula === '+INF');
+      const infinito = attributo.modificatori.filter(x => x.nota === null && (x.formula === '+INF' || x.formula === '+∞'));
       let mod = attributo.modificatore;
       if (mod === 0) {
         mod = attributo.modificatori.map(v => v.formula)

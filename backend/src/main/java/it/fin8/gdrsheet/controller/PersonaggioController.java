@@ -187,8 +187,25 @@ public class PersonaggioController {
             @PathVariable Integer idClasse
     ) {
         List<AbilitaClasseDTO> result = modificatoriService.getAbilitaClasse(idPersonaggio, livello, idClasse);
+        return ResponseEntity.ok(result);
+    }
 
-
+    @Operation(
+            summary = "Restituisce le classi associabili a un personaggio",
+            description = "Restituisce le classi associabili a un personaggio"
+    )
+    @GetMapping("/gradi-livello/{idPersonaggio}/{livello}/{livelli}/{idClasse}")
+    public ResponseEntity<GradiDTO> getGradiLivelloPerClassePersonaggio(
+            @Parameter(description = "ID Personaggio", required = true)
+            @PathVariable Integer idPersonaggio,
+            @Parameter(description = "Livello", required = true)
+            @PathVariable Integer livello,
+            @Parameter(description = "ID Classe", required = true)
+            @PathVariable Integer idClasse,
+            @Parameter(description = "Livelli", required = true)
+            @PathVariable String livelli
+    ) {
+        GradiDTO result = personaggioService.getGradi(idPersonaggio, livello, idClasse, livelli);
         return ResponseEntity.ok(result);
     }
 

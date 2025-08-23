@@ -102,6 +102,10 @@ export function getAbilitaClasseByPersonaggioLivelloClasse(idPersonaggio: number
     return api.get(`/personaggi/abilita-classe/${idPersonaggio}/${livello}/${idClasse}`);
 }
 
+export function getGradiClasseByPersonaggioLivelloClasse(idPersonaggio: number, livello: number, idClasse: number, livelli: string): Promise<AxiosResponse<AbilitaClasse[]>> {
+    return api.get(`/personaggi/gradi-livello/${idPersonaggio}/${livello}/${livelli}/${idClasse}`);
+}
+
 export function saveLivello(payload) {
     console.log(payload);
     return null;

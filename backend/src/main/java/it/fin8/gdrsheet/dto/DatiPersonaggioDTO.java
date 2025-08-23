@@ -39,4 +39,8 @@ public class DatiPersonaggioDTO {
         attributi = new ArrayList<>();
     }
 
+    public CaratteristicaDTO getCaratteristica(String id) {
+        return caratteristiche.stream().filter(c -> c.getId().equals(id)).findFirst().orElse(null);
+    }
+
 }
