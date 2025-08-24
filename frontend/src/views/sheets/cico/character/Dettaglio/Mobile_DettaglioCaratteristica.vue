@@ -6,15 +6,10 @@ import {updateTemporaryModifier} from '../../../../../service/PersonaggioService
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import Icona from "../../../../../components/Icona/Icona.vue";
 import Tabella from "../../../../../components/Tabella.vue";
-import {Caratteristica} from "../../../../../models/dto/Caratteristica";
-import {TiroSalvezza} from "../../../../../models/dto/TiroSalvezza";
-import {ClasseArmatura} from "../../../../../models/dto/ClasseArmatura";
-import {BonusAttacco} from "../../../../../models/dto/BonusAttacco";
-import {Attributo} from "../../../../../models/dto/Attributo";
 
 const props = defineProps({
   stat: {
-    type: Caratteristica | TiroSalvezza | ClasseArmatura | BonusAttacco | Attributo,
+    type: Object,
     required: true
   },
   idPersonaggio: {

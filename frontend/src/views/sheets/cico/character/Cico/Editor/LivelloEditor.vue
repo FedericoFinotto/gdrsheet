@@ -18,6 +18,8 @@ import {Item} from "../../../../../../models/dto/Item";
 import {UpdateLivelloRequest} from "../../../../../../models/dto/UpdateLivelloRequest";
 import {Abilita} from "../../../../../../models/dto/Abilita";
 import {Gradi} from "../../../../../../models/dto/Gradi";
+import {Rank} from "../../../../../../models/dto/Rank";
+import Mobile_DettaglioItemLivello from "../../Dettaglio/Mobile_DettaglioItemLivello.vue";
 
 /* ========= Tipi ========= */
 type Id = number
@@ -53,6 +55,15 @@ const form = reactive<UpdateLivelloRequest>({
 const busy = ref(false)
 const disabledAll = computed(() => !!props.readonly || busy.value)
 const canSave = computed(() => !busy.value && !props.readonly)
+const showOnlyModifiedAbilita = ref(true);
+
+function changeShowOnlyModifiedAbilita() {
+  showOnlyModifiedAbilita.value = !showOnlyModifiedAbilita.value;
+}
+
+function showAbilita(row: SkillRow) {
+  return !showOnlyModifiedAbilita.value || row.spent !== 0;
+}
 
 /* ========= Liste ========= */
 const classi = ref<Classe[]>([])
@@ -93,14 +104,17 @@ const isClassSkill = (uid: string) => abilitaClasseSet.value.has(uid.toLowerCase
 const currentByUid = reactive<Record<string, number>>({})
 
 function extractThisLevelRanks(a: Abilita, livelloItemId: number) {
-  const arr: any[] = Array.isArray(a?.rank?.ranks) ? (a!.rank!.ranks as any[]) : []
-  const mine = arr.filter(r => r?.itemId === livelloItemId || r?.idItem === livelloItemId)
-  const effect = mine.reduce((s, r) => s + (Number(r?.valore) || 0), 0)
-  const spent = mine.reduce((s, r) => {
-    const v = Number(r?.valore) || 0
-    return s + (r?.diClasse ? v : v * 2)
-  }, 0)
-  return {effect, spent}
+  const test = a.abilita.nome;
+  const allRanks: Rank[] = Array.isArray(a?.rank?.ranks) ? (a!.rank!.ranks as Rank[]) : []
+  const thisLevelRank: Rank[] = allRanks.filter(r => r?.itemId === livelloItemId)
+  const otherLevelRank: Rank[] = allRanks.filter(r => r?.itemId !== livelloItemId)
+  const thisLVL = thisLevelRank.reduce((s, r) => s + (r?.valore || 0), 0)
+  const otherLVL = otherLevelRank.reduce((s, r) => s + (r?.valore || 0), 0)
+  // const spent = thisLevelRank.reduce((s, r) => {
+  //   const v = Number(r?.valore) || 0
+  //   return s + (r?.diClasse ? v : v * 2)
+  // }, 0)
+  return {otherLVL, thisLVL}
 }
 
 function preloadAttualiDaStats() {
@@ -112,9 +126,9 @@ function preloadAttualiDaStats() {
     const uid = abilUid(a)
     if (!uid) continue
     const totalNow = Number(a?.rank?.modificatore ?? a?.rank?.valore ?? 0)
-    const {effect, spent} = extractThisLevelRanks(a, lvlId)
-    currentByUid[uid] = Math.max(0, totalNow - effect) // “Attuale” escluso questo livello
-    form.ranghi[uid] = spent                           // pre-riempi i ± con i punti già spesi
+    const {otherLVL, thisLVL} = extractThisLevelRanks(a, lvlId)
+    currentByUid[uid] = Math.max(0, otherLVL) // “Attuale” escluso questo livello
+    form.ranghi[uid] = thisLVL                          // pre-riempi i ± con i punti già spesi
   }
 }
 
@@ -172,6 +186,11 @@ const gradiInfo = ref<Gradi | null>(null)
 const livelliSelezionati = computed<number[]>(() =>
     Object.entries(form.livelliClasse).filter(([, v]) => !!v).map(([k]) => Number(k)).sort((a, b) => a - b)
 )
+
+const dettaglioKey = computed(() => [
+  personaggioId.value ?? 'nop', form.classeId ?? 'noclass', ...livelliSelezionati.value].join('-')
+)
+
 const totalPointsSpent = computed(() =>
     Object.values(form.ranghi).reduce((a, b) => a + (Number(b) || 0), 0)
 )
@@ -180,7 +199,7 @@ const showGradiTab = computed(() =>
 )
 const sumAbil = computed(() => {
   const total = gradiInfo.value?.toConsume ?? 0
-  const used = totalPointsSpent.value
+  const used = totalPointsSpent.value;
   const max = gradiInfo.value?.max ?? 0
   return `${used}/${total} (max ${max})`
 })
@@ -188,7 +207,7 @@ const sumAbil = computed(() => {
 let lastGradiReq = 0
 
 async function refreshGradiInfo() {
-  if (!personaggioId.value || !form.classeId || !form.livello) {
+  if (!personaggioId.value || !form.classeId || !form.livello || livelliSelezionati.value.length === 0) {
     gradiInfo.value = null;
     return
   }
@@ -196,7 +215,7 @@ async function refreshGradiInfo() {
   const token = ++lastGradiReq
   try {
     const res = await getGradiClasseByPersonaggioLivelloClasse(personaggioId.value, form.livello, form.classeId, levelsStr)
-    if (token === lastGradiReq) gradiInfo.value = unwrap<GradiDTO>(res)
+    if (token === lastGradiReq) gradiInfo.value = unwrap<Gradi>(res)
   } catch (e) {
     if (token === lastGradiReq) gradiInfo.value = null
     console.error('Errore getGradiClasseByPersonaggioLivelloClasse:', e)
@@ -252,7 +271,6 @@ function dec(uid: string) {
 // input manuale (punti spesi)
 function onDirectChange(uid: string, val: string) {
   const n = Math.max(0, Math.floor(Number(val)))
-  const before = form.ranghi[uid] ?? 0
   form.ranghi[uid] = n
   // clamp su budget
   if (gradiInfo.value) {
@@ -521,25 +539,43 @@ const sumScelta = computed(() => {
       </template>
     </TabExpandable>
 
+    <TabExpandable v-if="classeDetail" title="Info Livelli Classe" :defaultOpen="false">
+      <template #summary></template>
+      <template #content>
+        <Mobile_DettaglioItemLivello
+            :key="dettaglioKey"
+            :data="{ idPersonaggio: personaggioId, livello: livelliSelezionati, entity: classeDetail }"
+        />
+      </template>
+    </TabExpandable>
+
     <!-- Abilità & Ranghi -->
     <TabExpandable v-if="showGradiTab" title="Abilità & Ranghi" :defaultOpen="true">
       <template #summary>{{ sumAbil }}</template>
       <template #content>
-        <div class="box-info">
-          <div><strong>Ranghi disponibili:</strong> {{ (gradiInfo!.toConsume - totalPointsSpent) }} /
-            {{ gradiInfo!.toConsume }}
-          </div>
-          <div><strong>Max per abilità:</strong> {{ gradiInfo!.max }}</div>
-          <div v-if="gradiInfo!.formule?.length"><strong>Formula(e):</strong> {{ gradiInfo!.formule.join(' + ') }}</div>
+        <!--        <div class="box-info">-->
+        <!--          <div><strong>Ranghi disponibili:</strong> {{ (gradiInfo!.toConsume - totalPointsSpent) }} /-->
+        <!--            {{ gradiInfo!.toConsume }}-->
+        <!--          </div>-->
+        <!--          <div><strong>Max per abilità:</strong> {{ gradiInfo!.max }}</div>-->
+        <!--          <div v-if="gradiInfo!.formule?.length"><strong>Formula(e):</strong>-->
+        <!--            {{ testoFormula(gradiInfo!.formule.join(' + ')) }}-->
+        <!--          </div>-->
+        <!--        </div>-->
+        <div class="btn-wraper">
+          <button type="button" class="btn" @click="changeShowOnlyModifiedAbilita">
+            {{ showOnlyModifiedAbilita ? 'Mostra tutti' : 'Mostra solo modificati' }}
+          </button>
         </div>
 
         <div class="skills">
-          <div class="skill-row" v-for="r in rows" :key="r.uid">
+          <div class="skill-row" v-for="r in rows.filter(x => showAbilita(x))" :key="r.uid">
             <div class="skill-main">
-              <div class="skill-name">{{ r.name }}</div>
               <div class="skill-badges">
-                <span v-if="r.isClass" class="pill">di classe</span>
+                <span v-if="r.isClass" class="pill blue">CLASSE</span>
+                <span v-if="!r.isClass" class="pill red">CROSS</span>
               </div>
+              <div class="skill-name">{{ r.name }}</div>
             </div>
 
             <div class="skill-stats">
@@ -719,7 +755,7 @@ input[type="text"], input[type="number"], select {
 
 .skill-main {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: .25rem;
   min-width: 0;
 }
@@ -738,13 +774,26 @@ input[type="text"], input[type="number"], select {
 }
 
 .pill {
-  display: inline-block;
+  display: inline-flex; /* inline-block → inline-flex */
+  align-items: center; /* centro verticale */
+  justify-content: center; /* centro orizzontale, se vuoi */
   padding: .1rem .45rem;
   border-radius: .5rem;
-  background: #eef2ff;
-  color: #3730a3;
   font-size: .8rem;
 }
+
+/* Variante blu */
+.pill.blue {
+  background: #dbeafe; /* azzurrino */
+  color: #1e3a8a; /* blu scuro */
+}
+
+/* Variante rossa */
+.pill.red {
+  background: #fee2e2; /* rosino */
+  color: #b91c1c; /* rosso scuro */
+}
+
 
 .skill-stats {
   display: grid;
@@ -833,5 +882,13 @@ input[type="text"], input[type="number"], select {
 .btn:disabled {
   opacity: .6;
   cursor: default;
+}
+
+.btn-wraper {
+  display: flex;
+  align-items: center;
+  padding: .2rem;
+  justify-content: end;
+  gap: .2rem;
 }
 </style>

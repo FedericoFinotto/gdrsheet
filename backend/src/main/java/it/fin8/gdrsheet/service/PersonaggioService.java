@@ -243,7 +243,6 @@ public class PersonaggioService {
         List<Integer> itemIds = filteredItems.stream().map(Item::getId).toList();
         List<Modificatore> allMods = modificatoreRepository.findAllByItemIdIn(itemIds);
 
-//        List<ItemLabel> abClasse = itemLabelRepository.findByLabelAndItem_IdIn(Constants.ITEM_LABEL_ABILITA_CLASSE, itemIds);
         List<ItemLabel> taglia = itemLabelRepository.findByLabelAndItem_IdIn(Constants.ITEM_LABEL_TAGLIA, itemIds);
 
         // 7) Raggruppa Modificatori e Rank in DTO

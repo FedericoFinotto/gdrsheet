@@ -21,7 +21,7 @@ const router = useRouter()
 const {openPopup} = usePopup()
 
 interface PropsData {
-  idItem: number;            // l'oggetto item con id e tipo
+  idItem?: number;            // l'oggetto item con id e tipo
   livello: number[];
   idPersonaggio: number;
   entity: ItemDB;
