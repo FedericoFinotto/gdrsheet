@@ -10,7 +10,6 @@ import {
 } from "../../../../../function/Utils";
 import {getItem, switchItemState} from "../../../../../service/PersonaggioService";
 import {ItemDB, TIPO_ITEM} from "../../../../../models/entity/ItemDB";
-import {getLabel, thereIsValoreLabel} from "../../../../../function/Calcolo";
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import Icona from "../../../../../components/Icona/Icona.vue";
@@ -20,6 +19,7 @@ import Mobile_DettaglioItem from "./Mobile_DettaglioItem.vue";
 import {Modificatore} from "../../../../../models/entity/Modificatore";
 import {Avanzamento} from "../../../../../models/entity/Avanzamento";
 import {Item} from "../../../../../models/dto/Item";
+import {getItemLabel, LABELS, thereIsValoreLabel} from "../../../../../models/entity/ItemLabel";
 
 const router = useRouter()
 const {openPopup} = usePopup()
@@ -121,11 +121,11 @@ onMounted(async () => {
 
     // Popola mappe TPC/TPD in modo asincrono
     for (const atk of listaAttacchi.value) {
-      if (thereIsValoreLabel(personaggio, atk, 'TPC')) {
-        tpcMap.value[atk.id] = testoFormula(getLabel(personaggio, atk, 'TPC'))
+      if (thereIsValoreLabel(atk, LABELS.TIRO_COLPIRE)) {
+        tpcMap.value[atk.id] = testoFormula(getItemLabel(atk, LABELS.TIRO_COLPIRE))
       }
-      if (thereIsValoreLabel(personaggio, atk, 'TPD')) {
-        tpdMap.value[atk.id] = testoFormula(getLabel(personaggio, atk, 'TPD'));
+      if (thereIsValoreLabel(atk, LABELS.TIRO_DANNI)) {
+        tpdMap.value[atk.id] = testoFormula(getItemLabel(atk, LABELS.TIRO_DANNI));
       }
     }
   } catch (e) {

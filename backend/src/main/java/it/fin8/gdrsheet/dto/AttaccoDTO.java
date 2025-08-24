@@ -13,4 +13,7 @@ public class AttaccoDTO extends ItemDTO {
     private String attacco;
     private String colpo;
     private String nomeItem;
+    private String tiroSalvezza;
+    private String tipoDanno;
+    private String range;
 }

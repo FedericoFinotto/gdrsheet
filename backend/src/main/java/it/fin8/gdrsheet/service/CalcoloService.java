@@ -1,8 +1,11 @@
 package it.fin8.gdrsheet.service;
 
+import it.fin8.gdrsheet.config.Constants;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.dto.CaratteristicaDTO;
 import it.fin8.gdrsheet.dto.DatiPersonaggioDTO;
+import it.fin8.gdrsheet.dto.InfoClasseDTO;
+import it.fin8.gdrsheet.dto.InfoLivelliDTO;
 import it.fin8.gdrsheet.entity.Collegamento;
 import it.fin8.gdrsheet.entity.Item;
 import it.fin8.gdrsheet.mapper.StatMapper;
@@ -11,13 +14,11 @@ import net.objecthunter.exp4j.ExpressionBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Component
 public class CalcoloService {
@@ -27,6 +28,10 @@ public class CalcoloService {
 
     @Autowired
     private ItemRepository itemRepository;
+
+    @Autowired
+    private UtilService utilService;
+
 
     private static final Pattern PATTERN_PLACEH = Pattern.compile("@\\w+");
     private static final Pattern PATTERN_DICE = Pattern.compile("\\d+d\\d+(?:\\d+)?");
@@ -95,26 +100,73 @@ public class CalcoloService {
         }
 
         List<Item> initialRoots = itemRepository.findAllByPersonaggioIdWithChild(dati.getId());
-        Map<Item, Long> livelli = getLivelli(initialRoots);
-        long livelloTotale = livelli.values()
-                .stream()
-                .mapToLong(Long::longValue)
-                .sum();
-
-        caratteristiche.add(new CaratteristicaDTO("LVL", "Livello", null, Integer.parseInt(String.valueOf(livelloTotale)), null, null));
+        caratteristiche.add(new CaratteristicaDTO("LVL", "Livello", null, Integer.parseInt(String.valueOf(getLivelli(initialRoots).getLivello())), null, null));
 
         return calcola(formula, caratteristiche);
     }
 
-    public Map<Item, Long> getLivelli(List<Item> initialRoots) {
-        return initialRoots.stream()
-                .filter(i -> TipoItem.LIVELLO.equals(i.getTipo()))
-                .map(liv -> liv.getChild().stream()
-                        .map(Collegamento::getItemTarget)
-                        .filter(itemTarget -> TipoItem.CLASSE.equals(itemTarget.getTipo()))
-                        .findFirst().orElse(null))
+    public InfoLivelliDTO getLivelli(List<Item> initialRoots) {
+        InfoLivelliDTO out = new InfoLivelliDTO();
+        if (initialRoots == null || initialRoots.isEmpty()) {
+            out.setLivello(0);
+            out.setClassi(Collections.emptyList());
+            return out;
+        }
+
+        // 1) Prendo SOLO i livelli non disabilitati
+        List<Item> livelliAttivi = initialRoots.stream()
                 .filter(Objects::nonNull)
-                .collect(Collectors.groupingBy(c -> c, Collectors.counting()));
+                .filter(i -> TipoItem.LIVELLO.equals(i.getTipo()))
+                .filter(x -> !utilService.parseBooleanFromString(x.getLabel(Constants.ITEM_LABEL_DISABILITATO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE))
+                .toList();
+
+        // 2) livello = numero di livelli attivi
+        out.setLivello(livelliAttivi.size() - 1);
+
+        // 3) Per ogni livello attivo: trova le classi collegate e i valori LVL_CLASSE (lista di interi)
+        //    Costruisci una mappa Classe -> TreeSet<Integer> dei livelli (ordinati, unici)
+        Map<Item, Set<Integer>> perClasse = livelliAttivi.stream()
+                .flatMap(livello -> {
+                    // livelli dichiarati nella label LVL_CLASSE
+                    List<Integer> lvls = utilService.parseStringToIntList(
+                            livello.getLabel(Constants.ITEM_LIVELLO_LVL_CLASSE)
+                    );
+                    if (lvls.isEmpty()) return Stream.empty();
+
+                    // tutte le classi collegate a questo livello
+                    List<Item> classi = Optional.ofNullable(livello.getChild())
+                            .orElseGet(Collections::emptyList)
+                            .stream()
+                            .map(Collegamento::getItemTarget)
+                            .filter(it -> TipoItem.CLASSE.equals(it.getTipo()))
+                            .toList();
+                    if (classi.isEmpty()) return Stream.empty();
+
+                    // flat: (classe, livelloSingolo)
+                    return classi.stream().flatMap(cl ->
+                            lvls.stream().map(lv -> new AbstractMap.SimpleEntry<>(cl, lv)));
+                })
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getKey,
+                        LinkedHashMap::new,
+                        Collectors.mapping(Map.Entry::getValue, Collectors.toCollection(TreeSet::new))
+                ));
+
+        // 4) Converto in List<InfoClasseDTO>
+        List<InfoClasseDTO> classi = perClasse.entrySet().stream()
+                .map(e -> {
+                    InfoClasseDTO dto = new InfoClasseDTO();
+                    dto.setClasse(e.getKey());
+                    dto.setLivelli(e.getValue()); // già TreeSet -> ordinato e unico
+                    return dto;
+                })
+                // opzionale: ordina per nome classe
+                .sorted(Comparator.comparing(x -> x.getClasse().getNome(), Comparator.nullsLast(String::compareToIgnoreCase)))
+                .toList();
+
+        out.setClassi(classi);
+        return out;
     }
+
 
 }

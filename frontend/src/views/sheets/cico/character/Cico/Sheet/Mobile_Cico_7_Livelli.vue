@@ -4,6 +4,7 @@ import Tabella from "../../../../../../components/Tabella.vue";
 import {useCharacterStore} from "../../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import Mobile_DettaglioLivello from "../../Dettaglio/Mobile_DettaglioLivello.vue";
+import {Livello} from "../../../../../../models/dto/Livello";
 
 const characterStore = useCharacterStore();
 const {cache} = storeToRefs(characterStore);
@@ -14,7 +15,7 @@ const props = defineProps({
     required: true
   }
 });
-const itemsLivelli = ref<Object[]>([]);
+const itemsLivelli = ref<Livello[]>([]);
 
 watch(
     () => cache.value[props.idPersonaggio]?.items,
@@ -29,17 +30,20 @@ watch(
           .map(itm => {
             return {
               ...itm,
+              testoLivello: `Livello ${itm.livello}`,
+              testoClasse: `${itm.classe ?? ''}${itm.maledizione ?? ''} ${itm.livelliClasse.join(' ')}`,
               expandedComponent: markRaw(Mobile_DettaglioLivello),
               expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
             };
           })
-          .sort((a, b) => a.nome.localeCompare(b.nome));
+          .sort((a, b) => Number(a.livello ?? 0) - Number(b.livello ?? 0));
     },
     {immediate: true, deep: true}
 );
 
 const columnsAttacchi = [
-  {field: 'nomeItem', subfield: 'nome', label: 'Livello'},
+  {field: 'testoLivello', subfield: '', label: 'Livello'},
+  {field: 'testoClasse', subfield: '', label: ''},
 ];
 </script>
 

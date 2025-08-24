@@ -26,6 +26,7 @@ const characterStore = useCharacterStore();
 const {cache} = storeToRefs(characterStore);
 
 const listaClassi = ref<ItemDB[]>([]);
+const listaMaledizioni = ref<ItemDB[]>([]);
 const itemDetail = ref<ItemDB | null>(null);
 const loading = ref(true);
 
@@ -33,9 +34,6 @@ const loading = ref(true);
 const labelMap = ref<Record<string, string>>({});
 
 // Mappe per TPC/TPD
-const tpcMap = ref<Record<number, string>>({});
-const tpdMap = ref<Record<number, string>>({});
-
 async function switchState() {
   let itemIdToSwitch = [];
   if (itemInfo.disabled) {
@@ -93,6 +91,9 @@ onMounted(async () => {
     listaClassi.value = children
         .filter(c => c.itemTarget.tipo === TIPO_ITEM.CLASSE || c.itemTarget.tipo === TIPO_ITEM.RAZZA)
         .map(c => c.itemTarget);
+    listaMaledizioni.value = children
+        .filter(c => c.itemTarget.tipo === TIPO_ITEM.MALEDIZIONE)
+        .map(c => c.itemTarget);
 
   } catch (e) {
     console.error('Errore caricamento item:', e);
@@ -142,6 +143,17 @@ function showInfoAbilitaPopup(itm) {
       <p><strong>Classe:</strong></p>
 
       <p v-for="ability in listaClassi" :key="ability.id">
+        {{ ability.nome }}
+        <Icona name="INFO" @click.stop="showInfoAbilitaPopup(ability)"/>
+      </p>
+
+      <div class="spazietto"></div>
+    </div>
+
+    <div v-if="listaMaledizioni && listaMaledizioni.length">
+      <p><strong>Maledizione:</strong></p>
+
+      <p v-for="ability in listaMaledizioni" :key="ability.id">
         {{ ability.nome }}
         <Icona name="INFO" @click.stop="showInfoAbilitaPopup(ability)"/>
       </p>

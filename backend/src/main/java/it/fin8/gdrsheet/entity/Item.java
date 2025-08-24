@@ -118,4 +118,8 @@ public class Item implements Serializable {
         }
     }
 
+    public Collegamento getChildByType(TipoItem type) {
+        return child.stream().filter(x -> x.getItemTarget().getTipo().equals(type)).findFirst().orElse(null);
+    }
+
 }

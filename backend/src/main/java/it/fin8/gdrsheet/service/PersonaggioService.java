@@ -62,7 +62,7 @@ public class PersonaggioService {
             Item cur = stack.pop();
 
             result.add(cur);
-            boolean isDisabled = cur.getLabel(Constants.ITEM_LABEL_DISABILITATO) != null && cur.getLabel(Constants.ITEM_LABEL_DISABILITATO).equals("1");
+            boolean isDisabled = utilService.parseBooleanFromString(cur.getLabel(Constants.ITEM_LABEL_DISABILITATO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
 
             if (!isDisabled) {
                 List<Item> competenze = findCompetenze(cur);
@@ -70,11 +70,17 @@ public class PersonaggioService {
 
                 if (cur.getChild() != null) {
                     for (Collegamento col : cur.getChild().stream().filter(x -> !x.getItemTarget().getTipo().equals(TipoItem.CLASSE)).toList()) {
-                        boolean isColDisabled = col.getLabel(Constants.ITEM_LABEL_DISABILITATO) != null && col.getLabel(Constants.ITEM_LABEL_DISABILITATO).equals("1");
-                        if (isColDisabled) {
+                        if (utilService.parseBooleanFromString(col.getLabel(Constants.ITEM_LABEL_DISABILITATO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE)) {
                             col.getItemTarget().setLabel(Constants.ITEM_LABEL_DISABILITATO, Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE);
                         }
-                        stack.push(col.getItemTarget());
+                        if (cur.getTipo().equals(TipoItem.LIVELLO)) {
+                            if (!List.of(TipoItem.CLASSE, TipoItem.MALEDIZIONE).contains(col.getItemTarget().getTipo())) {
+                                stack.push(col.getItemTarget());
+                            }
+                        } else {
+                            stack.push(col.getItemTarget());
+                        }
+
                     }
                 }
 
@@ -125,7 +131,7 @@ public class PersonaggioService {
                 itemsDTO.getAttacchi().add(itemMapper.toAttaccoDTO(itm));
             }
             if (TipoItem.LIVELLO.equals(itm.getTipo())) {
-                itemsDTO.getLivelli().add(itemMapper.toDTO(itm));
+                itemsDTO.getLivelli().add(itemMapper.toLivelloDTO(itm));
             }
             if (TipoItem.MALEDIZIONE.equals(itm.getTipo())) {
                 itemsDTO.getMaledizioni().add(itemMapper.toDTO(itm));
@@ -144,10 +150,10 @@ public class PersonaggioService {
             }
         }
 
-        for (Map.Entry<Item, Long> classe : allPersonaggioItems.getClassi().entrySet()) {
+        for (InfoClasseDTO classe : allPersonaggioItems.getLivelli().getClassi()) {
             itemsDTO.getClassi().add(itemMapper.toClasseDTO(classe));
 
-            SpellBookDTO spellbook = generateSpellBook(classe.getKey(), classe.getValue(), id);
+            SpellBookDTO spellbook = generateSpellBook(classe.getClasse(), classe.getMax(), id);
             if (spellbook != null) {
                 itemsDTO.getSpellbooks().add(spellbook);
             }
@@ -163,32 +169,19 @@ public class PersonaggioService {
         List<Item> initialRoots = itemRepository.findAllByPersonaggioIdWithChild(idPersonaggio);
 
         // Determina le classi e livelli dai soli rootItems
-        result.setClassi(calcoloService.getLivelli(initialRoots));
+        result.setLivelli(calcoloService.getLivelli(initialRoots));
 
         // Raccogli root items aggiuntive dagli avanzamenti di classe
         List<Item> advanceRoots = new ArrayList<>();
-        for (Map.Entry<Item, Long> entry : result.getClassi().entrySet()) {
-            Item classe = entry.getKey();
-            long livello = entry.getValue();
-            advanceRoots.add(classe);
 
-            List<Avanzamento> aumentoStatistiche = new ArrayList<>();
-            if (classe.getAvanzamento() != null) {
-                for (Avanzamento av : classe.getAvanzamento()) {
-                    if (av.getLivello() <= livello) {
-                        if (av.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO)) {
-                            aumentoStatistiche.add(av);
-                        } else {
-                            advanceRoots.add(av.getItemTarget());
-                        }
-                    }
-                }
-
-                aumentoStatistiche.stream()
-                        .max(Comparator.comparing(Avanzamento::getLivello)).ifPresent(stat -> advanceRoots.add(stat.getItemTarget()));
-
+        for (InfoClasseDTO classe : result.getLivelli().getClassi()) {
+            Item entity = classe.getClasse();
+            Set<Integer> livelliClasse = classe.getLivelli();
+            if (entity != null && livelliClasse != null && !livelliClasse.isEmpty()) {
+                advanceRoots.add(entity);
+                advanceRoots.addAll(entity.getAvanzamento().stream().filter(x -> livelliClasse.contains(x.getLivello()) && !x.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO)).map(Avanzamento::getItemTarget).toList());
+                advanceRoots.addAll(entity.getAvanzamento().stream().filter(x -> Objects.equals(x.getLivello(), classe.getMax()) && x.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO)).map(Avanzamento::getItemTarget).toList());
             }
-
         }
 
         result.setItems(
@@ -474,7 +467,7 @@ public class PersonaggioService {
         return new ArrayList<>();
     }
 
-    private SpellBookDTO generateSpellBook(Item classe, Long lvl, Integer idPersonaggio) {
+    private SpellBookDTO generateSpellBook(Item classe, Integer lvl, Integer idPersonaggio) {
         ItemLabel spellList = classe.getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_LISTA_INCANTESIMI)).findFirst().orElse(null);
         if (spellList == null) return null;
         SpellBookDTO spellBook = new SpellBookDTO();

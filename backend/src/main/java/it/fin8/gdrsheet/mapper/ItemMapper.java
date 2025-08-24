@@ -1,10 +1,10 @@
 package it.fin8.gdrsheet.mapper;
 
 import it.fin8.gdrsheet.config.Constants;
+import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.dto.*;
 import it.fin8.gdrsheet.entity.Collegamento;
 import it.fin8.gdrsheet.entity.Item;
-import it.fin8.gdrsheet.entity.ItemLabel;
 import it.fin8.gdrsheet.service.UtilService;
 import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Component;
@@ -29,6 +29,25 @@ public class ItemMapper {
         dto.setNome(entity.getNome());
         dto.setTipo(entity.getTipo());
         dto.setDisabled(isDisabled(entity));
+        return dto;
+    }
+
+    public LivelloDTO toLivelloDTO(Item entity) {
+        LivelloDTO dto = new LivelloDTO();
+        dto.setId(entity.getId());
+        dto.setNome(entity.getNome());
+        dto.setTipo(entity.getTipo());
+        dto.setDisabled(isDisabled(entity));
+        dto.setLivello(Integer.parseInt(entity.getLabel(Constants.ITEM_LIVELLO_LVL)));
+        Collegamento classe = entity.getChildByType(TipoItem.CLASSE);
+        Collegamento maledizione = entity.getChildByType(TipoItem.MALEDIZIONE);
+        if (classe != null) {
+            dto.setClasse(classe.getItemTarget().getNome());
+        }
+        if (maledizione != null) {
+            dto.setMaledizione(maledizione.getItemTarget().getNome());
+        }
+        dto.setLivelliClasse(utilService.parseStringToIntList(entity.getLabel(Constants.ITEM_LIVELLO_LVL_CLASSE)));
         return dto;
     }
 
@@ -70,9 +89,6 @@ public class ItemMapper {
     }
 
     public AttaccoDTO toAttaccoDTO(Item entity) {
-        List<ItemLabel> itemLabels = entity.getLabels();
-        ItemLabel attacco = itemLabels.stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_TIRO_PER_COLPIRE)).findFirst().orElse(null);
-        ItemLabel danno = itemLabels.stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_DANNI)).findFirst().orElse(null);
         List<Collegamento> parents = entity.getParent();
         String nomeItemParent = null;
         if (parents != null && !parents.isEmpty()) {
@@ -84,12 +100,12 @@ public class ItemMapper {
         dto.setNome(entity.getNome());
         dto.setTipo(entity.getTipo());
         dto.setNomeItem(nomeItemParent);
-        if (attacco != null) {
-            dto.setAttacco(attacco.getValore());
-        }
-        if (danno != null) {
-            dto.setColpo(danno.getValore());
-        }
+        dto.setAttacco(entity.getLabel(Constants.ITEM_LABEL_ATTACCO_TIRO_PER_COLPIRE));
+        dto.setColpo(entity.getLabel(Constants.ITEM_LABEL_ATTACCO_DANNI));
+        dto.setTiroSalvezza(entity.getLabel(Constants.ITEM_LABEL_ATTACCO_TIRO_SALVEZZA));
+        dto.setTipoDanno(entity.getLabel(Constants.ITEM_LABEL_ATTACCO_TIPO_DANNI));
+        dto.setRange(entity.getLabel(Constants.ITEM_LABEL_ATTACCO_RANGE));
+
         return dto;
     }
 
@@ -98,14 +114,13 @@ public class ItemMapper {
         return disabledLabel != null && disabledLabel.equals("1");
     }
 
-    public ClasseDTO toClasseDTO(Map.Entry<Item, Long> classe) {
-        Item entity = classe.getKey();
-        Integer livello = Math.toIntExact(classe.getValue());
+    public ClasseDTO toClasseDTO(InfoClasseDTO classe) {
+        Item entity = classe.getClasse();
         ClasseDTO dto = new ClasseDTO();
         dto.setId(entity.getId());
         dto.setNome(entity.getNome());
         dto.setTipo(entity.getTipo());
-        dto.setLivello(livello);
+        dto.setLivelli(classe.getLivelli().stream().toList());
         dto.setSpell(utilService.getItemLabel(entity, Constants.ITEM_LABEL_LISTA_INCANTESIMI));
         return dto;
     }

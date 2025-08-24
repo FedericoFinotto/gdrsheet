@@ -2,6 +2,7 @@ import {IconKey} from "../components/Icona/ListaIcone";
 import {ItemDB, TIPO_ITEM} from "../models/entity/ItemDB";
 import {Modificatore} from "../models/entity/Modificatore";
 import {Avanzamento} from "../models/entity/Avanzamento";
+import {LABELS} from "../models/entity/ItemLabel";
 
 const REGEX_DICE = /^\d+d\d+(?:[+-]\d+)?$/i;
 
@@ -21,6 +22,10 @@ export function testoModificatore(mod: number | string): string {
 
     // fallback: ritorna la stringa così com'è
     return str;
+}
+
+export function removePlus(valore: string) {
+    return valore.replace('+', '');
 }
 
 export function testoFormula(formula: string): string {
@@ -66,26 +71,26 @@ export function mostraLabel(label: string, val: string): LabeledValue | null {
     const v = String(val ?? '').trim();
 
     switch (label) {
-        case 'TEMPO_SP':
+        case LABELS.SPELL_TEMPO:
             return {label: 'Azione', value: v};
 
-        case 'RANGE_SP':
+        case LABELS.SPELL_RANGE:
             return {label: 'Range', value: v};
 
-        case 'DURATA_SP':
+        case LABELS.SPELL_DURATA:
             return {label: 'Durata', value: v};
 
-        case 'TS_SP':
+        case LABELS.SPELL_TIRO_SALVEZZA:
             if (v.toLowerCase() === 'none' || v === '') return null; // nascondi se "None"
             return {label: 'Tiro Salvezza', value: v};
 
-        case 'SCUOLA_SP':
+        case LABELS.SPELL_SCUOLA:
             return {label: 'Scuola', value: v};
 
-        case 'TAGLIA':
+        case LABELS.TAGLIA:
             return {label: 'Taglia', value: testoTaglia(v)};
 
-        case 'SPELL':
+        case LABELS.SPELL_LISTA:
             return {label: 'Lista Incantesimi', value: v};
 
         default:

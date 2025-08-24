@@ -20,8 +20,11 @@ public final class Constants {
     public static final String ITEM_INCANTESIMI_PREPARATI = "PreparedSpell";
     public static final String ITEM_LABEL_LIVELLO_INCANTESIMO = "CLIVELLO";
     public static final String ITEM_LABEL_CLASSE_INCANTESIMO = "CCLASSE";
-    public static final String ITEM_LABEL_TIRO_PER_COLPIRE = "TPC";
-    public static final String ITEM_LABEL_DANNI = "TPD";
+    public static final String ITEM_LABEL_ATTACCO_TIRO_PER_COLPIRE = "TPC";
+    public static final String ITEM_LABEL_ATTACCO_DANNI = "TPD";
+    public static final String ITEM_LABEL_ATTACCO_TIRO_SALVEZZA = "TTS";
+    public static final String ITEM_LABEL_ATTACCO_RANGE = "TRANGE";
+    public static final String ITEM_LABEL_ATTACCO_TIPO_DANNI = "TDANNO";
     public static final String ITEM_LABEL_DISABILITATO = "DISABLED";
     public static final String ITEM_LABEL_DISABILITATO_VALORE_TRUE = "1";
     public static final String ITEM_LABEL_DISABILITATO_VALORE_FALSE = "0";
@@ -40,5 +43,6 @@ public final class Constants {
     public static final String COLLEGAMENTO_LABEL_N_PREPARATI = "PREPARED";
     public static final String COLLEGAMENTO_LABEL_ALWAYS_PREPARED = "ALWAYS";
     public static final String ITEM_LIVELLO_LVL = "LVL";
+    public static final String ITEM_LIVELLO_LVL_CLASSE = "LVL_CLASSE";
 }
 

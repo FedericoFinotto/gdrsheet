@@ -4,7 +4,7 @@ import Tabella from "../../../../../../components/Tabella.vue";
 import {useCharacterStore} from "../../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import {getValoreFormula} from "../../../../../../function/Calcolo";
-import {testoFormula, testoModificatore} from "../../../../../../function/Utils";
+import {removePlus, testoFormula, testoModificatore} from "../../../../../../function/Utils";
 import {Attacco} from "../../../../../../models/dto/Attacco";
 
 const characterStore = useCharacterStore();
@@ -49,7 +49,7 @@ watch(
 
             return {
               ...itm,
-              atk: atkVal,
+              atk: itm.tiroSalvezza ? `CD ${removePlus(atkVal)} ${itm.tiroSalvezza}` : atkVal,
               dmg: dannoVal,
               attacco: itm.attacco ? testoFormula(itm.attacco) : '',
               colpo: itm.colpo ? testoFormula(itm.colpo) : '',
@@ -61,7 +61,7 @@ watch(
 );
 
 const columnsAttacchi = [
-  {field: 'nomeItem', subfield: 'nome', label: 'Arma'},
+  {field: 'nome', subfield: 'nomeItem', label: 'Arma'},
   {field: 'atk', subfield: 'attacco', label: 'Colpire'},
   {field: 'dmg', subfield: 'colpo', label: 'Danno'}
 ];

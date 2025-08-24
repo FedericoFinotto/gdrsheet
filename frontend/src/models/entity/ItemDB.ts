@@ -46,14 +46,3 @@ export const TIPO_ITEM = {
 } as const;
 export type TipoItem = typeof TIPO_ITEM[keyof typeof TIPO_ITEM];
 
-export function getItemLabels(itm: ItemDB, label: string): string[] {
-    const lab = itm.labels?.filter((l: ItemLabel) => l.label === label);
-    if (!lab || lab.length === 0) return null;
-    return lab.map(x => x.valore);
-}
-
-export function getItemLabel(itm: ItemDB, label: string): string {
-    const lab = getItemLabels(itm, label);
-    if (!lab || lab.length === 0) return null;
-    return lab[0];
-}

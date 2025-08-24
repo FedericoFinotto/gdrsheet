@@ -207,5 +207,59 @@ public class UtilService {
 
         return new DiceSummary(combined, totalN);
     }
+
+    public List<Integer> parseStringToIntList(String csv) {
+        if (csv == null || csv.trim().isEmpty()) return Collections.emptyList();
+        return Arrays.stream(csv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(s -> {
+                    try {
+                        return Integer.valueOf(s);
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    public boolean parseBooleanFromString(String csv, String trueValue, String falseValue) {
+        // true solo se troviamo esplicitamente trueValue
+        // false se non c'è nulla, o se troviamo solo valori diversi da trueValue
+        if (csv == null || csv.trim().isEmpty() || trueValue == null || trueValue.trim().isEmpty()) {
+            return false;
+        }
+
+        final String t = trueValue.trim();
+        final String f = (falseValue == null ? null : falseValue.trim());
+
+        // tokenizziamo come nella funzione int-list
+        List<String> tokens = Arrays.stream(csv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+
+        // priorità al "vero": se c'è, ritorna subito true
+        for (String tok : tokens) {
+            if (tok.equalsIgnoreCase(t)) {
+                return true;
+            }
+        }
+
+        // se specificato un valore "false", e lo troviamo, ritorna false
+        if (f != null) {
+            for (String tok : tokens) {
+                if (tok.equalsIgnoreCase(f)) {
+                    return false;
+                }
+            }
+        }
+
+        // caso di default: non trovato il valore "vero" -> false
+        return false;
+    }
+
+
 }
 

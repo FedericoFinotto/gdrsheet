@@ -11,7 +11,7 @@ import java.util.List;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class ClasseDTO extends ItemDTO {
-    private List<Integer> livelli;
-    private String spell;
+public class InfoLivelliDTO {
+    Integer livello;
+    List<InfoClasseDTO> classi;
 }

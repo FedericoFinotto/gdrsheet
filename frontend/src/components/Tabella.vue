@@ -262,4 +262,9 @@ img.row-icon {
   display: inline-block;
 }
 
+.subtext {
+  font-size: 0.7rem;
+  color: gray;
+}
+
 </style>

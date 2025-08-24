@@ -15,12 +15,11 @@ import java.util.Map;
 @AllArgsConstructor
 public class AllPersonaggioItems {
     private List<Item> items;
-    private Map<Item, Long> classi;
+    private InfoLivelliDTO livelli;
     private Map<Item, List<ItemLivelloDTO>> incantesimi;
 
     public AllPersonaggioItems() {
         items = new ArrayList<>();
-        classi = new HashMap<>();
         incantesimi = new HashMap<>();
     }
 }

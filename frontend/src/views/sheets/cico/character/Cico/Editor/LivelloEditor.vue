@@ -11,7 +11,7 @@ import {
   saveLivello,
 } from '../../../../../../service/PersonaggioService'
 import TabExpandable from '../../../../../../components/TabExpandable.vue'
-import {getItemLabel} from '../../../../../../models/entity/ItemDB'
+import {ItemDB, TIPO_ITEM} from '../../../../../../models/entity/ItemDB'
 import {Classe} from "../../../../../../models/dto/Classe";
 import {Item} from "../../../../../../models/dto/Item";
 import {UpdateLivelloRequest} from "../../../../../../models/dto/UpdateLivelloRequest";
@@ -20,6 +20,7 @@ import {Gradi} from "../../../../../../models/dto/Gradi";
 import {Rank} from "../../../../../../models/dto/Rank";
 import Mobile_DettaglioItemLivello from "../../Dettaglio/Mobile_DettaglioItemLivello.vue";
 import {AbilitaClasse} from "../../../../../../models/dto/AbilitaClasse";
+import {getItemLabel, LABELS} from "../../../../../../models/entity/ItemLabel";
 
 /* ========= Tipi ========= */
 type Id = number
@@ -313,10 +314,10 @@ onMounted(async () => {
 
     // Classe/Maledizione dal child
     for (const ch of (props.item.child ?? [])) {
-      if (ch.itemTarget.tipo === 'CLASSE') {
+      if (ch.itemTarget.tipo === TIPO_ITEM.CLASSE) {
         form.tipoScelta = 'classe';
         form.classeId = ch.itemTarget.id
-        const livelliClasse: string | null = getItemLabel(props.item, 'LVL_CLASSE');
+        const livelliClasse: string | null = getItemLabel(props.item, LABELS.CLASSE_LIVELLO);
         if (typeof livelliClasse === 'string' && livelliClasse.trim()) {
           const lvls = livelliClasse
               .split(',')
@@ -329,7 +330,7 @@ onMounted(async () => {
           }
         }
         console.log(props.item, livelliClasse);
-      } else if (ch.itemTarget.tipo === 'MALEDIZIONE') {
+      } else if (ch.itemTarget.tipo === TIPO_ITEM.MALEDIZIONE) {
         form.tipoScelta = 'maledizione';
         form.maledizioneId = ch.itemTarget.id
       }
