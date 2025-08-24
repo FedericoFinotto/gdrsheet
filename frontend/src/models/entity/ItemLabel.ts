@@ -3,7 +3,7 @@ import {ItemDB} from "./ItemDB";
 
 export interface ItemLabel {
     id: number;
-    item: ItemDB;
+    // item: ItemDB;
     label?: string;
     valore?: string;
 }

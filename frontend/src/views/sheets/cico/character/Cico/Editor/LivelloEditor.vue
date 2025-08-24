@@ -11,8 +11,7 @@ import {
   saveLivello,
 } from '../../../../../../service/PersonaggioService'
 import TabExpandable from '../../../../../../components/TabExpandable.vue'
-import {getItemLabel} from '../../../../../../function/Calcolo'
-import {ItemDB} from "../../../../../../models/entity/ItemDB";
+import {getItemLabel} from '../../../../../../models/entity/ItemDB'
 import {Classe} from "../../../../../../models/dto/Classe";
 import {Item} from "../../../../../../models/dto/Item";
 import {UpdateLivelloRequest} from "../../../../../../models/dto/UpdateLivelloRequest";
@@ -254,7 +253,6 @@ function canInc(r: SkillRow): boolean {
   if (!gradiInfo.value) return true
   const nextSpent = r.spent + 1
   const nextEffect = r.isClass ? nextSpent : Math.floor(nextSpent / 2)
-  console.log('F8', r);
   const wouldExceedMax = r.max < (r.current + nextEffect)
   const wouldExceedBudget = (totalPointsSpent.value + 1) > gradiInfo.value.toConsume
   return !wouldExceedMax && !wouldExceedBudget
@@ -318,6 +316,19 @@ onMounted(async () => {
       if (ch.itemTarget.tipo === 'CLASSE') {
         form.tipoScelta = 'classe';
         form.classeId = ch.itemTarget.id
+        const livelliClasse: string | null = getItemLabel(props.item, 'LVL_CLASSE');
+        if (typeof livelliClasse === 'string' && livelliClasse.trim()) {
+          const lvls = livelliClasse
+              .split(',')
+              .map(s => Number(s.trim()))
+              .filter(Number.isFinite); // rimuove vuoti/NaN
+
+          // Se vuoi solo settare (mantenendo eventuali altre chiavi già presenti):
+          for (const lv of lvls) {
+            form.livelliClasse[lv] = true;
+          }
+        }
+        console.log(props.item, livelliClasse);
       } else if (ch.itemTarget.tipo === 'MALEDIZIONE') {
         form.tipoScelta = 'maledizione';
         form.maledizioneId = ch.itemTarget.id
