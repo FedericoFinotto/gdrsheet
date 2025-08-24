@@ -55,7 +55,7 @@ const form = reactive<UpdateLivelloRequest>({
 const busy = ref(false)
 const disabledAll = computed(() => !!props.readonly || busy.value)
 const canSave = computed(() => !busy.value && !props.readonly)
-const showOnlyModifiedAbilita = ref(true);
+const showOnlyModifiedAbilita = ref(false);
 
 function changeShowOnlyModifiedAbilita() {
   showOnlyModifiedAbilita.value = !showOnlyModifiedAbilita.value;

@@ -59,7 +59,7 @@ watch(() => route.params.id, v => {
 })
 
 function goBack() {
-  // router.back()
+  router.back()
 }
 </script>
 

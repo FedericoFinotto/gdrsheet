@@ -514,5 +514,55 @@ public class ModificatoriService {
         return abilitaClasse.stream().filter(x -> x.getAll() || x.getClasse().stream().anyMatch(y -> y.getId().equals(idClasse))).toList();
     }
 
+    public void applicaSinergie(DatiPersonaggioDTO dp) {
+        for (AbilitaDTO ab : dp.getAbilita()) {
+            List<Sinergia> sinergie = listaSinergie().stream().filter(x -> x.getT().equals(ab.getAbilita().getId())).toList();
+            for (Sinergia s : sinergie) {
+                AbilitaDTO abilitaSource = dp.getAbilita().stream().filter(x -> x.getAbilita().getId().equals(s.getS())).findFirst().orElse(null);
+                if (abilitaSource != null) {
+                    if (abilitaSource.getRank().getModificatore() >= 5) {
+                        if (ab.getAbilita().getModificatori() == null || ab.getAbilita().getModificatori().isEmpty()) {
+                            ab.getAbilita().setModificatori(new ArrayList<>());
+                        }
+                        ab.getAbilita().getModificatori().add(s.getM());
+                    }
+                }
+            }
+        }
+    }
+
+    private List<Sinergia> listaSinergie() {
+        List<Sinergia> sinergie = new ArrayList<>();
+        // TODO: Gestire Artigianato e Valutare diversi e aggiungere Sinergie
+        sinergie.add(new Sinergia("AB26", "AB12", new ModificatoreDTO(null, "AB12", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Raggirare", null))); //Diplomazia
+        sinergie.add(new Sinergia("AB26", "AB17", new ModificatoreDTO(null, "AB17", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Raggirare", null))); //Intimidire
+        sinergie.add(new Sinergia("AB26", "AB6", new ModificatoreDTO(null, "AB6", 2, "+2", "Quando reciti un ruolo", TipoModificatore.VALORE, true, "Sinergia Raggirare", null))); //Camuffare
+        sinergie.add(new Sinergia("AB26", "AB27", new ModificatoreDTO(null, "AB27", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Raggirare", null))); //Rapidità di Mano
+        sinergie.add(new Sinergia("AB11", "AB34", new ModificatoreDTO(null, "AB34", 2, "+2", "Quando usi Pergamene", TipoModificatore.VALORE, true, "Sinergia Decifrare Scritture", null))); //Utilizzare Oggetti Magici
+        sinergie.add(new Sinergia("AB4", "AB33", new ModificatoreDTO(null, "AB33", 2, "+2", "legature/vincoli", TipoModificatore.VALORE, true, "Sinergia Artista della fuga", null))); //Usare Corde
+        sinergie.add(new Sinergia("AB2", "AB7", new ModificatoreDTO(null, "AB7", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Addestrare Animali", null))); //Cavalcare
+        sinergie.add(new Sinergia("AB2", "AB37", new ModificatoreDTO(null, "AB37", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Addestrare Animali", null))); //Empatia Selvatica
+        sinergie.add(new Sinergia("AB28", "AB1", new ModificatoreDTO(null, "AB1", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Saltare", null))); //Acrobazia
+        sinergie.add(new Sinergia("CO06", "AB29", new ModificatoreDTO(null, "AB29", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Conoscenze Arcane", null))); //Sapienza Magica
+        sinergie.add(new Sinergia("CO09", "AB8", new ModificatoreDTO(null, "AB8", 2, "+2", "porte segrete/scomparti simili", TipoModificatore.VALORE, true, "Sinergia Conoscenze (architettura e ingegneria)", null))); //Cercare
+        sinergie.add(new Sinergia("CO01", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "Sottoterra", TipoModificatore.VALORE, true, "Sinergia Conoscenze (dungeon)", null))); //Sopravvivenza
+        sinergie.add(new Sinergia("CO04", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "orientarsi/evitare pericoli", TipoModificatore.VALORE, true, "Sinergia Conoscenze (geografia)", null))); //Sopravvivenza
+        sinergie.add(new Sinergia("CO11", "C012", new ModificatoreDTO(null, "C012", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Conoscenze (Storia)", null))); //Conoscenze Bardiche
+        sinergie.add(new Sinergia("CO07", "AB25", new ModificatoreDTO(null, "AB25", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Conoscenze (locale)", null))); //Raccogliere Informazioni
+        sinergie.add(new Sinergia("CO10", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "ambienti naturali all’aperto", TipoModificatore.VALORE, true, "Sinergia Conoscenze (natura)", null))); //Sopravvivenza
+        sinergie.add(new Sinergia("CO02", "AB12", new ModificatoreDTO(null, "AB12", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Conoscenze (nobiltà e regalità)", null))); //Diplomazia
+        sinergie.add(new Sinergia("CO08", "CO08", new ModificatoreDTO(null, "B", 2, "+2", "Prove per scacciare non morti", TipoModificatore.VALORE, true, "?? Sinergia Conoscenze Religioni", null)));
+        sinergie.add(new Sinergia("CO05", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "su altri piani", TipoModificatore.VALORE, true, "Sinergia Conoscenze (i piani) ", null))); //Sopravvivenza
+        sinergie.add(new Sinergia("AB23", "AB12", new ModificatoreDTO(null, "AB12", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Percepire Intenzioni", null))); //Diplomazia
+        sinergie.add(new Sinergia("AB1", "AB14", new ModificatoreDTO(null, "AB14", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Acrobazia", null))); //Equilibrio
+        sinergie.add(new Sinergia("AB1", "AB28", new ModificatoreDTO(null, "AB28", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Acrobazia", null))); //Saltare
+        sinergie.add(new Sinergia("AB34", "AB29", new ModificatoreDTO(null, "AB29", 2, "+2", "per decifrare incantesimi su pergamene", TipoModificatore.VALORE, true, "Sinergia Usare Oggetti Magici", null))); //Sapienza Magica
+        sinergie.add(new Sinergia("AB29", "AB34", new ModificatoreDTO(null, "AB34", 2, "+2", "attivare/decifrare pergamene", TipoModificatore.VALORE, true, "Sinergia Sapienza Magica", null))); //Usare Oggetti Magici
+        sinergie.add(new Sinergia("AB33", "AB30", new ModificatoreDTO(null, "AB30", 2, "+2", "su corde", TipoModificatore.VALORE, true, "Sinergia Usare Corde", null))); //Arrampicare
+        sinergie.add(new Sinergia("AB33", "AB4", new ModificatoreDTO(null, "AB4", 2, "+2", "per liberarsi da corde", TipoModificatore.VALORE, true, "Sinergia Usare Corde", null))); //Artista della fuga
+        sinergie.add(new Sinergia("AB8", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "quando segui tracce", TipoModificatore.VALORE, true, "Sinergia Cercare", null))); //Sopravvivenza
+        return sinergie;
+    }
+
 
 }

@@ -373,6 +373,7 @@ public class PersonaggioService {
             pool.shutdown();
         }
 
+        modificatoriService.applicaSinergie(dto);
         return dto;
     }
 
