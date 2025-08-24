@@ -9,8 +9,7 @@ import {
   testoModificatore
 } from "../../../../../function/Utils";
 import {getItem, switchItemState} from "../../../../../service/PersonaggioService";
-import {TIPO_ITEM} from "../../../../../function/Constants";
-import {Avanzamento, ItemDB, Modificatore} from "../../../../../models/ItemDB";
+import {ItemDB, TIPO_ITEM} from "../../../../../models/entity/ItemDB";
 import {getLabel, thereIsValoreLabel} from "../../../../../function/Calcolo";
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
@@ -18,17 +17,20 @@ import Icona from "../../../../../components/Icona/Icona.vue";
 import {useRouter} from "vue-router";
 import usePopup from "../../../../../function/usePopup";
 import Mobile_DettaglioItem from "./Mobile_DettaglioItem.vue";
+import {Modificatore} from "../../../../../models/entity/Modificatore";
+import {Avanzamento} from "../../../../../models/entity/Avanzamento";
+import {Item} from "../../../../../models/dto/Item";
 
 const router = useRouter()
 const {openPopup} = usePopup()
 
-interface PropsData {
-  item: ItemDB;            // l'oggetto item con id e tipo
-  personaggio: any;        // Statistiche del personaggio
-}
-
-const props = defineProps<{ data: PropsData }>();
-const {item: itemInfo, personaggio} = props.data;
+const props = defineProps<{
+  data: {
+    item: Item;            // l'oggetto item con id e tipo
+    personaggio: any;
+  }
+}>();
+const {item, personaggio} = props.data;
 
 const characterStore = useCharacterStore();
 const {cache} = storeToRefs(characterStore);
@@ -52,8 +54,8 @@ const tpdMap = ref<Record<number, string>>({});
 
 async function switchState() {
   let itemIdToSwitch = [];
-  if (itemInfo.disabled) {
-    switch (itemInfo.tipo) {
+  if (item.disabled) {
+    switch (item.tipo) {
       case 'TRASFORMAZIONE':
         itemIdToSwitch.push(...personaggio.items.trasformazioni.filter(x => !x.disabled).map(x => x.id));
         break;
@@ -62,7 +64,7 @@ async function switchState() {
         break;
     }
   }
-  itemIdToSwitch.push(itemInfo.id);
+  itemIdToSwitch.push(item.id);
   console.log("switchState", itemIdToSwitch);
   try {
     for (const id of itemIdToSwitch) {
@@ -76,14 +78,13 @@ async function switchState() {
 }
 
 const disableLabel = computed(() => {
-  console.log(itemInfo);
-  switch (itemInfo?.tipo) {
+  switch (item?.tipo) {
     case TIPO_ITEM.EQUIPAGGIAMENTO:
-      return itemInfo.disabled ? 'Equipaggia' : 'Togli';
+      return item.disabled ? 'Equipaggia' : 'Togli';
     case TIPO_ITEM.TRASFORMAZIONE:
-      return itemInfo.disabled ? 'Trasformati' : 'Torna alla forma Base';
+      return item.disabled ? 'Trasformati' : 'Torna alla forma Base';
     case TIPO_ITEM.IDOLO:
-      return itemInfo.disabled ? 'Prega' : 'Disabilita';
+      return item.disabled ? 'Prega' : 'Disabilita';
     default:
       return null;
   }
@@ -92,7 +93,7 @@ const disableLabel = computed(() => {
 
 onMounted(async () => {
   try {
-    const response = await getItem(itemInfo.id);
+    const response = await getItem(item.id);
     const data = response.data;
     itemDetail.value = data;
 
@@ -137,7 +138,7 @@ onMounted(async () => {
 function showInfoItemPopup(itm) {
   openPopup(
       Mobile_DettaglioItem,
-      {data: {item: {...itm}, personaggio: {id: props.data.idPersonaggio}}},
+      {data: {item: {...itm}, personaggio: props.data.personaggio}},
       {closable: true, autoClose: 0}
   )
 }

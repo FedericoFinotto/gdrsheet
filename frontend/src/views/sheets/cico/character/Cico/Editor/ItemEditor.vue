@@ -6,24 +6,12 @@ import {getItem} from '../../../../../../service/PersonaggioService'
 
 // Editors
 import SpellEditor from './SpellEditor.vue'
-import LivelloEditor from './LivelloEditor.vue' // <-- nuovo import
+import LivelloEditor from './LivelloEditor.vue'
+import {ItemDB} from "../../../../../../models/entity/ItemDB"; // <-- nuovo import
 
 const route = useRoute();
 const idItem = Number(route.params.id);
 if (isNaN(idItem)) throw new Error('Parametro id non valido');
-
-interface ItemDB {
-  id: number
-  tipo: string
-  nome?: string
-  descrizione?: string
-  componenti?: string[]
-  scuola?: string
-  tempo?: string
-  ts?: string
-  range?: string
-  durata?: string
-}
 
 const router = useRouter()
 const loading = ref(false)

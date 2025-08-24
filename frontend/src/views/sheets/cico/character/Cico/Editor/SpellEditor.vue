@@ -1,24 +1,11 @@
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref, toRaw} from 'vue'
 import {saveSpell} from '../../../../../../service/PersonaggioService'
+import {ItemLabel} from "../../../../../../models/entity/ItemLabel";
+import {ItemDB} from "../../../../../../models/entity/ItemDB";
+import {UpdateSpellRequest} from "../../../../../../models/dto/UpdateSpellRequest";
 
-/* ========= Tipi minimi ========= */
-interface ItemLabel {
-  label: string;
-  valore?: string | null
-}
-interface ItemDB {
-  id: number
-  tipo: string
-  nome?: string
-  descrizione?: string
-  labels?: ItemLabel[]
-  componenti?: string[]
-  tempo?: string
-  ts?: string
-  range?: string
-  durata?: string
-}
+
 const props = defineProps<{ item: ItemDB; readonly?: boolean }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
 
@@ -96,7 +83,6 @@ const CLASS_CODES = Object.keys(CLASS_LABELS).sort()
 /* ========= Modello locale ========= */
 type ComponentKey = 'V' | 'S' | 'M' | 'F' | 'DF' | 'XP' | 'X' | 'CORRUPT' | 'COLDFIRE' | 'FROSTFELL' | 'B'
 type BoolMap = Record<string, boolean>
-type ClassLevelMap = Record<string, string>
 type SpellDraft = {
   nome: string
   descrizione: string
@@ -108,14 +94,16 @@ type SpellDraft = {
   durata: string
   ts: string
   comp: Record<ComponentKey, boolean>
-  classi: ClassLevelMap
+  classi: Record<string, string>
 }
 function emptyBoolMap(list: string[]): BoolMap {
   return Object.fromEntries(list.map(s => [s, false])) as BoolMap
 }
-function emptyClassLevels(): ClassLevelMap {
-  return Object.fromEntries(CLASS_CODES.map(c => [c, ''])) as ClassLevelMap
+
+function emptyClassLevels(): Record<string, string> {
+  return Object.fromEntries(CLASS_CODES.map(c => [c, ''])) as Record<string, string>
 }
+
 function emptyDraft(): SpellDraft {
   return {
     nome: '', descrizione: '',
@@ -493,19 +481,19 @@ onMounted(() => {
   form.descrizione = props.item.descrizione ?? ''
 
   // Tempo / Durata / Range: normalizza in IT (non distruttivo)
-  const tempoRaw = getLabel(props.item.labels, L.TEMPO) || (props.item.tempo ?? '')
-  const durataRaw = getLabel(props.item.labels, L.DURATA) || (props.item.durata ?? '')
-  const rangeRaw = getLabel(props.item.labels, L.RANGE) || (props.item.range ?? '')
+  const tempoRaw = getLabel(props.item.labels, L.TEMPO) ?? '';
+  const durataRaw = getLabel(props.item.labels, L.DURATA) ?? '';
+  const rangeRaw = getLabel(props.item.labels, L.RANGE) ?? '';
   form.tempo = normalizeTempo(tempoRaw)
   form.durata = normalizeDurata(durataRaw)
   form.range = normalizeRange(rangeRaw)
 
   // TS: fallback-first -> se italiano/ignoto, usa il salvato
-  const tsRaw = getLabel(props.item.labels, L.TS) || (props.item.ts ?? '')
+  const tsRaw = getLabel(props.item.labels, L.TS) ?? '';
   form.ts = normalizeOrRawTS(tsRaw)
 
   // Componenti
-  const compTokens = parseComponenti(props.item.labels, props.item.componenti)
+  const compTokens = parseComponenti(props.item.labels, undefined)
   ;(Object.keys(form.comp) as ComponentKey[]).forEach(k => { form.comp[k] = compTokens.has(k) })
 
   // Scuole/Sub/Descrittori
@@ -576,7 +564,7 @@ async function onSave() {
       if (Number.isFinite(n) && n >= 0 && n <= 9) classi.push({classe: code, livello: n})
     }
 
-    const payload = toRaw({
+    const payload: UpdateSpellRequest = toRaw({
       nome: form.nome,
       descrizione: form.descrizione,
       tempo: form.tempo,

@@ -1,26 +1,4 @@
-// Tipo item (tipo_item)
-export const TIPO_ITEM = {
-    ABILITA: 'ABILITA',
-    TALENTO: 'TALENTO',
-    OGGETTO: 'OGGETTO',
-    CONSUMABILE: 'CONSUMABILE',
-    ARMA: 'ARMA',
-    MUNIZIONE: 'MUNIZIONE',
-    EQUIPAGGIAMENTO: 'EQUIPAGGIAMENTO',
-    PERSONAGGIO: 'PERSONAGGIO',
-    CLASSE: 'CLASSE',
-    RAZZA: 'RAZZA',
-    ATTACCO: 'ATTACCO',
-    ALTRO: 'ALTRO',
-    LIVELLO: 'LIVELLO',
-    MALEDIZIONE: 'MALEDIZIONE',
-    INCANTESIMO: 'INCANTESIMO',
-    TRASFORMAZIONE: 'TRASFORMAZIONE',
-    IDOLO: 'IDOLO',
-    AVANZAMENTO: 'AVANZAMENTO',
-} as const;
 
-export type TipoItem = typeof TIPO_ITEM[keyof typeof TIPO_ITEM];
 
 // Tipo stat (tipo_stat)
 export const TIPO_STAT = {
@@ -52,21 +30,6 @@ export const TIPO_RUOLO = {
 } as const;
 
 export type TipoRuolo = typeof TIPO_RUOLO[keyof typeof TIPO_RUOLO];
-
-// Tipo modificatore (tipo_modificatore)
-export const TIPO_MODIFICATORE = {
-    RANK: 'RANK',
-    BASE: 'BASE',
-    VALORE: 'VALORE',
-    CA_SCHIVARE: 'CA_SCHIVARE',
-    CA_ARMOR: 'CA_ARMOR',
-    CA_NATURALE: 'CA_NATURALE',
-    CA_DEVIAZIONE: 'CA_DEVIAZIONE',
-    CA_SHIELD: 'CA_SHIELD',
-    CA_MAGIC: 'CA_MAGIC',
-} as const;
-
-export type TipoModificatore = typeof TIPO_MODIFICATORE[keyof typeof TIPO_MODIFICATORE];
 
 
 // export const SECONDARY_COLOR = 'rgba(0, 0, 225, 0.35)';

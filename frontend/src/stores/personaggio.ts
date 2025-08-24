@@ -1,12 +1,12 @@
 import {defineStore} from 'pinia'
 import {getAllPersonaggioItemsDTOByIdPersonaggio, getModificatoriPersonaggioById} from "../service/PersonaggioService";
-import type {Statistiche} from "../models/Modificatori";
-import type {ItemsPersonaggio} from "../models/Items";
+import {DatiPersonaggio} from "../models/dto/DatiPersonaggio";
+import {Items} from "../models/dto/Items";
 
 export interface SharedDataState {
     character: any | null;
-    modificatori: Statistiche | null;
-    items: ItemsPersonaggio | null;
+    modificatori: DatiPersonaggio | null;
+    items: Items | null;
     loading: boolean;
     error: any | null;
 }

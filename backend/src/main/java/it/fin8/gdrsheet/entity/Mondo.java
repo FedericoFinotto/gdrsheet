@@ -29,7 +29,7 @@ public class Mondo implements Serializable {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sistema_id")
-    private Sistema idSistema;
+    private Sistema sistema;
 
     @OneToMany(mappedBy = "mondo", fetch = FetchType.LAZY)
     @JsonIgnoreProperties("mondo")

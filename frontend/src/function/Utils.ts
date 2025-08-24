@@ -1,6 +1,7 @@
 import {IconKey} from "../components/Icona/ListaIcone";
-import {Avanzamento, ItemDB, Modificatore} from "../models/ItemDB";
-import {TIPO_ITEM} from "./Constants";
+import {ItemDB, TIPO_ITEM} from "../models/entity/ItemDB";
+import {Modificatore} from "../models/entity/Modificatore";
+import {Avanzamento} from "../models/entity/Avanzamento";
 
 const REGEX_DICE = /^\d+d\d+(?:[+-]\d+)?$/i;
 
@@ -141,7 +142,7 @@ function hasDerivedMod(a: Avanzamento): boolean {
 export function buildMappaItemAvanzamenti(list: Avanzamento[] | null | undefined, livello: number[] = null): Record<number, Avanzamento[]> {
     if (!Array.isArray(list) || list.length === 0) return {};
 
-    const aaa = list.filter(x => livello === null || livello.includes(x.livello)).reduce<Record<number, Avanzamento[]>>((acc, a) => {
+    return list.filter(x => livello === null || livello.includes(x.livello)).reduce<Record<number, Avanzamento[]>>((acc, a) => {
         if (!hasDerivedItem(a)) return acc;
 
         const lvl = toLevel(a);
@@ -150,7 +151,6 @@ export function buildMappaItemAvanzamenti(list: Avanzamento[] | null | undefined
         (acc[lvl] ??= []).push(a);
         return acc;
     }, {});
-    return aaa;
 }
 
 function getModsFromAvanzamento(a: Avanzamento): Modificatore[] {

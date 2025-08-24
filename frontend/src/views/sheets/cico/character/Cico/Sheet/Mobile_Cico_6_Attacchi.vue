@@ -5,6 +5,7 @@ import {useCharacterStore} from "../../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import {getValoreFormula} from "../../../../../../function/Calcolo";
 import {testoFormula, testoModificatore} from "../../../../../../function/Utils";
+import {Attacco} from "../../../../../../models/dto/Attacco";
 
 const characterStore = useCharacterStore();
 const {cache} = storeToRefs(characterStore);
@@ -26,12 +27,12 @@ watch(
       }
 
       // Ordina prima
-      const sorted = [...newChar.attacchi].sort((a, b) =>
-          a.nome.localeCompare(b.nome)
+      const sorted = [...newChar.attacchi].sort((a: Attacco, b: Attacco) =>
+          a.nomeItem.localeCompare(b.nomeItem)
       );
 
       // Enrich asincrono: trasforma ogni itm in { ...itm, atk }
-      const enriched = await Promise.all(
+      itemsAttacchi.value = await Promise.all(
           sorted.map(async itm => {
             let atkVal: string | null = null;
             let dannoVal: string | null = null;
@@ -55,8 +56,6 @@ watch(
             };
           })
       );
-
-      itemsAttacchi.value = enriched;
     },
     {immediate: true, deep: true}
 );

@@ -12,5 +12,4 @@ import lombok.Setter;
 public class PersonaggioDTO {
     Integer id;
     String nome;
-
 }

@@ -28,4 +28,6 @@ public class RankDTO {
     private String classe;
 
     private String item;
+
+    private Integer itemId;
 }

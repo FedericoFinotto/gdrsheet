@@ -54,6 +54,7 @@ public class ModificatoreMapper {
 
         dto.setSempreAttivo(entity.getSempreAttivo());
         dto.setItem(entity.getItem().getNome());
+        dto.setItemId(entity.getItem().getId());
         dto.setStatId(entity.getStat().getId());
 
         dto.setDiClasse(false);

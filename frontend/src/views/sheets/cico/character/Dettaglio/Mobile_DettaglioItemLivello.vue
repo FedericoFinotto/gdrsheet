@@ -8,13 +8,14 @@ import {
   testoModificatore
 } from "../../../../../function/Utils";
 import {getItem} from "../../../../../service/PersonaggioService";
-import {TIPO_ITEM} from "../../../../../function/Constants";
-import {Avanzamento, ItemDB, Modificatore} from "../../../../../models/ItemDB";
+import {ItemDB, TIPO_ITEM} from "../../../../../models/entity/ItemDB";
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import {useRouter} from "vue-router";
 import usePopup from "../../../../../function/usePopup";
 import Mobile_DettaglioItem from "./Mobile_DettaglioItem.vue";
+import {Modificatore} from "../../../../../models/entity/Modificatore";
+import {Avanzamento} from "../../../../../models/entity/Avanzamento";
 
 const router = useRouter()
 const {openPopup} = usePopup()

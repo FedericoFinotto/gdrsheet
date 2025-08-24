@@ -9,6 +9,7 @@ import Mobile_Cico_4_SpellBookPrepare from '../../Dettaglio/Mobile_Cico_4_SpellB
 import {updatePreparedSpells, updateSpellUsage} from '../../../../../../service/PersonaggioService';
 import {getValoreFormula} from '../../../../../../function/Calcolo';
 import {iconForComponent} from "../../../../../../function/Utils";
+import {SpellBook, SpellBookLivello} from "../../../../../../models/dto/SpellBook";
 
 const props = defineProps({
   idPersonaggio: {type: Number, required: true}
@@ -231,9 +232,9 @@ function showPopup(opts: ShowPopupOpts) {
   const SENTINEL_ALWAYS = -54;
 
   const personaggio = cache.value?.[props.idPersonaggio];
-  const sb = (personaggio?.items?.spellbooks ?? []).find((s: any) => s.idClasse === idClasse);
-  const lvList = Array.isArray(sb?.livelli) ? sb!.livelli : Object.values(sb?.livelli ?? {});
-  const lv = lvList.find((l: any) => Number(l?.livello) === livello);
+  const sb: SpellBook = (personaggio?.items?.spellbooks ?? []).find((s: any) => s.idClasse === idClasse);
+  const lvList: SpellBookLivello[] = Array.isArray(sb?.livelli) ? sb!.livelli : Object.values(sb?.livelli ?? {});
+  const lv: SpellBookLivello = lvList.find((l: SpellBookLivello) => l?.livello === livello);
   const preparedInit: Record<number, number> = Object.fromEntries(
       (lv?.incantesimi ?? []).map((s: any) => {
         const raw = Number(s?.nprepared);

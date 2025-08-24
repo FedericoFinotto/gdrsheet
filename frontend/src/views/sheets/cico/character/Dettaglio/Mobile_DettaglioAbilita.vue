@@ -1,10 +1,11 @@
 <script setup>
 import {defineProps, onMounted} from 'vue';
 import {testoModificatore} from "../../../../../function/Utils";
+import {Abilita} from "../../../../../models/dto/Abilita";
 
 const props = defineProps({
   data: {
-    type: Object,
+    type: Abilita,
     required: true
   }
 });

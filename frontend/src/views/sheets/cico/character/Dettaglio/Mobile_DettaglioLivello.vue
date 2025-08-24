@@ -2,24 +2,24 @@
 import {computed, defineProps, onMounted, ref} from 'vue';
 import {mostraLabel, testoModificatore} from "../../../../../function/Utils";
 import {getItem, switchItemState} from "../../../../../service/PersonaggioService";
-import {TIPO_ITEM} from "../../../../../function/Constants";
-import type {ItemDB} from "../../../../../models/ItemDB";
+import {ItemDB, TIPO_ITEM} from "../../../../../models/entity/ItemDB";
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import Icona from "../../../../../components/Icona/Icona.vue";
 import {useRouter} from "vue-router";
 import usePopup from "../../../../../function/usePopup";
 import Mobile_DettaglioItem from "./Mobile_DettaglioItem.vue";
+import {Item} from "../../../../../models/dto/Item";
 
 const router = useRouter()
 const {openPopup} = usePopup()
 
-interface PropsData {
-  item: ItemDB;            // l'oggetto item con id e tipo
-  personaggio: any;        // Statistiche del personaggio
-}
-
-const props = defineProps<{ data: PropsData }>();
+const props = defineProps<{
+  data: {
+    item: Item;            // l'oggetto item con id e tipo
+    personaggio: any;        // Statistiche del personaggio
+  }
+}>();
 const {item: itemInfo, personaggio} = props.data;
 
 const characterStore = useCharacterStore();
@@ -104,7 +104,7 @@ onMounted(async () => {
 function showInfoAbilitaPopup(itm) {
   openPopup(
       Mobile_DettaglioItem,
-      {data: {item: {...itm}, personaggio: {id: props.data.idPersonaggio}}},
+      {data: {item: {...itm}, personaggio: props.data.personaggio}},
       {closable: true, autoClose: 0}
   )
 }

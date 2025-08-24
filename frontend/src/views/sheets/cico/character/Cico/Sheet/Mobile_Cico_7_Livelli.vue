@@ -34,34 +34,6 @@ watch(
             };
           })
           .sort((a, b) => a.nome.localeCompare(b.nome));
-
-      // // Enrich asincrono: trasforma ogni itm in { ...itm, atk }
-      // const enriched = await Promise.all(
-      //     sorted.map(async itm => {
-      //       let atkVal: string | null = null;
-      //       let dannoVal: string | null = null;
-      //
-      //       if (itm.attacco) {
-      //         const resp = await getValoreFormula(cache.value[props.idPersonaggio].modificatori, itm.attacco);
-      //         atkVal = testoModificatore(resp.data.risultato);
-      //       }
-      //
-      //       if (itm.colpo) {
-      //         const resp = await getValoreFormula(cache.value[props.idPersonaggio].modificatori, itm.colpo);
-      //         dannoVal = testoModificatore(resp.data.risultato);
-      //       }
-      //
-      //       return {
-      //         ...itm,
-      //         atk: atkVal,
-      //         dmg: dannoVal,
-      //         attacco: itm.attacco ? testoFormula(itm.attacco) : '',
-      //         colpo: itm.colpo ? testoFormula(itm.colpo) : '',
-      //       };
-      //     })
-      // );
-
-      // itemsLivelli.value = enriched;
     },
     {immediate: true, deep: true}
 );
