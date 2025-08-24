@@ -20,6 +20,7 @@ import {Abilita} from "../../../../../../models/dto/Abilita";
 import {Gradi} from "../../../../../../models/dto/Gradi";
 import {Rank} from "../../../../../../models/dto/Rank";
 import Mobile_DettaglioItemLivello from "../../Dettaglio/Mobile_DettaglioItemLivello.vue";
+import {AbilitaClasse} from "../../../../../../models/dto/AbilitaClasse";
 
 /* ========= Tipi ========= */
 type Id = number
@@ -96,24 +97,21 @@ function readItemLevel(it: any): number | null {
 }
 
 /* ========= Abilità di classe ========= */
-const abilitaClasse = ref<{ id: string }[]>([])
-const abilitaClasseSet = computed(() => new Set(abilitaClasse.value.map(x => String(x.id).toLowerCase())))
+const abilitaClasse = ref<AbilitaClasse[]>([])
+const abilitaClasseSet = computed(() => new Set(abilitaClasse.value.filter(x => x.diClasse || x.all).map(x => String(x.id).toLowerCase())))
 const isClassSkill = (uid: string) => abilitaClasseSet.value.has(uid.toLowerCase())
+const abilitaAltraClasseSet = computed(() => new Set(abilitaClasse.value.filter(x => !x.diClasse && !x.all).map(x => String(x.id).toLowerCase())))
+const isAltraClassSkill = (uid: string) => abilitaAltraClasseSet.value.has(uid.toLowerCase())
 
 /* ========= “Attuale” senza il contributo del livello corrente ========= */
 const currentByUid = reactive<Record<string, number>>({})
 
 function extractThisLevelRanks(a: Abilita, livelloItemId: number) {
-  const test = a.abilita.nome;
   const allRanks: Rank[] = Array.isArray(a?.rank?.ranks) ? (a!.rank!.ranks as Rank[]) : []
   const thisLevelRank: Rank[] = allRanks.filter(r => r?.itemId === livelloItemId)
   const otherLevelRank: Rank[] = allRanks.filter(r => r?.itemId !== livelloItemId)
   const thisLVL = thisLevelRank.reduce((s, r) => s + (r?.valore || 0), 0)
-  const otherLVL = otherLevelRank.reduce((s, r) => s + (r?.valore || 0), 0)
-  // const spent = thisLevelRank.reduce((s, r) => {
-  //   const v = Number(r?.valore) || 0
-  //   return s + (r?.diClasse ? v : v * 2)
-  // }, 0)
+  const otherLVL = otherLevelRank.reduce((sum, r) => sum + (r ? (r.diClasse ? r.valore : r.valore / 2) : 0), 0);
   return {otherLVL, thisLVL}
 }
 
@@ -227,10 +225,12 @@ type SkillRow = {
   uid: string
   name: string
   isClass: boolean
+  isOtherClass: boolean
   spent: number
   effect: number
   current: number
   total: number
+  max: number
 }
 const rows = computed<SkillRow[]>(() => {
   return (abilita.value ?? [])
@@ -238,11 +238,13 @@ const rows = computed<SkillRow[]>(() => {
         const uid = abilUid(a)
         const name = abilName(a)
         const isClass = isClassSkill(uid)
+        const isOtherClass = isAltraClassSkill(uid)
         const spent = Number(form.ranghi[uid] ?? 0)
-        const effect = isClass ? spent : Math.floor(spent / 2)
+        const effect = isClass ? spent : spent / 2
         const current = Number(currentByUid[uid] ?? 0)
         const total = current + effect
-        return {uid, name, isClass, spent, effect, current, total}
+        const max = isClass || isOtherClass ? gradiInfo.value.max ?? Infinity : Math.floor((gradiInfo.value.max ?? Infinity) / 2);
+        return {uid, name, isClass, isOtherClass, spent, effect, current, total, max}
       })
       .sort((a, b) => a.name.localeCompare(b.name))
 })
@@ -252,7 +254,8 @@ function canInc(r: SkillRow): boolean {
   if (!gradiInfo.value) return true
   const nextSpent = r.spent + 1
   const nextEffect = r.isClass ? nextSpent : Math.floor(nextSpent / 2)
-  const wouldExceedMax = (gradiInfo.value.max ?? Infinity) < (r.current + nextEffect)
+  console.log('F8', r);
+  const wouldExceedMax = r.max < (r.current + nextEffect)
   const wouldExceedBudget = (totalPointsSpent.value + 1) > gradiInfo.value.toConsume
   return !wouldExceedMax && !wouldExceedBudget
 }
@@ -362,7 +365,7 @@ async function loadClasseDetail(id: Id | null) {
     // abilità di classe (in base a pg/lvl/classe)
     if (personaggioId.value != null && form.livello != null) {
       const ac = await getAbilitaClasseByPersonaggioLivelloClasse(personaggioId.value, form.livello, id)
-      abilitaClasse.value = unwrap<{ id: string }[]>(ac) ?? []
+      abilitaClasse.value = unwrap<AbilitaClasse[]>(ac) ?? []
     }
 
     // setup livelli classe
@@ -575,7 +578,10 @@ const sumScelta = computed(() => {
                 <span v-if="r.isClass" class="pill blue">CLASSE</span>
                 <span v-if="!r.isClass" class="pill red">CROSS</span>
               </div>
-              <div class="skill-name">{{ r.name }}</div>
+              <div class="skill-name">
+                <ins v-if="r.isClass || r.isOtherClass">{{ r.name }}</ins>
+                <span v-if="!r.isClass && !r.isOtherClass">{{ r.name }}</span>
+              </div>
             </div>
 
             <div class="skill-stats">
@@ -604,7 +610,7 @@ const sumScelta = computed(() => {
 
               <div class="stat">
                 <div class="stat-label">Totale</div>
-                <div class="stat-value">{{ r.total }}</div>
+                <div class="stat-value">{{ r.total }}/{{ r.max }}</div>
               </div>
             </div>
           </div>

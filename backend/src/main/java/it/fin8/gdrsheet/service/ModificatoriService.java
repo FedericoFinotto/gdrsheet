@@ -490,28 +490,27 @@ public class ModificatoriService {
                             boolean classeRichiesta = cl.getId().equals(idClasse);
                             String idAb = tok.replace("!", "").trim();
 
-                            if (all || classeRichiesta) {
-                                AbilitaClasseDTO dto = index.computeIfAbsent(
-                                        idAb,
-                                        k -> new AbilitaClasseDTO(new ArrayList<>(), k, false)
-                                );
+                            AbilitaClasseDTO dto = index.computeIfAbsent(
+                                    idAb,
+                                    k -> new AbilitaClasseDTO(new ArrayList<>(), k, false, false)
+                            );
 
-                                // aggiungi classe se non già presente
-                                List<IdNomeDTO> cls = dto.getClasse();
-                                boolean presente = cls.stream().anyMatch(c -> Objects.equals(c.getId(), cl.getId()));
-                                if (!presente) {
-                                    cls.add(new IdNomeDTO(cl.getId(), cl.getNome()));
-                                }
-
-                                if (all) dto.setAll(true);
+                            // aggiungi classe se non già presente
+                            List<IdNomeDTO> cls = dto.getClasse();
+                            boolean presente = cls.stream().anyMatch(c -> Objects.equals(c.getId(), cl.getId()));
+                            if (!presente) {
+                                cls.add(new IdNomeDTO(cl.getId(), cl.getNome()));
                             }
+
+                            if (all) dto.setAll(true);
+                            if (classeRichiesta) dto.setDiClasse(true);
                         });
             }
 
             abilitaClasse.addAll(index.values());
         }
 
-        return abilitaClasse.stream().filter(x -> x.getAll() || x.getClasse().stream().anyMatch(y -> y.getId().equals(idClasse))).toList();
+        return abilitaClasse;
     }
 
     public void applicaSinergie(DatiPersonaggioDTO dp) {

@@ -16,5 +16,6 @@ public class AbilitaClasseDTO {
     List<IdNomeDTO> classe;
     String id;
     Boolean all;
+    Boolean diClasse;
 
 }

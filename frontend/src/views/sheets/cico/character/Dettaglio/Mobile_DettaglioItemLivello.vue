@@ -53,13 +53,13 @@ onMounted(async () => {
       itemDetail.value = props.data.entity;
     }
 
-    console.log(itemDetail);
+    // console.log(itemDetail);
     // Popola labelMap con tutte le labels
     itemDetail.value.labels?.forEach(lbl => {
       // assumiamo lbl.label come key e lbl.valore come value
       labelMap.value[lbl.label] = lbl.valore;
     });
-    console.log(labelMap);
+    // console.log(labelMap);
 
     // Lista dei children
     const avanzamenti = itemDetail.value.avanzamento ?? [];

@@ -34,7 +34,7 @@ function modifica(delta: number) {
   const nuovoSalvato = nuovoMostrato - max.value // offset da salvare (<=0)
   stat.value.valore = nuovoSalvato
   updateContatore(props.idPersonaggio, props.idStat, String(nuovoSalvato)).then(resp => {
-    if (resp) console.log(resp)
+    // if (resp) console.log(resp)
   })
 }
 </script>

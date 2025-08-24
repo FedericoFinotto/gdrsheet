@@ -4,4 +4,5 @@ export interface AbilitaClasse {
     classe: IdNome[];
     id: string;
     all: boolean;
+    diClasse: boolean;
 }

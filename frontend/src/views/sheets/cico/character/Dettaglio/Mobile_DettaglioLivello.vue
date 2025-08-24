@@ -62,7 +62,7 @@ async function switchState() {
 }
 
 const disableLabel = computed(() => {
-  console.log(itemInfo);
+  // console.log(itemInfo);
   switch (itemInfo?.tipo) {
     case TIPO_ITEM.EQUIPAGGIAMENTO:
       return itemInfo.disabled ? 'Equipaggia' : 'Togli';

@@ -3,9 +3,9 @@ import {computed, defineProps, onMounted, ref, watch} from 'vue';
 import {testoFormula, testoModificatore} from '../../../../../function/Utils';
 // ⬇️ opzionale: collega un servizio reale; se non esiste, userà l'emit 'save-temp'
 import {updateTemporaryModifier} from '../../../../../service/PersonaggioService';
-import {useCharacterStore} from "../../../../../stores/personaggio";
-import Icona from "../../../../../components/Icona/Icona.vue";
-import Tabella from "../../../../../components/Tabella.vue";
+import {useCharacterStore} from '../../../../../stores/personaggio';
+import Icona from '../../../../../components/Icona/Icona.vue';
+import Tabella from '../../../../../components/Tabella.vue';
 
 const props = defineProps({
   stat: {
@@ -47,7 +47,7 @@ function syncFromProps() {
 watch(() => props.stat?.modificatori, syncFromProps, {immediate: true, deep: true});
 
 onMounted(() => {
-  console.log('Component mounted.', props.stat);
+  // console.log('Component mounted.', props.stat);
 });
 
 // ---------- Liste mostrate (iniettano il temporaneo aggiornato nell’UI) ----------
@@ -127,18 +127,18 @@ const modificatoreModificatore = (mod) => {
 
 const mappaRiga = (mod) => {
   const STAT_KEYS = new Set(['FOR', 'DES', 'COS', 'INT', 'SAG', 'CAR'])
-  console.log(mod);
+  // console.log(mod);
   const base = testoModificatore(mod.valore)
   const formula = mod.formula ? testoFormula(mod.formula) : null;
   const extra = STAT_KEYS.has(String(props.stat.id).toUpperCase())
       ? ` [${modificatoreModificatore(mod)}]`
       : ''
   const valoreFinale = base === '+0' && extra === '' && formula ? formula : base + extra;
-  console.log({
-    ...mod,
-    origine: mod.item ?? 'Sconosciuto',
-    valor: valoreFinale,
-  })
+  // console.log({
+  //   ...mod,
+  //   origine: mod.item ?? 'Sconosciuto',
+  //   valor: valoreFinale,
+  // })
   return {
     ...mod,
     origine: mod.item ?? 'Sconosciuto',

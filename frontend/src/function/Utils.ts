@@ -95,7 +95,7 @@ export function mostraLabel(label: string, val: string): LabeledValue | null {
 
 export function iconForComponent(raw: string): IconKey {
     const t = String(raw).trim().toUpperCase();
-    console.log('icona', t);
+    // console.log('icona', t);
     switch (t) {
         case 'V':
             return 'COMP_V';

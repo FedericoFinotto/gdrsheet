@@ -59,7 +59,7 @@ public class ModificatoreMapper {
 
         dto.setDiClasse(false);
         listaAbilitaDiClasse.stream().filter(x -> x.getId().equals(entity.getStat().getId())).findFirst().ifPresent(x -> {
-            dto.setDiClasse(true);
+            dto.setDiClasse(x.getAll() || x.getDiClasse());
             dto.setClasse(x.getClasse().get(0).getNome());
         });
 
