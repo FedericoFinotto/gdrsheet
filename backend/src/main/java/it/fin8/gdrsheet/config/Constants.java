@@ -44,5 +44,8 @@ public final class Constants {
     public static final String COLLEGAMENTO_LABEL_ALWAYS_PREPARED = "ALWAYS";
     public static final String ITEM_LIVELLO_LVL = "LVL";
     public static final String ITEM_LIVELLO_LVL_CLASSE = "LVL_CLASSE";
+    public static final String ITEM_LABEL_DADI_VITA = "DV";
+    public static final String ITEM_LABEL_MALEDIZIONE = "MLDZN";
+    public static final String ITEM_LABEL_PUNTI_FERITA = "PF";
 }
 

@@ -17,6 +17,12 @@ VALUES ('Livello 0', 'LIVELLO', 'LIVELLO 0 QUI', (select id from personaggio whe
        ('Soffio (Suono)', 'ATTACCO', NULL, NULL, 1, 1)
 ;
 
+INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo)
+VALUES ('Frutto delle Papere', 'FRUTTO', 'Frutto delle Papere', null, 1, 1)
+;
+
+
+
 INSERT INTO item_label (id_item, label, valore)
 VALUES ((SELECT id FROM items WHERE nome = 'Pugno'), 'TPC', '@BAB+@FOR'),
        ((SELECT id FROM items WHERE nome = 'Pugno'), 'TPD', '1d6+@FOR'),
@@ -25,6 +31,23 @@ VALUES ((SELECT id FROM items WHERE nome = 'Pugno'), 'TPC', '@BAB+@FOR'),
        ((SELECT id FROM items WHERE nome = 'Soffio (Suono)'), 'TPD', '3d6'),
        ((select id from items where nome = 'Papera mostruosa'), 'TAGLIA', '1'),
        ((SELECT id from items where descrizione = 'LIVELLO 0 QUI'), 'LINGUE', '1894,1909,1895,1896,1897,1905');
+
+INSERT INTO item_label (id_item, label, valore)
+VALUES ((SELECT id FROM items WHERE descrizione = 'LIVELLO 4 QUI'), 'MLDZN', 'Maledizione del Fucile Ammazzadivinita'),
+       ((SELECT id FROM items WHERE descrizione = 'LIVELLO 7 QUI'), 'MLDZN', 'Frutto delle Papere'),
+       ((SELECT id FROM items WHERE descrizione = 'LIVELLO 8 QUI'), 'MLDZN', 'Frutto delle Papere');
+
+INSERT INTO item_label (id_item, label, valore)
+VALUES ((SELECT id FROM items WHERE descrizione = 'LIVELLO 1 QUI'), 'DV', '1d8'),
+       ((SELECT id FROM items WHERE descrizione = 'LIVELLO 2 QUI'), 'DV', '1d8'),
+       ((SELECT id FROM items WHERE descrizione = 'LIVELLO 3 QUI'), 'DV', '1d8'),
+       ((SELECT id FROM items WHERE descrizione = 'LIVELLO 5 QUI'), 'DV', '1d8'),
+       ((SELECT id FROM items WHERE descrizione = 'LIVELLO 6 QUI'), 'DV', '1d8');
+
+INSERT INTO item_label (id_item, label, valore)
+VALUES ((SELECT id FROM items WHERE descrizione = 'LIVELLO 4 QUI'), 'DV', '1d8'),
+       ((SELECT id FROM items WHERE descrizione = 'LIVELLO 7 QUI'), 'DV', '1d8'),
+       ((SELECT id FROM items WHERE descrizione = 'LIVELLO 8 QUI'), 'DV', '1d8');
 
 INSERT INTO collegamento (id_item_source, id_item_target)
 VALUES ((SELECT id from items where descrizione = 'LIVELLO 0 QUI'), (SELECT id from items where nome = 'Changeling')),
@@ -52,6 +75,9 @@ VALUES ((SELECT id from items where descrizione = 'LIVELLO 0 QUI'), (SELECT id f
        ((SELECT id FROM items where nome = 'FromCompendio'), (SELECT id FROM items where nome = 'Resistenza Fisica')),
        ((SELECT id FROM items where descrizione = 'LIVELLO 0 QUI'), (SELECT id FROM items where nome = 'Changeling'))
 ;
+
+INSERT INTO collegamento (id_item_source, id_item_target)
+VALUES ((SELECT id from items where nome = 'FromCompendio'), (SELECT id from items where nome = 'Frutto delle Papere'));
 
 INSERT INTO stat_value (personaggio_id, stat_id, valore, mod, classe, addestramento)
 VALUES ((select id from personaggio where nome = 'Qui'), 'FOR', '0', NULL, false, false),
@@ -143,6 +169,14 @@ VALUES ((select id from personaggio where nome = 'Qui'), 'FOR', '0', NULL, false
 ;
 
 INSERT INTO modificatori (id_item, id_stat, valore, always, tipo)
+VALUES ((SELECT id FROM items where nome = 'Frutto delle Papere'), 'FOR', '15', true, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Frutto delle Papere'), 'COS', '15', true, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Frutto delle Papere'), 'DES', '15', true, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Frutto delle Papere'), 'SAG', '15', true, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Frutto delle Papere'), 'INT', '15', true, 'VALORE'),
+       ((SELECT id FROM items where nome = 'Frutto delle Papere'), 'CAR', '15', true, 'VALORE');
+
+INSERT INTO modificatori (id_item, id_stat, valore, always, tipo)
 VALUES ((select id from items where nome = 'Balbuzie'), 'AB12', '-4', true, 'VALORE'),           --DIPLOMAZIA
        ((select id from items where nome = 'Balbuzie'), 'AB17', '-4', true, 'VALORE'),           --INTIMIDIRE
        ((select id from items where nome = 'Balbuzie'), 'AB26', '-4', true, 'VALORE'),           --RAGGIRARE
@@ -191,6 +225,10 @@ VALUES ((select id from items where nome = 'Balbuzie'), 'AB12', '-4', true, 'VAL
        ((SELECT id FROM items where nome = 'Papera mostruosa'), 'RIDDAN', '+10', true, 'VALORE'),
        ((SELECT id FROM items where nome = 'Papera mostruosa'), 'REGEN', '5', true, 'VALORE'),
        ((SELECT id FROM items where nome = 'Papera mostruosa'), 'CD', '+4', true, 'VALORE');
+
+INSERT INTO modificatori (id_item, id_stat, valore, always, tipo)
+VALUES ((select id from items where descrizione = 'LIVELLO 7 QUI'), 'PF', '+5', true, 'VALORE'),
+       ((select id from items where descrizione = 'LIVELLO 8 QUI'), 'PF', '+6', true, 'VALORE');
 
 
 INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo)

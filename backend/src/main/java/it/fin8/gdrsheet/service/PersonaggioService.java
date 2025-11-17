@@ -274,7 +274,8 @@ public class PersonaggioService {
                 .map(sv -> modificatoriService.calcolaDadiVita(
                         sv,
                         modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
-                        carList
+                        carList,
+                        livelloItems
                 ));
 
         dvOpt.ifPresent(dto::setDadiVita);
@@ -342,7 +343,8 @@ public class PersonaggioService {
                                     sv,
                                     modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
                                     carList,
-                                    dto.getDadiVita()
+                                    dto.getDadiVita(),
+                                    livelloItems
                             ))
                             .toList()
             ).get();

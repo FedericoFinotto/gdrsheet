@@ -1,7 +1,6 @@
 // Entità Sistema
 import {Sistema} from "./Sistema";
 import {Mondo} from "./Mondo";
-import {Personaggio} from "./Personaggio";
 import {Collegamento} from "./Collegamento";
 import {Modificatore} from "./Modificatore";
 import {ItemLabel} from "./ItemLabel";
@@ -42,7 +41,8 @@ export const TIPO_ITEM = {
     AVANZAMENTO: 'AVANZAMENTO',
     COMPETENZA: 'COMP',
     LINGUA: 'LINGUA',
-    IDOLO: 'IDOLO'
+    IDOLO: 'IDOLO',
+    FRUTTO: 'FRUTTO',
 } as const;
 export type TipoItem = typeof TIPO_ITEM[keyof typeof TIPO_ITEM];
 

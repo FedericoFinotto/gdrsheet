@@ -155,7 +155,9 @@ public class ModificatoriService {
         List<ModificatoreDTO> valore = modsDto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList();
         List<ModificatoreDTO> valoreCA = modsCADto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList();
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(valore);
-        modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null));
+        if (taglia != 0) {
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null));
+        }
 
         ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
                 .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel(), null)).orElse(null);
@@ -223,7 +225,8 @@ public class ModificatoriService {
         if (stat.getStat().getId().equals("LTT")) {
             modificatoriAttivi.addAll(valoreBAB);
             modificatoriAttivi.add(baseMod);
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), 4 * taglia, "4*TAGLIA", null, null, true, "Taglia", null));
+            if (taglia != 0)
+                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), 4 * taglia, "4*TAGLIA", null, null, true, "Taglia", null));
             modificatore = Optional.of(modificatoriAttivi)
                     .map(list -> list.stream()
                             .mapToInt(ModificatoreDTO::getValore)
@@ -233,7 +236,8 @@ public class ModificatoriService {
         if (stat.getStat().getId().equals("GTT")) {
             modificatoriAttivi.addAll(valoreBAB);
             modificatoriAttivi.add(baseMod);
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null));
+            if (taglia != 0)
+                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null));
             modificatore = Optional.of(modificatoriAttivi)
                     .map(list -> list.stream()
                             .mapToInt(ModificatoreDTO::getValore)
@@ -243,7 +247,8 @@ public class ModificatoriService {
         if (stat.getStat().getId().equals("MSC")) {
             modificatoriAttivi.addAll(valoreBAB);
             modificatoriAttivi.add(baseMod);
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null));
+            if (taglia != 0)
+                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null));
             modificatore = Optional.of(modificatoriAttivi)
                     .map(list -> list.stream()
                             .mapToInt(ModificatoreDTO::getValore)
@@ -261,7 +266,8 @@ public class ModificatoriService {
     public ContatoreDTO calcolaContatore(StatValue stat,
                                          List<ModificatoreDTO> modsDto,
                                          List<CaratteristicaDTO> carList,
-                                         DadiVitaDTO dadiVita) {
+                                         DadiVitaDTO dadiVita,
+                                         List<Item> livelloItems) {
         applicaCalcoli(modsDto, carList);
 
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(modsDto.stream().toList());
@@ -276,7 +282,11 @@ public class ModificatoriService {
         if (stat.getFormula() != null) {
             String formula = stat.getFormula().replaceAll("@DV", String.valueOf(dadiVita.getTotale()));
             int formulaEvaluated = Integer.parseInt(calcoloService.calcola(formula, carList));
-            modificatoriAttivi.add(new ModificatoreDTO(null, null, formulaEvaluated, null, null, null, true, "BASE", null));
+            modificatoriAttivi.add(new ModificatoreDTO(null, null, formulaEvaluated, formula, null, null, true, "BASE", null));
+        }
+
+        if (stat.getStat().getId().equals("PF")) {
+            modificatoriAttivi.addAll(livelloItems.stream().filter(x -> x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) != null).map(ModificatoriService::getMalusPF).toList());
         }
 
         int total = modificatoriAttivi.stream()
@@ -289,7 +299,7 @@ public class ModificatoriService {
                 stat.getStat().getLabel(),
                 Integer.parseInt(stat.getValore()),
                 total,
-                modsDto
+                modificatoriAttivi
         );
     }
 
@@ -324,7 +334,8 @@ public class ModificatoriService {
     DadiVitaDTO calcolaDadiVita(
             StatValue stat,
             List<ModificatoreDTO> modsDto,
-            List<CaratteristicaDTO> carList
+            List<CaratteristicaDTO> carList,
+            List<Item> livelloItems
     ) {
         applicaCalcoli(modsDto, carList);
 
@@ -332,7 +343,9 @@ public class ModificatoriService {
         if (!stat.getValore().equals("0")) {
             modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null));
         }
-        modificatoriAttivi.addAll(new ArrayList<>(modsDto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList()));
+//        modificatoriAttivi.addAll(new ArrayList<>(modsDto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList()));
+
+        modificatoriAttivi.addAll(livelloItems.stream().filter(x -> x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) == null).map(x -> new ModificatoreDTO(null, stat.getStat().getId(), null, x.getLabel(Constants.ITEM_LABEL_DADI_VITA), null, TipoModificatore.VALORE, true, x.getNome(), TipoItem.LIVELLO)).toList());
 
         DiceSummary dice = utilService.combineDice(modificatoriAttivi, ModificatoreDTO::getFormula);
 
@@ -356,32 +369,35 @@ public class ModificatoriService {
 
     private Integer getTaglia(List<ItemLabel> taglia) {
         try {
-            // Prima, trova il valore “razza” (preso per primo, ma non lo useremo subito)
-            // utile per fallback se non ci sono altri “enabled”
-            Optional<ItemLabel> razzaElem = taglia.stream()
-                    .filter(c -> c.getItem().getTipo() == TipoItem.RAZZA)
-                    .findFirst();
+            TreeMap<Integer, ItemLabel> tagliaPerLivello = taglia.stream()
+                    .filter(c -> c != null && c.getItem() != null && c.getItem().getTipo() == TipoItem.CLASSE)
+                    .map(c -> new AbstractMap.SimpleEntry<>(estraiLvlDaTaglia(c), c))
+                    .filter(e -> e.getKey() != null)
+                    .collect(Collectors.toMap(
+                            AbstractMap.SimpleEntry::getKey,
+                            AbstractMap.SimpleEntry::getValue,
+                            (a, b) -> a,          // in caso di stesso LVL tieni il primo
+                            TreeMap::new          // <Integer, ItemLabel> dedotti correttamente
+                    ));
 
-            // Poi cerca il primo item NON di razza e NON disabilitato
-            Optional<ItemLabel> primoNonRazzaEnabled = taglia.stream()
-                    // escludi la razza
-                    .filter(c -> c.getItem().getTipo() != TipoItem.RAZZA)
-                    // controlla che NON esista una label “DISABLED” col valore “1”
-                    .filter(c -> c.getItem().getLabels().stream()
-                            .noneMatch(lbl ->
-                                    Constants.ITEM_LABEL_DISABILITATO.equalsIgnoreCase(lbl.getLabel())
-                                            && Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE.equals(lbl.getValore())
-                            ))
-                    .findFirst();
 
-            // Scegli l’elemento: se esiste uno non-razza enabled lo prendi, altrimenti la razza
-            ItemLabel tagliaSelect = primoNonRazzaEnabled
-                    .orElse(razzaElem
-                            .orElseThrow(() -> new IllegalStateException("taglia non contiene nemmeno razza!"))
-                    );
+            ItemLabel tagliaDiClasse = tagliaPerLivello.isEmpty()
+                    ? null
+                    : tagliaPerLivello.lastEntry().getValue();
 
-            // Se vuoi ad esempio la stringa del nome taglia:
-            return Integer.parseInt(tagliaSelect.getValore());
+            ItemLabel tagliaNonClasse = taglia.stream().filter(x -> !x.getItem().getTipo().equals(TipoItem.CLASSE)).findFirst().orElse(null);
+
+            int tagliaValore = 0;
+
+            if (tagliaDiClasse != null) {
+                tagliaValore = Integer.parseInt(tagliaDiClasse.getValore());
+            }
+
+            if (tagliaNonClasse != null) {
+                tagliaValore = Integer.parseInt(tagliaNonClasse.getValore());
+            }
+
+            return tagliaValore;
         } catch (Exception e) {
             return 0;
         }
@@ -561,6 +577,60 @@ public class ModificatoriService {
         sinergie.add(new Sinergia("AB33", "AB4", new ModificatoreDTO(null, "AB4", 2, "+2", "per liberarsi da corde", TipoModificatore.VALORE, true, "Sinergia Usare Corde", null))); //Artista della fuga
         sinergie.add(new Sinergia("AB8", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "quando segui tracce", TipoModificatore.VALORE, true, "Sinergia Cercare", null))); //Sopravvivenza
         return sinergie;
+    }
+
+    private static Integer estraiLvlDaTaglia(ItemLabel c) {
+        if (c == null || c.getItem() == null) return null;
+
+        Item livello = c.getItem()
+                .getParent()                                // Collection<Collegamento>
+                .stream()
+                .map(Collegamento::getItemSource)           // Item
+                .filter(src -> src != null && src.getTipo() == TipoItem.LIVELLO)
+                .findFirst()
+                .orElse(null);
+
+        if (livello == null) return null;
+
+        String lvlStr = livello.getLabel(Constants.ITEM_LIVELLO_LVL); // es. "5"
+        if (lvlStr == null) return null;
+
+        try {
+            return Integer.valueOf(lvlStr.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static ModificatoreDTO getMalusPF(Item itemLivello) {
+        String dadoVita = itemLivello.getLabel(Constants.ITEM_LABEL_DADI_VITA);
+        Modificatore modificatorePF = itemLivello.getModificatore(Constants.ITEM_LABEL_PUNTI_FERITA);
+        String pfLivelloString = modificatorePF != null ? modificatorePF.getValore() : "0";
+        int pfLivello = Integer.parseInt(pfLivelloString.trim());
+
+        int malus = Math.min(pfLivello, calcolaMalus(dadoVita));
+
+        return new ModificatoreDTO(null, "PF", -1 * malus, null, null, TipoModificatore.VALORE, true, itemLivello.getNome() + " Maledetto", itemLivello.getTipo());
+    }
+
+    private static int mediaDadoDND35(int M) {
+        return switch (M) {
+            case 4 -> 3;
+            case 6 -> 4;
+            case 8 -> 5;
+            case 10 -> 6;
+            case 12 -> 7;
+            default -> (M + 1) / 2;
+        };
+    }
+
+    private static int calcolaMalus(String dadoVita) {
+        String[] parts = dadoVita.split("d");
+        int N = Integer.parseInt(parts[0]);
+        int M = Integer.parseInt(parts[1]);
+
+        int media = mediaDadoDND35(M);
+        return N * media;
     }
 
 

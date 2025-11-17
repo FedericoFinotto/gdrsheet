@@ -79,6 +79,16 @@ public class Item implements Serializable {
         }
         return null;
     }
+
+    public Modificatore getModificatore(String key) {
+        if (key == null || modificatori == null) return null;
+        for (Modificatore m : modificatori) {
+            if (Objects.equals(key, m.getStat().getId())) {
+                return m;
+            }
+        }
+        return null;
+    }
     
     public void setLabel(String key, String value) {
         if (key == null) return;

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import {computed, onMounted, reactive, ref, toRaw, watch} from 'vue'
+import {computed, defineComponent, h, onMounted, reactive, ref, toRaw, watch} from 'vue'
+import TabExpandable from '../../../../../../components/TabExpandable.vue'
 import {
   getAbilitaClasseByPersonaggioLivelloClasse,
   getGradiClasseByPersonaggioLivelloClasse,
@@ -10,17 +11,44 @@ import {
   getListaMaledizioniPerPersonaggio,
   saveLivello,
 } from '../../../../../../service/PersonaggioService'
-import TabExpandable from '../../../../../../components/TabExpandable.vue'
 import {ItemDB, TIPO_ITEM} from '../../../../../../models/entity/ItemDB'
-import {Classe} from "../../../../../../models/dto/Classe";
-import {Item} from "../../../../../../models/dto/Item";
-import {UpdateLivelloRequest} from "../../../../../../models/dto/UpdateLivelloRequest";
-import {Abilita} from "../../../../../../models/dto/Abilita";
-import {Gradi} from "../../../../../../models/dto/Gradi";
-import {Rank} from "../../../../../../models/dto/Rank";
-import Mobile_DettaglioItemLivello from "../../Dettaglio/Mobile_DettaglioItemLivello.vue";
-import {AbilitaClasse} from "../../../../../../models/dto/AbilitaClasse";
-import {getItemLabel, LABELS} from "../../../../../../models/entity/ItemLabel";
+import {Classe} from '../../../../../../models/dto/Classe'
+import {Item} from '../../../../../../models/dto/Item'
+import {UpdateLivelloRequest} from '../../../../../../models/dto/UpdateLivelloRequest'
+import {Abilita} from '../../../../../../models/dto/Abilita'
+import {Gradi} from '../../../../../../models/dto/Gradi'
+import {Rank} from '../../../../../../models/dto/Rank'
+import {AbilitaClasse} from '../../../../../../models/dto/AbilitaClasse'
+import {getItemLabel, LABELS} from '../../../../../../models/entity/ItemLabel'
+
+/* ========= Sottocomponente locale per dettaglio mobile (render function, niente template runtime) ========= */
+const Mobile_DettaglioItemLivello = defineComponent({
+  name: 'Mobile_DettaglioItemLivello',
+  props: {
+    data: {type: Object, required: true}
+  },
+  setup(rawProps: any) {
+    const levels = computed(() => (rawProps.data?.livelli ?? []).slice().sort((a: number, b: number) => a - b))
+    return () =>
+        h('div', {class: 'mdet'},
+            levels.value.map((lv: number) =>
+                h('div', {class: 'mdet-block', key: 'md-lv-' + lv}, [
+                  h('div', {class: 'mdet-hd'}, `Livello ${lv}`),
+                  h('ul', {class: 'mdet-list'},
+                      (rawProps.data?.grantsByLevel?.[lv] ?? []).map((r: any) =>
+                          h('li', {key: `md-r-${lv}-${r.id}`}, [
+                            r.tipo === 'ABILITA'
+                                ? h('span', {class: 'pill blue'}, 'ABILITA')
+                                : h('span', {class: 'pill red'}, r.tipo),
+                            h('span', {class: 'mdet-name', style: 'margin-left:.35rem'}, r.name)
+                          ])
+                      )
+                  )
+                ])
+            )
+        )
+  }
+})
 
 /* ========= Tipi ========= */
 type Id = number
@@ -31,11 +59,12 @@ interface Caratteristiche {
   COS?: number | null;
   INT?: number | null;
   SAG?: number | null;
-  CAR?: number | null;
+  CAR?: number | null
 }
-
 type TipoScelta = 'classe' | 'maledizione' | 'none'
+type GrantRow = { id: number; name: string; tipo: string; livello: number }
 
+/* ========= Props/Emits ========= */
 const props = defineProps<{ item: ItemDB; readonly?: boolean }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
 
@@ -56,15 +85,6 @@ const form = reactive<UpdateLivelloRequest>({
 const busy = ref(false)
 const disabledAll = computed(() => !!props.readonly || busy.value)
 const canSave = computed(() => !busy.value && !props.readonly)
-const showOnlyModifiedAbilita = ref(false);
-
-function changeShowOnlyModifiedAbilita() {
-  showOnlyModifiedAbilita.value = !showOnlyModifiedAbilita.value;
-}
-
-function showAbilita(row: SkillRow) {
-  return !showOnlyModifiedAbilita.value || row.spent !== 0;
-}
 
 /* ========= Liste ========= */
 const classi = ref<Classe[]>([])
@@ -74,11 +94,10 @@ const abilita = ref<Abilita[]>([])
 /* ========= Helpers ========= */
 const abilUid = (a: Abilita) => String(a?.abilita?.id ?? '')
 const abilName = (a: Abilita) => (a?.abilita?.nome ?? '').trim()
-
 function cleanedCaratteristiche(src: Caratteristiche): Partial<Caratteristiche> {
   const out: Partial<Caratteristiche> = {}
   ;(['FOR', 'DES', 'COS', 'INT', 'SAG', 'CAR'] as (keyof Caratteristiche)[]).forEach(k => {
-    const v = src[k]
+    const v = src[k];
     if (v !== null && v !== undefined && (v as any) !== '') out[k] = Number(v)
   })
   return out
@@ -87,8 +106,6 @@ function cleanedCaratteristiche(src: Caratteristiche): Partial<Caratteristiche> 
 function unwrap<T>(res: any): T {
   return (res && 'data' in res) ? res.data : res
 }
-
-/* ========= LVL (label livello item) ========= */
 function readItemLevel(it: any): number | null {
   const raw = (getItemLabel(it, 'LVL') ?? '').toString().trim()
   if (!raw) return null
@@ -103,30 +120,26 @@ const isClassSkill = (uid: string) => abilitaClasseSet.value.has(uid.toLowerCase
 const abilitaAltraClasseSet = computed(() => new Set(abilitaClasse.value.filter(x => !x.diClasse && !x.all).map(x => String(x.id).toLowerCase())))
 const isAltraClassSkill = (uid: string) => abilitaAltraClasseSet.value.has(uid.toLowerCase())
 
-/* ========= “Attuale” senza il contributo del livello corrente ========= */
+/* ========= Attuali senza il livello corrente ========= */
 const currentByUid = reactive<Record<string, number>>({})
-
 function extractThisLevelRanks(a: Abilita, livelloItemId: number) {
-  const allRanks: Rank[] = Array.isArray(a?.rank?.ranks) ? (a!.rank!.ranks as Rank[]) : []
-  const thisLevelRank: Rank[] = allRanks.filter(r => r?.itemId === livelloItemId)
-  const otherLevelRank: Rank[] = allRanks.filter(r => r?.itemId !== livelloItemId)
-  const thisLVL = thisLevelRank.reduce((s, r) => s + (r?.valore || 0), 0)
-  const otherLVL = otherLevelRank.reduce((sum, r) => sum + (r ? (r.diClasse ? r.valore : r.valore / 2) : 0), 0);
+  const all: Rank[] = Array.isArray(a?.rank?.ranks) ? (a!.rank!.ranks as Rank[]) : []
+  const thisLevel = all.filter(r => r?.itemId === livelloItemId)
+  const other = all.filter(r => r?.itemId !== livelloItemId)
+  const thisLVL = thisLevel.reduce((s, r) => s + (r?.valore || 0), 0)
+  const otherLVL = other.reduce((sum, r) => sum + (r ? (r.diClasse ? r.valore : r.valore / 2) : 0), 0)
   return {otherLVL, thisLVL}
 }
-
 function preloadAttualiDaStats() {
   const lvlId = Number(props.item?.id)
   Object.keys(currentByUid).forEach(k => delete currentByUid[k])
   Object.keys(form.ranghi).forEach(k => delete form.ranghi[k])
-
   for (const a of (abilita.value ?? [])) {
-    const uid = abilUid(a)
+    const uid = abilUid(a);
     if (!uid) continue
-    const totalNow = Number(a?.rank?.modificatore ?? a?.rank?.valore ?? 0)
     const {otherLVL, thisLVL} = extractThisLevelRanks(a, lvlId)
-    currentByUid[uid] = Math.max(0, otherLVL) // “Attuale” escluso questo livello
-    form.ranghi[uid] = thisLVL                          // pre-riempi i ± con i punti già spesi
+    currentByUid[uid] = Math.max(0, otherLVL)
+    form.ranghi[uid] = thisLVL
   }
 }
 
@@ -139,27 +152,18 @@ function toLevelNumber(a: any): number | null {
   if (viaTarget != null) return viaTarget
   return null
 }
-
 type AvEntry = { livello: number; item: any }
 const avanzamentiClasse = computed<AvEntry[]>(() => {
   const arr: any[] = classeDetail.value?.avanzamento ?? []
   if (!Array.isArray(arr)) return []
-  return arr
-      .filter(a => a?.itemTarget?.tipo === 'AVANZAMENTO')
+  return arr.filter(a => a?.itemTarget?.tipo === 'AVANZAMENTO')
       .map(a => ({livello: toLevelNumber(a), item: a.itemTarget}))
       .filter(e => e.livello != null) as AvEntry[]
 })
 const livelliDisponibili = computed<number[]>(() => {
-  const s = new Set<number>()
-  avanzamentiClasse.value.forEach(e => s.add(e.livello))
+  const s = new Set<number>();
+  avanzamentiClasse.value.forEach(e => s.add(e.livello));
   return Array.from(s).sort((a, b) => a - b)
-})
-watch(livelliDisponibili, levels => {
-  const next: Record<number, boolean> = {}
-  levels.forEach(lv => {
-    next[lv] = form.livelliClasse[lv] ?? false
-  })
-  form.livelliClasse = next
 })
 
 /* ========= Selezione / UI ========= */
@@ -167,11 +171,13 @@ function pickTipo(tipo: TipoScelta) {
   form.tipoScelta = tipo
   if (tipo === 'classe') form.maledizioneId = null
   if (tipo !== 'classe') {
-    form.classeId = null
-    classeDetail.value = null
+    form.classeId = null;
+    classeDetail.value = null;
     form.livelliClasse = {}
-    abilitaClasse.value = []
+    abilitaClasse.value = [];
     gradiInfo.value = null
+    Object.keys(grantsByLevel).forEach(k => delete (grantsByLevel as any)[k])
+    selectedGrantIds.value.clear()
   }
 }
 
@@ -179,31 +185,35 @@ function isTipo(t: TipoScelta) {
   return form.tipoScelta === t
 }
 
-/* ========= Gradi da consumare ========= */
+/* ========= Gradi da consumare (debounced) ========= */
 const gradiInfo = ref<Gradi | null>(null)
 const livelliSelezionati = computed<number[]>(() =>
     Object.entries(form.livelliClasse).filter(([, v]) => !!v).map(([k]) => Number(k)).sort((a, b) => a - b)
 )
-
-const dettaglioKey = computed(() => [
-  personaggioId.value ?? 'nop', form.classeId ?? 'noclass', ...livelliSelezionati.value].join('-')
-)
-
-const totalPointsSpent = computed(() =>
-    Object.values(form.ranghi).reduce((a, b) => a + (Number(b) || 0), 0)
-)
-const showGradiTab = computed(() =>
-    form.tipoScelta === 'classe' && !!gradiInfo.value && (gradiInfo.value!.toConsume > 0) && abilita.value.length > 0
-)
+const dettaglioKey = computed(() => [personaggioId.value ?? 'nop', form.classeId ?? 'noclass', ...livelliSelezionati.value].join('-'))
+const totalPointsSpent = computed(() => Object.values(form.ranghi).reduce((a, b) => a + (Number(b) || 0), 0))
+const showGradiTab = computed(() => form.tipoScelta === 'classe' && !!gradiInfo.value && (gradiInfo.value!.toConsume > 0) && abilita.value.length > 0)
 const sumAbil = computed(() => {
-  const total = gradiInfo.value?.toConsume ?? 0
+  const total = gradiInfo.value?.toConsume ?? 0;
   const used = totalPointsSpent.value;
   const max = gradiInfo.value?.max ?? 0
   return `${used}/${total} (max ${max})`
 })
 
-let lastGradiReq = 0
+function debounce<T extends (...args: any[]) => any>(fn: T, wait = 200) {
+  let t: any;
+  return (...args: Parameters<T>) => {
+    if (t) clearTimeout(t);
+    t = setTimeout(() => fn(...args), wait)
+  }
+}
 
+const gradiKey = computed(() => {
+  if (!personaggioId.value || !form.classeId || !form.livello || !livelliSelezionati.value.length) return ''
+  return `${personaggioId.value}|${form.classeId}|${form.livello}|${livelliSelezionati.value.join(',')}`
+})
+const debouncedRefresh = debounce(() => refreshGradiInfo(), 250)
+let lastGradiReq = 0
 async function refreshGradiInfo() {
   if (!personaggioId.value || !form.classeId || !form.livello || livelliSelezionati.value.length === 0) {
     gradiInfo.value = null;
@@ -215,41 +225,35 @@ async function refreshGradiInfo() {
     const res = await getGradiClasseByPersonaggioLivelloClasse(personaggioId.value, form.livello, form.classeId, levelsStr)
     if (token === lastGradiReq) gradiInfo.value = unwrap<Gradi>(res)
   } catch (e) {
-    if (token === lastGradiReq) gradiInfo.value = null
+    if (token === lastGradiReq) gradiInfo.value = null;
     console.error('Errore getGradiClasseByPersonaggioLivelloClasse:', e)
   }
 }
 
-/* ========= Righe abilità per la UI ========= */
-type SkillRow = {
-  uid: string
-  name: string
-  isClass: boolean
-  isOtherClass: boolean
-  spent: number
-  effect: number
-  current: number
-  total: number
-  max: number
-}
-const rows = computed<SkillRow[]>(() => {
-  return (abilita.value ?? [])
-      .map(a => {
-        const uid = abilUid(a)
-        const name = abilName(a)
-        const isClass = isClassSkill(uid)
-        const isOtherClass = isAltraClassSkill(uid)
-        const spent = Number(form.ranghi[uid] ?? 0)
-        const effect = isClass ? spent : spent / 2
-        const current = Number(currentByUid[uid] ?? 0)
-        const total = current + effect
-        const max = isClass || isOtherClass ? gradiInfo.value.max ?? Infinity : Math.floor((gradiInfo.value.max ?? Infinity) / 2);
-        return {uid, name, isClass, isOtherClass, spent, effect, current, total, max}
-      })
-      .sort((a, b) => a.name.localeCompare(b.name))
+watch(gradiKey, (key) => {
+  if (!key) return;
+  debouncedRefresh()
 })
 
-/* ========= Controlli ± con vincoli ========= */
+/* ========= Righe abilità ========= */
+type SkillRow = {
+  uid: string; name: string; isClass: boolean; isOtherClass: boolean; spent: number; effect: number; current: number;
+  total: number; max: number
+}
+const rows = computed<SkillRow[]>(() => {
+  return (abilita.value ?? []).map(a => {
+    const uid = abilUid(a);
+    const name = abilName(a);
+    const isClass = isClassSkill(uid);
+    const isOtherClass = isAltraClassSkill(uid)
+    const spent = Number(form.ranghi[uid] ?? 0)
+    const effect = isClass ? spent : Math.floor(spent / 2)
+    const current = Number(currentByUid[uid] ?? 0)
+    const total = current + effect
+    const max = isClass || isOtherClass ? gradiInfo.value?.max ?? Infinity : Math.floor((gradiInfo.value?.max ?? Infinity) / 2)
+    return {uid, name, isClass, isOtherClass, spent, effect, current, total, max}
+  }).sort((a, b) => a.name.localeCompare(b.name))
+})
 function canInc(r: SkillRow): boolean {
   if (!gradiInfo.value) return true
   const nextSpent = r.spent + 1
@@ -260,87 +264,136 @@ function canInc(r: SkillRow): boolean {
 }
 
 function inc(uid: string) {
-  const r = rows.value.find(x => x.uid === uid)
-  if (!r) return
-  if (!canInc(r)) return
+  const r = rows.value.find(x => x.uid === uid);
+  if (!r || !canInc(r)) return;
   form.ranghi[uid] = (form.ranghi[uid] ?? 0) + 1
 }
 
 function dec(uid: string) {
   form.ranghi[uid] = Math.max(0, (form.ranghi[uid] ?? 0) - 1)
 }
-
-// input manuale (punti spesi)
 function onDirectChange(uid: string, val: string) {
-  const n = Math.max(0, Math.floor(Number(val)))
+  const n = Math.max(0, Math.floor(Number(val)));
   form.ranghi[uid] = n
-  // clamp su budget
   if (gradiInfo.value) {
-    const overflow = totalPointsSpent.value - gradiInfo.value.toConsume
+    const overflow = totalPointsSpent.value - gradiInfo.value.toConsume;
     if (overflow > 0) form.ranghi[uid] = Math.max(0, n - overflow)
   }
-  // clamp su max per abilità
   const a = abilita.value.find(x => abilUid(x) === uid)
   if (a && gradiInfo.value) {
-    const isClass = isClassSkill(uid)
-    const spent = form.ranghi[uid]
-    const effect = isClass ? spent : Math.floor(spent / 2)
+    const isClass = isClassSkill(uid);
+    let s = form.ranghi[uid];
     const current = currentByUid[uid] ?? 0
-    if (current + effect > gradiInfo.value.max) {
-      // riduci finché rientra
-      let s = spent
-      while (s > 0) {
-        const e = isClass ? s : Math.floor(s / 2)
-        if (current + e <= gradiInfo.value.max) break
-        s--
-      }
-      form.ranghi[uid] = s
+    while (s > 0) {
+      const e = isClass ? s : Math.floor(s / 2);
+      if (current + e <= gradiInfo.value.max) break;
+      s--
     }
+    form.ranghi[uid] = s
   }
 }
 
-/* ========= Prefill + Caricamento ========= */
+/* ========= Grant selezionabili per livello ========= */
+const grantsByLevel = reactive<Record<number, GrantRow[]>>({})
+const selectedGrantIds = ref<Set<number>>(new Set())
+
+function groupAvanzamentiByLevel(detail: any) {
+  const lista: any[] = Array.isArray(detail?.avanzamento) ? detail.avanzamento : []
+  return lista.reduce((map, a) => {
+    if (a?.itemTarget?.tipo !== 'AVANZAMENTO') return map
+    const lv = Number.isFinite(Number(a?.livello)) ? Number(a.livello) : null
+    if (lv == null) return map
+    const arr = map.get(lv)
+    arr ? arr.push(a) : map.set(lv, [a])
+    return map
+  }, new Map<number, any[]>())
+}
+
+async function toGrantsByLevel(avanzPerLv: Map<number, any[]>) {
+  const out: Record<number, GrantRow[]> = {}
+  for (const [lv, avanzList] of avanzPerLv) {
+    const allRows: GrantRow[] = []
+    await Promise.all(avanzList.map(async (a: any) => {
+      let children: any[] = Array.isArray(a.itemTarget?.child) ? a.itemTarget.child : []
+      if (!children.length) {
+        try {
+          const res = await getItem(a.itemTarget.id)
+          const adv = unwrap<any>(res)
+          children = Array.isArray(adv?.child) ? adv.child : []
+        } catch { /* ignore */
+        }
+      }
+      const rows: GrantRow[] = (children ?? [])
+          .map((ch: any) => ch?.itemTarget)
+          .filter(Boolean)
+          .map((it: any) => ({
+            id: Number(it.id),
+            name: String(it.nome ?? it.titolo ?? it.label ?? `#${it.id}`),
+            tipo: String(it.tipo ?? 'ITEM'),
+            livello: lv
+          }))
+      allRows.push(...rows)
+    }))
+    out[lv] = allRows
+  }
+  return out
+}
+
+async function buildGrantsByLevelAsync(detail: any) {
+  // reset reattivo
+  Object.keys(grantsByLevel).forEach(k => delete (grantsByLevel as any)[k])
+  selectedGrantIds.value.clear()
+  if (!detail) return
+
+  const byLv = groupAvanzamentiByLevel(detail)
+  const grouped = await toGrantsByLevel(byLv)
+
+  for (const [k, list] of Object.entries(grouped)) {
+    grantsByLevel[Number(k)] = list
+  }
+  // preselezione coerente con livelli già spuntati
+  for (const lv of livelliSelezionati.value) {
+    for (const r of (grantsByLevel[lv] ?? [])) selectedGrantIds.value.add(r.id)
+  }
+}
+
+function toggleGrant(id: number, checked: boolean) {
+  const set = selectedGrantIds.value;
+  if (checked) set.add(id); else set.delete(id)
+}
+
+function selectAllLevel(lv: number) {
+  (grantsByLevel[lv] ?? []).forEach(r => selectedGrantIds.value.add(r.id))
+}
+
+function deselectAllLevel(lv: number) {
+  (grantsByLevel[lv] ?? []).forEach(r => selectedGrantIds.value.delete(r.id))
+}
+
+/* ========= Caricamento & Reazioni ========= */
 onMounted(async () => {
   try {
     busy.value = true
-
-    // LVL dall'item
     form.livello = readItemLevel(props.item)
+    for (const m of (props.item.modificatori ?? [])) if (m.tipo === 'BASE') (form.caratteristiche as any)[m.stat.id] = m.valore
 
-    // Caratteristiche BASE
-    for (const m of (props.item.modificatori ?? [])) {
-      if (m.tipo === 'BASE') (form.caratteristiche as any)[m.stat.id] = m.valore
-    }
-
-    // Classe/Maledizione dal child
     for (const ch of (props.item.child ?? [])) {
       if (ch.itemTarget.tipo === TIPO_ITEM.CLASSE) {
         form.tipoScelta = 'classe';
         form.classeId = ch.itemTarget.id
         const livelliClasse: string | null = getItemLabel(props.item, LABELS.CLASSE_LIVELLO);
         if (typeof livelliClasse === 'string' && livelliClasse.trim()) {
-          const lvls = livelliClasse
-              .split(',')
-              .map(s => Number(s.trim()))
-              .filter(Number.isFinite); // rimuove vuoti/NaN
-
-          // Se vuoi solo settare (mantenendo eventuali altre chiavi già presenti):
-          for (const lv of lvls) {
-            form.livelliClasse[lv] = true;
-          }
+          const lvls = livelliClasse.split(',').map(s => Number(s.trim())).filter(Number.isFinite)
+          for (const lv of lvls) form.livelliClasse[lv] = true
         }
-        console.log(props.item, livelliClasse);
       } else if (ch.itemTarget.tipo === TIPO_ITEM.MALEDIZIONE) {
         form.tipoScelta = 'maledizione';
         form.maledizioneId = ch.itemTarget.id
       }
     }
 
-    // id personaggio
-    const pid = unwrap<Id>(await getIdPersonaggioFromLivello(props.item.id))
+    const pid = unwrap<Id>(await getIdPersonaggioFromLivello(props.item.id));
     personaggioId.value = pid
-
-    // liste
     const [cls, mal, abi] = await Promise.all([
       getListaClassiPerPersonaggio(pid),
       getListaMaledizioniPerPersonaggio(pid),
@@ -350,14 +403,9 @@ onMounted(async () => {
     maledizioni.value = unwrap<Item[]>(mal) ?? []
     abilita.value = unwrap<Abilita[]>(abi) ?? []
 
-    // preload attuali/spesi
     preloadAttualiDaStats()
 
-    // dettaglio classe + abilità di classe + gradi
-    if (form.tipoScelta === 'classe' && form.classeId) {
-      await loadClasseDetail(form.classeId)
-      await refreshGradiInfo()
-    }
+    if (form.tipoScelta === 'classe' && form.classeId) await loadClasseDetail(form.classeId)
   } catch (e) {
     console.error('Errore inizializzazione LivelloEditor:', e)
   } finally {
@@ -367,53 +415,63 @@ onMounted(async () => {
 
 async function loadClasseDetail(id: Id | null) {
   if (!id) {
-    classeDetail.value = null;
+    classeDetail.value = null
+    Object.keys(grantsByLevel).forEach(k => delete (grantsByLevel as any)[k])
+    selectedGrantIds.value.clear()
     return
   }
   try {
     const res = await getItem(id)
     classeDetail.value = unwrap<any>(res)
 
-    // abilità di classe (in base a pg/lvl/classe)
     if (personaggioId.value != null && form.livello != null) {
       const ac = await getAbilitaClasseByPersonaggioLivelloClasse(personaggioId.value, form.livello, id)
       abilitaClasse.value = unwrap<AbilitaClasse[]>(ac) ?? []
     }
 
-    // setup livelli classe
     const levels = livelliDisponibili.value
     const next: Record<number, boolean> = {}
     levels.forEach(lv => {
       next[lv] = form.livelliClasse[lv] ?? false
     })
     form.livelliClasse = next
+
+    await buildGrantsByLevelAsync(classeDetail.value)
+
+    if (gradiKey.value) debouncedRefresh()
   } catch (e) {
     classeDetail.value = null
     form.livelliClasse = {}
+    Object.keys(grantsByLevel).forEach(k => delete (grantsByLevel as any)[k])
+    selectedGrantIds.value.clear()
     console.error('Errore caricando dettaglio classe:', e)
   }
 }
 
 /* Reazioni */
 watch(() => form.classeId, async (id, prev) => {
-  if (form.tipoScelta !== 'classe') return
-  if (id === prev) return
+  if (form.tipoScelta !== 'classe' || id === prev) return
   await loadClasseDetail(id)
-  await refreshGradiInfo()
-})
-watch([livelliSelezionati, () => form.livello], () => {
-  refreshGradiInfo()
 })
 watch([abilita, () => props.item.id], () => {
   preloadAttualiDaStats()
 }, {deep: true})
+watch(livelliSelezionati, async (now, prev) => {
+  const prevSet = new Set(prev ?? []), nowSet = new Set(now ?? [])
+  now.forEach(lv => {
+    if (!prevSet.has(lv)) (grantsByLevel[lv] ?? []).forEach(r => selectedGrantIds.value.add(r.id))
+  })
+  prev.forEach(lv => {
+    if (!nowSet.has(lv)) (grantsByLevel[lv] ?? []).forEach(r => selectedGrantIds.value.delete(r.id))
+  })
+  if (gradiKey.value) debouncedRefresh()
+})
 
 /* ========= Salvataggio ========= */
 async function onSave() {
   if (!canSave.value || personaggioId.value == null) return
   try {
     busy.value = true
-
     const payload = toRaw({
       livelloId: props.item.id,
       personaggioId: personaggioId.value,
@@ -422,13 +480,12 @@ async function onSave() {
       classeId: form.tipoScelta === 'classe' ? form.classeId : null,
       maledizioneId: form.tipoScelta === 'maledizione' ? form.maledizioneId : null,
       livelliClasse: livelliSelezionati.value,
-      // invio id abilità STRING + punti spesi
       ranghi: Object.entries(form.ranghi)
           .filter(([, v]) => (Number(v) || 0) > 0)
           .map(([abilitaId, punti]) => ({abilitaId, punti: Number(punti)})),
-      labelsPatch: {LVL: form.livello == null ? '' : String(form.livello)}
+      labelsPatch: {LVL: form.livello == null ? '' : String(form.livello)},
+      sottoItemIds: Array.from(selectedGrantIds.value)
     })
-
     await saveLivello(payload)
     emit('saved')
   } catch (e) {
@@ -442,9 +499,9 @@ function onCancel() {
   emit('cancel')
 }
 
-/* ========= Summary Tabs ========= */
+/* ========= Summary ========= */
 const sumCar = computed(() => {
-  const c = cleanedCaratteristiche(form.caratteristiche)
+  const c = cleanedCaratteristiche(form.caratteristiche);
   const parts: string[] = []
   ;(['FOR', 'DES', 'COS', 'INT', 'SAG', 'CAR'] as const).forEach(k => {
     const v = (c as any)[k];
@@ -470,22 +527,21 @@ const sumScelta = computed(() => {
     <div class="row three">
       <label class="field">
         <span class="lbl">LVL</span>
-        <input type="number" inputmode="numeric" min="0" step="1"
-               v-model.number="form.livello" :disabled="disabledAll" placeholder="—"/>
+        <input type="number" inputmode="numeric" min="0" step="1" v-model.number="form.livello" :disabled="disabledAll"
+               placeholder="—"/>
       </label>
       <div class="field"></div>
       <div class="field"></div>
     </div>
 
-    <!-- Caratteristiche (solo livello 0) -->
+    <!-- Caratteristiche -->
     <TabExpandable title="Caratteristiche (facoltative)" :defaultOpen="false" v-if="form.livello === 0">
       <template #summary>{{ sumCar }}</template>
       <template #content>
         <div class="row three">
           <label v-for="k in ['FOR','DES','COS','INT','SAG','CAR']" :key="k" class="field">
             <span class="lbl">{{ k }}</span>
-            <input type="number" inputmode="numeric" min="0" step="1"
-                   :placeholder="'—'" :disabled="disabledAll"
+            <input type="number" inputmode="numeric" min="0" step="1" :placeholder="'—'" :disabled="disabledAll"
                    v-model.number="(form.caratteristiche as any)[k]"/>
           </label>
         </div>
@@ -494,27 +550,22 @@ const sumScelta = computed(() => {
 
     <!-- Classe / Maledizione -->
     <TabExpandable title="Classe / Maledizione" :defaultOpen="true">
-      <template #summary>
-        <span class="wrap">{{ sumScelta }}</span>
-      </template>
+      <template #summary><span class="wrap">{{ sumScelta }}</span></template>
       <template #content>
         <div class="row">
           <div class="toggle-row">
             <label class="toggle">
-              <input type="radio" name="pick" value="classe"
-                     :checked="form.tipoScelta==='classe'"
+              <input type="radio" name="pick" value="classe" :checked="form.tipoScelta==='classe'"
                      @change="pickTipo('classe')" :disabled="disabledAll">
               <span>Classe</span>
             </label>
             <label class="toggle">
-              <input type="radio" name="pick" value="maledizione"
-                     :checked="form.tipoScelta==='maledizione'"
+              <input type="radio" name="pick" value="maledizione" :checked="form.tipoScelta==='maledizione'"
                      @change="pickTipo('maledizione')" :disabled="disabledAll">
               <span>Maledizione</span>
             </label>
             <label class="toggle">
-              <input type="radio" name="pick" value="none"
-                     :checked="form.tipoScelta==='none'"
+              <input type="radio" name="pick" value="none" :checked="form.tipoScelta==='none'"
                      @change="pickTipo('none')" :disabled="disabledAll">
               <span>Nessuna</span>
             </label>
@@ -554,13 +605,43 @@ const sumScelta = computed(() => {
       </template>
     </TabExpandable>
 
+    <!-- Info livelli -->
     <TabExpandable v-if="classeDetail" title="Info Livelli Classe" :defaultOpen="false">
       <template #summary></template>
       <template #content>
-        <Mobile_DettaglioItemLivello
-            :key="dettaglioKey"
-            :data="{ idPersonaggio: personaggioId, livello: livelliSelezionati, entity: classeDetail }"
-        />
+        <Mobile_DettaglioItemLivello :key="dettaglioKey" :data="{ livelli: livelliSelezionati, grantsByLevel }"/>
+      </template>
+    </TabExpandable>
+
+    <!-- Contenuti del livello -->
+    <TabExpandable v-if="form.tipoScelta==='classe' && livelliSelezionati.length && Object.keys(grantsByLevel).length"
+                   title="Contenuti del livello" :defaultOpen="true">
+      <template #summary>{{ selectedGrantIds.size }} selezionati</template>
+      <template #content>
+        <div class="grants">
+          <div class="grant-block" v-for="lv in livelliSelezionati" :key="'gbl-'+lv">
+            <div class="grant-header">
+              <span class="lbl">Livello {{ lv }}</span>
+              <div class="grant-actions">
+                <button type="button" class="btn" @click="selectAllLevel(lv)" :disabled="disabledAll">Seleziona tutto
+                </button>
+                <button type="button" class="btn ghost" @click="deselectAllLevel(lv)" :disabled="disabledAll">Nessuno
+                </button>
+              </div>
+            </div>
+            <div class="grant-list">
+              <label class="grant-row" v-for="g in grantsByLevel[lv] ?? []" :key="'g-'+lv+'-'+g.id">
+                <input type="checkbox" :checked="selectedGrantIds.has(g.id)"
+                       @change="toggleGrant(g.id, ($event.target as HTMLInputElement).checked)"
+                       :disabled="disabledAll"/>
+                <span class="pill blue" v-if="g.tipo==='ABILITA'">{{ g.tipo }}</span>
+                <span class="pill red" v-else>{{ g.tipo }}</span>
+                <span class="grant-name">{{ g.name }}</span>
+              </label>
+              <div v-if="!(grantsByLevel[lv]?.length)" class="muted">Nessun contenuto per questo livello.</div>
+            </div>
+          </div>
+        </div>
       </template>
     </TabExpandable>
 
@@ -568,58 +649,40 @@ const sumScelta = computed(() => {
     <TabExpandable v-if="showGradiTab" title="Abilità & Ranghi" :defaultOpen="true">
       <template #summary>{{ sumAbil }}</template>
       <template #content>
-        <!--        <div class="box-info">-->
-        <!--          <div><strong>Ranghi disponibili:</strong> {{ (gradiInfo!.toConsume - totalPointsSpent) }} /-->
-        <!--            {{ gradiInfo!.toConsume }}-->
-        <!--          </div>-->
-        <!--          <div><strong>Max per abilità:</strong> {{ gradiInfo!.max }}</div>-->
-        <!--          <div v-if="gradiInfo!.formule?.length"><strong>Formula(e):</strong>-->
-        <!--            {{ testoFormula(gradiInfo!.formule.join(' + ')) }}-->
-        <!--          </div>-->
-        <!--        </div>-->
-        <div class="btn-wraper">
-          <button type="button" class="btn" @click="changeShowOnlyModifiedAbilita">
-            {{ showOnlyModifiedAbilita ? 'Mostra tutti' : 'Mostra solo modificati' }}
-          </button>
-        </div>
-
         <div class="skills">
-          <div class="skill-row" v-for="r in rows.filter(x => showAbilita(x))" :key="r.uid">
+          <div class="skill-row" v-for="r in rows" :key="r.uid"
+               v-show="!($props as any).showOnlyModifiedAbilita || r.spent!==0">
             <div class="skill-main">
               <div class="skill-badges">
                 <span v-if="r.isClass" class="pill blue">CLASSE</span>
-                <span v-if="!r.isClass" class="pill red">CROSS</span>
+                <span v-else class="pill red">CROSS</span>
               </div>
               <div class="skill-name">
                 <ins v-if="r.isClass || r.isOtherClass">{{ r.name }}</ins>
-                <span v-if="!r.isClass && !r.isOtherClass">{{ r.name }}</span>
+                <span v-else>{{ r.name }}</span>
               </div>
             </div>
-
             <div class="skill-stats">
               <div class="stat">
                 <div class="stat-label">Attuale</div>
                 <div class="stat-value">{{ r.current }}</div>
               </div>
-
               <div class="stat">
                 <div class="stat-label">Punti</div>
                 <div class="counter">
                   <button type="button" class="btn" @click.stop="dec(r.uid)" :disabled="disabledAll || r.spent<=0">−
                   </button>
-                  <input type="number" inputmode="numeric" min="0" step="1"
-                         :value="r.spent" @input="onDirectChange(r.uid, ($event.target as HTMLInputElement).value)"
+                  <input type="number" inputmode="numeric" min="0" step="1" :value="r.spent"
+                         @input="onDirectChange(r.uid, ($event.target as HTMLInputElement).value)"
                          :disabled="disabledAll"/>
                   <button type="button" class="btn" @click.stop="inc(r.uid)" :disabled="disabledAll || !canInc(r)">+
                   </button>
                 </div>
               </div>
-
               <div class="stat tight">
                 <div class="stat-label">Effetto</div>
                 <div class="stat-value">+{{ r.effect }}</div>
               </div>
-
               <div class="stat">
                 <div class="stat-label">Totale</div>
                 <div class="stat-value">{{ r.total }}/{{ r.max }}</div>
@@ -739,16 +802,7 @@ input[type="text"], input[type="number"], select {
   accent-color: #2563eb;
 }
 
-/* Abilità & Ranghi */
-.box-info {
-  border: 1px dashed #e5e7eb;
-  border-radius: .5rem;
-  padding: .5rem .6rem;
-  margin-bottom: .5rem;
-  font-size: .92rem;
-  background: #fafafa;
-}
-
+/* Skills */
 .skills {
   display: grid;
   gap: .45rem;
@@ -792,26 +846,23 @@ input[type="text"], input[type="number"], select {
 }
 
 .pill {
-  display: inline-flex; /* inline-block → inline-flex */
-  align-items: center; /* centro verticale */
-  justify-content: center; /* centro orizzontale, se vuoi */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: .1rem .45rem;
   border-radius: .5rem;
   font-size: .8rem;
 }
 
-/* Variante blu */
 .pill.blue {
-  background: #dbeafe; /* azzurrino */
-  color: #1e3a8a; /* blu scuro */
+  background: #dbeafe;
+  color: #1e3a8a;
 }
 
-/* Variante rossa */
 .pill.red {
-  background: #fee2e2; /* rosino */
-  color: #b91c1c; /* rosso scuro */
+  background: #fee2e2;
+  color: #b91c1c;
 }
-
 
 .skill-stats {
   display: grid;
@@ -869,6 +920,7 @@ input[type="text"], input[type="number"], select {
   text-align: center;
 }
 
+/* Azioni */
 .actions {
   position: sticky;
   bottom: 0;
@@ -902,11 +954,70 @@ input[type="text"], input[type="number"], select {
   cursor: default;
 }
 
-.btn-wraper {
+/* Grants */
+.grants {
+  display: grid;
+  gap: .6rem;
+}
+
+.grant-block {
+  border: 1px solid #e5e7eb;
+  border-radius: .6rem;
+  padding: .5rem;
+  background: #fff;
+}
+
+.grant-header {
   display: flex;
   align-items: center;
-  padding: .2rem;
-  justify-content: end;
-  gap: .2rem;
+  justify-content: space-between;
+  margin-bottom: .35rem;
+}
+
+.grant-actions {
+  display: inline-flex;
+  gap: .35rem;
+}
+
+.grant-list {
+  display: grid;
+  gap: .35rem;
+}
+
+.grant-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: .5rem;
+  align-items: center;
+}
+
+.grant-name {
+  word-break: break-word;
+}
+
+/* Mobile dettaglio */
+.mdet {
+  display: grid;
+  gap: .5rem;
+}
+
+.mdet-block {
+  border: 1px dashed #e5e7eb;
+  border-radius: .6rem;
+  padding: .5rem;
+}
+
+.mdet-hd {
+  font-weight: 600;
+  margin-bottom: .25rem;
+}
+
+.mdet-list {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.mdet-list li {
+  list-style: disc;
 }
 </style>
