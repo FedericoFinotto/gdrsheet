@@ -24,4 +24,9 @@ public class InfoClasseDTO {
                 .max(Comparator.naturalOrder())
                 .orElse(null);
     }
+
+    public Integer getNumber() {
+        if (livelli == null || livelli.isEmpty()) return 0;
+        return livelli.size();
+    }
 }

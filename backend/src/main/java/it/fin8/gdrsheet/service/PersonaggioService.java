@@ -153,7 +153,7 @@ public class PersonaggioService {
         for (InfoClasseDTO classe : allPersonaggioItems.getLivelli().getClassi()) {
             itemsDTO.getClassi().add(itemMapper.toClasseDTO(classe));
 
-            SpellBookDTO spellbook = generateSpellBook(classe.getClasse(), classe.getMax(), id);
+            SpellBookDTO spellbook = generateSpellBook(classe.getClasse(), classe.getNumber(), id);
             if (spellbook != null) {
                 itemsDTO.getSpellbooks().add(spellbook);
             }
