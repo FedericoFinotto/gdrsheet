@@ -630,18 +630,49 @@ public class ModificatoriService {
         return abilitaClasse;
     }
 
-    public void applicaSinergie(DatiPersonaggioDTO dp) {
-        for (AbilitaDTO ab : dp.getAbilita()) {
-            List<Sinergia> sinergie = listaSinergie().stream().filter(x -> x.getT().equals(ab.getAbilita().getId())).toList();
+    public void applicaSinergie(DatiPersonaggioDTO dp, List<CaratteristicaDTO> cars) {
+        List<AbilitaDTO> abilitaList = dp.getAbilita();
+
+        for (int i = 0; i < abilitaList.size(); i++) {
+            AbilitaDTO ab = abilitaList.get(i);
+
+            AbilitaDTO finalAb = ab;
+            List<Sinergia> sinergie = listaSinergie().stream()
+                    .filter(x -> x.getT().equals(finalAb.getAbilita().getId()))
+                    .toList();
+
             for (Sinergia s : sinergie) {
-                AbilitaDTO abilitaSource = dp.getAbilita().stream().filter(x -> x.getAbilita().getId().equals(s.getS())).findFirst().orElse(null);
-                if (abilitaSource != null) {
-                    if (abilitaSource.getRank().getModificatore() >= 5) {
-                        if (ab.getAbilita().getModificatori() == null || ab.getAbilita().getModificatori().isEmpty()) {
-                            ab.getAbilita().setModificatori(new ArrayList<>());
-                        }
-                        ab.getAbilita().getModificatori().add(s.getM());
+                AbilitaDTO abilitaSource = abilitaList.stream()
+                        .filter(x -> x.getAbilita().getId().equals(s.getS()))
+                        .findFirst()
+                        .orElse(null);
+
+                if (abilitaSource != null && abilitaSource.getRank().getModificatore() >= 5) {
+                    Integer rankVal = abilitaSource.getRank().getModificatore();
+
+                    if (ab.getAbilita().getModificatori() == null || ab.getAbilita().getModificatori().isEmpty()) {
+                        ab.getAbilita().setModificatori(new ArrayList<>());
                     }
+
+                    ModificatoreDTO mod = s.getM();
+                    int moltiplicatore = rankVal / 5;
+                    String formula = mod.getFormula() + "*" + moltiplicatore;
+
+                    mod.setFormula(calcoloService.calcola(formula, Collections.emptyList()));
+                    mod.setValore(Integer.parseInt(mod.getFormula()));
+
+                    ab.getAbilita().getModificatori().add(mod);
+
+                    // Calcola la nuova abilità e sostituiscila nella lista
+                    AbilitaDTO nuovaAbilita = calcolaAbilita(
+                            ab.getStat(),
+                            ab.getAbilita().getModificatori(),
+                            ab.getRank().getRanks(),
+                            cars
+                    );
+
+                    abilitaList.set(i, nuovaAbilita);
+                    ab = nuovaAbilita; // aggiorna riferimento locale per ulteriori possibili sinergie
                 }
             }
         }

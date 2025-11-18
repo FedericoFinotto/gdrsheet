@@ -386,7 +386,7 @@ public class PersonaggioService {
             pool.shutdown();
         }
 
-        modificatoriService.applicaSinergie(dto);
+        modificatoriService.applicaSinergie(dto, carList);
         return dto;
     }
 

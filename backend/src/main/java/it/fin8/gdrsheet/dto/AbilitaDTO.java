@@ -1,5 +1,6 @@
 package it.fin8.gdrsheet.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import it.fin8.gdrsheet.entity.StatValue;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,10 +13,12 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties("stat")
 public class AbilitaDTO {
     private ABILITA abilita;
     private RANK rank;
     private CaratteristicaDTO base;
+    private StatValue stat;
 
     @Getter
     @Setter
@@ -40,6 +43,7 @@ public class AbilitaDTO {
     }
 
     public AbilitaDTO(StatValue stat, Integer modificatore, List<ModificatoreDTO> modificatori, Integer valoreRank, Integer modRank, List<RankDTO> ranks, CaratteristicaDTO caratteristicaBase) {
+        this.stat = stat;
         abilita = new ABILITA(stat.getStat().getId(), stat.getStat().getLabel(), modificatore, modificatori, stat.getAddestramento());
         rank = new RANK(valoreRank, modRank, ranks);
         base = caratteristicaBase;
