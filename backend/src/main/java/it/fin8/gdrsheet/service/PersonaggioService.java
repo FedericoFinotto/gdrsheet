@@ -179,8 +179,8 @@ public class PersonaggioService {
             Set<Integer> livelliClasse = classe.getLivelli();
             if (entity != null && livelliClasse != null && !livelliClasse.isEmpty()) {
                 advanceRoots.add(entity);
-                advanceRoots.addAll(entity.getAvanzamento().stream().filter(x -> livelliClasse.contains(x.getLivello()) && !x.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO)).map(Avanzamento::getItemTarget).toList());
-                advanceRoots.addAll(entity.getAvanzamento().stream().filter(x -> Objects.equals(x.getLivello(), classe.getMax()) && x.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO)).map(Avanzamento::getItemTarget).toList());
+//                advanceRoots.addAll(entity.getAvanzamento().stream().filter(x -> livelliClasse.contains(x.getLivello()) && !x.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO)).map(Avanzamento::getItemTarget).toList());
+//                advanceRoots.addAll(entity.getAvanzamento().stream().filter(x -> Objects.equals(x.getLivello(), classe.getMax()) && x.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO)).map(Avanzamento::getItemTarget).toList());
             }
         }
 
