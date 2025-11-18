@@ -53,5 +53,7 @@ public final class Constants {
     public static final String ITEM_LABEL_PUNTI_FERITA = "PF";
     public static final String ITEM_LABEL_CLASSE = "CLASSE";
     public static final String ITEM_LABEL_GRUPPO_TRASFORMAZIONE = "GRP_TRASF";
+
+    public static final String RANK_MAX = "MAX";
 }
 

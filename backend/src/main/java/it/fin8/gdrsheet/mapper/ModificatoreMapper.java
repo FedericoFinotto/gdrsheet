@@ -53,16 +53,14 @@ public class ModificatoreMapper {
         return dto;
     }
 
-    public RankDTO toRankDTO(Modificatore entity, Map<String, List<AbilitaClasseDTO>> mappaAbilitaClasse) {
+    public RankDTO toRankDTO(Modificatore entity, Map<String, List<AbilitaClasseDTO>> mappaAbilitaClasse, Integer livelloPersonaggio) {
         Item livello = entity.getItem();
         List<AbilitaClasseDTO> listaAbilitaDiClasse = mappaAbilitaClasse.get(livello.getLabel(Constants.ITEM_LIVELLO_LVL));
 
         RankDTO dto = new RankDTO();
         dto.setId(entity.getId());
         dto.setTipo(entity.getTipo());
-        dto.setValore(Integer.parseInt(entity.getValore()));
         dto.setNota(entity.getNota());
-
 
         dto.setSempreAttivo(entity.getSempreAttivo());
         dto.setItem(entity.getItem().getNome());
@@ -70,10 +68,21 @@ public class ModificatoreMapper {
         dto.setStatId(entity.getStat().getId());
 
         dto.setDiClasse(false);
-        listaAbilitaDiClasse.stream().filter(x -> x.getId().equals(entity.getStat().getId())).findFirst().ifPresent(x -> {
-            dto.setDiClasse(x.getAll() || x.getDiClasse());
-            dto.setClasse(x.getClasse().get(0).getNome());
-        });
+        if (listaAbilitaDiClasse != null) {
+            listaAbilitaDiClasse.stream().filter(x -> x.getId().equals(entity.getStat().getId())).findFirst().ifPresent(x -> {
+                dto.setDiClasse(x.getAll() || x.getDiClasse());
+                dto.setClasse(x.getClasse().get(0).getNome());
+            });
+        }
+
+        if (Constants.RANK_MAX.equals(entity.getValore())) {
+            Integer maxRank = livelloPersonaggio + 3;
+            dto.setMaxato(maxRank);
+            dto.setValore(maxRank);
+            dto.setDiClasse(true);
+        } else {
+            dto.setValore(Integer.parseInt(entity.getValore()));
+        }
 
         return dto;
     }

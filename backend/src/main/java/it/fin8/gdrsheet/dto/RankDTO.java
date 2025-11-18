@@ -30,4 +30,6 @@ public class RankDTO {
     private String item;
 
     private Integer itemId;
+
+    private Integer maxato;
 }

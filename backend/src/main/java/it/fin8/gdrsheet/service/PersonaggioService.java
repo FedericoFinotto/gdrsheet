@@ -219,6 +219,7 @@ public class PersonaggioService {
             }
         }
         List<Item> livelloItems = filteredItems.stream().filter(x -> x.getTipo().equals(TipoItem.LIVELLO)).toList();
+        Integer livelloPersonaggio = livelloItems.size() - 1;
         Map<String, List<AbilitaClasseDTO>> abilitaClassePerLivello = new HashMap<>();
         for (Item livello : livelloItems) {
             try {
@@ -258,7 +259,7 @@ public class PersonaggioService {
                 .filter(m -> TipoModificatore.RANK.equals(m.getTipo()))
                 .collect(Collectors.groupingBy(
                         m -> m.getStat().getId(),
-                        Collectors.mapping(x -> modificatoreMapper.toRankDTO(x, abilitaClassePerLivello), Collectors.toList())
+                        Collectors.mapping(x -> modificatoreMapper.toRankDTO(x, abilitaClassePerLivello, livelloPersonaggio), Collectors.toList())
                 ));
 
         // 8) Fetch StatValues con join fetch di Stat

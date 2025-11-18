@@ -144,6 +144,13 @@ public class ModificatoriService {
                 .filter(RankDTO::getSempreAttivo)
                 .mapToInt(RankDTO::getValore)
                 .sum();
+
+        Integer maxatoRank = ranksDto.stream().map(RankDTO::getMaxato).filter(Objects::nonNull).findFirst().orElse(null);
+        if (maxatoRank != null) {
+            bonusRank = maxatoRank;
+            valoreRank = maxatoRank;
+        }
+
         int total = modBase + bonusVal + bonusRank;
 
         return new AbilitaDTO(
