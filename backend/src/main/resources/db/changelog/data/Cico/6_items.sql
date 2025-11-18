@@ -113,3 +113,4 @@ VALUES ((SELECT id FROM items where nome = 'Idolo Volpe'), 'SPLLVLB', '+2', true
 
 
 
+

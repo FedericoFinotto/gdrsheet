@@ -1,9 +1,9 @@
 // container principale
-import {IncantesimoItem} from "./IncantesimoItem";
 import {Item} from "./Item";
 import {Attacco} from "./Attacco";
 import {SpellBook} from "./SpellBook";
 import {Livello} from "./Livello";
+import {Trasformazione} from "./Trasformazione";
 
 export interface Items {
     abilita: Item[];
@@ -19,7 +19,7 @@ export interface Items {
     livelli: Livello[];
     maledizioni: Item[];
     spellbooks: SpellBook[];
-    trasformazioni: Item[];
+    trasformazioni: Trasformazione[];
     competenze: Item[];
     lingue: Item[];
     idoli: Item[];

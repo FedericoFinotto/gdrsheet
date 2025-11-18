@@ -13,7 +13,8 @@ public enum TipoModificatore {
     CA_SHIELD("Scudo"),
     CA_MAGIC("Magico"),
     CA_NATURALE("Naturale"),
-    BASE("Base");
+    BASE("Base"),
+    FORZATO("Base Forzato");
 
     private final String label;
 

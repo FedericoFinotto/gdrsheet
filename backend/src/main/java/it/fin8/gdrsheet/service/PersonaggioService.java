@@ -137,7 +137,7 @@ public class PersonaggioService {
                 itemsDTO.getMaledizioni().add(itemMapper.toDTO(itm));
             }
             if (TipoItem.TRASFORMAZIONE.equals(itm.getTipo())) {
-                itemsDTO.getTrasformazioni().add(itemMapper.toDTO(itm));
+                itemsDTO.getTrasformazioni().add(itemMapper.toTrasformazioneDTO(itm));
             }
             if (TipoItem.COMP.equals(itm.getTipo())) {
                 itemsDTO.getCompetenze().add(itemMapper.toDTO(itm));
@@ -221,20 +221,29 @@ public class PersonaggioService {
         List<Item> livelloItems = filteredItems.stream().filter(x -> x.getTipo().equals(TipoItem.LIVELLO)).toList();
         Map<String, List<AbilitaClasseDTO>> abilitaClassePerLivello = new HashMap<>();
         for (Item livello : livelloItems) {
-            livello.getChild().stream().map(Collegamento::getItemTarget).filter(itemTarget -> itemTarget.getTipo().equals(TipoItem.CLASSE)).findFirst()
-                    .ifPresent(classe -> abilitaClassePerLivello.put(
-                            livello.getLabel(Constants.ITEM_LIVELLO_LVL),
-                            modificatoriService.getAbilitaClasse(
-                                    livello.getPersonaggio().getId(),
-                                    Integer.parseInt(livello.getLabel(Constants.ITEM_LIVELLO_LVL)),
-                                    classe.getId()
-                            )
-                    ));
+            try {
+                abilitaClassePerLivello.put(
+                        livello.getLabel(Constants.ITEM_LIVELLO_LVL),
+                        modificatoriService.getAbilitaClasse(
+                                livello.getPersonaggio().getId(),
+                                Integer.parseInt(livello.getLabel(Constants.ITEM_LIVELLO_LVL)),
+                                Integer.parseInt(livello.getLabel(Constants.ITEM_LABEL_CLASSE)))
+                );
+            } catch (Exception ignored) {
+            }
         }
 
         // 6) Fetch Modificatori
         List<Integer> itemIds = filteredItems.stream().map(Item::getId).toList();
         List<Modificatore> allMods = modificatoreRepository.findAllByItemIdIn(itemIds);
+        List<Modificatore> modificatoriPerLivello = elaboraModificatoriStatLivello(allMods);
+        allMods = allMods.stream()
+                .filter(x -> !(x.getItem().getTipo().equals(TipoItem.LIVELLO)
+                        && Constants.listOfUniqueByClassStats.contains(x.getStat().getId())))
+                .toList();
+
+        allMods = Stream.concat(allMods.stream(), modificatoriPerLivello.stream())
+                .toList();
 
         List<ItemLabel> taglia = itemLabelRepository.findByLabelAndItem_IdIn(Constants.ITEM_LABEL_TAGLIA, itemIds);
 
@@ -258,12 +267,22 @@ public class PersonaggioService {
         // 9) Costruisci DTO
         DatiPersonaggioDTO dto = new DatiPersonaggioDTO(p);
 
+        List<ItemLabel> itemCounters = itemLabelRepository.findByLabelLikeAndItem_IdIn("$V_%", itemIds);
+        List<ItemLabel> itemModifiers = itemLabelRepository.findByLabelLikeAndItem_IdIn("$M_%", itemIds);
+        List<ContatoreItemDTO> itemCounterList = itemCounters.stream()
+                .map(sv -> modificatoriService.calcolaContatoreItem(
+                        sv, itemModifiers
+                ))
+                .toList();
+        dto.getContatoriItem().addAll(itemCounterList);
+
         // 9a) Calcolo Caratteristiche (sequenziale)
         List<CaratteristicaDTO> carList = stats.stream()
                 .filter(sv -> TipoStat.CAR.equals(sv.getStat().getTipo()))
                 .map(sv -> modificatoriService.calcolaCaratteristica(
                         sv,
-                        modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList())
+                        modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
+                        itemCounterList
                 ))
                 .toList();
         dto.getCaratteristiche().addAll(carList);
@@ -277,9 +296,7 @@ public class PersonaggioService {
                         carList,
                         livelloItems
                 ));
-
         dvOpt.ifPresent(dto::setDadiVita);
-
 
         // 9b) Calcolo parallelo di Tiri Salvezza e Abilità
         ForkJoinPool pool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
@@ -593,7 +610,41 @@ public class PersonaggioService {
         return new GradiDTO(formule, total, livello + 3);
     }
 
+    public List<Modificatore> elaboraModificatoriStatLivello(List<Modificatore> allMods) {
+        List<Modificatore> modificatoriSTAT = allMods.stream()
+                .filter(x -> x.getItem().getTipo().equals(TipoItem.LIVELLO)
+                        && Constants.listOfUniqueByClassStats.contains(x.getStat().getId()))
+                .toList();
 
+        Map<String, List<Modificatore>> byStat = modificatoriSTAT.stream()
+                .collect(Collectors.groupingBy(m -> m.getStat().getId()));
+
+        Map<String, Map<String, List<Modificatore>>> byStatAndNome = byStat.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().stream().collect(
+                                Collectors.groupingBy(m -> m.getItem().getLabel(Constants.ITEM_LABEL_CLASSE)))
+                ));
+
+        Map<String, Map<String, Modificatore>> maxLivelloByStatAndNome = new HashMap<>();
+
+        for (String stat : byStatAndNome.keySet()) {
+            Map<String, Modificatore> byNome = new HashMap<>();
+            for (String nome : byStatAndNome.get(stat).keySet()) {
+                Optional<Modificatore> maxLivello = byStatAndNome.get(stat).get(nome).stream()
+                        .max(Comparator.comparingInt(
+                                m -> Integer.parseInt(m.getItem().getLabel(Constants.ITEM_LIVELLO_LVL))));
+                maxLivello.ifPresent(mod -> byNome.put(nome, mod));
+            }
+            maxLivelloByStatAndNome.put(stat, byNome);
+        }
+
+// Ottieni una lista piatta di tutti i modificatori selezionati
+
+        return maxLivelloByStatAndNome.values().stream()
+                .flatMap(mappaNome -> mappaNome.values().stream())
+                .toList();
+    }
 }
 
 

@@ -24,7 +24,7 @@ public class ItemsDTO {
     private List<LivelloDTO> livelli;
     private List<ItemDTO> maledizioni;
     private List<SpellBookDTO> spellbooks;
-    private List<ItemDTO> trasformazioni;
+    private List<TrasformazioneDTO> trasformazioni;
     private List<ItemDTO> competenze;
     private List<ItemDTO> lingue;
     private List<ItemDTO> idoli;

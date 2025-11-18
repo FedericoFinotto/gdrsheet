@@ -1,8 +1,12 @@
 package it.fin8.gdrsheet.config;
 
+import java.util.List;
+
 public final class Constants {
     private Constants() {
     }
+
+    public static final List<String> listOfUniqueByClassStats = List.of("BAB", "TMP", "VLT", "RFL");
 
     public static final String TIPO_ITEM_ABILITA = "ABILITA";
     public static final String TIPO_ITEM_TALENTO = "TALENTO";
@@ -47,5 +51,7 @@ public final class Constants {
     public static final String ITEM_LABEL_DADI_VITA = "DV";
     public static final String ITEM_LABEL_MALEDIZIONE = "MLDZN";
     public static final String ITEM_LABEL_PUNTI_FERITA = "PF";
+    public static final String ITEM_LABEL_CLASSE = "CLASSE";
+    public static final String ITEM_LABEL_GRUPPO_TRASFORMAZIONE = "GRP_TRASF";
 }
 

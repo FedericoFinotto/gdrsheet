@@ -1,6 +1,7 @@
 package it.fin8.gdrsheet.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import it.fin8.gdrsheet.config.Constants;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -123,5 +124,10 @@ public class Collegamento {
             }
         }
         return false;
+    }
+
+    public Boolean isDisabled() {
+        String disabledLabel = getLabel(Constants.ITEM_LABEL_DISABILITATO);
+        return disabledLabel != null && disabledLabel.equals("1");
     }
 }

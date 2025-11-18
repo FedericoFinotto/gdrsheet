@@ -32,16 +32,28 @@ public class ModificatoriService {
 
     CaratteristicaDTO calcolaCaratteristica(
             StatValue stat,
-            List<ModificatoreDTO> modsDto
+            List<ModificatoreDTO> modsDto,
+            List<ContatoreItemDTO> contatoriItem
     ) {
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
         if (!stat.getValore().equals("0")) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null));
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
         }
         modificatoriAttivi.add(prendiMaxDTO(modsDto, TipoModificatore.BASE));
         int valoreBase = (modsDto.stream().filter(x -> x.getTipoItem().equals(TipoItem.LIVELLO)).mapToInt(ModificatoreDTO::getValore).sum());
 
         modificatoriAttivi.addAll(modsDto.stream().filter(m -> TipoModificatore.VALORE.equals(m.getTipo())).toList());
+
+        for (ModificatoreDTO modificatoreDTO : modificatoriAttivi) {
+            if (modificatoreDTO.getFormula().contains("$") || modificatoreDTO.getFormula().indexOf('@') >= 0) {
+                try {
+                    modificatoreDTO.setFormula(calcoloService.calcola(modificatoreDTO.itemIdInFormula(), contatoriItem.stream().map(ContatoreItemDTO::toCaratteristicaDTO).toList()));
+                    modificatoreDTO.setValore(Integer.parseInt(modificatoreDTO.getFormula()));
+                } catch (Exception e) {
+                    modificatoriAttivi.remove(modificatoreDTO);
+                }
+            }
+        }
 
         int valore = Optional.of(modificatoriAttivi)
                 .orElse(Collections.emptyList())
@@ -60,7 +72,6 @@ public class ModificatoriService {
         if (modificatoriAttivi.stream().filter(x -> x.getNota() == null && x.getPermanente()).noneMatch(x -> x.getTipo().equals(TipoModificatore.BASE))) {
             valorePermanente += valoreBase;
         }
-
 
         return new CaratteristicaDTO(
                 stat.getStat().getId(),
@@ -83,7 +94,7 @@ public class ModificatoriService {
         modificatoriAttivi.addAll(modsDto);
 
         if (!stat.getValore().equals("0")) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null));
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
         }
 
         int modificatore = modificatoriAttivi.stream()
@@ -156,14 +167,14 @@ public class ModificatoriService {
         List<ModificatoreDTO> valoreCA = modsCADto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList();
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(valore);
         if (taglia != 0) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null));
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null, null));
         }
 
         ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
-                .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel(), null)).orElse(null);
+                .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel(), null, null)).orElse(null);
 
         if (!stat.getValore().equals("0")) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null));
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
         }
 
 
@@ -208,11 +219,11 @@ public class ModificatoriService {
         ModificatoreDTO baseMod = null;
         if (stat.getMod() != null) {
             baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
-                    .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel(), null)).orElse(null);
+                    .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel(), null, null)).orElse(null);
         }
 
         if (!stat.getValore().equals("0")) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null));
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
         }
 
         if (stat.getStat().getId().equals("BAB")) {
@@ -226,7 +237,7 @@ public class ModificatoriService {
             modificatoriAttivi.addAll(valoreBAB);
             modificatoriAttivi.add(baseMod);
             if (taglia != 0)
-                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), 4 * taglia, "4*TAGLIA", null, null, true, "Taglia", null));
+                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), 4 * taglia, "4*TAGLIA", null, null, true, "Taglia", null, null));
             modificatore = Optional.of(modificatoriAttivi)
                     .map(list -> list.stream()
                             .mapToInt(ModificatoreDTO::getValore)
@@ -237,7 +248,7 @@ public class ModificatoriService {
             modificatoriAttivi.addAll(valoreBAB);
             modificatoriAttivi.add(baseMod);
             if (taglia != 0)
-                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null));
+                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null, null));
             modificatore = Optional.of(modificatoriAttivi)
                     .map(list -> list.stream()
                             .mapToInt(ModificatoreDTO::getValore)
@@ -248,7 +259,7 @@ public class ModificatoriService {
             modificatoriAttivi.addAll(valoreBAB);
             modificatoriAttivi.add(baseMod);
             if (taglia != 0)
-                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null));
+                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null, null));
             modificatore = Optional.of(modificatoriAttivi)
                     .map(list -> list.stream()
                             .mapToInt(ModificatoreDTO::getValore)
@@ -276,13 +287,13 @@ public class ModificatoriService {
             carList.stream()
                     .filter(c -> c.getId().equals(stat.getMod().getId()))
                     .findFirst().ifPresent(baseCar ->
-                            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getMod().getId(), baseCar.getModificatore(), null, null, null, true, stat.getMod().getLabel(), null)));
+                            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getMod().getId(), baseCar.getModificatore(), null, null, null, true, stat.getMod().getLabel(), null, null)));
         }
 
         if (stat.getFormula() != null) {
             String formula = stat.getFormula().replaceAll("@DV", String.valueOf(dadiVita.getTotale()));
             int formulaEvaluated = Integer.parseInt(calcoloService.calcola(formula, carList));
-            modificatoriAttivi.add(new ModificatoreDTO(null, null, formulaEvaluated, formula, null, null, true, "BASE", null));
+            modificatoriAttivi.add(new ModificatoreDTO(null, null, formulaEvaluated, formula, null, null, true, "BASE", null, null));
         }
 
         if (stat.getStat().getId().equals("PF")) {
@@ -313,13 +324,13 @@ public class ModificatoriService {
 
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
         if (!stat.getValore().equals("0")) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null));
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
         }
         modificatoriAttivi.addAll(new ArrayList<>(modsDto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList()));
 
         if (stat.getMod() != null) {
             ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
-                    .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel(), null)).orElse(null);
+                    .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel(), null, null)).orElse(null);
             modificatoriAttivi.add(baseMod);
         }
 
@@ -341,17 +352,17 @@ public class ModificatoriService {
 
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
         if (!stat.getValore().equals("0")) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null));
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
         }
 //        modificatoriAttivi.addAll(new ArrayList<>(modsDto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList()));
 
-        modificatoriAttivi.addAll(livelloItems.stream().filter(x -> x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) == null).map(x -> new ModificatoreDTO(null, stat.getStat().getId(), null, x.getLabel(Constants.ITEM_LABEL_DADI_VITA), null, TipoModificatore.VALORE, true, x.getNome(), TipoItem.LIVELLO)).toList());
+        modificatoriAttivi.addAll(livelloItems.stream().filter(x -> x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) == null).map(x -> new ModificatoreDTO(null, stat.getStat().getId(), null, x.getLabel(Constants.ITEM_LABEL_DADI_VITA), null, TipoModificatore.VALORE, true, x.getNome(), null, TipoItem.LIVELLO)).toList());
 
         DiceSummary dice = utilService.combineDice(modificatoriAttivi, ModificatoreDTO::getFormula);
 
         if (stat.getMod() != null) {
             ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
-                    .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel(), null)).orElse(null);
+                    .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel(), null, null)).orElse(null);
             modificatoriAttivi.add(baseMod);
         }
 
@@ -360,7 +371,90 @@ public class ModificatoriService {
         );
     }
 
+    public ContatoreItemDTO calcolaContatoreItem(ItemLabel count, List<ItemLabel> modifiers) {
+
+        String refVariabile = parseVariableFromLabel(count);
+        try {
+            for (ItemLabel modifier : modifiers) {
+                String modVariable = parseVariableToModFromLabel(modifier);
+                if (refVariabile.equals(modVariable)) {
+                    applyModifierFromLabel(count, modifier);
+                }
+            }
+        } catch (Exception e) {
+            return new ContatoreItemDTO(refVariabile, 0);
+        }
+
+
+        return new ContatoreItemDTO(
+                refVariabile, Integer.parseInt(count.getValore())
+        );
+    }
+
+    public static void applyModifierFromLabel(ItemLabel var, ItemLabel mod) {
+        if (var == null || mod == null) return;
+
+        char op = mod.getValore().charAt(0);
+        String operandStr = mod.getValore().substring(1).trim();
+        int operand;
+
+        if (op == '+' || op == '-' || op == '=') {
+            operand = operandStr.isEmpty() ? 1 : Integer.parseInt(operandStr);
+            switch (op) {
+                case '+':
+                    var.setValore(String.valueOf(Integer.parseInt(var.getValore()) + operand));
+                case '-':
+                    var.setValore(String.valueOf(Integer.parseInt(var.getValore()) - operand));
+                case '=':
+                    var.setValore(String.valueOf(operand));
+            }
+        }
+    }
+
+
+    public static String parseVariableToModFromLabel(ItemLabel mod) {
+        String label = mod.getLabel();
+        if (!label.startsWith("$M_")) return null;
+        Item item = mod.getItem();
+
+        String pattern = label.substring(3); // tutto dopo $M_
+        String[] parts = pattern.split("_");
+
+        // Tutte le parti tranne l'ultima sono navigazioni, l'ultima è la variabile.
+        for (int i = 0; i < parts.length; i++) {
+            String part = parts[i];
+            if (i == parts.length - 1) {
+                // ultima parte = variabile
+                return item.getId() + "_" + part;
+            } else if ("P".equals(part)) {
+                item = item.getFirstParent(null);
+            } else if ("C".equals(part)) {
+                item = item.getFirstChild(null);
+            }
+        }
+        return null;
+    }
+
+    public static String parseVariableFromLabel(ItemLabel var) {
+        String label = var.getLabel();
+        if (!label.startsWith("$V_")) return null;
+        Item item = var.getItem();
+        String nomeVar = label.substring(3);
+        return item.getId() + "_" + nomeVar;
+    }
+
+
     private ModificatoreDTO prendiMaxDTO(List<ModificatoreDTO> mods, TipoModificatore tipo) {
+        if (tipo == TipoModificatore.BASE) {
+            ModificatoreDTO modForzato = mods.stream()
+                    .filter(m -> TipoModificatore.FORZATO.equals(m.getTipo()))
+                    .min(Comparator.comparing(ModificatoreDTO::getValore))
+                    .orElse(null);
+            if (modForzato != null) {
+                modForzato.setTipo(TipoModificatore.BASE);
+                return modForzato;
+            }
+        }
         return mods.stream()
                 .filter(m -> tipo.equals(m.getTipo()))
                 .max(Comparator.comparing(ModificatoreDTO::getValore))
@@ -443,7 +537,7 @@ public class ModificatoriService {
                                     null,
                                     TipoModificatore.VALORE,
                                     true,
-                                    stat.getMod().getLabel(), null
+                                    stat.getMod().getLabel(), null, null
                             )
                     ));
         }
@@ -549,33 +643,33 @@ public class ModificatoriService {
     private List<Sinergia> listaSinergie() {
         List<Sinergia> sinergie = new ArrayList<>();
         // TODO: Gestire Artigianato e Valutare diversi e aggiungere Sinergie
-        sinergie.add(new Sinergia("AB26", "AB12", new ModificatoreDTO(null, "AB12", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Raggirare", null))); //Diplomazia
-        sinergie.add(new Sinergia("AB26", "AB17", new ModificatoreDTO(null, "AB17", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Raggirare", null))); //Intimidire
-        sinergie.add(new Sinergia("AB26", "AB6", new ModificatoreDTO(null, "AB6", 2, "+2", "Quando reciti un ruolo", TipoModificatore.VALORE, true, "Sinergia Raggirare", null))); //Camuffare
-        sinergie.add(new Sinergia("AB26", "AB27", new ModificatoreDTO(null, "AB27", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Raggirare", null))); //Rapidità di Mano
-        sinergie.add(new Sinergia("AB11", "AB34", new ModificatoreDTO(null, "AB34", 2, "+2", "Quando usi Pergamene", TipoModificatore.VALORE, true, "Sinergia Decifrare Scritture", null))); //Utilizzare Oggetti Magici
-        sinergie.add(new Sinergia("AB4", "AB33", new ModificatoreDTO(null, "AB33", 2, "+2", "legature/vincoli", TipoModificatore.VALORE, true, "Sinergia Artista della fuga", null))); //Usare Corde
-        sinergie.add(new Sinergia("AB2", "AB7", new ModificatoreDTO(null, "AB7", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Addestrare Animali", null))); //Cavalcare
-        sinergie.add(new Sinergia("AB2", "AB37", new ModificatoreDTO(null, "AB37", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Addestrare Animali", null))); //Empatia Selvatica
-        sinergie.add(new Sinergia("AB28", "AB1", new ModificatoreDTO(null, "AB1", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Saltare", null))); //Acrobazia
-        sinergie.add(new Sinergia("CO06", "AB29", new ModificatoreDTO(null, "AB29", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Conoscenze Arcane", null))); //Sapienza Magica
-        sinergie.add(new Sinergia("CO09", "AB8", new ModificatoreDTO(null, "AB8", 2, "+2", "porte segrete/scomparti simili", TipoModificatore.VALORE, true, "Sinergia Conoscenze (architettura e ingegneria)", null))); //Cercare
-        sinergie.add(new Sinergia("CO01", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "Sottoterra", TipoModificatore.VALORE, true, "Sinergia Conoscenze (dungeon)", null))); //Sopravvivenza
-        sinergie.add(new Sinergia("CO04", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "orientarsi/evitare pericoli", TipoModificatore.VALORE, true, "Sinergia Conoscenze (geografia)", null))); //Sopravvivenza
-        sinergie.add(new Sinergia("CO11", "C012", new ModificatoreDTO(null, "C012", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Conoscenze (Storia)", null))); //Conoscenze Bardiche
-        sinergie.add(new Sinergia("CO07", "AB25", new ModificatoreDTO(null, "AB25", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Conoscenze (locale)", null))); //Raccogliere Informazioni
-        sinergie.add(new Sinergia("CO10", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "ambienti naturali all’aperto", TipoModificatore.VALORE, true, "Sinergia Conoscenze (natura)", null))); //Sopravvivenza
-        sinergie.add(new Sinergia("CO02", "AB12", new ModificatoreDTO(null, "AB12", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Conoscenze (nobiltà e regalità)", null))); //Diplomazia
-        sinergie.add(new Sinergia("CO08", "CO08", new ModificatoreDTO(null, "B", 2, "+2", "Prove per scacciare non morti", TipoModificatore.VALORE, true, "?? Sinergia Conoscenze Religioni", null)));
-        sinergie.add(new Sinergia("CO05", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "su altri piani", TipoModificatore.VALORE, true, "Sinergia Conoscenze (i piani) ", null))); //Sopravvivenza
-        sinergie.add(new Sinergia("AB23", "AB12", new ModificatoreDTO(null, "AB12", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Percepire Intenzioni", null))); //Diplomazia
-        sinergie.add(new Sinergia("AB1", "AB14", new ModificatoreDTO(null, "AB14", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Acrobazia", null))); //Equilibrio
-        sinergie.add(new Sinergia("AB1", "AB28", new ModificatoreDTO(null, "AB28", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Acrobazia", null))); //Saltare
-        sinergie.add(new Sinergia("AB34", "AB29", new ModificatoreDTO(null, "AB29", 2, "+2", "per decifrare incantesimi su pergamene", TipoModificatore.VALORE, true, "Sinergia Usare Oggetti Magici", null))); //Sapienza Magica
-        sinergie.add(new Sinergia("AB29", "AB34", new ModificatoreDTO(null, "AB34", 2, "+2", "attivare/decifrare pergamene", TipoModificatore.VALORE, true, "Sinergia Sapienza Magica", null))); //Usare Oggetti Magici
-        sinergie.add(new Sinergia("AB33", "AB30", new ModificatoreDTO(null, "AB30", 2, "+2", "su corde", TipoModificatore.VALORE, true, "Sinergia Usare Corde", null))); //Arrampicare
-        sinergie.add(new Sinergia("AB33", "AB4", new ModificatoreDTO(null, "AB4", 2, "+2", "per liberarsi da corde", TipoModificatore.VALORE, true, "Sinergia Usare Corde", null))); //Artista della fuga
-        sinergie.add(new Sinergia("AB8", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "quando segui tracce", TipoModificatore.VALORE, true, "Sinergia Cercare", null))); //Sopravvivenza
+        sinergie.add(new Sinergia("AB26", "AB12", new ModificatoreDTO(null, "AB12", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Raggirare", null, null))); //Diplomazia
+        sinergie.add(new Sinergia("AB26", "AB17", new ModificatoreDTO(null, "AB17", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Raggirare", null, null))); //Intimidire
+        sinergie.add(new Sinergia("AB26", "AB6", new ModificatoreDTO(null, "AB6", 2, "+2", "Quando reciti un ruolo", TipoModificatore.VALORE, true, "Sinergia Raggirare", null, null))); //Camuffare
+        sinergie.add(new Sinergia("AB26", "AB27", new ModificatoreDTO(null, "AB27", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Raggirare", null, null))); //Rapidità di Mano
+        sinergie.add(new Sinergia("AB11", "AB34", new ModificatoreDTO(null, "AB34", 2, "+2", "Quando usi Pergamene", TipoModificatore.VALORE, true, "Sinergia Decifrare Scritture", null, null))); //Utilizzare Oggetti Magici
+        sinergie.add(new Sinergia("AB4", "AB33", new ModificatoreDTO(null, "AB33", 2, "+2", "legature/vincoli", TipoModificatore.VALORE, true, "Sinergia Artista della fuga", null, null))); //Usare Corde
+        sinergie.add(new Sinergia("AB2", "AB7", new ModificatoreDTO(null, "AB7", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Addestrare Animali", null, null))); //Cavalcare
+        sinergie.add(new Sinergia("AB2", "AB37", new ModificatoreDTO(null, "AB37", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Addestrare Animali", null, null))); //Empatia Selvatica
+        sinergie.add(new Sinergia("AB28", "AB1", new ModificatoreDTO(null, "AB1", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Saltare", null, null))); //Acrobazia
+        sinergie.add(new Sinergia("CO06", "AB29", new ModificatoreDTO(null, "AB29", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Conoscenze Arcane", null, null))); //Sapienza Magica
+        sinergie.add(new Sinergia("CO09", "AB8", new ModificatoreDTO(null, "AB8", 2, "+2", "porte segrete/scomparti simili", TipoModificatore.VALORE, true, "Sinergia Conoscenze (architettura e ingegneria)", null, null))); //Cercare
+        sinergie.add(new Sinergia("CO01", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "Sottoterra", TipoModificatore.VALORE, true, "Sinergia Conoscenze (dungeon)", null, null))); //Sopravvivenza
+        sinergie.add(new Sinergia("CO04", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "orientarsi/evitare pericoli", TipoModificatore.VALORE, true, "Sinergia Conoscenze (geografia)", null, null))); //Sopravvivenza
+        sinergie.add(new Sinergia("CO11", "C012", new ModificatoreDTO(null, "C012", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Conoscenze (Storia)", null, null))); //Conoscenze Bardiche
+        sinergie.add(new Sinergia("CO07", "AB25", new ModificatoreDTO(null, "AB25", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Conoscenze (locale)", null, null))); //Raccogliere Informazioni
+        sinergie.add(new Sinergia("CO10", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "ambienti naturali all’aperto", TipoModificatore.VALORE, true, "Sinergia Conoscenze (natura)", null, null))); //Sopravvivenza
+        sinergie.add(new Sinergia("CO02", "AB12", new ModificatoreDTO(null, "AB12", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Conoscenze (nobiltà e regalità)", null, null))); //Diplomazia
+        sinergie.add(new Sinergia("CO08", "CO08", new ModificatoreDTO(null, "B", 2, "+2", "Prove per scacciare non morti", TipoModificatore.VALORE, true, "?? Sinergia Conoscenze Religioni", null, null)));
+        sinergie.add(new Sinergia("CO05", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "su altri piani", TipoModificatore.VALORE, true, "Sinergia Conoscenze (i piani) ", null, null))); //Sopravvivenza
+        sinergie.add(new Sinergia("AB23", "AB12", new ModificatoreDTO(null, "AB12", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Percepire Intenzioni", null, null))); //Diplomazia
+        sinergie.add(new Sinergia("AB1", "AB14", new ModificatoreDTO(null, "AB14", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Acrobazia", null, null))); //Equilibrio
+        sinergie.add(new Sinergia("AB1", "AB28", new ModificatoreDTO(null, "AB28", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Acrobazia", null, null))); //Saltare
+        sinergie.add(new Sinergia("AB34", "AB29", new ModificatoreDTO(null, "AB29", 2, "+2", "per decifrare incantesimi su pergamene", TipoModificatore.VALORE, true, "Sinergia Usare Oggetti Magici", null, null))); //Sapienza Magica
+        sinergie.add(new Sinergia("AB29", "AB34", new ModificatoreDTO(null, "AB34", 2, "+2", "attivare/decifrare pergamene", TipoModificatore.VALORE, true, "Sinergia Sapienza Magica", null, null))); //Usare Oggetti Magici
+        sinergie.add(new Sinergia("AB33", "AB30", new ModificatoreDTO(null, "AB30", 2, "+2", "su corde", TipoModificatore.VALORE, true, "Sinergia Usare Corde", null, null))); //Arrampicare
+        sinergie.add(new Sinergia("AB33", "AB4", new ModificatoreDTO(null, "AB4", 2, "+2", "per liberarsi da corde", TipoModificatore.VALORE, true, "Sinergia Usare Corde", null, null))); //Artista della fuga
+        sinergie.add(new Sinergia("AB8", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "quando segui tracce", TipoModificatore.VALORE, true, "Sinergia Cercare", null, null))); //Sopravvivenza
         return sinergie;
     }
 
@@ -610,7 +704,7 @@ public class ModificatoriService {
 
         int malus = Math.min(pfLivello, calcolaMalus(dadoVita));
 
-        return new ModificatoreDTO(null, "PF", -1 * malus, null, null, TipoModificatore.VALORE, true, itemLivello.getNome() + " Maledetto", itemLivello.getTipo());
+        return new ModificatoreDTO(null, "PF", -1 * malus, null, null, TipoModificatore.VALORE, true, itemLivello.getNome() + " Maledetto", null, itemLivello.getTipo());
     }
 
     private static int mediaDadoDND35(int M) {

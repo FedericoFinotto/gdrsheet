@@ -6,7 +6,6 @@ import it.fin8.gdrsheet.dto.CaratteristicaDTO;
 import it.fin8.gdrsheet.dto.DatiPersonaggioDTO;
 import it.fin8.gdrsheet.dto.InfoClasseDTO;
 import it.fin8.gdrsheet.dto.InfoLivelliDTO;
-import it.fin8.gdrsheet.entity.Collegamento;
 import it.fin8.gdrsheet.entity.Item;
 import it.fin8.gdrsheet.mapper.StatMapper;
 import it.fin8.gdrsheet.repository.ItemRepository;
@@ -117,7 +116,7 @@ public class CalcoloService {
         List<Item> livelliAttivi = initialRoots.stream()
                 .filter(Objects::nonNull)
                 .filter(i -> TipoItem.LIVELLO.equals(i.getTipo()))
-                .filter(x -> !utilService.parseBooleanFromString(x.getLabel(Constants.ITEM_LABEL_DISABILITATO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE))
+                .filter(x -> !utilService.parseBooleanFromString(x.getLabel(Constants.ITEM_LABEL_DISABILITATO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE) && x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) == null)
                 .toList();
 
         // 2) livello = numero di livelli attivi
@@ -134,13 +133,15 @@ public class CalcoloService {
                     if (lvls.isEmpty()) return Stream.empty();
 
                     // tutte le classi collegate a questo livello
-                    List<Item> classi = Optional.ofNullable(livello.getChild())
-                            .orElseGet(Collections::emptyList)
-                            .stream()
-                            .map(Collegamento::getItemTarget)
-                            .filter(it -> TipoItem.CLASSE.equals(it.getTipo()))
-                            .toList();
-                    if (classi.isEmpty()) return Stream.empty();
+//                    List<Item> classi = Optional.ofNullable(livello.getChild())
+//                            .orElseGet(Collections::emptyList)
+//                            .stream()
+//                            .map(Collegamento::getItemTarget)
+//                            .filter(it -> TipoItem.CLASSE.equals(it.getTipo()))
+//                            .toList();
+//                    if (classi.isEmpty()) return Stream.empty();
+                    String classeId = livello.getLabel(Constants.ITEM_LABEL_CLASSE);
+                    List<Item> classi = List.of(itemRepository.findItemById(Integer.parseInt(classeId)));
 
                     // flat: (classe, livelloSingolo)
                     return classi.stream().flatMap(cl ->

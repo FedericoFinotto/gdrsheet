@@ -25,6 +25,7 @@ public class DatiPersonaggioDTO {
     List<BonusAttaccoDTO> bonusAttacco;
     List<ContatoreDTO> contatori;
     List<AttributoDTO> attributi;
+    List<ContatoreItemDTO> contatoriItem;
     DadiVitaDTO dadiVita;
 
     public DatiPersonaggioDTO(Personaggio personaggio) {
@@ -37,6 +38,7 @@ public class DatiPersonaggioDTO {
         bonusAttacco = new ArrayList<>();
         contatori = new ArrayList<>();
         attributi = new ArrayList<>();
+        contatoriItem = new ArrayList<>();
     }
 
     public CaratteristicaDTO getCaratteristica(String id) {

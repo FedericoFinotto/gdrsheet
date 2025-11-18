@@ -1,10 +1,10 @@
 package it.fin8.gdrsheet.mapper;
 
 import it.fin8.gdrsheet.config.Constants;
-import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.dto.*;
 import it.fin8.gdrsheet.entity.Collegamento;
 import it.fin8.gdrsheet.entity.Item;
+import it.fin8.gdrsheet.repository.ItemRepository;
 import it.fin8.gdrsheet.service.UtilService;
 import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Component;
@@ -18,9 +18,11 @@ import java.util.Objects;
 public class ItemMapper {
 
     private final UtilService utilService;
+    private final ItemRepository itemRepository;
 
-    public ItemMapper(UtilService utilService) {
+    public ItemMapper(UtilService utilService, ItemRepository itemRepository) {
         this.utilService = utilService;
+        this.itemRepository = itemRepository;
     }
 
     public ItemDTO toDTO(Item entity) {
@@ -39,13 +41,15 @@ public class ItemMapper {
         dto.setTipo(entity.getTipo());
         dto.setDisabled(isDisabled(entity));
         dto.setLivello(Integer.parseInt(entity.getLabel(Constants.ITEM_LIVELLO_LVL)));
-        Collegamento classe = entity.getChildByType(TipoItem.CLASSE);
-        Collegamento maledizione = entity.getChildByType(TipoItem.MALEDIZIONE);
-        if (classe != null) {
-            dto.setClasse(classe.getItemTarget().getNome());
+        String classeString = entity.getLabel(Constants.ITEM_LABEL_CLASSE);
+        String maledizioneString = entity.getLabel(Constants.ITEM_LABEL_MALEDIZIONE);
+
+        if (classeString != null) {
+            Item classeItem = itemRepository.findItemById(Integer.valueOf(classeString));
+            dto.setClasse(classeItem.getNome());
         }
-        if (maledizione != null) {
-            dto.setMaledizione(maledizione.getItemTarget().getNome());
+        if (maledizioneString != null) {
+            dto.setMaledizione(maledizioneString);
         }
         dto.setLivelliClasse(utilService.parseStringToIntList(entity.getLabel(Constants.ITEM_LIVELLO_LVL_CLASSE)));
         return dto;
@@ -140,5 +144,15 @@ public class ItemMapper {
             col.setLabel(Constants.COLLEGAMENTO_LABEL_N_USATI, "0");
         }
         return col;
+    }
+
+    public TrasformazioneDTO toTrasformazioneDTO(Item entity) {
+        TrasformazioneDTO dto = new TrasformazioneDTO();
+        dto.setId(entity.getId());
+        dto.setNome(entity.getNome());
+        dto.setTipo(entity.getTipo());
+        dto.setDisabled(isDisabled(entity));
+        dto.setGruppo(entity.getLabel(Constants.ITEM_LABEL_GRUPPO_TRASFORMAZIONE));
+        return dto;
     }
 }

@@ -57,7 +57,7 @@ async function switchState() {
   if (item.disabled) {
     switch (item.tipo) {
       case 'TRASFORMAZIONE':
-        itemIdToSwitch.push(...personaggio.items.trasformazioni.filter(x => !x.disabled).map(x => x.id));
+        itemIdToSwitch.push(...personaggio.items.trasformazioni.filter(x => !x.disabled && x.gruppo === item.gruppo).map(x => x.id));
         break;
       case 'IDOLO':
         itemIdToSwitch.push(...personaggio.items.idoli.filter(x => !x.disabled).map(x => x.id));
@@ -74,7 +74,6 @@ async function switchState() {
   } catch (e) {
     console.error('Errore nello switch dello stato:', e);
   }
-
 }
 
 const disableLabel = computed(() => {
@@ -89,7 +88,6 @@ const disableLabel = computed(() => {
       return null;
   }
 });
-
 
 onMounted(async () => {
   try {
@@ -210,7 +208,6 @@ function showInfoItemPopup(itm) {
       </table>
       <div class="spazietto"/>
     </div>
-
 
     <!-- Labels dinamiche -->
     <div v-if="Object.keys(labelMap).length">

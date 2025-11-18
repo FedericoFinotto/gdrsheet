@@ -31,7 +31,7 @@ watch(
             return {
               ...itm,
               testoLivello: `Livello ${itm.livello}`,
-              testoClasse: `${itm.classe ?? ''}${itm.maledizione ?? ''} ${itm.livelliClasse.join(' ')}`,
+              testoClasse: `${itm.classe ?? ''} ${itm.livelliClasse.join(' ')}`,
               expandedComponent: markRaw(Mobile_DettaglioLivello),
               expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
             };
@@ -43,7 +43,7 @@ watch(
 
 const columnsAttacchi = [
   {field: 'testoLivello', subfield: '', label: 'Livello'},
-  {field: 'testoClasse', subfield: '', label: ''},
+  {field: 'testoClasse', subfield: 'maledizione', label: ''},
 ];
 </script>
 

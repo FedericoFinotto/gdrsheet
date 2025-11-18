@@ -1,6 +1,7 @@
 package it.fin8.gdrsheet.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import it.fin8.gdrsheet.config.Constants;
 import it.fin8.gdrsheet.def.TipoItem;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -130,6 +131,29 @@ public class Item implements Serializable {
 
     public Collegamento getChildByType(TipoItem type) {
         return child.stream().filter(x -> x.getItemTarget().getTipo().equals(type)).findFirst().orElse(null);
+    }
+
+    public Boolean isDisabled() {
+        String disabledLabel = getLabel(Constants.ITEM_LABEL_DISABILITATO);
+        return disabledLabel != null && disabledLabel.equals("1");
+    }
+
+    public Item getFirstParent(TipoItem type) {
+        List<Collegamento> parentFilteredList = parent.stream().filter(x -> !x.isDisabled() && !x.getItemSource().isDisabled()).toList();
+        if (parentFilteredList.isEmpty()) return null;
+        if (type == null)
+            return parentFilteredList.get(0).getItemSource();
+        else
+            return parentFilteredList.stream().map(Collegamento::getItemSource).filter(itemSource -> itemSource.getTipo().equals(type)).findFirst().orElse(null);
+    }
+
+    public Item getFirstChild(TipoItem type) {
+        List<Collegamento> childFilteredList = child.stream().filter(x -> !x.isDisabled() && !x.getItemTarget().isDisabled()).toList();
+        if (childFilteredList.isEmpty()) return null;
+        if (type == null)
+            return childFilteredList.get(0).getItemSource();
+        else
+            return childFilteredList.stream().map(Collegamento::getItemSource).filter(itemSource -> itemSource.getTipo().equals(type)).findFirst().orElse(null);
     }
 
 }

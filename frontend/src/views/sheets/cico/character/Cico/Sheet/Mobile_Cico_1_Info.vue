@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {defineProps, markRaw, ref, watch} from 'vue';
+import {computed, defineProps, markRaw, ref, watch} from 'vue';
 import {storeToRefs} from "pinia";
 import {useCharacterStore} from "../../../../../../stores/personaggio";
 import Mobile_Stat from "../../Shared/Mobile_Stat.vue";
@@ -63,6 +63,18 @@ watch(
     {immediate: true, deep: true}
 );
 
+const gruppiTrasformazioni = computed(() => {
+  const gruppiMap: Record<string, any[]> = {};
+  itemsTrasformazioni.value.forEach(itm => {
+    const key = itm.gruppo ?? 'Senza gruppo';
+    if (!gruppiMap[key]) {
+      gruppiMap[key] = [];
+    }
+    gruppiMap[key].push(itm);
+  });
+  return gruppiMap;
+});
+
 const columnsTrasformazioni = [
   {field: 'nome', label: 'Trasformazioni', disabled: (row) => row.disabled},
 ];
@@ -124,13 +136,16 @@ const columnsLingue = [
     </div>
     <div class="spazietto"></div>
 
-    <Tabella v-if="itemsTrasformazioni.length > 0"
-             :columns="columnsTrasformazioni"
-             :expandable="true"
-             :items="itemsTrasformazioni"
-    >
-    </Tabella>
-    <div class="spazietto"></div>
+    <div v-for="(trasf, gruppo) in gruppiTrasformazioni" :key="gruppo">
+      <Tabella v-if="trasf.length > 0"
+               :columns="columnsTrasformazioni"
+               :expandable="true"
+               :items="trasf"
+      >
+      </Tabella>
+      <div class="spazietto"></div>
+    </div>
+
 
     <Tabella v-if="itemsIdoli.length > 0"
              :columns="columnsIdoli"

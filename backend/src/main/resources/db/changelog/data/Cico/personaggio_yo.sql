@@ -313,4 +313,17 @@ insert into collegamento (id_item_source, id_item_target)
 VALUES ((SELECT id FROM items where nome = 'FromCompendio'),
         (SELECT id FROM items where nome = 'Idolo Dracode'));
 
+INSERT INTO item_label (id_item, label, valore)
+VALUES (140, 'CLASSE', '1928'),  -- livello 0
+       (141, 'CLASSE', '30'),    -- livello 1
+       (142, 'CLASSE', '30'),    -- livello 2
+       (143, 'CLASSE', '30'),    -- livello 3
+       (144, 'CLASSE', '30'),    -- livello 4
+       (1941, 'CLASSE', '30'),   -- livello 5
+       (145, 'CLASSE', '1908'),  -- livello 6
+       (1919, 'CLASSE', '1908'), -- livello 7
+       (1946, 'CLASSE', '1908'); -- livello 8
+
+
+
 

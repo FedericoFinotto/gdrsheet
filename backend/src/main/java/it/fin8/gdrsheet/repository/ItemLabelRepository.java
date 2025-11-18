@@ -18,4 +18,6 @@ public interface ItemLabelRepository extends JpaRepository<ItemLabel, Integer> {
      * e il cui item.id è contenuto nella lista itemIds.
      */
     List<ItemLabel> findByLabelAndItem_IdIn(String label, List<Integer> itemIds);
+
+    List<ItemLabel> findByLabelLikeAndItem_IdIn(String label, List<Integer> itemIds);
 }

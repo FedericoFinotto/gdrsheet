@@ -1,6 +1,7 @@
 package it.fin8.gdrsheet.mapper;
 
 import it.fin8.gdrsheet.config.Constants;
+import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.dto.AbilitaClasseDTO;
 import it.fin8.gdrsheet.dto.ModificatoreDTO;
 import it.fin8.gdrsheet.dto.RankDTO;
@@ -36,6 +37,17 @@ public class ModificatoreMapper {
         dto.setNota(entity.getNota());
         dto.setPermanente(entity.getSempreAttivo());
         dto.setItem(entity.getItem().getNome());
+        dto.setItemId(entity.getItem().getId());
+        if (TipoItem.LIVELLO.equals(entity.getItem().getTipo())) {
+            try {
+                Item classe = itemRepository.findById(Integer.parseInt(entity.getItem().getLabel(Constants.ITEM_LABEL_CLASSE))).orElse(null);
+                String livello = entity.getItem().getLabel(Constants.ITEM_LIVELLO_LVL_CLASSE);
+                assert classe != null;
+                dto.setItem(classe.getNome() + " " + livello);
+            } catch (Exception ignored) {
+            }
+        }
+
         dto.setStatId(entity.getStat().getId());
         dto.setTipoItem(entity.getItem().getTipo());
         return dto;

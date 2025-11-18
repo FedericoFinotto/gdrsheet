@@ -28,5 +28,11 @@ public class ModificatoreDTO {
 
     private String item;
 
+    private Integer itemId;
+
     private TipoItem tipoItem;
+
+    public String itemIdInFormula() {
+        return formula.replace("$", "@" + itemId + "_");
+    }
 }
