@@ -7,6 +7,7 @@ import {DatiPersonaggio} from "../models/dto/DatiPersonaggio";
 
 export function getValoreFormula(personaggio: DatiPersonaggio, formula: string) {
     if (!formula) return null;
+    personaggio.bonusAttacco.forEach(x => x.modificatore = x.attacchiMultipli[0]);
     return calcolaFormula(formula, personaggio);
 }
 
