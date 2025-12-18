@@ -27,6 +27,8 @@ export const LABELS = {
     LIVELLO: 'LVL',
     SPELL_SLOT: 'SP_SLOT',
     ABILITA_CLASSE: 'ABCLASSE',
+    CLASSE: 'CLASSE',
+    MALEDIZIONE: 'MLDZN'
 } as const;
 export type TipoLabels = typeof LABELS[keyof typeof LABELS];
 

@@ -6,7 +6,7 @@ import {getItem} from '../../../../../../service/PersonaggioService'
 
 // Editors
 import SpellEditor from './SpellEditor.vue'
-import LivelloEditor from './LivelloEditor.vue'
+import LivelloEditor from './LivelloEditor/LivelloEditor.vue'
 import {ItemDB} from "../../../../../../models/entity/ItemDB"; // <-- nuovo import
 
 const route = useRoute();

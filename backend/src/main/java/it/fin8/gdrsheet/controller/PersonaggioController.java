@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -167,7 +168,11 @@ public class PersonaggioController {
             @Parameter(description = "ID Personaggio", required = true)
             @PathVariable Integer id
     ) {
-        List<ItemDTO> result = personaggioService.getItemAssociabili(id, TipoItem.MALEDIZIONE).stream().map(itemMapper::toDTO).toList();
+        List<ItemDTO> maledizioni = personaggioService.getItemAssociabili(id, TipoItem.MALEDIZIONE).stream().map(itemMapper::toDTO).toList();
+        List<ItemDTO> frutti = personaggioService.getItemAssociabili(id, TipoItem.FRUTTO).stream().map(itemMapper::toDTO).toList();
+        List<ItemDTO> result = new ArrayList<>();
+        result.addAll(maledizioni);
+        result.addAll(frutti);
 
         return ResponseEntity.ok(result);
     }
