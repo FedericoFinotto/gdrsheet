@@ -283,7 +283,8 @@ public class PersonaggioService {
                 .map(sv -> modificatoriService.calcolaCaratteristica(
                         sv,
                         modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
-                        itemCounterList
+                        itemCounterList,
+                        taglia
                 ))
                 .toList();
         dto.getCaratteristiche().addAll(carList);

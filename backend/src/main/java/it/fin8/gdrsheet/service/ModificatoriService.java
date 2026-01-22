@@ -33,11 +33,18 @@ public class ModificatoriService {
     CaratteristicaDTO calcolaCaratteristica(
             StatValue stat,
             List<ModificatoreDTO> modsDto,
-            List<ContatoreItemDTO> contatoriItem
+            List<ContatoreItemDTO> contatoriItem,
+            List<ItemLabel> taglia
     ) {
+
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
         if (!stat.getValore().equals("0")) {
             modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
+        }
+        if (stat.getStat().getId().equals("COS")) {
+            int differenzaTaglia = getTaglia(taglia) - getTagliaClasse(taglia);
+            if (differenzaTaglia != 0)
+                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), 4 * differenzaTaglia, null, null, TipoModificatore.VALORE, false, "Taglia", null, null));
         }
         modificatoriAttivi.add(prendiMaxDTO(modsDto, TipoModificatore.BASE));
         int valoreBase = (modsDto.stream().filter(x -> x.getTipoItem().equals(TipoItem.LIVELLO)).mapToInt(ModificatoreDTO::getValore).sum());
@@ -45,7 +52,7 @@ public class ModificatoriService {
         modificatoriAttivi.addAll(modsDto.stream().filter(m -> TipoModificatore.VALORE.equals(m.getTipo())).toList());
 
         for (ModificatoreDTO modificatoreDTO : modificatoriAttivi) {
-            if (modificatoreDTO.getFormula().contains("$") || modificatoreDTO.getFormula().indexOf('@') >= 0) {
+            if (modificatoreDTO.getFormula() != null && (modificatoreDTO.getFormula().contains("$") || modificatoreDTO.getFormula().indexOf('@') >= 0)) {
                 try {
                     modificatoreDTO.setFormula(calcoloService.calcola(modificatoreDTO.itemIdInFormula(), contatoriItem.stream().map(ContatoreItemDTO::toCaratteristicaDTO).toList()));
                     modificatoreDTO.setValore(Integer.parseInt(modificatoreDTO.getFormula()));
@@ -504,6 +511,31 @@ public class ModificatoriService {
         }
 
     }
+
+    private Integer getTagliaClasse(List<ItemLabel> taglia) {
+        try {
+            TreeMap<Integer, ItemLabel> tagliaPerLivello = taglia.stream()
+                    .filter(c -> c != null && c.getItem() != null && c.getItem().getTipo() == TipoItem.CLASSE)
+                    .map(c -> new AbstractMap.SimpleEntry<>(estraiLvlDaTaglia(c), c))
+                    .filter(e -> e.getKey() != null)
+                    .collect(Collectors.toMap(
+                            AbstractMap.SimpleEntry::getKey,
+                            AbstractMap.SimpleEntry::getValue,
+                            (a, b) -> a,
+                            TreeMap::new
+                    ));
+
+            ItemLabel tagliaDiClasse = tagliaPerLivello.isEmpty() ? null : tagliaPerLivello.lastEntry().getValue();
+
+            if (tagliaDiClasse != null) {
+                return Integer.parseInt(tagliaDiClasse.getValore());
+            }
+            return 0;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
 
     public static List<Integer> computeIterativeAttacks(int baseBab, int baseMod) {
         List<Integer> attacks = new ArrayList<>();
