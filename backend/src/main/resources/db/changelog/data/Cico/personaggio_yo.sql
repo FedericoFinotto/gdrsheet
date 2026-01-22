@@ -21,6 +21,10 @@ INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo
 VALUES ('Frutto delle Papere', 'FRUTTO', 'Frutto delle Papere', null, 1, 1)
 ;
 
+INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo)
+VALUES ('Omnipapera', 'TRASFORMAZIONE', NULL, null, 1, 1),
+       ('Paperella di Gomma', 'TRASFORMAZIONE', NULL, null, 1, 1);
+
 
 
 INSERT INTO item_label (id_item, label, valore)

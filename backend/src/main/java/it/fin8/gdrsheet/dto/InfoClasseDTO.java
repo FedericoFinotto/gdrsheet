@@ -16,6 +16,7 @@ import java.util.Set;
 public class InfoClasseDTO {
     Item classe;
     Set<Integer> livelli;
+    Integer livelloEffettivo;
 
     public Integer getMax() {
         if (livelli == null || livelli.isEmpty()) return 0;

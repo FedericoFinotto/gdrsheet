@@ -153,7 +153,7 @@ public class PersonaggioService {
         for (InfoClasseDTO classe : allPersonaggioItems.getLivelli().getClassi()) {
             itemsDTO.getClassi().add(itemMapper.toClasseDTO(classe));
 
-            SpellBookDTO spellbook = generateSpellBook(classe.getClasse(), classe.getNumber(), id);
+            SpellBookDTO spellbook = generateSpellBook(classe.getClasse(), classe.getNumber(), classe.getLivelloEffettivo(), id);
             if (spellbook != null) {
                 itemsDTO.getSpellbooks().add(spellbook);
             }
@@ -488,7 +488,7 @@ public class PersonaggioService {
         return new ArrayList<>();
     }
 
-    private SpellBookDTO generateSpellBook(Item classe, Integer lvl, Integer idPersonaggio) {
+    private SpellBookDTO generateSpellBook(Item classe, Integer lvl, Integer livelloEffettivo, Integer idPersonaggio) {
         ItemLabel spellList = classe.getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_LISTA_INCANTESIMI)).findFirst().orElse(null);
         if (spellList == null) return null;
         SpellBookDTO spellBook = new SpellBookDTO();
@@ -498,19 +498,26 @@ public class PersonaggioService {
         String slotBonus = utilService.getItemLabel(classe, Constants.ITEM_LABEL_SPELL_SLOT_BONUS);
 
         Avanzamento avanzamento = classe.getAvanzamento().stream().filter(y -> y.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO) && Math.toIntExact(lvl) == y.getLivello()).findFirst().orElse(null);
+        Avanzamento avanzamentoTotale = classe.getAvanzamento().stream().filter(y -> y.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO) && Math.toIntExact(livelloEffettivo) == y.getLivello()).findFirst().orElse(null);
         Item preparedSpell = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_INCANTESIMI_PREPARATI, idPersonaggio);
         List<SpellBookIncantesimoDTO> incantesimi = preparedSpell.getChild().stream().map(x -> itemMapper.toIncantesimoDTO(classe, x)).toList();
-        if (avanzamento != null) {
+        if (avanzamento != null && avanzamentoTotale != null) {
             ItemLabel spellSlot = avanzamento.getItemTarget().getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_SPELL_SLOT)).findFirst().orElse(null);
-            if (spellSlot != null) {
+            ItemLabel spellSlotTotali = avanzamentoTotale.getItemTarget().getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_SPELL_SLOT)).findFirst().orElse(null);
+            if (spellSlot != null && spellSlotTotali != null) {
                 List<Integer> slots = Arrays.stream(spellSlot.getValore().split(","))
-                        .map(String::trim) // rimuove spazi eventuali
-                        .map(Integer::parseInt) // converte in Integer
+                        .map(String::trim)
+                        .map(Integer::parseInt)
+                        .toList();
+
+                List<Integer> slotsMaxLvl = Arrays.stream(spellSlotTotali.getValore().split(","))
+                        .map(String::trim)
+                        .map(Integer::parseInt)
                         .toList();
 
 
-                for (int i = 0; i < slots.size(); i++) {
-                    if (slots.get(i) > 0) {
+                for (int i = 0; i < slotsMaxLvl.size(); i++) {
+                    if (slotsMaxLvl.get(i) > 0) {
                         SpellBookLivelloDTO spellBookLivello = new SpellBookLivelloDTO();
                         spellBookLivello.setLivello(i);
                         spellBookLivello.setSlot(slots.get(i));

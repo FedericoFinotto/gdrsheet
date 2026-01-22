@@ -126,24 +126,13 @@ public class CalcoloService {
         //    Costruisci una mappa Classe -> TreeSet<Integer> dei livelli (ordinati, unici)
         Map<Item, Set<Integer>> perClasse = livelliAttivi.stream()
                 .flatMap(livello -> {
-                    // livelli dichiarati nella label LVL_CLASSE
                     List<Integer> lvls = utilService.parseStringToIntList(
                             livello.getLabel(Constants.ITEM_LIVELLO_LVL_CLASSE)
                     );
                     if (lvls.isEmpty()) return Stream.empty();
-
-                    // tutte le classi collegate a questo livello
-//                    List<Item> classi = Optional.ofNullable(livello.getChild())
-//                            .orElseGet(Collections::emptyList)
-//                            .stream()
-//                            .map(Collegamento::getItemTarget)
-//                            .filter(it -> TipoItem.CLASSE.equals(it.getTipo()))
-//                            .toList();
-//                    if (classi.isEmpty()) return Stream.empty();
                     String classeId = livello.getLabel(Constants.ITEM_LABEL_CLASSE);
                     List<Item> classi = List.of(itemRepository.findItemById(Integer.parseInt(classeId)));
 
-                    // flat: (classe, livelloSingolo)
                     return classi.stream().flatMap(cl ->
                             lvls.stream().map(lv -> new AbstractMap.SimpleEntry<>(cl, lv)));
                 })
@@ -157,11 +146,19 @@ public class CalcoloService {
         List<InfoClasseDTO> classi = perClasse.entrySet().stream()
                 .map(e -> {
                     InfoClasseDTO dto = new InfoClasseDTO();
+
+                    Integer livelloEffettivo =
+                            (int) initialRoots.stream()
+                                    .filter(Objects::nonNull)
+                                    .filter(i -> TipoItem.LIVELLO.equals(i.getTipo()))
+                                    .filter(x -> e.getKey().getId().toString().equals(x.getLabel(Constants.ITEM_LABEL_CLASSE)))
+                                    .count();
+
                     dto.setClasse(e.getKey());
-                    dto.setLivelli(e.getValue()); // già TreeSet -> ordinato e unico
+                    dto.setLivelli(e.getValue());
+                    dto.setLivelloEffettivo(livelloEffettivo);
                     return dto;
                 })
-                // opzionale: ordina per nome classe
                 .sorted(Comparator.comparing(x -> x.getClasse().getNome(), Comparator.nullsLast(String::compareToIgnoreCase)))
                 .toList();
 
