@@ -93,6 +93,7 @@ public class ModificatoriService {
     TiroSalvezzaDTO calcoloTiroSalvezza(
             StatValue stat,
             List<ModificatoreDTO> modsDto,
+            List<ContatoreItemDTO> contatoriItem,
             List<CaratteristicaDTO> carList
     ) {
         applicaCalcoli(modsDto, carList);
@@ -102,6 +103,17 @@ public class ModificatoriService {
 
         if (!stat.getValore().equals("0")) {
             modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
+        }
+
+        for (ModificatoreDTO modificatoreDTO : modificatoriAttivi) {
+            if (modificatoreDTO.getFormula() != null && (modificatoreDTO.getFormula().contains("$") || modificatoreDTO.getFormula().indexOf('@') >= 0)) {
+                try {
+                    modificatoreDTO.setFormula(calcoloService.calcola(modificatoreDTO.itemIdInFormula(), contatoriItem.stream().map(ContatoreItemDTO::toCaratteristicaDTO).toList()));
+                    modificatoreDTO.setValore(Integer.parseInt(modificatoreDTO.getFormula()));
+                } catch (Exception e) {
+                    modificatoriAttivi.remove(modificatoreDTO);
+                }
+            }
         }
 
         int modificatore = modificatoriAttivi.stream()

@@ -309,6 +309,7 @@ public class PersonaggioService {
                             .map(sv -> modificatoriService.calcoloTiroSalvezza(
                                     sv,
                                     modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
+                                    itemCounterList,
                                     carList
                             ))
                             .toList()
