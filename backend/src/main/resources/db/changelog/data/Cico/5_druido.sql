@@ -254,7 +254,3 @@ VALUES ((select id from items where nome = 'DRUIDO 1'), 'DV', '1d8', true, null,
        ((select id from items where nome = 'DRUIDO 18'), 'GRADI', '21*(@INT+4)', true, null, 'VALORE'),
        ((select id from items where nome = 'DRUIDO 19'), 'GRADI', '22*(@INT+4)', true, null, 'VALORE'),
        ((select id from items where nome = 'DRUIDO 20'), 'GRADI', '23*(@INT+4)', true, null, 'VALORE');
-
-
-INSERT INTO items (nome, tipo, descrizione, personaggio_id, id_sistema, id_mondo) VALUES
-                                                                                      ()

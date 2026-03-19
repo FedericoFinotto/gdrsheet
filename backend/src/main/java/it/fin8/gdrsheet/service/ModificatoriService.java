@@ -180,6 +180,7 @@ public class ModificatoriService {
     ClasseArmaturaDTO calcolaClasseArmatura(StatValue stat, List<ModificatoreDTO> modsDto, List<ModificatoreDTO> modsCADto, List<CaratteristicaDTO> carList, List<ItemLabel> taglie) {
         int modificatore = 0;
         applicaCalcoli(modsDto, carList);
+        applicaCalcoli(modsCADto, carList);
         int taglia = getTaglia(taglie);
 
         ModificatoreDTO schivare = prendiMaxDTO(modsCADto, TipoModificatore.CA_SCHIVARE);
