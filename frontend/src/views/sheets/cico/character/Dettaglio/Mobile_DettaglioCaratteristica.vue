@@ -175,20 +175,16 @@ const mappaRiga = (mod) => {
     <div class="spazietto" v-for="i in 4" :key="i"/>
     <div class="bar-container">
       <Icona name="SUB" class="bar-btn" @click.stop="dec()"/>
+      <button class="hp-mod" @click.stop="dec(50)">-50</button>
       <div class="bar-wrapper">
-
         <div class="bar">
           <div class="bar-center">TEMP: {{ tempValue }}</div>
-
         </div>
-
       </div>
+      <button class="hp-mod" @click.stop="inc(+50)">+50</button>
       <Icona name="ADD" class="bar-btn" @click.stop="inc()"/>
-
       <div class="bar-btn">
         <Icona v-if="isSaving" name="SPINNER" :spin="true"/>
-        <!--        <Icona v-else-if="tempValue !== lastSentValue" name="XMARK"/>-->
-        <!--        <Icona v-else name="CHECK"/>-->
       </div>
 
     </div>

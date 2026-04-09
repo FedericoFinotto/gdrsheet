@@ -151,12 +151,28 @@ public class PersonaggioService {
         }
 
         for (InfoClasseDTO classe : allPersonaggioItems.getLivelli().getClassi()) {
-            itemsDTO.getClassi().add(itemMapper.toClasseDTO(classe));
-
-            SpellBookDTO spellbook = generateSpellBook(classe.getClasse(), classe.getNumber(), classe.getLivelloEffettivo(), id);
-            if (spellbook != null) {
-                itemsDTO.getSpellbooks().add(spellbook);
+            String spellBookId = classe.getClasse().getLabel(Constants.ITEM_LABEL_LISTA_INCANTESIMI);
+            if (spellBookId != null) {
+                if (!spellBookId.startsWith("+")) {
+                    Integer livelloTotale = classe.getLivelloTotale();
+                    Integer livelloNonMaledetto = classe.getLivelloNonMaledetto();
+                    List<InfoClasseDTO> aggiunte = allPersonaggioItems.getLivelli().getClassi().stream()
+                            .filter(x -> {
+                                String label = x.getClasse().getLabel(Constants.ITEM_LABEL_LISTA_INCANTESIMI);
+                                return label != null && label.contains("+" + spellBookId);
+                            })
+                            .toList();
+                    for (InfoClasseDTO info : aggiunte) {
+                        livelloTotale += info.getLivelloTotale();
+                        livelloNonMaledetto += info.getLivelloNonMaledetto();
+                    }
+                    SpellBookDTO spellbook = generateSpellBook(classe.getClasse(), livelloTotale, livelloNonMaledetto, id);
+                    if (spellbook != null) {
+                        itemsDTO.getSpellbooks().add(spellbook);
+                    }
+                }
             }
+            itemsDTO.getClassi().add(itemMapper.toClasseDTO(classe));
         }
 
         return itemsDTO;
@@ -498,8 +514,8 @@ public class PersonaggioService {
         spellBook.setSpellList(spellList.getValore());
         String slotBonus = utilService.getItemLabel(classe, Constants.ITEM_LABEL_SPELL_SLOT_BONUS);
 
-        Avanzamento avanzamento = classe.getAvanzamento().stream().filter(y -> y.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO) && Math.toIntExact(lvl) == y.getLivello()).findFirst().orElse(null);
-        Avanzamento avanzamentoTotale = classe.getAvanzamento().stream().filter(y -> y.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO) && Math.toIntExact(livelloEffettivo) == y.getLivello()).findFirst().orElse(null);
+        Avanzamento avanzamentoTotale = classe.getAvanzamento().stream().filter(y -> y.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO) && Math.toIntExact(lvl) == y.getLivello()).findFirst().orElse(null);
+        Avanzamento avanzamento = classe.getAvanzamento().stream().filter(y -> y.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO) && Math.toIntExact(livelloEffettivo) == y.getLivello()).findFirst().orElse(null);
         Item preparedSpell = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_INCANTESIMI_PREPARATI, idPersonaggio);
         List<SpellBookIncantesimoDTO> incantesimi = preparedSpell.getChild().stream().map(x -> itemMapper.toIncantesimoDTO(classe, x)).toList();
         if (avanzamento != null && avanzamentoTotale != null) {

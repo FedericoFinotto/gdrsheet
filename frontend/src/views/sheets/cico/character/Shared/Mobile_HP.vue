@@ -113,6 +113,7 @@ function modifyHp(amount: number) {
 <template>
   <div class="bar-container" :style="{ backgroundImage: barraGradient }">
     <Icona name="SUB" class="bar-btn" @click.stop="modifyHp(-1)"/>
+    <button class="hp-mod" @click.stop="modifyHp(-50)">-50</button>
     <div class="bar-wrapper">
       <div class="bar">
         <div class="bar-delta" v-if="delta < 0">
@@ -133,6 +134,7 @@ function modifyHp(amount: number) {
         </div>
       </div>
     </div>
+    <button class="hp-mod" @click.stop="modifyHp(+50)">+50</button>
     <Icona name="ADD" class="bar-btn" @click.stop="modifyHp(+1)"/>
   </div>
 </template>

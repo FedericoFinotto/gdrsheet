@@ -29,6 +29,9 @@ public class ModificatoriService {
     @Autowired
     private UtilService utilService;
 
+    @Autowired
+    private DiceRoller roll;
+
 
     CaratteristicaDTO calcolaCaratteristica(
             StatValue stat,
@@ -327,6 +330,8 @@ public class ModificatoriService {
             modificatoriAttivi.addAll(livelloItems.stream().filter(x -> x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) != null).map(ModificatoriService::getMalusPF).toList());
         }
 
+        modificatoriAttivi.addAll(dadiVita.getModPF());
+
         int total = modificatoriAttivi.stream()
                 .filter(x -> x.getNota() == null)
                 .mapToInt(ModificatoreDTO::getValore)
@@ -378,14 +383,21 @@ public class ModificatoriService {
         applicaCalcoli(modsDto, carList);
 
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
+        List<ModificatoreDTO> modPF = new ArrayList<>();
         if (!stat.getValore().equals("0")) {
             modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
         }
-//        modificatoriAttivi.addAll(new ArrayList<>(modsDto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList()));
-
         modificatoriAttivi.addAll(livelloItems.stream().filter(x -> x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) == null).map(x -> new ModificatoreDTO(null, stat.getStat().getId(), null, x.getLabel(Constants.ITEM_LABEL_DADI_VITA), null, TipoModificatore.VALORE, true, x.getNome(), null, TipoItem.LIVELLO)).toList());
+        modsDto.stream().filter(x -> !x.getTipoItem().equals(TipoItem.LIVELLO)).forEach(x -> {
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getLabel(), x.getValore(), x.getFormula(), null, null, true, x.getItem(), x.getItemId(), null));
+            try {
+                modPF.add(new ModificatoreDTO(null, "PF", DiceRoller.roll(x.getFormula(), true), x.getFormula(), null, TipoModificatore.VALORE, true, x.getItem(), x.getItemId(), null));
+            } catch (Exception ignored) {
+            }
+        });
 
         DiceSummary dice = utilService.combineDice(modificatoriAttivi, ModificatoreDTO::getFormula);
+
 
         if (stat.getMod() != null) {
             ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
@@ -394,7 +406,7 @@ public class ModificatoriService {
         }
 
         return new DadiVitaDTO(
-                stat.getStat().getId(), stat.getStat().getLabel(), dice.getTotalN(), dice.getCombined(), modificatoriAttivi
+                stat.getStat().getId(), stat.getStat().getLabel(), dice.getTotalN(), dice.getCombined(), modificatoriAttivi, modPF
         );
     }
 

@@ -17,7 +17,6 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Component
 public class CalcoloService {
@@ -112,59 +111,100 @@ public class CalcoloService {
             return out;
         }
 
-        // 1) Prendo SOLO i livelli non disabilitati
+        // Filtri inline (senza Predicate)
+        List<Item> livelliTotali = initialRoots.stream()
+                .filter(Objects::nonNull)
+                .filter(i -> TipoItem.LIVELLO.equals(i.getTipo()))
+                .filter(x -> !utilService.parseBooleanFromString(
+                        x.getLabel(Constants.ITEM_LABEL_DISABILITATO),
+                        Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE,
+                        Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE))
+                .toList();
+
         List<Item> livelliAttivi = initialRoots.stream()
                 .filter(Objects::nonNull)
                 .filter(i -> TipoItem.LIVELLO.equals(i.getTipo()))
-                .filter(x -> !utilService.parseBooleanFromString(x.getLabel(Constants.ITEM_LABEL_DISABILITATO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE) && x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) == null)
+                .filter(x -> !utilService.parseBooleanFromString(
+                        x.getLabel(Constants.ITEM_LABEL_DISABILITATO),
+                        Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE,
+                        Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE))
+                .filter(x -> x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) == null)
                 .toList();
 
-        // 2) livello = numero di livelli attivi
-        out.setLivello(livelliAttivi.size() - 1);
+        out.setLivello(Math.max(0, livelliAttivi.size() - 1));
 
-        // 3) Per ogni livello attivo: trova le classi collegate e i valori LVL_CLASSE (lista di interi)
-        //    Costruisci una mappa Classe -> TreeSet<Integer> dei livelli (ordinati, unici)
-        Map<Item, Set<Integer>> perClasse = livelliAttivi.stream()
-                .flatMap(livello -> {
-                    List<Integer> lvls = utilService.parseStringToIntList(
-                            livello.getLabel(Constants.ITEM_LIVELLO_LVL_CLASSE)
-                    );
-                    if (lvls.isEmpty()) return Stream.empty();
-                    String classeId = livello.getLabel(Constants.ITEM_LABEL_CLASSE);
-                    List<Item> classi = List.of(itemRepository.findItemById(Integer.parseInt(classeId)));
+        if (livelliTotali.isEmpty()) {
+            out.setClassi(Collections.emptyList());
+            return out;
+        }
 
-                    return classi.stream().flatMap(cl ->
-                            lvls.stream().map(lv -> new AbstractMap.SimpleEntry<>(cl, lv)));
-                })
+        // Map<Item, Set<Item>> diretta (1 stream)
+        Map<Item, Set<Item>> perClasse = livelliTotali.stream()
+                .filter(livello -> livello.getLabel(Constants.ITEM_LABEL_CLASSE) != null)
                 .collect(Collectors.groupingBy(
-                        Map.Entry::getKey,
+                        livello -> {
+                            try {
+                                return itemRepository.findItemById(
+                                        Integer.parseInt(livello.getLabel(Constants.ITEM_LABEL_CLASSE)));
+                            } catch (NumberFormatException e) {
+                                return null;
+                            }
+                        },
                         LinkedHashMap::new,
-                        Collectors.mapping(Map.Entry::getValue, Collectors.toCollection(TreeSet::new))
+                        Collectors.toSet()  // HashSet sicuro
+                ))
+                .entrySet().stream()
+                .filter(e -> e.getKey() != null)
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey, Map.Entry::getValue,
+                        (e1, e2) -> e1,
+                        LinkedHashMap::new
                 ));
 
-        // 4) Converto in List<InfoClasseDTO>
+        // DTOs
         List<InfoClasseDTO> classi = perClasse.entrySet().stream()
                 .map(e -> {
                     InfoClasseDTO dto = new InfoClasseDTO();
 
-                    Integer livelloEffettivo =
-                            (int) initialRoots.stream()
-                                    .filter(Objects::nonNull)
-                                    .filter(i -> TipoItem.LIVELLO.equals(i.getTipo()))
-                                    .filter(x -> e.getKey().getId().toString().equals(x.getLabel(Constants.ITEM_LABEL_CLASSE)))
-                                    .count();
+                    // Tutti i livelli → Set<Integer>
+                    Set<Integer> livelliSet = e.getValue().stream()
+                            .map(x -> Integer.parseInt(x.getLabel(Constants.ITEM_LIVELLO_LVL_CLASSE)))
+                            .collect(Collectors.toSet());
+
+                    Integer livelloMax = livelliSet.stream()
+                            .max(Integer::compareTo).orElse(0);
+
+                    Integer livelloTotale = e.getValue().size();
+
+                    // Livelli NON maledetti per questa classe
+                    Integer livelloNonMaledetto = (int) livelliAttivi.stream()
+                            .filter(x -> e.getKey().getId().toString()
+                                    .equals(x.getLabel(Constants.ITEM_LABEL_CLASSE)))
+                            .count();
+
+                    // NUOVO: Max tra i NON maledetti
+                    Integer livelloMaxNonMaledetto = livelliAttivi.stream()
+                            .filter(x -> e.getKey().getId().toString()
+                                    .equals(x.getLabel(Constants.ITEM_LABEL_CLASSE)))
+                            .map(x -> Integer.parseInt(x.getLabel(Constants.ITEM_LIVELLO_LVL_CLASSE)))
+                            .max(Integer::compareTo)
+                            .orElse(0);
 
                     dto.setClasse(e.getKey());
-                    dto.setLivelli(e.getValue());
-                    dto.setLivelloEffettivo(livelloEffettivo);
+                    dto.setLivelli(livelliSet);
+                    dto.setLivelloMax(livelloMax);
+                    dto.setLivelloTotale(livelloTotale);
+                    dto.setLivelloNonMaledetto(livelloNonMaledetto);
+                    dto.setLivelloMaxNonMaledetto(livelloMaxNonMaledetto);
                     return dto;
                 })
-                .sorted(Comparator.comparing(x -> x.getClasse().getNome(), Comparator.nullsLast(String::compareToIgnoreCase)))
+                .sorted(Comparator.comparing(
+                        x -> x.getClasse().getNome(),
+                        Comparator.nullsLast(String::compareToIgnoreCase)
+                ))
                 .toList();
 
         out.setClassi(classi);
         return out;
     }
-
-
 }

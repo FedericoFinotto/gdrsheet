@@ -17,4 +17,5 @@ public class DadiVitaDTO {
     Integer totale;
     String totaleStringa;
     List<ModificatoreDTO> modificatori;
+    List<ModificatoreDTO> modPF;
 }

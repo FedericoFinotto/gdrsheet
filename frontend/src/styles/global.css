@@ -643,6 +643,7 @@ html, body, #app {
     border-radius: 0;
     overflow: hidden;
     background: #fff;
+    gap: .5rem;
 }
 
 .bar-btn {
@@ -823,4 +824,27 @@ html, body, #app {
 
 p {
     margin: 0;
+}
+
+.hp-mod {
+    /* 1️⃣ Transparent background */
+    background-color: transparent;
+
+    /* 2️⃣ Transparent border (no visible outline) */
+    border: none; /* removes the default border */
+    outline: none; /* removes the focus outline if you don’t want it */
+
+    /* 3️⃣ Text appearance */
+    color: #000; /* black */
+    font-weight: bold; /* bold */
+    font-size: 1rem; /* adjust as needed */
+    padding: 0; /* no extra inner spacing */
+    margin: 0; /* no extra outer spacing */
+
+    /* Optional: make it behave like a link on hover */
+    cursor: pointer;
+}
+
+.hp-mod:focus-visible {
+    outline: 2px dashed #000;
 }
