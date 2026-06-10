@@ -16,6 +16,8 @@ import {UpdateSpellUsageRequest} from "../models/dto/UpdateSpellUsageRequest";
 import {Abilita} from "../models/dto/Abilita";
 import {Item} from "../models/dto/Item";
 import {Gradi} from "../models/dto/Gradi";
+import {UpdateItemRequest} from "../models/dto/UpdateItemRequest";
+import {SaveLivelloPayload} from "../models/dto/UpdateLivelloRequest";
 
 export function getModificatoriPersonaggioById(id: number): Promise<AxiosResponse<DatiPersonaggio>> {
     return api.get(`/personaggi/modificatori/${id}`);
@@ -108,7 +110,14 @@ export function getGradiClasseByPersonaggioLivelloClasse(idPersonaggio: number, 
     return api.get(`/personaggi/gradi-livello/${idPersonaggio}/${livello}/${livelli}/${idClasse}`);
 }
 
-export function saveLivello(payload) {
-    console.log(payload);
-    return null;
+export function saveLivello(payload: SaveLivelloPayload): Promise<AxiosResponse<ItemDB>> {
+    return api.post<ItemDB>(`/item/editlivello/${payload.livelloId}`, payload);
+}
+
+export function createItem(payload: UpdateItemRequest): Promise<AxiosResponse<ItemDB>> {
+    return api.post<ItemDB>('/item/create', payload);
+}
+
+export function updateItem(id: number, payload: UpdateItemRequest): Promise<AxiosResponse<ItemDB>> {
+    return api.post<ItemDB>(`/item/edit/${id}`, payload);
 }

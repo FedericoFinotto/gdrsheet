@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import {Classe} from '../../../../../../models/dto/Classe'
-import {Item} from '../../../../../../models/dto/Item'
 import TabExpandable from "../../../../../../../components/TabExpandable.vue";
 
 const props = defineProps<{
   disabled: boolean
   summary: string
   classi: Classe[]
-  maledizioni: Item[]
   classeDetail: any | null
   livelliDisponibili: number[]
   classeId: number | null
@@ -28,8 +26,8 @@ const classeIdLocal = computed({
 })
 
 const maledizioneNomeLocal = computed({
-  get: () => props.maledizioneNome,
-  set: v => emit('update:maledizioneNome', v)
+  get: () => props.maledizioneNome ?? '',
+  set: v => emit('update:maledizioneNome', v?.trim() ? v : null)
 })
 
 const livelliClasseLocal = computed({
@@ -57,10 +55,10 @@ const livelliClasseLocal = computed({
       <div class="row">
         <label class="field full-width">
           <span class="lbl">Maledizione (opzionale)</span>
-          <select v-model="maledizioneNomeLocal" :disabled="disabled">
-            <option :value="null">— Nessuna maledizione —</option>
-            <option v-for="m in maledizioni" :key="'m-'+m.id" :value="m.nome">{{ m.nome }}</option>
-          </select>
+          <input type="text"
+                 v-model="maledizioneNomeLocal"
+                 :disabled="disabled"
+                 placeholder="Nessuna maledizione"/>
         </label>
       </div>
 
@@ -105,7 +103,7 @@ const livelliClasseLocal = computed({
   color: #ef4444;
 }
 
-select {
+select, input[type="text"] {
   width: 100%;
   padding: .5rem .6rem;
   border: 1px solid #d0d5dd;

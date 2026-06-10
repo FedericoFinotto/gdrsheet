@@ -3,7 +3,6 @@ import {computed, onMounted, reactive, ref, toRaw, watch} from 'vue'
 
 import {ItemDB} from '../../../../../../../models/entity/ItemDB'
 import {Classe} from '../../../../../../../models/dto/Classe'
-import {Item} from '../../../../../../../models/dto/Item'
 import {UpdateLivelloRequest} from '../../../../../../../models/dto/UpdateLivelloRequest'
 import {Abilita} from '../../../../../../../models/dto/Abilita'
 import {Gradi} from '../../../../../../../models/dto/Gradi'
@@ -17,7 +16,6 @@ import {
   getItem,
   getListaAbilitaPerPersonaggio,
   getListaClassiPerPersonaggio,
-  getListaMaledizioniPerPersonaggio,
   saveLivello,
 } from '../../../../../../../service/PersonaggioService'
 
@@ -64,7 +62,6 @@ const canSave = computed(() => !busy.value && !props.readonly && !!form.classeId
 
 /* Liste base */
 const classi = ref<Classe[]>([])
-const maledizioni = ref<Item[]>([])
 const abilita = ref<Abilita[]>([])
 
 /* Helpers */
@@ -293,13 +290,11 @@ onMounted(async () => {
 
     const pid = unwrap<Id>(await getIdPersonaggioFromLivello(props.item.id))
     personaggioId.value = pid
-    const [cls, mal, abi] = await Promise.all([
+    const [cls, abi] = await Promise.all([
       getListaClassiPerPersonaggio(pid),
-      getListaMaledizioniPerPersonaggio(pid),
       getListaAbilitaPerPersonaggio(pid)
     ])
     classi.value = unwrap<Classe[]>(cls) ?? []
-    maledizioni.value = unwrap<Item[]>(mal) ?? []
     abilita.value = unwrap<Abilita[]>(abi) ?? []
 
     preloadAttualiDaStats()
@@ -366,29 +361,22 @@ async function onSave() {
   if (!canSave.value || personaggioId.value == null) return
   try {
     busy.value = true
-    const labelsPatch: Record<string, string> = {
-      LVL: form.livello == null ? '' : String(form.livello)
-    }
-    if (form.classeId) labelsPatch[LABELS.CLASSE] = String(form.classeId)
-    if (form.maledizioneNome?.trim()) labelsPatch['MLDZ'] = form.maledizioneNome.trim()
-
     const payload = toRaw({
       livelloId: props.item.id,
       personaggioId: personaggioId.value,
       livello: form.livello,
-      caratteristiche: cleanedCaratteristiche(form.caratteristiche),
+      caratteristiche: cleanedCaratteristiche(form.caratteristiche) as Record<string, number>,
       classeId: form.classeId,
-      maledizioneNome: form.maledizioneNome,
+      maledizioneNome: form.maledizioneNome?.trim() || null,
       livelliClasse: livelliSelezionati.value,
       ranghi: Object.entries(form.ranghi)
           .filter(([, v]) => (Number(v) || 0) > 0)
           .map(([abilitaId, punti]) => ({abilitaId, punti: Number(punti)})),
-      labelsPatch,
-      // selectedGrantIds contiene sia ITEM che MOD; qui decidi come interpretarle
       grantsSelezionati: Array.from(selectedGrants.value)
+          .map(g => ({id: g.id, tipo: g.tipo, livello: g.livello, descrizione: g.descrizione}))
     })
     await saveLivello(payload)
-    // emit('saved')
+    emit('saved')
   } catch (e) {
     console.error('Errore salvataggio livello:', e)
   } finally {
@@ -412,13 +400,8 @@ const sumCar = computed(() => {
 const classeSelezionata = computed(
     () => classi.value.find(c => c.id === form.classeId)?.nome || '—'
 )
-const maledizioneSelezionata = computed(() => {
-  if (!form.maledizioneNome) return '—'
-  const m = maledizioni.value.find(m => m.nome === form.maledizioneNome)
-  return m ? m.nome : form.maledizioneNome
-})
 const sumClasseMaledizione = computed(() =>
-    `Classe: ${classeSelezionata.value}${form.maledizioneNome ? ` | Maledizione: ${maledizioneSelezionata.value}` : ''}`
+    `Classe: ${classeSelezionata.value}${form.maledizioneNome ? ` | Maledizione: ${form.maledizioneNome}` : ''}`
 )
 </script>
 
@@ -435,7 +418,6 @@ const sumClasseMaledizione = computed(() =>
     <TabClasseMaledizione
         :disabled="disabledAll"
         :classi="classi"
-        :maledizioni="maledizioni"
         :classe-detail="classeDetail"
         :livelli-disponibili="livelliDisponibili"
         v-model:classe-id="form.classeId"

@@ -24,6 +24,7 @@ export const TIPO_MODIFICATORE = {
     CA_MAGIC: 'CA_MAGIC',
     CA_NATURALE: 'CA_NATURALE',
     BASE: 'BASE',
+    FORZATO: 'FORZATO',
 } as const;
 
 export type TipoModificatore = typeof TIPO_MODIFICATORE[keyof typeof TIPO_MODIFICATORE];

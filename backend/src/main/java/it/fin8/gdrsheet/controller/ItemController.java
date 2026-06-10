@@ -3,6 +3,8 @@ package it.fin8.gdrsheet.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import it.fin8.gdrsheet.dto.SpellBookIncantesimoDTO;
+import it.fin8.gdrsheet.dto.UpdateItemRequest;
+import it.fin8.gdrsheet.dto.UpdateLivelloRequest;
 import it.fin8.gdrsheet.dto.UpdatePreparedRequest;
 import it.fin8.gdrsheet.dto.UpdateSpellRequest;
 import it.fin8.gdrsheet.dto.UpdateSpellUsageRequest;
@@ -112,6 +114,35 @@ public class ItemController {
                                             @RequestBody UpdateSpellRequest dto) {
         // service.updateSpell(id, dto);
         return ResponseEntity.ok(itemService.updateSpell(id, dto));
+    }
+
+    @Operation(
+            summary = "Crea un nuovo item",
+            description = "Crea un nuovo item generico con labels e modificatori"
+    )
+    @PostMapping("/create")
+    public ResponseEntity<Item> createItem(@Valid @RequestBody UpdateItemRequest dto) {
+        return ResponseEntity.ok(itemService.createItem(dto));
+    }
+
+    @Operation(
+            summary = "Aggiorna un item generico",
+            description = "Aggiorna nome, descrizione, labels e modificatori di un item"
+    )
+    @PostMapping("/edit/{id}")
+    public ResponseEntity<Item> updateItem(@PathVariable Integer id,
+                                           @Valid @RequestBody UpdateItemRequest dto) {
+        return ResponseEntity.ok(itemService.updateItem(id, dto));
+    }
+
+    @Operation(
+            summary = "Aggiorna un item Livello",
+            description = "Aggiorna labels, caratteristiche (BASE), ranghi (RANK) e contenuti concessi di un item LIVELLO"
+    )
+    @PostMapping("/editlivello/{id}")
+    public ResponseEntity<Item> updateLivello(@PathVariable Integer id,
+                                              @Valid @RequestBody UpdateLivelloRequest dto) {
+        return ResponseEntity.ok(itemService.updateLivello(id, dto));
     }
 
 }

@@ -2,6 +2,7 @@ import {createRouter, createWebHistory} from 'vue-router';
 import Home from '@/views/Home.vue';
 import Mobile_Cico_0_CharacterSheet from "../views/sheets/cico/character/Cico/Sheet/Mobile_Cico_0_CharacterSheet.vue";
 import ItemEditor from "../views/sheets/cico/character/Cico/Editor/ItemEditor.vue";
+import ItemCreate from "../views/sheets/cico/character/Cico/Editor/ItemCreate.vue";
 
 const routes = [
   {path: '/', component: Home},
@@ -16,6 +17,11 @@ const routes = [
     name: 'ItemEditor',
     component: ItemEditor,
     props: route => ({idItem: Number(route.params.id)})
+  },
+  {
+    path: '/itemcreate/:tipo?',
+    name: 'ItemCreate',
+    component: ItemCreate
   }
 ];
 

@@ -328,9 +328,8 @@ public class ModificatoriService {
 
         if (stat.getStat().getId().equals("PF")) {
             modificatoriAttivi.addAll(livelloItems.stream().filter(x -> x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) != null).map(ModificatoriService::getMalusPF).toList());
+            modificatoriAttivi.addAll(dadiVita.getModPF());
         }
-
-        modificatoriAttivi.addAll(dadiVita.getModPF());
 
         int total = modificatoriAttivi.stream()
                 .filter(x -> x.getNota() == null)
@@ -614,14 +613,14 @@ public class ModificatoriService {
         // Tutti i livelli attivi fino a "livello"
         List<Item> livelli = personaggio.getItems().stream()
                 .filter(x -> x.getTipo().equals(TipoItem.LIVELLO))
-                .filter(x -> {
-                    String lv = x.getLabel(Constants.ITEM_LIVELLO_LVL);
-                    try {
-                        return lv != null && Integer.parseInt(lv) <= livello;
-                    } catch (NumberFormatException e) {
-                        return false;
-                    }
-                })
+//                .filter(x -> {
+//                    String lv = x.getLabel(Constants.ITEM_LIVELLO_LVL);
+//                    try {
+//                        return lv != null && Integer.parseInt(lv) <= livello;
+//                    } catch (NumberFormatException e) {
+//                        return false;
+//                    }
+//                })
                 .filter(x -> {
                     String dis = x.getLabel(Constants.ITEM_LABEL_DISABILITATO);
                     return dis == null || Objects.equals(dis, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
@@ -633,21 +632,27 @@ public class ModificatoriService {
 
         if (!livelli.isEmpty()) {
             // 1) prendi le CLASSI una sola volta (deduplicate per id)
-            classiUniche =
-                    livelli.stream()
+            classiUniche = livelli.stream()
                             .filter(Objects::nonNull)
-                            .flatMap(lv -> Optional.ofNullable(lv.getChild()).stream().flatMap(List::stream))
-                            .map(Collegamento::getItemTarget)
-                            .filter(it -> it.getTipo() == TipoItem.CLASSE)
-                            .collect(Collectors.collectingAndThen(
-                                    Collectors.toCollection(() -> new java.util.TreeSet<>(Comparator.comparing(Item::getId))),
-                                    ArrayList::new
-                            ));
+                    .map(x -> x.getLabel(Constants.ITEM_LABEL_CLASSE))
+                    .filter(Objects::nonNull)          // livelli senza classe (label assente)
+                    .distinct()
+                    .map(x -> itemRepository.findById(Integer.parseInt(x)))
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .toList();
+//                            .flatMap(lv -> Optional.ofNullable(lv.getChild()).stream().flatMap(List::stream))
+//                            .map(Collegamento::getItemTarget)
+//                            .filter(it -> it.getTipo() == TipoItem.CLASSE)
+//                            .collect(Collectors.collectingAndThen(
+//                                    Collectors.toCollection(() -> new java.util.TreeSet<>(Comparator.comparing(Item::getId))),
+//                                    ArrayList::new
+//                            ));
 
-            if (classiUniche.stream().noneMatch(x -> x.getId().equals(idClasse))) {
-                classiUniche.add(itemRepository.findById(idClasse)
-                        .orElseThrow(() -> new RuntimeException("Classe non trovata")));
-            }
+//            if (classiUniche.stream().noneMatch(x -> x.getId().equals(idClasse))) {
+//                classiUniche.add(itemRepository.findById(idClasse)
+//                        .orElseThrow(() -> new RuntimeException("Classe non trovata")));
+//            }
 
             // 2) indice abilità -> DTO aggregato
             Map<String, AbilitaClasseDTO> index = new LinkedHashMap<>();

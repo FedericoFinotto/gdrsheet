@@ -4,10 +4,9 @@ import {useRoute, useRouter} from 'vue-router'
 import type {AxiosResponse} from 'axios'
 import {getItem} from '../../../../../../service/PersonaggioService'
 
-// Editors
-import SpellEditor from './SpellEditor.vue'
-import LivelloEditor from './LivelloEditor/LivelloEditor.vue'
-import {ItemDB} from "../../../../../../models/entity/ItemDB"; // <-- nuovo import
+// Editors: registro tipo -> componente
+import {editorForType} from './editorRegistry'
+import {ItemDB} from "../../../../../../models/entity/ItemDB";
 
 const route = useRoute();
 const idItem = Number(route.params.id);
@@ -18,17 +17,7 @@ const loading = ref(false)
 const errorMsg = ref<string | null>(null)
 const item = ref<ItemDB | null>(null)
 
-// mappa tipo -> componente editor
-const EDITOR_BY_TYPE: Record<string, any> = {
-  INCANTESIMO: SpellEditor,
-  LIVELLO: LivelloEditor,     // <-- gestisce i "Livello"
-  // aggiungi qui altri tipi quando servirà
-}
-
-const EditorComp = computed(() => {
-  const t = item.value?.tipo
-  return t ? EDITOR_BY_TYPE[t] ?? null : null
-})
+const EditorComp = computed(() => editorForType(item.value?.tipo))
 
 function parseId(v: unknown): number | null {
   const n = Number(v);

@@ -1,3 +1,16 @@
+// Payload effettivamente inviato a POST /item/editlivello/{id}
+export interface SaveLivelloPayload {
+    livelloId: number
+    personaggioId: number
+    livello: number | null
+    caratteristiche: Record<string, number>
+    classeId: number | null
+    maledizioneNome: string | null
+    livelliClasse: number[]
+    ranghi: Array<{ abilitaId: string; punti: number }>
+    grantsSelezionati: Array<{ id: string; tipo: 'ITEM' | 'MOD'; livello: number; descrizione: string }>
+}
+
 export interface UpdateLivelloRequest {
     livello: number | null
     caratteristiche: Caratteristiche
