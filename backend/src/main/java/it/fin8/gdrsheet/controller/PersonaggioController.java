@@ -7,6 +7,7 @@ import it.fin8.gdrsheet.dto.*;
 import it.fin8.gdrsheet.entity.Personaggio;
 import it.fin8.gdrsheet.mapper.ItemMapper;
 import it.fin8.gdrsheet.repository.PersonaggioRepository;
+import it.fin8.gdrsheet.service.ItemService;
 import it.fin8.gdrsheet.service.ModificatoriService;
 import it.fin8.gdrsheet.service.PartyService;
 import it.fin8.gdrsheet.service.PersonaggioService;
@@ -29,13 +30,15 @@ public class PersonaggioController {
     private final ItemMapper itemMapper;
     private final ModificatoriService modificatoriService;
     private final PartyService partyService;
+    private final ItemService itemService;
 
-    public PersonaggioController(PersonaggioRepository repo, PersonaggioService personaggioService, ItemMapper itemMapper, ModificatoriService modificatoriService, PartyService partyService) {
+    public PersonaggioController(PersonaggioRepository repo, PersonaggioService personaggioService, ItemMapper itemMapper, ModificatoriService modificatoriService, PartyService partyService, ItemService itemService) {
         this.repo = repo;
         this.personaggioService = personaggioService;
         this.itemMapper = itemMapper;
         this.modificatoriService = modificatoriService;
         this.partyService = partyService;
+        this.itemService = itemService;
     }
 
     @Operation(
@@ -62,6 +65,9 @@ public class PersonaggioController {
             @Parameter(description = "ID del personaggio", required = true)
             @PathVariable Integer id
     ) {
+        // garantisce l'esistenza del FromCompendio all'apertura del personaggio
+        itemService.ensureFromCompendio(id);
+
         ItemsDTO result = personaggioService.getAllPersonaggioItemsDTOByIdPersonaggio(id);
 
         return ResponseEntity.ok(result);

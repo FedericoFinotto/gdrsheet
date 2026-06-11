@@ -22,6 +22,7 @@ public final class Constants {
     public static final String TIPO_ITEM_ATTACCO = "ATTACCO";
 
     public static final String ITEM_INCANTESIMI_PREPARATI = "PreparedSpell";
+    public static final String ITEM_FROM_COMPENDIO = "FromCompendio";
     public static final String ITEM_LABEL_LIVELLO_INCANTESIMO = "CLIVELLO";
     public static final String ITEM_LABEL_CLASSE_INCANTESIMO = "CCLASSE";
     public static final String ITEM_LABEL_ATTACCO_TIRO_PER_COLPIRE = "TPC";

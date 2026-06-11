@@ -2,7 +2,9 @@
 import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import type {AxiosResponse} from 'axios'
-import {getItem} from '../../../../../../service/PersonaggioService'
+import {deleteItem, getItem} from '../../../../../../service/PersonaggioService'
+import {useCharacterStore} from '../../../../../../stores/personaggio'
+import usePopup from '../../../../../../function/usePopup'
 
 // Editors: registro tipo -> componente
 import {editorForType} from './editorRegistry'
@@ -13,11 +15,42 @@ const idItem = Number(route.params.id);
 if (isNaN(idItem)) throw new Error('Parametro id non valido');
 
 const router = useRouter()
+const characterStore = useCharacterStore()
+const {closePopup} = usePopup()
 const loading = ref(false)
 const errorMsg = ref<string | null>(null)
 const item = ref<ItemDB | null>(null)
 
 const EditorComp = computed(() => editorForType(item.value?.tipo))
+
+// contesto personaggio (per scollegamento/refresh dopo eliminazione)
+const idPersonaggio = computed<number | undefined>(() => {
+  const n = Number(route.query.personaggio)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+})
+
+const deleting = ref(false)
+
+async function onDelete() {
+  if (!item.value || deleting.value) return
+  const ok = window.confirm(`Sei sicuro di voler eliminare "${item.value.nome}"?`)
+  if (!ok) return
+  deleting.value = true
+  try {
+    await deleteItem(item.value.id, idPersonaggio.value)
+    // chiudi l'eventuale popup di dettaglio rimasto aperto sotto l'editor
+    closePopup()
+    if (idPersonaggio.value) {
+      await characterStore.fetchCharacter(idPersonaggio.value, true)
+    }
+    router.back()
+  } catch (e: any) {
+    errorMsg.value = e?.message ?? 'Errore nell\'eliminazione'
+    console.error('Errore eliminazione item:', e)
+  } finally {
+    deleting.value = false
+  }
+}
 
 function parseId(v: unknown): number | null {
   const n = Number(v);
@@ -59,6 +92,9 @@ function goBack() {
       <div class="meta">
         <span v-if="item">#{{ item.id }}</span>
         <span v-if="item?.tipo" class="pill">{{ item.tipo }}</span>
+        <button v-if="item" type="button" class="btn-delete" :disabled="deleting" @click="onDelete">
+          {{ deleting ? 'Eliminazione…' : 'Elimina' }}
+        </button>
       </div>
     </header>
 
@@ -162,4 +198,16 @@ function goBack() {
   background: #fff;
   cursor: pointer;
 }
+
+.btn-delete {
+  padding: .3rem .7rem;
+  border-radius: .5rem;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-delete:disabled { opacity: .6; cursor: default; }
 </style>

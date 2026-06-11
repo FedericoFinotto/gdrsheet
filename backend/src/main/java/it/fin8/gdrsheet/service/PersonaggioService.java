@@ -568,7 +568,19 @@ public class PersonaggioService {
         if (!livello.getTipo().equals(TipoItem.LIVELLO)) {
             throw new RuntimeException("L'item non e' un livello");
         }
-        return livello.getPersonaggio().getId();
+        if (livello.getPersonaggio() != null) {
+            return livello.getPersonaggio().getId();
+        }
+        // fallback per livelli storici non intestati: risali dai collegamenti parent
+        if (livello.getParent() != null) {
+            return livello.getParent().stream()
+                    .map(c -> c.getItemSource().getPersonaggio())
+                    .filter(Objects::nonNull)
+                    .map(Personaggio::getId)
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException("Livello non associato ad alcun personaggio"));
+        }
+        throw new RuntimeException("Livello non associato ad alcun personaggio");
     }
 
     public List<AbilitaDTO> getStatsDaPersonaggio(Integer idPersonaggio) {

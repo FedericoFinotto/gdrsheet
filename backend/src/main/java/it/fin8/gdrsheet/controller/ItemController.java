@@ -156,6 +156,21 @@ public class ItemController {
     }
 
     @Operation(
+            summary = "Elimina un item",
+            description = "Item intestati a un personaggio: eliminazione completa. Item di compendio con idPersonaggio: scollegamento dal FromCompendio (ed eliminazione se non più referenziato)."
+    )
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteItem(
+            @Parameter(description = "Id Item", required = true)
+            @PathVariable Integer id,
+            @Parameter(description = "Id Personaggio (contesto di scollegamento)")
+            @RequestParam(required = false) Integer idPersonaggio
+    ) {
+        itemService.deleteItem(id, idPersonaggio);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
             summary = "Aggiorna un item Livello",
             description = "Aggiorna labels, caratteristiche (BASE), ranghi (RANK) e contenuti concessi di un item LIVELLO"
     )

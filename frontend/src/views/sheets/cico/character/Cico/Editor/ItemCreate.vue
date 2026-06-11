@@ -3,9 +3,17 @@ import {computed, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {ItemDB, TIPO_ITEM, TipoItem} from '../../../../../../models/entity/ItemDB'
 import {CREATABLE_TYPES, editorForType, TIPO_ITEM_LABELS} from './editorRegistry'
+import {useCharacterStore} from '../../../../../../stores/personaggio'
 
 const route = useRoute()
 const router = useRouter()
+const characterStore = useCharacterStore()
+
+// se presente, il nuovo item viene agganciato al FromCompendio del personaggio
+const idPersonaggio = computed<number | undefined>(() => {
+  const n = Number(route.query.personaggio)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+})
 
 function parseTipo(v: unknown): TipoItem | null {
   const s = String(v ?? '').toUpperCase()
@@ -34,11 +42,24 @@ const EditorComp = computed(() => editorForType(tipo.value))
 
 function onTipoChange(e: Event) {
   const v = (e.target as HTMLSelectElement).value
-  router.replace(v ? `/itemcreate/${v}` : '/itemcreate')
+  const q = idPersonaggio.value ? `?personaggio=${idPersonaggio.value}` : ''
+  router.replace(v ? `/itemcreate/${v}${q}` : `/itemcreate${q}`)
 }
 
 function goBack() {
   router.back()
+}
+
+async function onSaved() {
+  // ricarica la scheda così il nuovo item compare subito
+  if (idPersonaggio.value) {
+    try {
+      await characterStore.fetchCharacter(idPersonaggio.value, true)
+    } catch (e) {
+      console.error('Errore refresh personaggio:', e)
+    }
+  }
+  goBack()
 }
 </script>
 
@@ -66,8 +87,9 @@ function goBack() {
           :key="tipo"
           :item="blankItem"
           mode="create"
+          :id-personaggio="idPersonaggio"
           @cancel="goBack"
-          @saved="goBack"
+          @saved="onSaved"
       />
 
       <div v-else class="state empty">

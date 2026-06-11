@@ -38,6 +38,13 @@ public class UpdateItemRequest {
     private TipoItem tipo;
 
     /**
+     * Solo in creazione: personaggio a cui agganciare l'item. L'item viene
+     * creato nel compendio (personaggio null, sistema/mondo del party) e
+     * collegato come child del FromCompendio del personaggio.
+     */
+    private Integer idPersonaggio;
+
+    /**
      * Stato completo delle labels (chiave/valore, chiavi ripetibili).
      */
     private List<LabelRowDTO> labels;

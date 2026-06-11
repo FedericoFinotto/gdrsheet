@@ -4,6 +4,7 @@ import {storeToRefs} from "pinia";
 import {useCharacterStore} from "../../../../../../stores/personaggio";
 import Mobile_DettaglioItem from "../../Dettaglio/Mobile_DettaglioItem.vue";
 import Tabella from "../../../../../../components/Tabella.vue";
+import BottoneAggiungiItem from "../../Shared/BottoneAggiungiItem.vue";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore);
@@ -101,6 +102,8 @@ const columnsMaledizioni = [
 
 <template>
   <div>
+    <BottoneAggiungiItem :id-personaggio="props.idPersonaggio" tipo="TALENTO" label="Aggiungi talento"/>
+    <div class="spazietto"/>
     <Tabella v-if="itemsAbilitaPassive.length > 0"
              :columns="columnsAbilitaPassive"
              :expandable="true"

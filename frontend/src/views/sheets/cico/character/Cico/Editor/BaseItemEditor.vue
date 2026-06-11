@@ -23,6 +23,7 @@ const props = withDefaults(defineProps<{
   suggestedKeys?: string[]    // chiavi suggerite nella sezione labels generiche
   readonly?: boolean
   mode?: 'edit' | 'create'
+  idPersonaggio?: number      // solo create: aggancia l'item al FromCompendio del personaggio
 }>(), {
   titolo: 'Item',
   campiLabel: () => [],
@@ -127,6 +128,7 @@ function buildPayload(): UpdateItemRequest {
     nome: form.nome.trim(),
     descrizione: form.descrizione,
     tipo: props.mode === 'create' ? props.item.tipo : undefined,
+    idPersonaggio: props.mode === 'create' ? props.idPersonaggio : undefined,
     labels,
     modificatori: form.modificatori.filter(m => m.statId.trim()),
     attacchi: form.attacchi.filter(a => a.nome.trim()),

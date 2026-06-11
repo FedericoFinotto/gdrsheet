@@ -123,6 +123,10 @@ export function updateItem(id: number, payload: UpdateItemRequest): Promise<Axio
     return api.post<ItemDB>(`/item/edit/${id}`, payload);
 }
 
+export function deleteItem(id: number, idPersonaggio?: number): Promise<AxiosResponse<void>> {
+    return api.delete<void>(`/item/${id}`, {params: {idPersonaggio}});
+}
+
 export function searchItems(q: string, tipo?: string): Promise<AxiosResponse<Item[]>> {
     return api.get<Item[]>('/item/search', {params: {q, tipo}});
 }

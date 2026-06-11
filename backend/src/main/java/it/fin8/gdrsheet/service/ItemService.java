@@ -209,6 +209,23 @@ public class ItemService {
         itm.setDescrizione(request.getDescrizione());
         itm.setLabels(new ArrayList<>());
 
+        // gli item nascono nel compendio: personaggio null, sistema/mondo del party.
+        // Eccezione: i LIVELLO sono intestati direttamente al personaggio
+        // (come FromCompendio e PreparedSpell).
+        Personaggio pg = null;
+        if (request.getIdPersonaggio() != null) {
+            pg = personaggioRepository.findPersonaggioById(request.getIdPersonaggio());
+            if (pg == null) throw new RuntimeException("Personaggio non trovato: " + request.getIdPersonaggio());
+            if (TipoItem.LIVELLO.equals(request.getTipo())) {
+                itm.setPersonaggio(pg);
+            }
+            if (pg.getParty() != null && pg.getParty().getMondo() != null) {
+                Mondo mondo = pg.getParty().getMondo();
+                itm.setMondo(mondo);
+                itm.setSistema(mondo.getSistema());
+            }
+        }
+
         if (request.getLabels() != null) {
             for (UpdateItemRequest.LabelRowDTO l : request.getLabels()) {
                 addLabelRow(itm, l.getLabel(), l.getValore());
@@ -219,7 +236,92 @@ public class ItemService {
         applyModificatori(saved, request.getModificatori());
         applyAttacchi(saved, request.getAttacchi());
         applyChildren(saved, request.getChildItemIds());
+
+        // aggancio al personaggio tramite il suo FromCompendio (non per gli item intestati direttamente)
+        if (pg != null && saved.getPersonaggio() == null) {
+            Item fromCompendio = ensureFromCompendio(pg.getId());
+            Collegamento link = new Collegamento();
+            link.setItemSource(fromCompendio);
+            link.setItemTarget(saved);
+            collegamentoRepository.save(link);
+        }
+
         return saved;
+    }
+
+    /**
+     * Elimina un item. Se l'item è intestato a un personaggio (livelli,
+     * FromCompendio, PreparedSpell) viene eliminato del tutto. Se è un item
+     * di compendio e viene passato idPersonaggio, viene scollegato dal suo
+     * FromCompendio; se a quel punto non è più referenziato da nessun altro
+     * item, viene eliminato anche dal compendio.
+     */
+    @Transactional
+    public void deleteItem(Integer id, Integer idPersonaggio) {
+        Item itm = itemRepository.findById(id).orElseThrow(() -> new RuntimeException("Item non trovato"));
+
+        if (itm.getPersonaggio() != null) {
+            hardDelete(itm);
+            return;
+        }
+
+        if (idPersonaggio != null) {
+            Item fromCompendio = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_FROM_COMPENDIO, idPersonaggio);
+            if (fromCompendio != null) {
+                List<Collegamento> links = collegamentoRepository.findAllByItemTarget_Id(id).stream()
+                        .filter(c -> Objects.equals(c.getItemSource().getId(), fromCompendio.getId()))
+                        .toList();
+                collegamentoRepository.deleteAll(links);
+            }
+            // ancora referenziato da altri item (altri personaggi, armi, classi...): non toccare
+            if (!collegamentoRepository.findAllByItemTarget_Id(id).isEmpty()) {
+                return;
+            }
+        }
+
+        hardDelete(itm);
+    }
+
+    private void hardDelete(Item itm) {
+        if (itm.getModificatori() != null && !itm.getModificatori().isEmpty()) {
+            modificatoreRepository.deleteAll(itm.getModificatori());
+        }
+        collegamentoRepository.deleteAll(collegamentoRepository.findAllByItemSource_Id(itm.getId()));
+        collegamentoRepository.deleteAll(collegamentoRepository.findAllByItemTarget_Id(itm.getId()));
+        em.createQuery("DELETE FROM Avanzamento a WHERE a.itemSource.id = :id OR a.itemTarget.id = :id")
+                .setParameter("id", itm.getId())
+                .executeUpdate();
+        em.createQuery("DELETE FROM PermessiItem p WHERE p.idItem.id = :id")
+                .setParameter("id", itm.getId())
+                .executeUpdate();
+        itemRepository.delete(itm); // le labels seguono in cascata
+    }
+
+    /**
+     * Garantisce che il personaggio abbia il suo item "FromCompendio"
+     * (l'unico item, insieme a livelli e PreparedSpell, intestato direttamente
+     * al personaggio: tutto il resto è collegato come suo child).
+     */
+    @Transactional
+    public Item ensureFromCompendio(Integer idPersonaggio) {
+        Item fromCompendio = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_FROM_COMPENDIO, idPersonaggio);
+        if (fromCompendio != null) return fromCompendio;
+
+        Personaggio pg = personaggioRepository.findPersonaggioById(idPersonaggio);
+        if (pg == null) throw new RuntimeException("Personaggio non trovato: " + idPersonaggio);
+
+        Item itm = new Item();
+        itm.setNome(Constants.ITEM_FROM_COMPENDIO);
+        itm.setTipo(TipoItem.ALTRO);
+        itm.setDescrizione(Constants.ITEM_FROM_COMPENDIO);
+        itm.setPersonaggio(pg);
+        itm.setLabels(new ArrayList<>());
+        if (pg.getParty() != null && pg.getParty().getMondo() != null) {
+            Mondo mondo = pg.getParty().getMondo();
+            itm.setMondo(mondo);
+            itm.setSistema(mondo.getSistema());
+        }
+        return itemRepository.save(itm);
     }
 
     @Transactional

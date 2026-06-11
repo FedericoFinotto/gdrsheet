@@ -117,7 +117,7 @@ function showInfoAbilitaPopup(itm) {
     <div class="icona-wrapper">
       <Icona
           name="EDIT"
-          @click.stop="router.push(`/itemeditor/${itemDetail.id}`)"
+          @click.stop="router.push(`/itemeditor/${itemDetail.id}?personaggio=${personaggio.modificatori.id}`)"
       />
     </div>
 
