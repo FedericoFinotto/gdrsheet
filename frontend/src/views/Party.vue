@@ -71,6 +71,7 @@ const GRUPPI = computed(() => [
           {{ party.ruolo === 'MASTER' ? 'Master' : 'Giocatore' }}
         </span>
       </div>
+      <button v-if="party" class="btn" @click="router.push(`/party/${party.id}/items`)">Item</button>
     </header>
 
     <div v-if="loading" class="state">Caricamento…</div>

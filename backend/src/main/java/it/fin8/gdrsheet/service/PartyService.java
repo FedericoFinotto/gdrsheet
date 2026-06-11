@@ -4,7 +4,9 @@ import it.fin8.gdrsheet.config.Constants;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoModificatore;
 import it.fin8.gdrsheet.def.TipoPermessoPersonaggio;
+import it.fin8.gdrsheet.dto.GiveItemRequest;
 import it.fin8.gdrsheet.dto.PartyDetailDTO;
+import it.fin8.gdrsheet.dto.PartyItemDTO;
 import it.fin8.gdrsheet.entity.*;
 import it.fin8.gdrsheet.repository.*;
 import jakarta.persistence.EntityManager;
@@ -24,6 +26,8 @@ public class PartyService {
 
     private static final List<String> STAT_MONETE = List.of("MR", "MA", "MO", "MP");
     private static final String LABEL_TIPO_PERSONAGGIO = "TIPO_PERSONAGGIO";
+    private static final Set<TipoItem> TIPI_INVENTARIO = Set.of(
+            TipoItem.OGGETTO, TipoItem.CONSUMABILE, TipoItem.ARMA, TipoItem.MUNIZIONE, TipoItem.EQUIPAGGIAMENTO);
 
     private static final String NOME_ITEM_BORSELLINO = "Borsellino";
 
@@ -33,6 +37,8 @@ public class PartyService {
     private final ModificatoreRepository modificatoreRepository;
     private final ItemRepository itemRepository;
     private final ItemLabelRepository itemLabelRepository;
+    private final CollegamentoRepository collegamentoRepository;
+    private final ItemService itemService;
     private final EntityManager em;
 
     public PartyService(PermessiPartyRepository permessiPartyRepository,
@@ -41,6 +47,8 @@ public class PartyService {
                         ModificatoreRepository modificatoreRepository,
                         ItemRepository itemRepository,
                         ItemLabelRepository itemLabelRepository,
+                        CollegamentoRepository collegamentoRepository,
+                        ItemService itemService,
                         EntityManager em) {
         this.permessiPartyRepository = permessiPartyRepository;
         this.permessiPersonaggiRepository = permessiPersonaggiRepository;
@@ -48,6 +56,8 @@ public class PartyService {
         this.modificatoreRepository = modificatoreRepository;
         this.itemRepository = itemRepository;
         this.itemLabelRepository = itemLabelRepository;
+        this.collegamentoRepository = collegamentoRepository;
+        this.itemService = itemService;
         this.em = em;
     }
 
@@ -92,6 +102,83 @@ public class PartyService {
                 somma,
                 pesoTotale
         );
+    }
+
+    /**
+     * Tutti gli item di inventario dei membri del party, con peso e proprietario.
+     */
+    public List<PartyItemDTO> getPartyItems(Integer partyId, Utente utente) {
+        verificaMembership(partyId, utente);
+
+        List<Personaggio> membri = personaggioRepository.findAllByParty_IdOrderByNomeAsc(partyId);
+        List<PartyItemDTO> result = new ArrayList<>();
+
+        for (Personaggio pg : membri) {
+            Item fromCompendio = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_FROM_COMPENDIO, pg.getId());
+            if (fromCompendio == null) continue;
+            for (Collegamento link : collegamentoRepository.findAllByItemSource_Id(fromCompendio.getId())) {
+                Item itm = link.getItemTarget();
+                if (!TIPI_INVENTARIO.contains(itm.getTipo())) continue;
+                result.add(new PartyItemDTO(
+                        itm.getId(),
+                        itm.getNome(),
+                        itm.getTipo().name(),
+                        parsePeso(itm.getLabel(Constants.LABEL_PESO)),
+                        pg.getId(),
+                        pg.getNome(),
+                        Boolean.TRUE.equals(itm.isDisabled()) || Boolean.TRUE.equals(link.isDisabled())
+                ));
+            }
+        }
+
+        result.sort((a, b) -> a.getNome().compareToIgnoreCase(b.getNome()));
+        return result;
+    }
+
+    /**
+     * Sposta un item dall'inventario di un personaggio a un altro:
+     * il collegamento passa dal FromCompendio di origine a quello di destinazione.
+     */
+    @Transactional
+    public void giveItem(GiveItemRequest request, Utente utente) {
+        Personaggio from = personaggioRepository.findPersonaggioById(request.getFromPersonaggioId());
+        Personaggio to = personaggioRepository.findPersonaggioById(request.getToPersonaggioId());
+        if (from == null || to == null)
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Personaggio non trovato");
+        if (from.getParty() == null || to.getParty() == null
+                || !Objects.equals(from.getParty().getId(), to.getParty().getId()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "I personaggi non sono nello stesso party");
+
+        verificaMembership(from.getParty().getId(), utente);
+
+        Item fromCompendio = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_FROM_COMPENDIO, from.getId());
+        if (fromCompendio == null)
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Inventario di origine non trovato");
+
+        List<Collegamento> links = collegamentoRepository.findAllByItemSource_Id(fromCompendio.getId()).stream()
+                .filter(c -> Objects.equals(c.getItemTarget().getId(), request.getItemId()))
+                .toList();
+        if (links.isEmpty())
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "L'item non è nell'inventario di origine");
+
+        Item target = links.get(0).getItemTarget();
+        collegamentoRepository.deleteAll(links);
+
+        Item toCompendio = itemService.ensureFromCompendio(to.getId());
+        boolean giaPresente = collegamentoRepository.findAllByItemSource_Id(toCompendio.getId()).stream()
+                .anyMatch(c -> Objects.equals(c.getItemTarget().getId(), target.getId()));
+        if (!giaPresente) {
+            Collegamento nuovo = new Collegamento();
+            nuovo.setItemSource(toCompendio);
+            nuovo.setItemTarget(target);
+            collegamentoRepository.save(nuovo);
+        }
+    }
+
+    private void verificaMembership(Integer partyId, Utente utente) {
+        boolean membro = permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
+                .anyMatch(p -> Objects.equals(p.getIdParty().getId(), partyId));
+        if (!membro) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Non fai parte di questo party");
     }
 
     /**

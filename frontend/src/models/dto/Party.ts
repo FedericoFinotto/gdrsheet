@@ -25,6 +25,16 @@ export interface PartyDetail {
     pesoTotale: number; // kg
 }
 
+export interface PartyItem {
+    id: number;
+    nome: string;
+    tipo: string;
+    peso: number;
+    personaggioId: number;
+    personaggioNome: string;
+    disabled: boolean;
+}
+
 export function formatKg(n: number): string {
     return `${(n ?? 0).toLocaleString('it-IT', {maximumFractionDigits: 2})} kg`;
 }

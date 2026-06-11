@@ -2,15 +2,17 @@ package it.fin8.gdrsheet.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import it.fin8.gdrsheet.dto.GiveItemRequest;
 import it.fin8.gdrsheet.dto.PartyDetailDTO;
+import it.fin8.gdrsheet.dto.PartyItemDTO;
 import it.fin8.gdrsheet.entity.Utente;
 import it.fin8.gdrsheet.service.PartyService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/party")
@@ -33,5 +35,31 @@ public class PartyController {
             @AuthenticationPrincipal Utente utente
     ) {
         return ResponseEntity.ok(partyService.getPartyDetail(id, utente));
+    }
+
+    @Operation(
+            summary = "Item del party",
+            description = "Tutti gli item di inventario dei membri del party con peso e proprietario"
+    )
+    @GetMapping("/{id}/items")
+    public ResponseEntity<List<PartyItemDTO>> getPartyItems(
+            @Parameter(description = "Id Party", required = true)
+            @PathVariable Integer id,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(partyService.getPartyItems(id, utente));
+    }
+
+    @Operation(
+            summary = "Sposta un item tra inventari",
+            description = "Sposta un item dall'inventario di un personaggio a un altro dello stesso party"
+    )
+    @PostMapping("/give")
+    public ResponseEntity<Void> giveItem(
+            @Valid @RequestBody GiveItemRequest request,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        partyService.giveItem(request, utente);
+        return ResponseEntity.noContent().build();
     }
 }
