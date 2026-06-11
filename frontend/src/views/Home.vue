@@ -104,12 +104,19 @@ function onLogout() {
 
 <style scoped>
 .home {
+  width: 100%;
   max-width: 40rem;
   margin: 0 auto;
   padding: 1rem;
   display: grid;
   gap: 1rem;
   align-content: start;
+  /* il layout globale ha overflow:hidden, lo scroll va gestito qui */
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
 
 .head {

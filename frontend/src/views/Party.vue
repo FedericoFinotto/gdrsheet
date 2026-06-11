@@ -107,12 +107,19 @@ const GRUPPI = computed(() => [
 
 <style scoped>
 .party-page {
+  width: 100%;
   max-width: 44rem;
   margin: 0 auto;
   padding: 1rem;
   display: grid;
   gap: 1rem;
   align-content: start;
+  /* il layout globale ha overflow:hidden, lo scroll va gestito qui */
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
 
 .head {
