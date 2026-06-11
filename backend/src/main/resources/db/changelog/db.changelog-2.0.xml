@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- Autenticazione e permessi -->
+
+    <changeSet id="100" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <!-- salta se la colonna è già autogenerata (identity o default da sequence) -->
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM information_schema.columns
+                WHERE table_name = 'utente' AND column_name = 'id'
+                  AND (column_default IS NOT NULL OR is_identity = 'YES')
+            </sqlCheck>
+        </preConditions>
+        <comment>utente.id autoincrement (per future registrazioni)</comment>
+        <addAutoIncrement tableName="utente" columnName="id" columnDataType="integer"/>
+    </changeSet>
+
+    <!-- allineamento permessi_party preesistente (vecchia struttura con colonna "tipo") -->
+
+    <changeSet id="104" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="permessi_party"/>
+                <columnExists tableName="permessi_party" columnName="tipo"/>
+                <not>
+                    <columnExists tableName="permessi_party" columnName="ruolo"/>
+                </not>
+            </and>
+        </preConditions>
+        <comment>rinomina tipo -> ruolo sulla permessi_party preesistente</comment>
+        <renameColumn tableName="permessi_party" oldColumnName="tipo" newColumnName="ruolo"/>
+    </changeSet>
+
+    <changeSet id="105" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="permessi_party"/>
+                <not>
+                    <columnExists tableName="permessi_party" columnName="ruolo"/>
+                </not>
+            </and>
+        </preConditions>
+        <comment>aggiunge ruolo se mancante del tutto</comment>
+        <addColumn tableName="permessi_party">
+            <column name="ruolo" type="varchar(20)" defaultValue="GIOCATORE">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="106" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM information_schema.columns
+                WHERE table_name = 'permessi_party' AND column_name = 'id'
+                  AND (column_default IS NOT NULL OR is_identity = 'YES')
+            </sqlCheck>
+        </preConditions>
+        <comment>permessi_party.id autoincrement se la tabella preesistente non lo aveva</comment>
+        <addAutoIncrement tableName="permessi_party" columnName="id" columnDataType="integer"/>
+    </changeSet>
+
+    <changeSet id="107" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT CASE WHEN pg_get_serial_sequence('permessi_party', 'id') IS NULL THEN 0 ELSE 1 END
+            </sqlCheck>
+        </preConditions>
+        <comment>allinea la sequence di permessi_party.id al massimo attuale</comment>
+        <sql>SELECT setval(pg_get_serial_sequence('permessi_party', 'id'), COALESCE((SELECT max(id) FROM permessi_party), 0) + 1, false)</sql>
+    </changeSet>
+
+    <changeSet id="103" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <!-- esegui solo se esiste una sequence collegata alla colonna -->
+            <sqlCheck expectedResult="1">
+                SELECT CASE WHEN pg_get_serial_sequence('utente', 'id') IS NULL THEN 0 ELSE 1 END
+            </sqlCheck>
+        </preConditions>
+        <comment>allinea la sequence di utente.id al massimo attuale</comment>
+        <sql>SELECT setval(pg_get_serial_sequence('utente', 'id'), COALESCE((SELECT max(id) FROM utente), 0) + 1, false)</sql>
+    </changeSet>
+
+    <changeSet id="101" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="permessi_personaggi" columnName="permesso"/>
+            </not>
+        </preConditions>
+        <comment>tipo permesso sul personaggio: PROPRIETARIO | VISUALIZZATORE</comment>
+        <addColumn tableName="permessi_personaggi">
+            <column name="permesso" type="varchar(20)" defaultValue="PROPRIETARIO">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="102" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="permessi_party"/>
+            </not>
+        </preConditions>
+        <comment>relazione utente-party con ruolo: MASTER | GIOCATORE</comment>
+        <createTable tableName="permessi_party">
+            <column name="id" type="integer" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="id_utente" type="integer">
+                <constraints nullable="false"
+                             foreignKeyName="fk_permessi_party_utente"
+                             references="utente(id)"/>
+            </column>
+            <column name="id_party" type="integer">
+                <constraints nullable="false"
+                             foreignKeyName="fk_permessi_party_party"
+                             references="party(id)"/>
+            </column>
+            <column name="ruolo" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="permessi_party"
+                             columnNames="id_utente, id_party"
+                             constraintName="uq_permessi_party_utente_party"/>
+    </changeSet>
+
+    <!-- Soldi: stats MR/MA/MO/MP (i valori vivono come modificatori sugli item dei personaggi) -->
+
+    <changeSet id="110" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM stats WHERE id IN ('MR', 'MA', 'MO', 'MP')
+            </sqlCheck>
+        </preConditions>
+        <comment>stat monete: rame, argento, oro, platino</comment>
+        <insert tableName="stats">
+            <column name="id" value="MR"/>
+            <column name="tipo" value="COUNT"/>
+            <column name="label" value="Monete di Rame"/>
+        </insert>
+        <insert tableName="stats">
+            <column name="id" value="MA"/>
+            <column name="tipo" value="COUNT"/>
+            <column name="label" value="Monete d'Argento"/>
+        </insert>
+        <insert tableName="stats">
+            <column name="id" value="MO"/>
+            <column name="tipo" value="COUNT"/>
+            <column name="label" value="Monete d'Oro"/>
+        </insert>
+        <insert tableName="stats">
+            <column name="id" value="MP"/>
+            <column name="tipo" value="COUNT"/>
+            <column name="label" value="Monete di Platino"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

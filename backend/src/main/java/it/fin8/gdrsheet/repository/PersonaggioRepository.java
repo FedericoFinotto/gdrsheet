@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -19,4 +20,6 @@ public interface PersonaggioRepository extends JpaRepository<Personaggio, Intege
     Optional<Personaggio> findByIdWithEntireGraph(@Param("id") Integer id);
 
     Personaggio findPersonaggioById(Integer idPersonaggio);
+
+    List<Personaggio> findAllByParty_IdOrderByNomeAsc(Integer idParty);
 }

@@ -8,6 +8,7 @@ import it.fin8.gdrsheet.entity.Personaggio;
 import it.fin8.gdrsheet.mapper.ItemMapper;
 import it.fin8.gdrsheet.repository.PersonaggioRepository;
 import it.fin8.gdrsheet.service.ModificatoriService;
+import it.fin8.gdrsheet.service.PartyService;
 import it.fin8.gdrsheet.service.PersonaggioService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -27,12 +28,14 @@ public class PersonaggioController {
     private final PersonaggioService personaggioService;
     private final ItemMapper itemMapper;
     private final ModificatoriService modificatoriService;
+    private final PartyService partyService;
 
-    public PersonaggioController(PersonaggioRepository repo, PersonaggioService personaggioService, ItemMapper itemMapper, ModificatoriService modificatoriService) {
+    public PersonaggioController(PersonaggioRepository repo, PersonaggioService personaggioService, ItemMapper itemMapper, ModificatoriService modificatoriService, PartyService partyService) {
         this.repo = repo;
         this.personaggioService = personaggioService;
         this.itemMapper = itemMapper;
         this.modificatoriService = modificatoriService;
+        this.partyService = partyService;
     }
 
     @Operation(
@@ -115,6 +118,31 @@ public class PersonaggioController {
         personaggioService.updateBaseStatValue(req);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Soldi del personaggio",
+            description = "Totale monete (MR/MA/MO/MP) del personaggio, somma dei modificatori sugli item attivi"
+    )
+    @GetMapping("/{id}/soldi")
+    public ResponseEntity<PartyDetailDTO.SoldiDTO> getSoldi(
+            @Parameter(description = "ID Personaggio", required = true)
+            @PathVariable Integer id
+    ) {
+        return ResponseEntity.ok(partyService.calcolaSoldi(id));
+    }
+
+    @Operation(
+            summary = "Aggiorna i soldi del personaggio",
+            description = "Imposta i totali monete; la differenza viene scritta sull'item Borsellino (creato se mancante)"
+    )
+    @PostMapping("/{id}/soldi")
+    public ResponseEntity<PartyDetailDTO.SoldiDTO> updateSoldi(
+            @Parameter(description = "ID Personaggio", required = true)
+            @PathVariable Integer id,
+            @Valid @RequestBody PartyDetailDTO.SoldiDTO soldi
+    ) {
+        return ResponseEntity.ok(partyService.updateSoldi(id, soldi));
     }
 
     @Operation(

@@ -4,6 +4,7 @@ import Tabella from "../../../../../../components/Tabella.vue";
 import {useCharacterStore} from "../../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import Mobile_DettaglioItem from "../../Dettaglio/Mobile_DettaglioItem.vue";
+import Mobile_Borsellino from "../../Shared/Mobile_Borsellino.vue";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore)
@@ -103,6 +104,8 @@ const columnsMunizioni = [
 
 <template>
   <div>
+    <Mobile_Borsellino :id-personaggio="props.idPersonaggio"/>
+    <div class="spazietto"/>
     <Tabella v-if="itemsOggetti.length > 0"
              :columns="columnsOggetti"
              :expandable="true"

@@ -1,7 +1,7 @@
 package it.fin8.gdrsheet.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import it.fin8.gdrsheet.def.TipoPermessoPersonaggio;
+import it.fin8.gdrsheet.def.TipoRuoloParty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -10,9 +10,9 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "permessi_personaggi")
+@Table(name = "permessi_party")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-public class PermessiPersonaggi {
+public class PermessiParty {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
@@ -25,12 +25,12 @@ public class PermessiPersonaggi {
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_personaggio", nullable = false)
-    private Personaggio idPersonaggio;
+    @JoinColumn(name = "id_party", nullable = false)
+    private Party idParty;
 
     @NotNull
     @Enumerated(EnumType.STRING)
-    @Column(name = "permesso", nullable = false, length = 20)
-    private TipoPermessoPersonaggio permesso = TipoPermessoPersonaggio.PROPRIETARIO;
+    @Column(name = "ruolo", nullable = false, length = 20)
+    private TipoRuoloParty ruolo;
 
 }

@@ -11,7 +11,8 @@ public enum TipoStat {
     ATT("Attributo"),
     CA("Classe Armatura"),
     ATK("Attacco"),
-    COUNT("Contatore");
+    COUNT("Contatore"),
+    VALUTA("Valuta");
 
     private final String label;
 

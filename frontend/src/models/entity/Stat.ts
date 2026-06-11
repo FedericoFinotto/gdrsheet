@@ -14,6 +14,7 @@ export const TIPO_STAT = {
     CLASSE_ARMATURA: 'CA',
     ATTACCO: 'ATK',
     CONTATORE: 'COUNT',
+    VALUTA: 'VALUTA'
 } as const;
 
 export type TipoStat = typeof TIPO_STAT[keyof typeof TIPO_STAT];

@@ -18,6 +18,7 @@ import {Item} from "../models/dto/Item";
 import {Gradi} from "../models/dto/Gradi";
 import {UpdateItemRequest} from "../models/dto/UpdateItemRequest";
 import {SaveLivelloPayload} from "../models/dto/UpdateLivelloRequest";
+import {Soldi} from "../models/dto/Party";
 
 export function getModificatoriPersonaggioById(id: number): Promise<AxiosResponse<DatiPersonaggio>> {
     return api.get(`/personaggi/modificatori/${id}`);
@@ -124,4 +125,12 @@ export function updateItem(id: number, payload: UpdateItemRequest): Promise<Axio
 
 export function searchItems(q: string, tipo?: string): Promise<AxiosResponse<Item[]>> {
     return api.get<Item[]>('/item/search', {params: {q, tipo}});
+}
+
+export function getSoldi(idPersonaggio: number): Promise<AxiosResponse<Soldi>> {
+    return api.get<Soldi>(`/personaggi/${idPersonaggio}/soldi`);
+}
+
+export function updateSoldi(idPersonaggio: number, soldi: Soldi): Promise<AxiosResponse<Soldi>> {
+    return api.post<Soldi>(`/personaggi/${idPersonaggio}/soldi`, soldi);
 }

@@ -1,11 +1,15 @@
 import {createRouter, createWebHistory} from 'vue-router';
 import Home from '@/views/Home.vue';
+import Login from '@/views/Login.vue';
+import Party from '@/views/Party.vue';
 import Mobile_Cico_0_CharacterSheet from "../views/sheets/cico/character/Cico/Sheet/Mobile_Cico_0_CharacterSheet.vue";
 import ItemEditor from "../views/sheets/cico/character/Cico/Editor/ItemEditor.vue";
 import ItemCreate from "../views/sheets/cico/character/Cico/Editor/ItemCreate.vue";
 
 const routes = [
   {path: '/', component: Home},
+  {path: '/login', name: 'Login', component: Login, meta: {public: true}},
+  {path: '/party/:id', name: 'Party', component: Party},
   {
     path: '/scheda/:id',
     name: 'Scheda',
@@ -26,7 +30,22 @@ const routes = [
 ];
 
 
-export default createRouter({
+const router = createRouter({
   history: createWebHistory(),
   routes,
 });
+
+// guard: senza token si va solo sulle rotte pubbliche
+router.beforeEach((to) => {
+  const isPublic = !!to.meta.public;
+  const token = localStorage.getItem('auth_token');
+  if (!isPublic && !token) {
+    return {path: '/login', query: {redirect: to.fullPath}};
+  }
+  if (to.path === '/login' && token) {
+    return {path: '/'};
+  }
+  return true;
+});
+
+export default router;
