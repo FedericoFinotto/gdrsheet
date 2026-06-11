@@ -7,6 +7,7 @@ const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'c
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
 
 const CAMPI: CampoLabel[] = [
+  {key: 'PESO', label: 'Peso (kg)', placeholder: 'Es.: 1.5'},
   {key: 'TAGLIA', label: 'Taglia', placeholder: 'Es.: M'},
 ]
 </script>

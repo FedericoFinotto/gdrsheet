@@ -2,6 +2,8 @@ package it.fin8.gdrsheet.repository;
 
 import it.fin8.gdrsheet.entity.ItemLabel;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -20,4 +22,21 @@ public interface ItemLabelRepository extends JpaRepository<ItemLabel, Integer> {
     List<ItemLabel> findByLabelAndItem_IdIn(String label, List<Integer> itemIds);
 
     List<ItemLabel> findByLabelLikeAndItem_IdIn(String label, List<Integer> itemIds);
+
+    /**
+     * Valori di una label su tutti gli item "del personaggio": quelli intestati
+     * direttamente e quelli collegati come child dei suoi item (FromCompendio).
+     */
+    @Query("""
+            SELECT il.valore FROM ItemLabel il
+            WHERE il.label = :label
+              AND (il.item.personaggio.id = :personaggioId
+                   OR il.item.id IN (
+                       SELECT c.itemTarget.id FROM Collegamento c
+                       WHERE c.itemSource.personaggio.id = :personaggioId))
+            """)
+    List<String> findValoriLabelByPersonaggio(
+            @Param("label") String label,
+            @Param("personaggioId") Integer personaggioId
+    );
 }

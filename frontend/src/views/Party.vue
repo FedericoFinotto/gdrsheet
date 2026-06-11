@@ -2,7 +2,7 @@
 import {computed, onMounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {getParty} from '../service/PartyService'
-import {PartyDetail, PersonaggioSoldi} from '../models/dto/Party'
+import {formatKg, PartyDetail, PersonaggioSoldi} from '../models/dto/Party'
 import SoldiView from '../components/SoldiView.vue'
 
 const route = useRoute()
@@ -83,6 +83,10 @@ const GRUPPI = computed(() => [
         <div class="card highlight">
           <SoldiView :soldi="party.somma"/>
         </div>
+        <div class="card peso-row">
+          <span class="peso-label">Peso totale</span>
+          <span class="peso-val">{{ formatKg(party.pesoTotale) }}</span>
+        </div>
       </section>
 
       <!-- Membri raggruppati -->
@@ -95,6 +99,7 @@ const GRUPPI = computed(() => [
                 {{ p.nome }}
                 <span v-if="p.proprietario" class="pill mio">Tuo</span>
               </span>
+              <span v-if="p.peso > 0" class="pill peso">{{ formatKg(p.peso) }}</span>
               <SoldiView :soldi="p.soldi" compatto/>
             </button>
           </li>
@@ -179,6 +184,13 @@ const GRUPPI = computed(() => [
 .pill.master { background: #fef3c7; color: #92400e; }
 .pill.giocatore { background: #dbeafe; color: #1e40af; }
 .pill.mio { background: #dcfce7; color: #166534; margin-left: .35rem; }
+.pill.peso { background: #f3f4f6; color: #374151; }
+
+.peso-row {
+  justify-content: space-between;
+}
+.peso-label { font-weight: 600; }
+.peso-val { font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .state {
   padding: .75rem;

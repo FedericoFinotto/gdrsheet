@@ -21,6 +21,10 @@ public class PartyDetailDTO {
     private String ruolo; // ruolo dell'utente corrente nel party: MASTER | GIOCATORE
     private List<PersonaggioSoldiDTO> personaggi;
     private SoldiDTO somma;
+    /**
+     * Somma dei pesi (kg) di tutti i membri.
+     */
+    private double pesoTotale;
 
     /**
      * Monete: MR rame, MA argento, MO oro, MP platino.
@@ -60,5 +64,10 @@ public class PartyDetailDTO {
          * True se l'utente corrente è proprietario del personaggio.
          */
         private boolean proprietario;
+        /**
+         * Peso trasportato in kg: somma delle label PESO degli item del
+         * personaggio più la sua eventuale personaggio_label PESO.
+         */
+        private double peso;
     }
 }

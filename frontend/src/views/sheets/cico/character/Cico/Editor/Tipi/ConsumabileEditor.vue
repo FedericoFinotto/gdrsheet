@@ -6,7 +6,9 @@ import {CampoLabel} from '../../../../../../../models/dto/UpdateItemRequest'
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
 
-const CAMPI: CampoLabel[] = []
+const CAMPI: CampoLabel[] = [
+  {key: 'PESO', label: 'Peso (kg)', placeholder: 'Es.: 1.5'},
+]
 </script>
 
 <template>

@@ -1,5 +1,6 @@
 package it.fin8.gdrsheet.service;
 
+import it.fin8.gdrsheet.config.Constants;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoModificatore;
 import it.fin8.gdrsheet.def.TipoPermessoPersonaggio;
@@ -31,6 +32,7 @@ public class PartyService {
     private final PersonaggioRepository personaggioRepository;
     private final ModificatoreRepository modificatoreRepository;
     private final ItemRepository itemRepository;
+    private final ItemLabelRepository itemLabelRepository;
     private final EntityManager em;
 
     public PartyService(PermessiPartyRepository permessiPartyRepository,
@@ -38,12 +40,14 @@ public class PartyService {
                         PersonaggioRepository personaggioRepository,
                         ModificatoreRepository modificatoreRepository,
                         ItemRepository itemRepository,
+                        ItemLabelRepository itemLabelRepository,
                         EntityManager em) {
         this.permessiPartyRepository = permessiPartyRepository;
         this.permessiPersonaggiRepository = permessiPersonaggiRepository;
         this.personaggioRepository = personaggioRepository;
         this.modificatoreRepository = modificatoreRepository;
         this.itemRepository = itemRepository;
+        this.itemLabelRepository = itemLabelRepository;
         this.em = em;
     }
 
@@ -63,16 +67,20 @@ public class PartyService {
 
         List<PartyDetailDTO.PersonaggioSoldiDTO> personaggi = new ArrayList<>();
         PartyDetailDTO.SoldiDTO somma = new PartyDetailDTO.SoldiDTO(0, 0, 0, 0);
+        double pesoTotale = 0;
 
         for (Personaggio pg : membri) {
             PartyDetailDTO.SoldiDTO soldi = calcolaSoldi(pg.getId());
             somma.add(soldi);
+            double peso = calcolaPeso(pg);
+            pesoTotale += peso;
             personaggi.add(new PartyDetailDTO.PersonaggioSoldiDTO(
                     pg.getId(),
                     pg.getNome(),
                     soldi,
                     tipoPersonaggio(pg),
-                    posseduti.contains(pg.getId())
+                    posseduti.contains(pg.getId()),
+                    peso
             ));
         }
 
@@ -81,8 +89,36 @@ public class PartyService {
                 permesso.getIdParty().getNome(),
                 permesso.getRuolo() != null ? permesso.getRuolo().name() : null,
                 personaggi,
-                somma
+                somma,
+                pesoTotale
         );
+    }
+
+    /**
+     * Peso trasportato (kg): somma delle label PESO degli item del personaggio
+     * (diretti e collegati via FromCompendio) più la sua personaggio_label PESO.
+     * Item senza peso valgono 0.
+     */
+    public double calcolaPeso(Personaggio pg) {
+        double peso = itemLabelRepository.findValoriLabelByPersonaggio(Constants.LABEL_PESO, pg.getId()).stream()
+                .mapToDouble(PartyService::parsePeso)
+                .sum();
+        if (pg.getLabels() != null) {
+            peso += pg.getLabels().stream()
+                    .filter(l -> Constants.LABEL_PESO.equals(l.getLabel()))
+                    .mapToDouble(l -> parsePeso(l.getValore()))
+                    .sum();
+        }
+        return Math.round(peso * 100) / 100.0;
+    }
+
+    private static double parsePeso(String s) {
+        if (s == null) return 0;
+        try {
+            return Double.parseDouble(s.trim().replace(',', '.'));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     private static String tipoPersonaggio(Personaggio pg) {

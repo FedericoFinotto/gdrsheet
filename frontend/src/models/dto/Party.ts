@@ -13,6 +13,7 @@ export interface PersonaggioSoldi {
     soldi: Soldi;
     tipoPersonaggio?: 'NAVE' | 'STELLA' | string | null;
     proprietario: boolean;
+    peso: number; // kg trasportati
 }
 
 export interface PartyDetail {
@@ -21,6 +22,11 @@ export interface PartyDetail {
     ruolo: 'MASTER' | 'GIOCATORE';
     personaggi: PersonaggioSoldi[];
     somma: Soldi;
+    pesoTotale: number; // kg
+}
+
+export function formatKg(n: number): string {
+    return `${(n ?? 0).toLocaleString('it-IT', {maximumFractionDigits: 2})} kg`;
 }
 
 // Controvalore totale in monete d'oro: 100 MR = 10 MA = 1 MO; 1 MP = 10 MO
