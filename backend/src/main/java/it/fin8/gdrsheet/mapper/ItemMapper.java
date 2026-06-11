@@ -31,7 +31,17 @@ public class ItemMapper {
         dto.setNome(entity.getNome());
         dto.setTipo(entity.getTipo());
         dto.setDisabled(isDisabled(entity));
+        dto.setQuantita(parseQuantita(entity.getLabel(Constants.LABEL_QTA)));
         return dto;
+    }
+
+    private static Integer parseQuantita(String s) {
+        if (s == null) return 1;
+        try {
+            return Math.max(0, Integer.parseInt(s.trim()));
+        } catch (NumberFormatException e) {
+            return 1;
+        }
     }
 
     public LivelloDTO toLivelloDTO(Item entity) {

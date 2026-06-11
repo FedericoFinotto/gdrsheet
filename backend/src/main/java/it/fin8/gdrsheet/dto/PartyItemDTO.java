@@ -16,7 +16,8 @@ public class PartyItemDTO {
     private Integer id;
     private String nome;
     private String tipo;
-    private double peso; // kg, 0 se assente
+    private double peso; // kg complessivi (peso unitario x quantità), 0 se assente
+    private int quantita;
     private Integer personaggioId;
     private String personaggioNome;
     private boolean disabled;

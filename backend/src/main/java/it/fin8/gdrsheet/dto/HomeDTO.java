@@ -40,5 +40,6 @@ public class HomeDTO {
         private String permesso; // PROPRIETARIO | VISUALIZZATORE
         private Integer partyId;
         private String partyNome;
+        private String tipoPersonaggio; // label TIPO_PERSONAGGIO (NAVE, STELLA), null se normale
     }
 }

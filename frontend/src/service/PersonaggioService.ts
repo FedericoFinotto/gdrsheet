@@ -19,6 +19,7 @@ import {Gradi} from "../models/dto/Gradi";
 import {UpdateItemRequest} from "../models/dto/UpdateItemRequest";
 import {SaveLivelloPayload} from "../models/dto/UpdateLivelloRequest";
 import {Soldi} from "../models/dto/Party";
+import {Stat} from "../models/entity/Stat";
 
 export function getModificatoriPersonaggioById(id: number): Promise<AxiosResponse<DatiPersonaggio>> {
     return api.get(`/personaggi/modificatori/${id}`);
@@ -127,8 +128,21 @@ export function deleteItem(id: number, idPersonaggio?: number): Promise<AxiosRes
     return api.delete<void>(`/item/${id}`, {params: {idPersonaggio}});
 }
 
+export function unlinkItem(id: number, idPersonaggio: number): Promise<AxiosResponse<void>> {
+    return api.post<void>(`/item/unlink/${id}`, null, {params: {idPersonaggio}});
+}
+
 export function searchItems(q: string, tipo?: string): Promise<AxiosResponse<Item[]>> {
     return api.get<Item[]>('/item/search', {params: {q, tipo}});
+}
+
+let statsCache: Stat[] | null = null;
+
+export async function getStats(): Promise<Stat[]> {
+    if (statsCache) return statsCache;
+    const res = await api.get<Stat[]>('/stats');
+    statsCache = res.data ?? [];
+    return statsCache;
 }
 
 export function getSoldi(idPersonaggio: number): Promise<AxiosResponse<Soldi>> {

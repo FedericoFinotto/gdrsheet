@@ -23,20 +23,42 @@ export interface PartyDetail {
     personaggi: PersonaggioSoldi[];
     somma: Soldi;
     pesoTotale: number; // kg
+    pesoMonete: number; // kg, già incluso nel totale
 }
 
 export interface PartyItem {
     id: number;
     nome: string;
     tipo: string;
-    peso: number;
+    peso: number;       // kg complessivi (unitario x quantità)
+    quantita: number;
     personaggioId: number;
     personaggioNome: string;
     disabled: boolean;
 }
 
+export interface Page<T> {
+    content: T[];
+    page: number;        // 0-based
+    size: number;
+    totalElements: number;
+    totalPages: number;
+}
+
 export function formatKg(n: number): string {
     return `${(n ?? 0).toLocaleString('it-IT', {maximumFractionDigits: 2})} kg`;
+}
+
+// per i totali: sopra le 10.000 t solo tonnellate, sotto solo kg
+const SOGLIA_TONNELLATE_KG = 10_000_000; // 10.000 t in kg
+
+export function formatPesoTotale(n: number): string {
+    const kg = n ?? 0;
+    if (kg >= SOGLIA_TONNELLATE_KG) {
+        const t = (kg / 1000).toLocaleString('it-IT', {maximumFractionDigits: 1});
+        return `${t} t`;
+    }
+    return formatKg(kg);
 }
 
 // Controvalore totale in monete d'oro: 100 MR = 10 MA = 1 MO; 1 MP = 10 MO

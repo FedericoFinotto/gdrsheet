@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import {onMounted, ref} from 'vue'
 import {ModificatoreRow} from '../../../../../../../models/dto/UpdateItemRequest'
 import {TIPO_MODIFICATORE} from '../../../../../../../models/entity/Modificatore'
+import {Stat} from '../../../../../../../models/entity/Stat'
+import {getStats} from '../../../../../../../service/PersonaggioService'
 
 const props = defineProps<{
   modelValue: ModificatoreRow[]
@@ -9,6 +12,19 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'update:modelValue', v: ModificatoreRow[]): void }>()
 
 const TIPI = Object.values(TIPO_MODIFICATORE)
+
+const stats = ref<Stat[]>([])
+onMounted(async () => {
+  try {
+    stats.value = await getStats()
+  } catch (e) {
+    console.error('Errore caricamento stats:', e)
+  }
+})
+
+function statLabel(id: string): string {
+  return stats.value.find(s => s.id === id)?.label ?? id
+}
 
 function update(idx: number, patch: Partial<ModificatoreRow>) {
   const next = props.modelValue.map((r, i) => i === idx ? {...r, ...patch} : r)
@@ -29,14 +45,19 @@ function remove(idx: number) {
     <div v-if="!modelValue.length" class="empty">Nessun modificatore.</div>
 
     <div v-for="(row, i) in modelValue" :key="row.id ?? `new-${i}`" class="mod-row">
-      <input
-          type="text"
+      <select
           class="stat"
           :value="row.statId"
           :disabled="disabled"
-          placeholder="Stat (es. FOR, CA, TMP)"
-          @input="update(i, {statId: ($event.target as HTMLInputElement).value.toUpperCase()})"
-      />
+          @change="update(i, {statId: ($event.target as HTMLSelectElement).value})"
+      >
+        <option value="" disabled>— Stat —</option>
+        <!-- mantiene visibile un eventuale id non presente nella lista -->
+        <option v-if="row.statId && !stats.some(s => s.id === row.statId)" :value="row.statId">
+          {{ row.statId }}
+        </option>
+        <option v-for="s in stats" :key="s.id" :value="s.id">{{ s.label }}</option>
+      </select>
       <select
           :value="row.tipo"
           :disabled="disabled"
@@ -80,7 +101,7 @@ function remove(idx: number) {
 .mods-editor { display: grid; gap: .4rem; }
 .empty { font-size: .85rem; opacity: .6; }
 .mod-row {
-  display: grid; grid-template-columns: 7rem 8rem 1fr 1fr auto auto; gap: .4rem; align-items: center;
+  display: grid; grid-template-columns: 11rem 8rem 1fr 1fr auto auto; gap: .4rem; align-items: center;
 }
 @media (max-width: 900px) {
   .mod-row { grid-template-columns: 1fr 1fr; }

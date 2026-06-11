@@ -107,7 +107,8 @@ public class AuthService {
                 pg.getNome(),
                 p.getPermesso() != null ? p.getPermesso().name() : null,
                 party != null ? party.getId() : null,
-                party != null ? party.getNome() : null
+                party != null ? party.getNome() : null,
+                PartyService.tipoPersonaggio(pg)
         );
     }
 }

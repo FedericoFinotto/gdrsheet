@@ -34,6 +34,9 @@ public class PersonaggioService {
     private StatValueRepository statValueRepository;
 
     @Autowired
+    private StatRepository statRepository;
+
+    @Autowired
     private ItemLabelRepository itemLabelRepository;
 
     @Autowired
@@ -561,6 +564,46 @@ public class PersonaggioService {
 
         s.setValore(request.getValore().toString());
         statValueRepository.save(s);
+    }
+
+    /**
+     * Garantisce che il personaggio abbia una riga in stat_value per ogni
+     * stat_default del mondo di cui fa parte: quelle mancanti vengono create
+     * con valore, mod e addestramento presi dal default.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public void ensureStatValues(Integer idPersonaggio) {
+        Personaggio personaggio = personaggioRepository.findPersonaggioById(idPersonaggio);
+        if (personaggio == null) throw new RuntimeException("Personaggio non trovato");
+        if (personaggio.getParty() == null || personaggio.getParty().getMondo() == null
+                || personaggio.getParty().getMondo().getDefaultStats() == null) return;
+
+        Set<String> esistenti = statValueRepository.findAllByPersonaggioId(idPersonaggio).stream()
+                .map(sv -> sv.getStat().getId())
+                .collect(Collectors.toSet());
+
+        List<StatValue> daCreare = new ArrayList<>();
+        Set<String> giaPreviste = new HashSet<>();
+        for (StatDefault def : personaggio.getParty().getMondo().getDefaultStats()) {
+            String statId = def.getStatId();
+            if (statId == null || esistenti.contains(statId) || !giaPreviste.add(statId)) continue;
+
+            Stat stat = statRepository.findById(statId).orElse(null);
+            if (stat == null) continue; // default che punta a una stat inesistente: ignora
+
+            StatValue sv = new StatValue();
+            sv.setPersonaggio(personaggio);
+            sv.setStat(stat);
+            sv.setValore(def.getValoreDefault() != null && !def.getValoreDefault().isBlank()
+                    ? def.getValoreDefault().trim()
+                    : "0");
+            sv.setMod(def.getDefaultMod());
+            sv.setClasse(false);
+            sv.setAddestramento(Boolean.TRUE.equals(def.getAddestramento()));
+            daCreare.add(sv);
+        }
+
+        if (!daCreare.isEmpty()) statValueRepository.saveAll(daCreare);
     }
 
     public Integer getPersonaggioIdDaLivello(Integer idLivello) {

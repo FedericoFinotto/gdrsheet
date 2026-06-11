@@ -50,16 +50,24 @@ function goBack() {
   router.back()
 }
 
+async function refreshPersonaggio() {
+  if (!idPersonaggio.value) return
+  try {
+    await characterStore.fetchCharacter(idPersonaggio.value, true)
+  } catch (e) {
+    console.error('Errore refresh personaggio:', e)
+  }
+}
+
 async function onSaved() {
   // ricarica la scheda così il nuovo item compare subito
-  if (idPersonaggio.value) {
-    try {
-      await characterStore.fetchCharacter(idPersonaggio.value, true)
-    } catch (e) {
-      console.error('Errore refresh personaggio:', e)
-    }
-  }
+  await refreshPersonaggio()
   goBack()
+}
+
+// "Salva e continua": l'editor si è già azzerato da solo, qui solo refresh
+function onSavedStay() {
+  refreshPersonaggio()
 }
 </script>
 
@@ -90,6 +98,7 @@ async function onSaved() {
           :id-personaggio="idPersonaggio"
           @cancel="goBack"
           @saved="onSaved"
+          @saved-stay="onSavedStay"
       />
 
       <div v-else class="state empty">

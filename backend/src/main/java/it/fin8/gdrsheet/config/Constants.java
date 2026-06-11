@@ -55,6 +55,7 @@ public final class Constants {
     public static final String ITEM_LABEL_CLASSE = "CLASSE";
     public static final String ITEM_LABEL_GRUPPO_TRASFORMAZIONE = "GRP_TRASF";
     public static final String LABEL_PESO = "PESO"; // kg, su item_label e personaggio_label
+    public static final String LABEL_QTA = "QTA";   // quantità item, moltiplica il peso
 
     public static final String RANK_MAX = "MAX";
 }

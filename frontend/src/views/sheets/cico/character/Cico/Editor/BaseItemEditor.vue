@@ -31,7 +31,11 @@ const props = withDefaults(defineProps<{
   mode: 'edit',
 })
 
-const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
+const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedStay'): void }>()
+
+// tipi con gestione quantità (label QTA, moltiplica il peso)
+const TIPI_CON_QTA = ['OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO']
+const showQta = computed(() => TIPI_CON_QTA.includes(props.item.tipo))
 
 const form = reactive<{
   nome: string
@@ -41,6 +45,7 @@ const form = reactive<{
   modificatori: ModificatoreRow[]
   attacchi: AttaccoRow[]
   children: ChildRef[]
+  qta: number
 }>({
   nome: '',
   descrizione: '',
@@ -49,6 +54,7 @@ const form = reactive<{
   modificatori: [],
   attacchi: [],
   children: [],
+  qta: 1,
 })
 
 const open = reactive({labels: false, modificatori: false, attacchi: false, children: false})
@@ -60,11 +66,15 @@ function preload() {
   const campoKeys = new Set(props.campiLabel.map(c => c.key))
   form.campi = Object.fromEntries(props.campiLabel.map(c => [c.key, '']))
 
+  form.qta = 1
   form.labels = []
   for (const l of (props.item.labels ?? [])) {
     const key = l.label ?? ''
     const val = l.valore ?? ''
-    if (campoKeys.has(key) && !form.campi[key]) {
+    if (showQta.value && key === 'QTA') {
+      const n = Number(val)
+      form.qta = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 1
+    } else if (campoKeys.has(key) && !form.campi[key]) {
       form.campi[key] = val
     } else {
       form.labels.push({label: key, valore: val})
@@ -115,6 +125,10 @@ const sumChildren = computed(() =>
 
 function buildPayload(): UpdateItemRequest {
   const labels: LabelRow[] = []
+  // quantità -> label QTA
+  if (showQta.value) {
+    labels.push({label: 'QTA', valore: String(Math.max(0, Math.floor(Number(form.qta) || 0)))})
+  }
   // campi specifici -> labels
   for (const c of props.campiLabel) {
     const v = (form.campi[c.key] ?? '').trim()
@@ -136,20 +150,45 @@ function buildPayload(): UpdateItemRequest {
   })
 }
 
-async function onSave() {
-  if (!canSave.value) return
+async function doSave(): Promise<boolean> {
   busy.value = true
   errorMsg.value = null
   try {
     const payload = buildPayload()
     if (props.mode === 'create') await createItem(payload)
     else await updateItem(props.item.id, payload)
-    emit('saved')
+    return true
   } catch (e: any) {
     errorMsg.value = e?.message ?? 'Errore nel salvataggio'
+    return false
   } finally {
     busy.value = false
   }
+}
+
+async function onSave() {
+  if (!canSave.value) return
+  if (await doSave()) emit('saved')
+}
+
+/* Salva e continua: salva, poi resta nell'editor con un nuovo item dello stesso tipo */
+async function onSaveAndNew() {
+  if (!canSave.value) return
+  if (await doSave()) {
+    emit('savedStay')
+    resetForNew()
+  }
+}
+
+function resetForNew() {
+  form.nome = ''
+  form.descrizione = ''
+  form.campi = Object.fromEntries(props.campiLabel.map(c => [c.key, '']))
+  form.labels = []
+  form.modificatori = []
+  form.attacchi = []
+  form.children = []
+  form.qta = 1
 }
 
 function onCancel() {
@@ -165,10 +204,23 @@ function onCancel() {
       <span class="muted" v-else>nuovo</span>
     </header>
 
-    <label class="field">
-      <span class="lbl">Nome</span>
-      <input v-model.trim="form.nome" type="text" :disabled="disabledAll" required/>
-    </label>
+    <div class="row nome-qta">
+      <label class="field grow">
+        <span class="lbl">Nome</span>
+        <input v-model.trim="form.nome" type="text" :disabled="disabledAll" required/>
+      </label>
+      <label v-if="showQta" class="field qta-field">
+        <span class="lbl">Quantità</span>
+        <div class="qta-stepper">
+          <button type="button" class="qta-btn" :disabled="disabledAll || form.qta <= 0"
+                  @click="form.qta = Math.max(0, (Number(form.qta) || 0) - 1)">−</button>
+          <input v-model.number="form.qta" type="number" min="0" step="1" inputmode="numeric"
+                 :disabled="disabledAll"/>
+          <button type="button" class="qta-btn" :disabled="disabledAll"
+                  @click="form.qta = (Number(form.qta) || 0) + 1">+</button>
+        </div>
+      </label>
+    </div>
 
     <!-- campi specifici per tipo -->
     <div v-if="campiLabel.length" class="row two">
@@ -245,6 +297,9 @@ function onCancel() {
 
     <div class="actions">
       <button type="button" class="btn ghost" @click="onCancel" :disabled="busy">Annulla</button>
+      <button v-if="mode === 'create'" type="button" class="btn outline" :disabled="!canSave" @click="onSaveAndNew">
+        Salva e continua
+      </button>
       <button type="submit" class="btn primary" :disabled="!canSave">Salva</button>
     </div>
   </form>
@@ -293,6 +348,22 @@ textarea { resize: vertical; }
 }
 .btn { padding: .5rem .9rem; border-radius: .5rem; border: 1px solid transparent; cursor: pointer; }
 .btn.ghost { border-color: #d0d5dd; background: #fff; }
+.btn.outline { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
 .btn.primary { background: #2563eb; color: white; }
 .btn:disabled { opacity: .6; cursor: default; }
+
+/* nome + quantità */
+.nome-qta { display: grid; grid-template-columns: 1fr auto; gap: .5rem; align-items: end; }
+.field.grow { min-width: 0; }
+.qta-field { width: 9rem; }
+.qta-stepper { display: grid; grid-template-columns: auto 1fr auto; gap: .25rem; align-items: stretch; }
+.qta-stepper input {
+  width: 100%; text-align: center; padding: .5rem .25rem;
+  border: 1px solid #d0d5dd; border-radius: .5rem; font-variant-numeric: tabular-nums;
+}
+.qta-btn {
+  width: 2.1rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #f9fafb;
+  font-weight: 800; font-size: 1rem; cursor: pointer;
+}
+.qta-btn:disabled { opacity: .5; cursor: default; }
 </style>

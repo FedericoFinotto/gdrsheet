@@ -24,6 +24,7 @@ export interface PersonaggioHome {
     permesso: 'PROPRIETARIO' | 'VISUALIZZATORE';
     partyId?: number;
     partyNome?: string;
+    tipoPersonaggio?: string | null; // NAVE, STELLA, null
 }
 
 export interface Home {

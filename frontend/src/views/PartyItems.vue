@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import {computed, onMounted, ref} from 'vue'
+import {onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {getParty, getPartyItems, giveItem} from '../service/PartyService'
-import {formatKg, PartyDetail, PartyItem} from '../models/dto/Party'
+import {formatKg, formatPesoTotale, Page, PartyDetail, PartyItem} from '../models/dto/Party'
 import Mobile_DettaglioItem from './sheets/cico/character/Dettaglio/Mobile_DettaglioItem.vue'
 
 const route = useRoute()
@@ -11,9 +11,24 @@ const router = useRouter()
 const partyId = Number(route.params.id)
 
 const party = ref<PartyDetail | null>(null)
-const items = ref<PartyItem[]>([])
+const pagina = ref<Page<PartyItem> | null>(null)
 const loading = ref(true)
 const errorMsg = ref<string | null>(null)
+
+// filtri + paginazione
+const filtroNome = ref('')
+const filtroTipo = ref('')
+const page = ref(0)
+const PAGE_SIZE = 10
+
+const TIPI_FILTRO = [
+  {value: '', label: 'Tutti i tipi'},
+  {value: 'OGGETTO', label: 'Oggetto'},
+  {value: 'CONSUMABILE', label: 'Consumabile'},
+  {value: 'ARMA', label: 'Arma'},
+  {value: 'MUNIZIONE', label: 'Munizione'},
+  {value: 'EQUIPAGGIAMENTO', label: 'Equipaggiamento'},
+]
 
 const expandedId = ref<number | null>(null)   // riga espansa (dettaglio)
 const givingId = ref<number | null>(null)     // riga con pannello "give" aperto
@@ -23,9 +38,19 @@ async function load() {
   loading.value = true
   errorMsg.value = null
   try {
-    const [pRes, iRes] = await Promise.all([getParty(partyId), getPartyItems(partyId)])
+    const [pRes, iRes] = await Promise.all([
+      getParty(partyId),
+      getPartyItems(partyId, {
+        nome: filtroNome.value.trim() || undefined,
+        tipo: filtroTipo.value || undefined,
+        page: page.value,
+        size: PAGE_SIZE,
+      }),
+    ])
     party.value = pRes.data
-    items.value = iRes.data
+    pagina.value = iRes.data
+    // il backend può aver riallineato la pagina (es. dopo un filtro)
+    page.value = iRes.data.page
   } catch (e: any) {
     errorMsg.value = e?.response?.status === 403
         ? 'Non fai parte di questo party'
@@ -34,6 +59,23 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+let filtroTimer: any = null
+watch([filtroNome, filtroTipo], () => {
+  if (filtroTimer) clearTimeout(filtroTimer)
+  filtroTimer = setTimeout(() => {
+    page.value = 0
+    load()
+  }, 300)
+})
+
+function vaiPagina(p: number) {
+  if (!pagina.value) return
+  const np = Math.min(Math.max(0, p), pagina.value.totalPages - 1)
+  if (np === page.value) return
+  page.value = np
+  load()
 }
 
 onMounted(() => {
@@ -82,8 +124,6 @@ function personaggioShim(itm: PartyItem) {
     items: {trasformazioni: [], idoli: []},
   }
 }
-
-const pesoTotale = computed(() => items.value.reduce((s, i) => s + (i.peso || 0), 0))
 </script>
 
 <template>
@@ -94,18 +134,41 @@ const pesoTotale = computed(() => items.value.reduce((s, i) => s + (i.peso || 0)
         <h1>Item del party</h1>
         <span v-if="party" class="muted">{{ party.nome }}</span>
       </div>
-      <span class="tot-peso">{{ formatKg(pesoTotale) }}</span>
+      <span v-if="party" class="tot-peso">{{ formatPesoTotale(party.pesoTotale) }}</span>
     </header>
+
+    <!-- filtri -->
+    <div class="filters">
+      <input
+          type="text"
+          v-model="filtroNome"
+          placeholder="Cerca per nome…"
+          class="filter-nome"
+      />
+      <select v-model="filtroTipo" class="filter-tipo">
+        <option v-for="t in TIPI_FILTRO" :key="t.value" :value="t.value">{{ t.label }}</option>
+      </select>
+    </div>
+
+    <!-- paginator -->
+    <div v-if="pagina && pagina.totalPages > 1" class="paginator">
+      <button class="btn" :disabled="page <= 0 || loading" @click="vaiPagina(page - 1)">‹</button>
+      <span class="page-info">Pagina {{ page + 1 }} di {{ pagina.totalPages }} ({{ pagina.totalElements }} item)</span>
+      <button class="btn" :disabled="page >= pagina.totalPages - 1 || loading" @click="vaiPagina(page + 1)">›</button>
+    </div>
 
     <div v-if="loading" class="state">Caricamento…</div>
     <div v-else-if="errorMsg" class="state error">{{ errorMsg }}</div>
 
-    <template v-else>
+    <template v-else-if="pagina">
       <ul class="rows">
-        <li v-for="itm in items" :key="itm.id" class="row-wrap">
+        <li v-for="itm in pagina.content" :key="itm.id" class="row-wrap">
           <div class="row" :class="{ disabled: itm.disabled }">
             <button class="row-main" @click="toggleExpand(itm.id)">
-              <span class="nome">{{ itm.nome }}</span>
+              <span class="nome">
+                {{ itm.nome }}
+                <span v-if="itm.quantita !== 1" class="pill qta">x{{ itm.quantita }}</span>
+              </span>
               <span class="peso">{{ itm.peso > 0 ? formatKg(itm.peso) : '—' }}</span>
               <span class="pill owner">{{ itm.personaggioNome }}</span>
             </button>
@@ -138,7 +201,7 @@ const pesoTotale = computed(() => items.value.reduce((s, i) => s + (i.peso || 0)
           </div>
         </li>
       </ul>
-      <div v-if="!items.length" class="state">Nessun item negli inventari del party.</div>
+      <div v-if="!pagina.content.length" class="state">Nessun item trovato.</div>
     </template>
   </div>
 </template>
@@ -225,6 +288,29 @@ const pesoTotale = computed(() => items.value.reduce((s, i) => s + (i.peso || 0)
   border-radius: .5rem;
 }
 .pill.owner { background: #eef2ff; color: #3730a3; white-space: nowrap; }
+.pill.qta { background: #f0fdf4; color: #166534; margin-left: .3rem; font-weight: 700; }
+
+.filters {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: .4rem;
+}
+
+.filter-nome, .filter-tipo {
+  padding: .45rem .6rem;
+  border: 1px solid #d0d5dd;
+  border-radius: .5rem;
+  background: #fff;
+}
+
+.paginator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+}
+
+.page-info { font-size: .85rem; opacity: .75; }
 
 .btn-give {
   border: 0;

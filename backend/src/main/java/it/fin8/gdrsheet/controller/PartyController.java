@@ -3,6 +3,7 @@ package it.fin8.gdrsheet.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import it.fin8.gdrsheet.dto.GiveItemRequest;
+import it.fin8.gdrsheet.dto.PageDTO;
 import it.fin8.gdrsheet.dto.PartyDetailDTO;
 import it.fin8.gdrsheet.dto.PartyItemDTO;
 import it.fin8.gdrsheet.entity.Utente;
@@ -39,15 +40,21 @@ public class PartyController {
 
     @Operation(
             summary = "Item del party",
-            description = "Tutti gli item di inventario dei membri del party con peso e proprietario"
+            description = "Item di inventario dei membri del party, filtrati per nome/tipo e paginati"
     )
     @GetMapping("/{id}/items")
-    public ResponseEntity<List<PartyItemDTO>> getPartyItems(
+    public ResponseEntity<PageDTO<PartyItemDTO>> getPartyItems(
             @Parameter(description = "Id Party", required = true)
             @PathVariable Integer id,
+            @Parameter(description = "Filtro nome (contains, case-insensitive)")
+            @RequestParam(required = false) String nome,
+            @Parameter(description = "Filtro tipo item")
+            @RequestParam(required = false) String tipo,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal Utente utente
     ) {
-        return ResponseEntity.ok(partyService.getPartyItems(id, utente));
+        return ResponseEntity.ok(partyService.getPartyItems(id, utente, nome, tipo, page, size));
     }
 
     @Operation(

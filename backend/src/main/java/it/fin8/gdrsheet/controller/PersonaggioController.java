@@ -65,8 +65,9 @@ public class PersonaggioController {
             @Parameter(description = "ID del personaggio", required = true)
             @PathVariable Integer id
     ) {
-        // garantisce l'esistenza del FromCompendio all'apertura del personaggio
+        // garantisce FromCompendio e stat_value completi all'apertura del personaggio
         itemService.ensureFromCompendio(id);
+        personaggioService.ensureStatValues(id);
 
         ItemsDTO result = personaggioService.getAllPersonaggioItemsDTOByIdPersonaggio(id);
 

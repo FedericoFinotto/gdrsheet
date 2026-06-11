@@ -86,20 +86,22 @@ watch(
     {immediate: true, deep: true}
 );
 
+const badgeQta = (row) => row.quantita != null && row.quantita !== 1 ? `x${row.quantita}` : null;
+
 const columnsOggetti = [
-  {field: 'nome', label: 'Oggetti', disabled: (row) => row.disabled},
+  {field: 'nome', label: 'Oggetti', disabled: (row) => row.disabled, badge: badgeQta},
 ];
 const columnsArmi = [
-  {field: 'nome', label: 'Armi', disabled: (row) => row.disabled},
+  {field: 'nome', label: 'Armi', disabled: (row) => row.disabled, badge: badgeQta},
 ];
 const columnsEquipaggiamento = [
-  {field: 'nome', label: 'Equipaggiamento', disabled: (row) => row.disabled},
+  {field: 'nome', label: 'Equipaggiamento', disabled: (row) => row.disabled, badge: badgeQta},
 ];
 const columnsConsumabili = [
-  {field: 'nome', label: 'Consumabili', disabled: (row) => row.disabled},
+  {field: 'nome', label: 'Consumabili', disabled: (row) => row.disabled, badge: badgeQta},
 ];
 const columnsMunizioni = [
-  {field: 'nome', label: 'Munizioni', disabled: (row) => row.disabled},
+  {field: 'nome', label: 'Munizioni', disabled: (row) => row.disabled, badge: badgeQta},
 ];
 </script>
 

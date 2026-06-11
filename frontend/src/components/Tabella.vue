@@ -33,6 +33,9 @@ interface ColumnDef {
   subfield?: string;
   disabled?: (row: any) => boolean;
 
+  // badge opzionale accanto al testo (es. quantità): null/'' = nascosto
+  badge?: Fn<string | null | undefined>;
+
   type?: 'text' | 'counter' | 'icons';
 
   // counter
@@ -194,7 +197,10 @@ function clickIcon(ic: RowIcon, row: any) {
           <!-- Colonna TESTO -->
           <template v-else>
             <div class="cell-content">
-              <div class="primary">{{ row[col.field] }}</div>
+              <div class="primary">
+                {{ row[col.field] }}
+                <span v-if="col.badge && col.badge(row)" class="cell-badge">{{ col.badge(row) }}</span>
+              </div>
               <div v-if="col.subfield" class="subtext">{{ row[col.subfield] }}</div>
             </div>
           </template>
@@ -265,6 +271,18 @@ img.row-icon {
 .subtext {
   font-size: 0.7rem;
   color: gray;
+}
+
+.cell-badge {
+  display: inline-block;
+  margin-left: .35rem;
+  padding: .05rem .4rem;
+  border-radius: .5rem;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: .7rem;
+  font-weight: 700;
+  vertical-align: middle;
 }
 
 </style>

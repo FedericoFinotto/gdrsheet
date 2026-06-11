@@ -24,19 +24,20 @@ public interface ItemLabelRepository extends JpaRepository<ItemLabel, Integer> {
     List<ItemLabel> findByLabelLikeAndItem_IdIn(String label, List<Integer> itemIds);
 
     /**
-     * Valori di una label su tutti gli item "del personaggio": quelli intestati
-     * direttamente e quelli collegati come child dei suoi item (FromCompendio).
+     * Triple (itemId, label, valore) per le label richieste su tutti gli item
+     * "del personaggio": quelli intestati direttamente e quelli collegati come
+     * child dei suoi item (FromCompendio).
      */
     @Query("""
-            SELECT il.valore FROM ItemLabel il
-            WHERE il.label = :label
+            SELECT il.item.id, il.label, il.valore FROM ItemLabel il
+            WHERE il.label IN :labels
               AND (il.item.personaggio.id = :personaggioId
                    OR il.item.id IN (
                        SELECT c.itemTarget.id FROM Collegamento c
                        WHERE c.itemSource.personaggio.id = :personaggioId))
             """)
-    List<String> findValoriLabelByPersonaggio(
-            @Param("label") String label,
+    List<Object[]> findLabelValuesByPersonaggio(
+            @Param("labels") java.util.Collection<String> labels,
             @Param("personaggioId") Integer personaggioId
     );
 }

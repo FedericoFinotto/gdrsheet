@@ -171,6 +171,21 @@ public class ItemController {
     }
 
     @Operation(
+            summary = "Scollega un item dal personaggio",
+            description = "Rimuove l'item dall'equipaggiamento del personaggio (collegamento FromCompendio); l'item resta nel compendio"
+    )
+    @PostMapping("/unlink/{id}")
+    public ResponseEntity<Void> unlinkItem(
+            @Parameter(description = "Id Item", required = true)
+            @PathVariable Integer id,
+            @Parameter(description = "Id Personaggio", required = true)
+            @RequestParam Integer idPersonaggio
+    ) {
+        itemService.unlinkItem(id, idPersonaggio);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
             summary = "Aggiorna un item Livello",
             description = "Aggiorna labels, caratteristiche (BASE), ranghi (RANK) e contenuti concessi di un item LIVELLO"
     )

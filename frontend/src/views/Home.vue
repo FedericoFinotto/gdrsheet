@@ -29,8 +29,10 @@ onMounted(async () => {
   }
 })
 
-function apriScheda(id: number) {
-  router.push(`/scheda/${id}`)
+function apriScheda(p: {id: number; tipoPersonaggio?: string | null}) {
+  // le navi si aprono direttamente sull'inventario (tab 2)
+  const tab = p.tipoPersonaggio === 'NAVE' ? '?tab=2' : ''
+  router.push(`/scheda/${p.id}${tab}`)
 }
 
 function onLogout() {
@@ -73,7 +75,7 @@ function onLogout() {
         <h2>I tuoi personaggi</h2>
         <ul class="cards">
           <li v-for="p in personaggiProprietario" :key="p.id">
-            <button class="card clickable" @click="apriScheda(p.id)">
+            <button class="card clickable" @click="apriScheda(p)">
               <span class="nome">{{ p.nome }}</span>
               <span v-if="p.partyNome" class="muted">{{ p.partyNome }}</span>
             </button>
@@ -86,7 +88,7 @@ function onLogout() {
         <h2>Personaggi visualizzabili</h2>
         <ul class="cards">
           <li v-for="p in personaggiVisualizzatore" :key="p.id">
-            <button class="card clickable" @click="apriScheda(p.id)">
+            <button class="card clickable" @click="apriScheda(p)">
               <span class="nome">{{ p.nome }}</span>
               <span v-if="p.partyNome" class="muted">{{ p.partyNome }}</span>
               <span class="pill viewer">Visualizzatore</span>

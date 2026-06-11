@@ -131,6 +131,30 @@
                              constraintName="uq_permessi_party_utente_party"/>
     </changeSet>
 
+    <!-- stat_value: id autogenerato (serve per creare le stat mancanti all'apertura del personaggio) -->
+
+    <changeSet id="108" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM information_schema.columns
+                WHERE table_name = 'stat_value' AND column_name = 'id'
+                  AND (column_default IS NOT NULL OR is_identity = 'YES')
+            </sqlCheck>
+        </preConditions>
+        <comment>stat_value.id autoincrement</comment>
+        <addAutoIncrement tableName="stat_value" columnName="id" columnDataType="integer"/>
+    </changeSet>
+
+    <changeSet id="109" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT CASE WHEN pg_get_serial_sequence('stat_value', 'id') IS NULL THEN 0 ELSE 1 END
+            </sqlCheck>
+        </preConditions>
+        <comment>allinea la sequence di stat_value.id al massimo attuale</comment>
+        <sql>SELECT setval(pg_get_serial_sequence('stat_value', 'id'), COALESCE((SELECT max(id) FROM stat_value), 0) + 1, false)</sql>
+    </changeSet>
+
     <!-- Soldi: stats MR/MA/MO/MP (i valori vivono come modificatori sugli item dei personaggi) -->
 
     <changeSet id="110" author="developer">

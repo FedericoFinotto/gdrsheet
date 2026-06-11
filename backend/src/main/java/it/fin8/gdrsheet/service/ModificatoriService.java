@@ -49,7 +49,7 @@ public class ModificatoriService {
             if (differenzaTaglia != 0)
                 modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), 4 * differenzaTaglia, null, null, TipoModificatore.VALORE, false, "Taglia", null, null));
         }
-        modificatoriAttivi.add(prendiMaxDTO(modsDto, TipoModificatore.BASE));
+        if (!modsDto.isEmpty()) modificatoriAttivi.add(prendiMaxDTO(modsDto, TipoModificatore.BASE));
         int valoreBase = (modsDto.stream().filter(x -> x.getTipoItem().equals(TipoItem.LIVELLO)).mapToInt(ModificatoreDTO::getValore).sum());
 
         modificatoriAttivi.addAll(modsDto.stream().filter(m -> TipoModificatore.VALORE.equals(m.getTipo())).toList());
@@ -310,6 +310,11 @@ public class ModificatoriService {
                                          DadiVitaDTO dadiVita,
                                          List<Item> livelloItems) {
         applicaCalcoli(modsDto, carList);
+        try {
+            Integer.parseInt(stat.getValore());
+        } catch (Exception e) {
+            stat.setValore("0");
+        }
 
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(modsDto.stream().toList());
 

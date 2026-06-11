@@ -2,7 +2,7 @@
 import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import type {AxiosResponse} from 'axios'
-import {deleteItem, getItem} from '../../../../../../service/PersonaggioService'
+import {deleteItem, getItem, unlinkItem} from '../../../../../../service/PersonaggioService'
 import {useCharacterStore} from '../../../../../../stores/personaggio'
 import usePopup from '../../../../../../function/usePopup'
 
@@ -30,6 +30,29 @@ const idPersonaggio = computed<number | undefined>(() => {
 })
 
 const deleting = ref(false)
+const unlinking = ref(false)
+
+// scollegabile: c'è il contesto personaggio e non è un item intestato (es. livelli)
+const canUnlink = computed(() =>
+    !!idPersonaggio.value && !!item.value && item.value.tipo !== 'LIVELLO')
+
+async function onUnlink() {
+  if (!item.value || !idPersonaggio.value || unlinking.value) return
+  const ok = window.confirm("Sicuro? L'oggetto rimarrà nel compendio ma non farà più parte del tuo equipaggiamento")
+  if (!ok) return
+  unlinking.value = true
+  try {
+    await unlinkItem(item.value.id, idPersonaggio.value)
+    closePopup()
+    await characterStore.fetchCharacter(idPersonaggio.value, true)
+    router.back()
+  } catch (e: any) {
+    errorMsg.value = e?.message ?? 'Errore nello scollegamento'
+    console.error('Errore scollegamento item:', e)
+  } finally {
+    unlinking.value = false
+  }
+}
 
 async function onDelete() {
   if (!item.value || deleting.value) return
@@ -83,6 +106,20 @@ watch(() => route.params.id, v => {
 function goBack() {
   router.back()
 }
+
+// dopo il salvataggio: chiudi il popup di dettaglio (mostra dati vecchi),
+// ricarica la scheda e torna indietro
+async function onSaved() {
+  closePopup()
+  if (idPersonaggio.value) {
+    try {
+      await characterStore.fetchCharacter(idPersonaggio.value, true)
+    } catch (e) {
+      console.error('Errore refresh personaggio:', e)
+    }
+  }
+  router.back()
+}
 </script>
 
 <template>
@@ -92,7 +129,10 @@ function goBack() {
       <div class="meta">
         <span v-if="item">#{{ item.id }}</span>
         <span v-if="item?.tipo" class="pill">{{ item.tipo }}</span>
-        <button v-if="item" type="button" class="btn-delete" :disabled="deleting" @click="onDelete">
+        <button v-if="canUnlink" type="button" class="btn-unlink" :disabled="unlinking || deleting" @click="onUnlink">
+          {{ unlinking ? 'Scollegamento…' : 'Scollega' }}
+        </button>
+        <button v-if="item" type="button" class="btn-delete" :disabled="deleting || unlinking" @click="onDelete">
           {{ deleting ? 'Eliminazione…' : 'Elimina' }}
         </button>
       </div>
@@ -110,7 +150,7 @@ function goBack() {
             :is="EditorComp"
             :item="item"
             @cancel="goBack"
-            @saved="goBack"
+            @saved="onSaved"
         />
 
         <div v-else class="state unsupported">
@@ -210,4 +250,16 @@ function goBack() {
 }
 
 .btn-delete:disabled { opacity: .6; cursor: default; }
+
+.btn-unlink {
+  padding: .3rem .7rem;
+  border-radius: .5rem;
+  border: 1px solid #fde68a;
+  background: #fefce8;
+  color: #92400e;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-unlink:disabled { opacity: .6; cursor: default; }
 </style>

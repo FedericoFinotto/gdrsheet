@@ -11,14 +11,22 @@ const totMo = computed(() => {
   const n = totaleInMo(props.soldi)
   return n.toLocaleString('it-IT', {maximumFractionDigits: 2})
 })
+
+// mostra solo i tagli con valore > 0
+const MONETE: Array<{ key: keyof Soldi; sigla: string; cls: string; titolo: string }> = [
+  {key: 'mp', sigla: 'MP', cls: 'mp', titolo: 'Monete di Platino'},
+  {key: 'mo', sigla: 'MO', cls: 'mo', titolo: "Monete d'Oro"},
+  {key: 'ma', sigla: 'MA', cls: 'ma', titolo: "Monete d'Argento"},
+  {key: 'mr', sigla: 'MR', cls: 'mr', titolo: 'Monete di Rame'},
+]
+const moneteVisibili = computed(() => MONETE.filter(m => (props.soldi[m.key] ?? 0) > 0))
 </script>
 
 <template>
   <div class="soldi" :class="{ compatto }">
-    <span class="coin mp" title="Monete di Platino">{{ soldi.mp }} <small>MP</small></span>
-    <span class="coin mo" title="Monete d'Oro">{{ soldi.mo }} <small>MO</small></span>
-    <span class="coin ma" title="Monete d'Argento">{{ soldi.ma }} <small>MA</small></span>
-    <span class="coin mr" title="Monete di Rame">{{ soldi.mr }} <small>MR</small></span>
+    <span v-for="m in moneteVisibili" :key="m.key" class="coin" :class="m.cls" :title="m.titolo">
+      {{ soldi[m.key] }} <small>{{ m.sigla }}</small>
+    </span>
     <span class="tot" title="Controvalore totale in monete d'oro">≈ {{ totMo }} MO</span>
   </div>
 </template>

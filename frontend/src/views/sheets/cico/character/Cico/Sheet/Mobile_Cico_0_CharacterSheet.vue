@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUpdate, onMounted, ref, watch} from 'vue';
-import {useRoute} from 'vue-router';
+import {useRoute, useRouter} from 'vue-router';
 import {storeToRefs} from 'pinia';
 import {useCharacterStore} from "../../../../../../stores/personaggio";
 
@@ -13,6 +13,7 @@ import Mobile_Cico_Attacchi from "./Mobile_Cico_6_Attacchi.vue";
 import Mobile_Cico_Livelli from "./Mobile_Cico_7_Livelli.vue";
 
 const route = useRoute();
+const router = useRouter();
 const idPersonaggio = Number(route.params.id);
 if (isNaN(idPersonaggio)) throw new Error('Parametro id non valido');
 
@@ -26,14 +27,23 @@ const tabs = [
   {label: 'Livelli', comp: Mobile_Cico_Livelli}
 ];
 
-const activeIndex = ref(0);
+// tab iniziale dalla query (?tab=N), così tornando indietro si riapre la stessa pagina
+function tabDaQuery(): number {
+  const n = Number(route.query.tab);
+  return Number.isInteger(n) && n >= 0 && n < tabs.length ? n : 0;
+}
+
+const activeIndex = ref(tabDaQuery());
 const loaded = ref(false);
 
 const characterStore = useCharacterStore();
 const {cache} = storeToRefs(characterStore);
 
 onMounted(() => {
-  characterStore.fetchCharacter(idPersonaggio).then(() => loaded.value = true);
+  characterStore.fetchCharacter(idPersonaggio).then(() => {
+    loaded.value = true;
+    scrollHeaderToActive();
+  });
 });
 
 /* --- refs per autoscroll header --- */
@@ -67,9 +77,10 @@ function setActive(i: number) {
   activeIndex.value = i;
 }
 
-// auto-scroll ogni volta che cambia tab
-watch(activeIndex, () => {
+// auto-scroll + sync della query ogni volta che cambia tab
+watch(activeIndex, (i) => {
   scrollHeaderToActive();
+  router.replace({query: {...route.query, tab: i > 0 ? String(i) : undefined}});
 });
 
 /* --- Swipe handling (solo orizzontale dentro la tab-content) --- */

@@ -25,6 +25,10 @@ public class PartyDetailDTO {
      * Somma dei pesi (kg) di tutti i membri.
      */
     private double pesoTotale;
+    /**
+     * Peso (kg) della sola parte monete, già incluso nel totale.
+     */
+    private double pesoMonete;
 
     /**
      * Monete: MR rame, MA argento, MO oro, MP platino.

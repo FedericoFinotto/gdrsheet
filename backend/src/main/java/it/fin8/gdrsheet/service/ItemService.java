@@ -282,6 +282,24 @@ public class ItemService {
         hardDelete(itm);
     }
 
+    /**
+     * Scollega un item dall'equipaggiamento del personaggio (rimuove il
+     * collegamento dal suo FromCompendio) senza toccare l'item, che resta
+     * nel compendio. Pensato per gli oggetti "persi".
+     */
+    @Transactional
+    public void unlinkItem(Integer itemId, Integer idPersonaggio) {
+        Item fromCompendio = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_FROM_COMPENDIO, idPersonaggio);
+        if (fromCompendio == null) throw new RuntimeException("FromCompendio non trovato per il personaggio " + idPersonaggio);
+
+        List<Collegamento> links = collegamentoRepository.findAllByItemTarget_Id(itemId).stream()
+                .filter(c -> Objects.equals(c.getItemSource().getId(), fromCompendio.getId()))
+                .toList();
+        if (links.isEmpty()) throw new RuntimeException("L'item non fa parte dell'equipaggiamento del personaggio");
+
+        collegamentoRepository.deleteAll(links);
+    }
+
     private void hardDelete(Item itm) {
         if (itm.getModificatori() != null && !itm.getModificatori().isEmpty()) {
             modificatoreRepository.deleteAll(itm.getModificatori());

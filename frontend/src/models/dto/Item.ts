@@ -5,4 +5,5 @@ export interface Item {
     nome: string;
     tipo: TipoItem;
     disabled: boolean;
+    quantita?: number; // label QTA, default 1
 }

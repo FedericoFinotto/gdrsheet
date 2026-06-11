@@ -5,6 +5,7 @@ import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoModificatore;
 import it.fin8.gdrsheet.def.TipoPermessoPersonaggio;
 import it.fin8.gdrsheet.dto.GiveItemRequest;
+import it.fin8.gdrsheet.dto.PageDTO;
 import it.fin8.gdrsheet.dto.PartyDetailDTO;
 import it.fin8.gdrsheet.dto.PartyItemDTO;
 import it.fin8.gdrsheet.entity.*;
@@ -15,10 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -100,18 +98,20 @@ public class PartyService {
                 permesso.getRuolo() != null ? permesso.getRuolo().name() : null,
                 personaggi,
                 somma,
-                pesoTotale
+                Math.round(pesoTotale * 100) / 100.0,
+                Math.round(calcolaPesoMonete(somma) * 100) / 100.0
         );
     }
 
     /**
-     * Tutti gli item di inventario dei membri del party, con peso e proprietario.
+     * Item di inventario dei membri del party, filtrati e paginati.
      */
-    public List<PartyItemDTO> getPartyItems(Integer partyId, Utente utente) {
+    public PageDTO<PartyItemDTO> getPartyItems(Integer partyId, Utente utente,
+                                               String nome, String tipo, int page, int size) {
         verificaMembership(partyId, utente);
 
         List<Personaggio> membri = personaggioRepository.findAllByParty_IdOrderByNomeAsc(partyId);
-        List<PartyItemDTO> result = new ArrayList<>();
+        List<PartyItemDTO> tutti = new ArrayList<>();
 
         for (Personaggio pg : membri) {
             Item fromCompendio = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_FROM_COMPENDIO, pg.getId());
@@ -119,11 +119,14 @@ public class PartyService {
             for (Collegamento link : collegamentoRepository.findAllByItemSource_Id(fromCompendio.getId())) {
                 Item itm = link.getItemTarget();
                 if (!TIPI_INVENTARIO.contains(itm.getTipo())) continue;
-                result.add(new PartyItemDTO(
+                int quantita = parseQta(itm.getLabel(Constants.LABEL_QTA));
+                double peso = Math.round(parsePeso(itm.getLabel(Constants.LABEL_PESO)) * quantita * 100) / 100.0;
+                tutti.add(new PartyItemDTO(
                         itm.getId(),
                         itm.getNome(),
                         itm.getTipo().name(),
-                        parsePeso(itm.getLabel(Constants.LABEL_PESO)),
+                        peso,
+                        quantita,
                         pg.getId(),
                         pg.getNome(),
                         Boolean.TRUE.equals(itm.isDisabled()) || Boolean.TRUE.equals(link.isDisabled())
@@ -131,8 +134,23 @@ public class PartyService {
             }
         }
 
-        result.sort((a, b) -> a.getNome().compareToIgnoreCase(b.getNome()));
-        return result;
+        // filtri (case-insensitive)
+        String nomeFiltro = nome == null ? "" : nome.trim().toLowerCase(Locale.ROOT);
+        List<PartyItemDTO> filtrati = tutti.stream()
+                .filter(i -> nomeFiltro.isEmpty() || i.getNome().toLowerCase(Locale.ROOT).contains(nomeFiltro))
+                .filter(i -> tipo == null || tipo.isBlank() || i.getTipo().equalsIgnoreCase(tipo))
+                .sorted((a, b) -> a.getNome().compareToIgnoreCase(b.getNome()))
+                .toList();
+
+        // paginazione in memoria (gli inventari di un party sono piccoli)
+        int sz = Math.max(1, size);
+        int totalPages = Math.max(1, (int) Math.ceil(filtrati.size() / (double) sz));
+        int p = Math.min(Math.max(0, page), totalPages - 1);
+        int from = p * sz;
+        int to = Math.min(from + sz, filtrati.size());
+        List<PartyItemDTO> content = from >= filtrati.size() ? List.of() : filtrati.subList(from, to);
+
+        return new PageDTO<>(content, p, sz, filtrati.size(), totalPages);
     }
 
     /**
@@ -182,21 +200,57 @@ public class PartyService {
     }
 
     /**
-     * Peso trasportato (kg): somma delle label PESO degli item del personaggio
-     * (diretti e collegati via FromCompendio) più la sua personaggio_label PESO.
-     * Item senza peso valgono 0.
+     * Peso delle monete in kg, per taglio (per ora tutte 10 grammi).
+     */
+    private static final double PESO_MR_KG = 0.01;
+    private static final double PESO_MA_KG = 0.01;
+    private static final double PESO_MO_KG = 0.01;
+    private static final double PESO_MP_KG = 0.01;
+
+    public static double calcolaPesoMonete(PartyDetailDTO.SoldiDTO soldi) {
+        return soldi.getMr() * PESO_MR_KG
+                + soldi.getMa() * PESO_MA_KG
+                + soldi.getMo() * PESO_MO_KG
+                + soldi.getMp() * PESO_MP_KG;
+    }
+
+    /**
+     * Peso trasportato (kg): somma di (PESO x QTA) sugli item del personaggio
+     * (diretti e collegati via FromCompendio), più la sua personaggio_label PESO,
+     * più il peso delle monete. Item senza peso valgono 0, QTA assente vale 1.
      */
     public double calcolaPeso(Personaggio pg) {
-        double peso = itemLabelRepository.findValoriLabelByPersonaggio(Constants.LABEL_PESO, pg.getId()).stream()
-                .mapToDouble(PartyService::parsePeso)
-                .sum();
+        double peso = 0;
+
+        Map<Integer, Map<String, String>> labelsPerItem = new HashMap<>();
+        for (Object[] row : itemLabelRepository.findLabelValuesByPersonaggio(
+                List.of(Constants.LABEL_PESO, Constants.LABEL_QTA), pg.getId())) {
+            labelsPerItem.computeIfAbsent((Integer) row[0], k -> new HashMap<>())
+                    .put((String) row[1], (String) row[2]);
+        }
+        for (Map<String, String> labels : labelsPerItem.values()) {
+            peso += parsePeso(labels.get(Constants.LABEL_PESO)) * parseQta(labels.get(Constants.LABEL_QTA));
+        }
+
         if (pg.getLabels() != null) {
             peso += pg.getLabels().stream()
                     .filter(l -> Constants.LABEL_PESO.equals(l.getLabel()))
                     .mapToDouble(l -> parsePeso(l.getValore()))
                     .sum();
         }
+
+        peso += calcolaPesoMonete(calcolaSoldi(pg.getId()));
+
         return Math.round(peso * 100) / 100.0;
+    }
+
+    private static int parseQta(String s) {
+        if (s == null) return 1;
+        try {
+            return Math.max(0, Integer.parseInt(s.trim()));
+        } catch (NumberFormatException e) {
+            return 1;
+        }
     }
 
     private static double parsePeso(String s) {
@@ -208,7 +262,7 @@ public class PartyService {
         }
     }
 
-    private static String tipoPersonaggio(Personaggio pg) {
+    public static String tipoPersonaggio(Personaggio pg) {
         if (pg.getLabels() == null) return null;
         return pg.getLabels().stream()
                 .filter(l -> LABEL_TIPO_PERSONAGGIO.equals(l.getLabel()))

@@ -15,4 +15,8 @@ public class ItemDTO {
     private String nome;
     private TipoItem tipo;
     private Boolean disabled;
+    /**
+     * Quantità (label QTA), default 1.
+     */
+    private Integer quantita;
 }

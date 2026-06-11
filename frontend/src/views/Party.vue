@@ -2,7 +2,7 @@
 import {computed, onMounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {getParty} from '../service/PartyService'
-import {formatKg, PartyDetail, PersonaggioSoldi} from '../models/dto/Party'
+import {formatKg, formatPesoTotale, PartyDetail, PersonaggioSoldi} from '../models/dto/Party'
 import SoldiView from '../components/SoldiView.vue'
 
 const route = useRoute()
@@ -32,8 +32,10 @@ onMounted(async () => {
   }
 })
 
-function apriScheda(id: number) {
-  router.push(`/scheda/${id}`)
+function apriScheda(p: PersonaggioSoldi) {
+  // le navi si aprono direttamente sull'inventario (tab 2)
+  const tab = p.tipoPersonaggio === 'NAVE' ? '?tab=2' : ''
+  router.push(`/scheda/${p.id}${tab}`)
 }
 
 // gruppi: Party (senza TIPO_PERSONAGGIO, proprietari in cima), Barche (NAVE), Stella (STELLA)
@@ -83,10 +85,11 @@ const GRUPPI = computed(() => [
         <h2>Soldi del party</h2>
         <div class="card highlight">
           <SoldiView :soldi="party.somma"/>
+          <div class="peso-monete">Peso monete: {{ formatKg(party.pesoMonete) }}</div>
         </div>
         <div class="card peso-row">
           <span class="peso-label">Peso totale</span>
-          <span class="peso-val">{{ formatKg(party.pesoTotale) }}</span>
+          <span class="peso-val">{{ formatPesoTotale(party.pesoTotale) }}</span>
         </div>
       </section>
 
@@ -95,7 +98,7 @@ const GRUPPI = computed(() => [
         <h2>{{ g.titolo }}</h2>
         <ul class="cards">
           <li v-for="p in g.membri" :key="p.id">
-            <button class="card clickable" @click="apriScheda(p.id)">
+            <button class="card clickable" @click="apriScheda(p)">
               <span class="nome">
                 {{ p.nome }}
                 <span v-if="p.proprietario" class="pill mio">Tuo</span>
@@ -175,6 +178,13 @@ const GRUPPI = computed(() => [
   border-color: #fde68a;
   justify-content: center;
   padding: 1rem;
+  flex-direction: column;
+}
+
+.peso-monete {
+  font-size: .8rem;
+  opacity: .7;
+  font-weight: 600;
 }
 
 .pill {
