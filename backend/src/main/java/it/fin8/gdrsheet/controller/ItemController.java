@@ -2,6 +2,8 @@ package it.fin8.gdrsheet.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import it.fin8.gdrsheet.def.TipoItem;
+import it.fin8.gdrsheet.dto.ItemDTO;
 import it.fin8.gdrsheet.dto.SpellBookIncantesimoDTO;
 import it.fin8.gdrsheet.dto.UpdateItemRequest;
 import it.fin8.gdrsheet.dto.UpdateLivelloRequest;
@@ -9,6 +11,7 @@ import it.fin8.gdrsheet.dto.UpdatePreparedRequest;
 import it.fin8.gdrsheet.dto.UpdateSpellRequest;
 import it.fin8.gdrsheet.dto.UpdateSpellUsageRequest;
 import it.fin8.gdrsheet.entity.Item;
+import it.fin8.gdrsheet.mapper.ItemMapper;
 import it.fin8.gdrsheet.repository.ItemRepository;
 import it.fin8.gdrsheet.service.ItemService;
 import jakarta.validation.Valid;
@@ -23,10 +26,12 @@ public class ItemController {
 
     private final ItemRepository repo;
     private final ItemService itemService;
+    private final ItemMapper itemMapper;
 
-    public ItemController(ItemRepository repo, ItemService itemService) {
+    public ItemController(ItemRepository repo, ItemService itemService, ItemMapper itemMapper) {
         this.repo = repo;
         this.itemService = itemService;
+        this.itemMapper = itemMapper;
     }
 
     @Operation(
@@ -114,6 +119,21 @@ public class ItemController {
                                             @RequestBody UpdateSpellRequest dto) {
         // service.updateSpell(id, dto);
         return ResponseEntity.ok(itemService.updateSpell(id, dto));
+    }
+
+    @Operation(
+            summary = "Cerca item per nome",
+            description = "Ricerca per nome (contains, case-insensitive), opzionalmente filtrata per tipo. Max 20 risultati."
+    )
+    @GetMapping("/search")
+    public ResponseEntity<List<ItemDTO>> searchItems(
+            @Parameter(description = "Testo da cercare nel nome", required = true)
+            @RequestParam String q,
+            @Parameter(description = "Tipo item (opzionale)")
+            @RequestParam(required = false) TipoItem tipo
+    ) {
+        List<ItemDTO> result = itemService.searchItems(q, tipo).stream().map(itemMapper::toDTO).toList();
+        return ResponseEntity.ok(result);
     }
 
     @Operation(

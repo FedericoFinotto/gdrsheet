@@ -2,14 +2,19 @@
 import {computed, onMounted, reactive, ref, toRaw, watch} from 'vue'
 import {ItemDB} from '../../../../../../models/entity/ItemDB'
 import {
+  AttaccoRow,
   CampoLabel,
+  ChildRef,
   LabelRow,
   ModificatoreRow,
   UpdateItemRequest
 } from '../../../../../../models/dto/UpdateItemRequest'
 import {createItem, updateItem} from '../../../../../../service/PersonaggioService'
+import {getItemLabel} from '../../../../../../models/entity/ItemLabel'
 import LabelsEditor from './Sections/LabelsEditor.vue'
 import ModificatoriEditor from './Sections/ModificatoriEditor.vue'
+import AttacchiEditor from './Sections/AttacchiEditor.vue'
+import ChildrenEditor from './Sections/ChildrenEditor.vue'
 
 const props = withDefaults(defineProps<{
   item: ItemDB
@@ -33,15 +38,19 @@ const form = reactive<{
   campi: Record<string, string>
   labels: LabelRow[]
   modificatori: ModificatoreRow[]
+  attacchi: AttaccoRow[]
+  children: ChildRef[]
 }>({
   nome: '',
   descrizione: '',
   campi: {},
   labels: [],
   modificatori: [],
+  attacchi: [],
+  children: [],
 })
 
-const open = reactive({labels: false, modificatori: false})
+const open = reactive({labels: false, modificatori: false, attacchi: false, children: false})
 
 function preload() {
   form.nome = props.item.nome ?? ''
@@ -69,6 +78,21 @@ function preload() {
     nota: m.nota ?? '',
     sempreAttivo: !!m.sempreAttivo,
   }))
+
+  // child: ATTACCO -> sezione attacchi, il resto -> item collegati
+  const children = (props.item.child ?? []).map(c => c.itemTarget).filter(Boolean)
+  form.attacchi = children
+      .filter(t => t.tipo === 'ATTACCO')
+      .map(t => ({
+        id: t.id,
+        nome: t.nome,
+        tpc: getItemLabel(t, 'TPC') ?? '',
+        tpd: getItemLabel(t, 'TPD') ?? '',
+        tipoDanni: getItemLabel(t, 'TDANNO' as any) ?? '',
+      }))
+  form.children = children
+      .filter(t => t.tipo !== 'ATTACCO')
+      .map(t => ({id: t.id, nome: t.nome, tipo: t.tipo}))
 }
 
 onMounted(preload)
@@ -83,6 +107,10 @@ const sumLabels = computed(() =>
     form.labels.filter(l => l.label).map(l => l.label).join(', ') || '—')
 const sumMods = computed(() =>
     form.modificatori.filter(m => m.statId).map(m => `${m.statId} ${m.valore}`).join(', ') || '—')
+const sumAttacchi = computed(() =>
+    form.attacchi.filter(a => a.nome).map(a => a.nome).join(', ') || '—')
+const sumChildren = computed(() =>
+    form.children.map(c => c.nome).join(', ') || '—')
 
 function buildPayload(): UpdateItemRequest {
   const labels: LabelRow[] = []
@@ -101,6 +129,8 @@ function buildPayload(): UpdateItemRequest {
     tipo: props.mode === 'create' ? props.item.tipo : undefined,
     labels,
     modificatori: form.modificatori.filter(m => m.statId.trim()),
+    attacchi: form.attacchi.filter(a => a.nome.trim()),
+    childItemIds: form.children.map(c => c.id),
   })
 }
 
@@ -151,6 +181,32 @@ function onCancel() {
 
     <!-- slot per estensioni specifiche del tipo -->
     <slot name="specifico" :disabled="disabledAll"/>
+
+    <!-- Attacchi (item ATTACCO figli) -->
+    <section class="fold">
+      <button type="button" class="fold-head" @click="open.attacchi = !open.attacchi"
+              :aria-expanded="open.attacchi ? 'true' : 'false'">
+        <span class="fold-title">Attacchi</span>
+        <span class="fold-summary">{{ sumAttacchi }}</span>
+        <span class="chev" :class="{ open: open.attacchi }">▸</span>
+      </button>
+      <div v-show="open.attacchi" class="fold-body">
+        <AttacchiEditor v-model="form.attacchi" :disabled="disabledAll"/>
+      </div>
+    </section>
+
+    <!-- Item collegati (child) -->
+    <section class="fold">
+      <button type="button" class="fold-head" @click="open.children = !open.children"
+              :aria-expanded="open.children ? 'true' : 'false'">
+        <span class="fold-title">Item collegati</span>
+        <span class="fold-summary">{{ sumChildren }}</span>
+        <span class="chev" :class="{ open: open.children }">▸</span>
+      </button>
+      <div v-show="open.children" class="fold-body">
+        <ChildrenEditor v-model="form.children" :disabled="disabledAll" :exclude-id="props.item.id"/>
+      </div>
+    </section>
 
     <!-- Labels generiche -->
     <section class="fold">

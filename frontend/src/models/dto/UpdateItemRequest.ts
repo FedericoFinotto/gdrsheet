@@ -24,10 +24,28 @@ export interface CampoLabel {
     textarea?: boolean;
 }
 
+// Attacco figlio (item ATTACCO) gestito inline dall'editor
+export interface AttaccoRow {
+    id?: number;     // id dell'item ATTACCO esistente; assente per i nuovi
+    nome: string;
+    tpc?: string;
+    tpd?: string;
+    tipoDanni?: string;
+}
+
+// Riferimento a un item collegato come child
+export interface ChildRef {
+    id: number;
+    nome: string;
+    tipo: TipoItem;
+}
+
 export interface UpdateItemRequest {
     nome?: string;
     descrizione?: string;
     tipo?: TipoItem;          // usato solo in creazione
     labels?: LabelRow[];      // stato completo delle labels
     modificatori?: ModificatoreRow[]; // stato completo dei modificatori
+    attacchi?: AttaccoRow[];  // stato completo degli attacchi figli
+    childItemIds?: number[];  // stato completo degli item collegati (non ATTACCO)
 }

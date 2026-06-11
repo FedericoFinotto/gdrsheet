@@ -26,6 +26,10 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
 
     Item findItemByNomeAndPersonaggio_Id(String name, Integer personaggioId);
 
+    List<Item> findTop20ByNomeContainingIgnoreCaseOrderByNomeAsc(String nome);
+
+    List<Item> findTop20ByNomeContainingIgnoreCaseAndTipoOrderByNomeAsc(String nome, TipoItem tipo);
+
     /**
      * Restituisce l'intera entità Item e il valore (livello) associato,
      * filtrando per tipo INCANTESIMO, label e lista di IDs.

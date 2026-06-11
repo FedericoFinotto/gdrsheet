@@ -47,6 +47,18 @@ public class UpdateItemRequest {
      */
     private List<ModificatoreRowDTO> modificatori;
 
+    /**
+     * Stato completo degli attacchi (item ATTACCO figli, gestiti inline).
+     * Null = non toccare.
+     */
+    private List<AttaccoRowDTO> attacchi;
+
+    /**
+     * Stato completo degli item collegati come child (esclusi gli ATTACCO,
+     * gestiti da {@link #attacchi}). Id degli item target. Null = non toccare.
+     */
+    private List<Integer> childItemIds;
+
     @Getter
     @Setter
     @NoArgsConstructor
@@ -55,6 +67,22 @@ public class UpdateItemRequest {
     public static class LabelRowDTO {
         private String label;
         private String valore;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class AttaccoRowDTO {
+        /**
+         * Id dell'item ATTACCO esistente; null per i nuovi.
+         */
+        private Integer id;
+        private String nome;
+        private String tpc;
+        private String tpd;
+        private String tipoDanni;
     }
 
     @Getter

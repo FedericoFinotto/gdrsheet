@@ -217,6 +217,8 @@ public class ItemService {
 
         Item saved = itemRepository.save(itm);
         applyModificatori(saved, request.getModificatori());
+        applyAttacchi(saved, request.getAttacchi());
+        applyChildren(saved, request.getChildItemIds());
         return saved;
     }
 
@@ -245,8 +247,119 @@ public class ItemService {
         }
 
         applyModificatori(itm, request.getModificatori());
+        applyAttacchi(itm, request.getAttacchi());
+        applyChildren(itm, request.getChildItemIds());
 
         return itemRepository.save(itm);
+    }
+
+    public List<Item> searchItems(String query, TipoItem tipo) {
+        String q = query == null ? "" : query.trim();
+        if (q.isEmpty()) return List.of();
+        return tipo == null
+                ? itemRepository.findTop20ByNomeContainingIgnoreCaseOrderByNomeAsc(q)
+                : itemRepository.findTop20ByNomeContainingIgnoreCaseAndTipoOrderByNomeAsc(q, tipo);
+    }
+
+    /**
+     * Allinea gli attacchi (item ATTACCO figli) allo stato richiesto:
+     * aggiorna quelli con id, crea i nuovi (item + collegamento), elimina i
+     * collegamenti non più presenti e l'item ATTACCO se non più referenziato.
+     * Null = non toccare.
+     */
+    private void applyAttacchi(Item itm, List<UpdateItemRequest.AttaccoRowDTO> rows) {
+        if (rows == null) return;
+
+        List<Collegamento> linkAttacchi = (itm.getChild() != null ? itm.getChild() : List.<Collegamento>of()).stream()
+                .filter(c -> TipoItem.ATTACCO.equals(c.getItemTarget().getTipo()))
+                .toList();
+
+        Map<Integer, Item> esistentiById = linkAttacchi.stream()
+                .collect(Collectors.toMap(c -> c.getItemTarget().getId(), Collegamento::getItemTarget, (a, b) -> a));
+
+        Set<Integer> richiesti = rows.stream()
+                .map(UpdateItemRequest.AttaccoRowDTO::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // elimina collegamenti (e attacchi orfani) non più presenti
+        for (Collegamento link : linkAttacchi) {
+            Item attacco = link.getItemTarget();
+            if (richiesti.contains(attacco.getId())) continue;
+            collegamentoRepository.delete(link);
+            // se l'attacco non è referenziato da nessun altro item, eliminalo
+            long altriParent = attacco.getParent() == null ? 0
+                    : attacco.getParent().stream().filter(p -> !Objects.equals(p.getId(), link.getId())).count();
+            if (altriParent == 0 && attacco.getPersonaggio() == null) {
+                if (attacco.getModificatori() != null) modificatoreRepository.deleteAll(attacco.getModificatori());
+                itemRepository.delete(attacco);
+            }
+        }
+
+        for (UpdateItemRequest.AttaccoRowDTO r : rows) {
+            if (r.getNome() == null || r.getNome().trim().isEmpty()) continue;
+
+            if (r.getId() != null) {
+                // aggiorna attacco esistente
+                Item attacco = esistentiById.get(r.getId());
+                if (attacco == null) continue; // id non figlio di questo item: ignora
+                attacco.setNome(r.getNome().trim());
+                putSingleLabel(attacco, Constants.ITEM_LABEL_ATTACCO_TIRO_PER_COLPIRE, r.getTpc());
+                putSingleLabel(attacco, Constants.ITEM_LABEL_ATTACCO_DANNI, r.getTpd());
+                putSingleLabel(attacco, Constants.ITEM_LABEL_ATTACCO_TIPO_DANNI, r.getTipoDanni());
+                itemRepository.save(attacco);
+            } else {
+                // crea nuovo attacco + collegamento
+                Item attacco = new Item();
+                attacco.setNome(r.getNome().trim());
+                attacco.setTipo(TipoItem.ATTACCO);
+                attacco.setLabels(new ArrayList<>());
+                addLabelRow(attacco, Constants.ITEM_LABEL_ATTACCO_TIRO_PER_COLPIRE, r.getTpc());
+                addLabelRow(attacco, Constants.ITEM_LABEL_ATTACCO_DANNI, r.getTpd());
+                addLabelRow(attacco, Constants.ITEM_LABEL_ATTACCO_TIPO_DANNI, r.getTipoDanni());
+                Item savedAttacco = itemRepository.save(attacco);
+
+                Collegamento link = new Collegamento();
+                link.setItemSource(itm);
+                link.setItemTarget(savedAttacco);
+                collegamentoRepository.save(link);
+            }
+        }
+    }
+
+    /**
+     * Allinea gli item collegati come child (esclusi gli ATTACCO) allo stato
+     * richiesto: crea i collegamenti mancanti, elimina quelli non più presenti
+     * (solo il collegamento, mai l'item target). Null = non toccare.
+     */
+    private void applyChildren(Item itm, List<Integer> childItemIds) {
+        if (childItemIds == null) return;
+
+        Set<Integer> desiderati = new HashSet<>(childItemIds);
+
+        List<Collegamento> linkAltri = (itm.getChild() != null ? itm.getChild() : List.<Collegamento>of()).stream()
+                .filter(c -> !TipoItem.ATTACCO.equals(c.getItemTarget().getTipo()))
+                .toList();
+
+        List<Collegamento> daEliminare = linkAltri.stream()
+                .filter(c -> !desiderati.contains(c.getItemTarget().getId()))
+                .toList();
+        collegamentoRepository.deleteAll(daEliminare);
+
+        Set<Integer> giaPresenti = linkAltri.stream()
+                .map(c -> c.getItemTarget().getId())
+                .collect(Collectors.toSet());
+
+        for (Integer targetId : desiderati) {
+            if (giaPresenti.contains(targetId)) continue;
+            if (Objects.equals(targetId, itm.getId())) continue; // no self-link
+            Item target = itemRepository.findById(targetId)
+                    .orElseThrow(() -> new RuntimeException("Item da collegare non trovato: " + targetId));
+            Collegamento link = new Collegamento();
+            link.setItemSource(itm);
+            link.setItemTarget(target);
+            collegamentoRepository.save(link);
+        }
     }
 
     /**

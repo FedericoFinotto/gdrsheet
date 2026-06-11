@@ -121,3 +121,7 @@ export function createItem(payload: UpdateItemRequest): Promise<AxiosResponse<It
 export function updateItem(id: number, payload: UpdateItemRequest): Promise<AxiosResponse<ItemDB>> {
     return api.post<ItemDB>(`/item/edit/${id}`, payload);
 }
+
+export function searchItems(q: string, tipo?: string): Promise<AxiosResponse<Item[]>> {
+    return api.get<Item[]>('/item/search', {params: {q, tipo}});
+}
