@@ -1,16 +1,125 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import {getParty} from '../service/PartyService'
+import {useAuthStore} from '../stores/auth'
+import {
+  addMembro,
+  createPersonaggio,
+  deleteParty,
+  getMembri,
+  getParty,
+  MembroParty,
+  TIPI_PERSONAGGIO
+} from '../service/PartyService'
 import {formatKg, formatPesoTotale, PartyDetail, PersonaggioSoldi} from '../models/dto/Party'
 import SoldiView from '../components/SoldiView.vue'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 
 const party = ref<PartyDetail | null>(null)
 const loading = ref(true)
 const errorMsg = ref<string | null>(null)
+
+// membri del party (utenti) — usati sia per la gestione sia per il proprietario del PG
+const membri = ref<MembroParty[]>([])
+
+async function caricaMembri() {
+  if (membri.value.length || !party.value) return
+  try {
+    membri.value = (await getMembri(party.value.id)).data
+  } catch (e) {
+    console.error('Errore caricamento membri:', e)
+  }
+}
+
+// creazione personaggio
+const showCreaPg = ref(false)
+const nuovoNome = ref('')
+const nuovoTipo = ref('PG')
+const nuovoProprietario = ref<number | null>(null)
+const busyPg = ref(false)
+const tipiPg = TIPI_PERSONAGGIO
+
+async function apriCreaPg() {
+  showCreaPg.value = !showCreaPg.value
+  if (showCreaPg.value) {
+    nuovoProprietario.value = auth.utente?.id ?? null
+    await caricaMembri()
+  }
+}
+
+async function caricaParty() {
+  const id = Number(route.params.id)
+  const res = await getParty(id)
+  party.value = res.data
+}
+
+async function onCreaPg() {
+  if (!nuovoNome.value.trim() || busyPg.value || !party.value) return
+  busyPg.value = true
+  try {
+    const proprietario = nuovoTipo.value === 'PG' ? (nuovoProprietario.value ?? undefined) : undefined
+    await createPersonaggio(party.value.id, nuovoNome.value.trim(), nuovoTipo.value, proprietario)
+    nuovoNome.value = ''
+    nuovoTipo.value = 'PG'
+    showCreaPg.value = false
+    await caricaParty()
+  } catch (e) {
+    console.error('Errore creazione personaggio:', e)
+    errorMsg.value = 'Errore nella creazione del personaggio'
+  } finally {
+    busyPg.value = false
+  }
+}
+
+const isMaster = computed(() => party.value?.ruolo === 'MASTER')
+const partyVuoto = computed(() => (party.value?.personaggi.length ?? 0) === 0)
+
+// gestione membri
+const showGestione = ref(false)
+const nuovoUsername = ref('')
+const nuovoRuolo = ref('GIOCATORE')
+const busyMembro = ref(false)
+
+async function apriGestione() {
+  showGestione.value = !showGestione.value
+  if (showGestione.value) await caricaMembri()
+}
+
+async function onAddMembro() {
+  if (!nuovoUsername.value.trim() || busyMembro.value || !party.value) return
+  busyMembro.value = true
+  try {
+    const res = await addMembro(party.value.id, nuovoUsername.value.trim(), nuovoRuolo.value)
+    membri.value.push(res.data)
+    nuovoUsername.value = ''
+  } catch (e: any) {
+    console.error('Errore aggiunta membro:', e)
+    errorMsg.value = e?.response?.status === 404
+        ? 'Utente non trovato'
+        : e?.response?.status === 409
+            ? 'L\'utente fa già parte del party'
+            : 'Errore nell\'associazione dell\'utente'
+  } finally {
+    busyMembro.value = false
+  }
+}
+
+async function onEliminaParty() {
+  if (!party.value || !partyVuoto.value) return
+  if (!window.confirm(`Eliminare il party "${party.value.nome}"?`)) return
+  try {
+    await deleteParty(party.value.id)
+    router.replace('/')
+  } catch (e: any) {
+    console.error('Errore eliminazione party:', e)
+    errorMsg.value = e?.response?.status === 409
+        ? 'Il party non è vuoto'
+        : 'Errore nell\'eliminazione del party'
+  }
+}
 
 onMounted(async () => {
   const id = Number(route.params.id)
@@ -20,8 +129,7 @@ onMounted(async () => {
     return
   }
   try {
-    const res = await getParty(id)
-    party.value = res.data
+    await caricaParty()
   } catch (e: any) {
     errorMsg.value = e?.response?.status === 403
         ? 'Non fai parte di questo party'
@@ -83,12 +191,45 @@ const GRUPPI = computed(() => [
       </div>
       <button v-if="party" class="btn" @click="router.push(`/party/${party.id}/items`)">Item</button>
       <button v-if="party" class="btn" @click="router.push(`/party/${party.id}/banche`)">Banche</button>
+      <button v-if="isMaster" class="btn" @click="apriGestione">Gestione</button>
     </header>
 
     <div v-if="loading" class="state">Caricamento…</div>
     <div v-else-if="errorMsg" class="state error">{{ errorMsg }}</div>
 
     <template v-else-if="party">
+      <!-- Gestione party (solo master) -->
+      <section v-if="isMaster && showGestione" class="block gestione">
+        <h2>Gestione party</h2>
+
+        <div class="membri">
+          <div v-for="m in membri" :key="m.utenteId" class="membro">
+            <span class="nome">{{ m.name || m.username }}</span>
+            <span class="muted">@{{ m.username }}</span>
+            <span class="pill" :class="m.ruolo === 'MASTER' ? 'master' : 'giocatore'">
+              {{ m.ruolo === 'MASTER' ? 'Master' : 'Giocatore' }}
+            </span>
+          </div>
+        </div>
+
+        <div class="crea-form">
+          <input v-model="nuovoUsername" type="text" placeholder="Username utente"/>
+          <select v-model="nuovoRuolo">
+            <option value="GIOCATORE">Giocatore</option>
+            <option value="MASTER">Master</option>
+          </select>
+          <button class="btn primary" :disabled="busyMembro || !nuovoUsername.trim()" @click="onAddMembro">
+            {{ busyMembro ? 'Associazione…' : 'Associa utente' }}
+          </button>
+        </div>
+
+        <button class="btn danger" :disabled="!partyVuoto" :title="partyVuoto ? '' : 'Il party non è vuoto'"
+                @click="onEliminaParty">
+          Elimina party
+        </button>
+        <p v-if="!partyVuoto" class="muted">Il party può essere eliminato solo se non ha personaggi.</p>
+      </section>
+
       <!-- Somma di tutto il party -->
       <section class="block somma">
         <h2>Soldi del party</h2>
@@ -99,6 +240,31 @@ const GRUPPI = computed(() => [
         <div class="card peso-row">
           <span class="peso-label">Peso totale</span>
           <span class="peso-val">{{ formatPesoTotale(party.pesoTotale) }}</span>
+        </div>
+      </section>
+
+      <!-- Crea personaggio -->
+      <section class="block">
+        <button class="btn-add" @click="apriCreaPg">
+          <span class="plus">+</span> Crea personaggio
+        </button>
+        <div v-if="showCreaPg" class="crea-form">
+          <input v-model="nuovoNome" type="text" placeholder="Nome"/>
+          <select v-model="nuovoTipo">
+            <option v-for="t in tipiPg" :key="t.value" :value="t.value">{{ t.label }}</option>
+          </select>
+          <label v-if="nuovoTipo === 'PG'" class="field">
+            <span class="muted">Proprietario</span>
+            <select v-model="nuovoProprietario">
+              <option v-for="m in membri" :key="m.utenteId" :value="m.utenteId">
+                {{ m.name || m.username }} (@{{ m.username }})
+              </option>
+            </select>
+          </label>
+          <button class="btn primary" :disabled="busyPg || !nuovoNome.trim() || (nuovoTipo === 'PG' && !nuovoProprietario)"
+                  @click="onCreaPg">
+            {{ busyPg ? 'Creazione…' : 'Crea' }}
+          </button>
         </div>
       </section>
 
@@ -226,4 +392,54 @@ const GRUPPI = computed(() => [
   background: #fff;
   cursor: pointer;
 }
+.btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+.btn:disabled { opacity: .6; cursor: default; }
+
+.btn-add {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .4rem .8rem;
+  border: 1px dashed #94a3b8;
+  border-radius: .5rem;
+  background: #fff;
+  color: #334155;
+  font-weight: 600;
+  font-size: .85rem;
+  cursor: pointer;
+}
+.btn-add .plus { font-weight: 800; color: #2563eb; }
+
+.crea-form {
+  display: grid;
+  gap: .4rem;
+  padding: .6rem;
+  border: 1px solid #e5e7eb;
+  border-radius: .6rem;
+  background: #fff;
+  margin-top: .5rem;
+}
+.crea-form input, .crea-form select {
+  padding: .45rem .6rem;
+  border: 1px solid #d0d5dd;
+  border-radius: .5rem;
+}
+.crea-form .field { display: grid; gap: .25rem; }
+.crea-form .field .muted { font-size: .75rem; }
+
+.gestione { gap: .6rem; }
+.btn.danger { justify-self: start; background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+
+.membri { display: grid; gap: .35rem; }
+.membro {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4rem .6rem;
+  border: 1px solid #e5e7eb;
+  border-radius: .5rem;
+  background: #fff;
+}
+.membro .nome { font-weight: 600; }
 </style>

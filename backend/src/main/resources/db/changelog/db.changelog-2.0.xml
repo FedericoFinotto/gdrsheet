@@ -155,6 +155,46 @@
         <sql>SELECT setval(pg_get_serial_sequence('stat_value', 'id'), COALESCE((SELECT max(id) FROM stat_value), 0) + 1, false)</sql>
     </changeSet>
 
+    <!-- permessi_personaggi.tipo legacy: sostituita da permesso, va resa nullable -->
+
+    <changeSet id="113" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <columnExists tableName="permessi_personaggi" columnName="tipo"/>
+                <sqlCheck expectedResult="0">
+                    SELECT count(*) FROM information_schema.columns
+                    WHERE table_name = 'permessi_personaggi' AND column_name = 'tipo' AND is_nullable = 'YES'
+                </sqlCheck>
+            </and>
+        </preConditions>
+        <comment>permessi_personaggi.tipo (legacy) reso nullable</comment>
+        <dropNotNullConstraint tableName="permessi_personaggi" columnName="tipo" columnDataType="varchar"/>
+    </changeSet>
+
+    <!-- personaggio.id autoincrement (per la creazione di personaggi dall'app) -->
+
+    <changeSet id="111" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM information_schema.columns
+                WHERE table_name = 'personaggio' AND column_name = 'id'
+                  AND (column_default IS NOT NULL OR is_identity = 'YES')
+            </sqlCheck>
+        </preConditions>
+        <comment>personaggio.id autoincrement</comment>
+        <addAutoIncrement tableName="personaggio" columnName="id" columnDataType="integer"/>
+    </changeSet>
+
+    <changeSet id="112" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT CASE WHEN pg_get_serial_sequence('personaggio', 'id') IS NULL THEN 0 ELSE 1 END
+            </sqlCheck>
+        </preConditions>
+        <comment>allinea la sequence di personaggio.id al massimo attuale</comment>
+        <sql>SELECT setval(pg_get_serial_sequence('personaggio', 'id'), COALESCE((SELECT max(id) FROM personaggio), 0) + 1, false)</sql>
+    </changeSet>
+
     <!-- Soldi: stats MR/MA/MO/MP (i valori vivono come modificatori sugli item dei personaggi) -->
 
     <changeSet id="110" author="developer">

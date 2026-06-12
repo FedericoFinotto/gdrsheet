@@ -149,6 +149,7 @@ async function onSaved() {
             v-if="EditorComp"
             :is="EditorComp"
             :item="item"
+            :id-personaggio="idPersonaggio"
             @cancel="goBack"
             @saved="onSaved"
         />

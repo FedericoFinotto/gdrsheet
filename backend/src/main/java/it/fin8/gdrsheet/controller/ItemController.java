@@ -11,11 +11,14 @@ import it.fin8.gdrsheet.dto.UpdatePreparedRequest;
 import it.fin8.gdrsheet.dto.UpdateSpellRequest;
 import it.fin8.gdrsheet.dto.UpdateSpellUsageRequest;
 import it.fin8.gdrsheet.entity.Item;
+import it.fin8.gdrsheet.entity.Utente;
 import it.fin8.gdrsheet.mapper.ItemMapper;
 import it.fin8.gdrsheet.repository.ItemRepository;
+import it.fin8.gdrsheet.service.AuthzService;
 import it.fin8.gdrsheet.service.ItemService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,11 +30,13 @@ public class ItemController {
     private final ItemRepository repo;
     private final ItemService itemService;
     private final ItemMapper itemMapper;
+    private final AuthzService authzService;
 
-    public ItemController(ItemRepository repo, ItemService itemService, ItemMapper itemMapper) {
+    public ItemController(ItemRepository repo, ItemService itemService, ItemMapper itemMapper, AuthzService authzService) {
         this.repo = repo;
         this.itemService = itemService;
         this.itemMapper = itemMapper;
+        this.authzService = authzService;
     }
 
     @Operation(
@@ -141,7 +146,10 @@ public class ItemController {
             description = "Crea un nuovo item generico con labels e modificatori"
     )
     @PostMapping("/create")
-    public ResponseEntity<Item> createItem(@Valid @RequestBody UpdateItemRequest dto) {
+    public ResponseEntity<Item> createItem(@Valid @RequestBody UpdateItemRequest dto,
+                                           @AuthenticationPrincipal Utente utente) {
+        if (dto.getIdPersonaggio() != null)
+            authzService.assertCanEditPersonaggio(utente, dto.getIdPersonaggio());
         return ResponseEntity.ok(itemService.createItem(dto));
     }
 
@@ -151,7 +159,11 @@ public class ItemController {
     )
     @PostMapping("/edit/{id}")
     public ResponseEntity<Item> updateItem(@PathVariable Integer id,
-                                           @Valid @RequestBody UpdateItemRequest dto) {
+                                           @Valid @RequestBody UpdateItemRequest dto,
+                                           @RequestParam(required = false) Integer idPersonaggio,
+                                           @AuthenticationPrincipal Utente utente) {
+        if (idPersonaggio != null)
+            authzService.assertCanEditPersonaggio(utente, idPersonaggio);
         return ResponseEntity.ok(itemService.updateItem(id, dto));
     }
 
@@ -164,8 +176,11 @@ public class ItemController {
             @Parameter(description = "Id Item", required = true)
             @PathVariable Integer id,
             @Parameter(description = "Id Personaggio (contesto di scollegamento)")
-            @RequestParam(required = false) Integer idPersonaggio
+            @RequestParam(required = false) Integer idPersonaggio,
+            @AuthenticationPrincipal Utente utente
     ) {
+        if (idPersonaggio != null)
+            authzService.assertCanEditPersonaggio(utente, idPersonaggio);
         itemService.deleteItem(id, idPersonaggio);
         return ResponseEntity.noContent().build();
     }
@@ -179,8 +194,10 @@ public class ItemController {
             @Parameter(description = "Id Item", required = true)
             @PathVariable Integer id,
             @Parameter(description = "Id Personaggio", required = true)
-            @RequestParam Integer idPersonaggio
+            @RequestParam Integer idPersonaggio,
+            @AuthenticationPrincipal Utente utente
     ) {
+        authzService.assertCanEditPersonaggio(utente, idPersonaggio);
         itemService.unlinkItem(id, idPersonaggio);
         return ResponseEntity.noContent().build();
     }
@@ -191,7 +208,10 @@ public class ItemController {
     )
     @PostMapping("/editlivello/{id}")
     public ResponseEntity<Item> updateLivello(@PathVariable Integer id,
-                                              @Valid @RequestBody UpdateLivelloRequest dto) {
+                                              @Valid @RequestBody UpdateLivelloRequest dto,
+                                              @AuthenticationPrincipal Utente utente) {
+        if (dto.getPersonaggioId() != null)
+            authzService.assertCanEditPersonaggio(utente, dto.getPersonaggioId());
         return ResponseEntity.ok(itemService.updateLivello(id, dto));
     }
 

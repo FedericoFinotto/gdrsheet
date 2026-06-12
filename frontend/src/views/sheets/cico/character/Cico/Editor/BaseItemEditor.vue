@@ -156,10 +156,12 @@ async function doSave(): Promise<boolean> {
   try {
     const payload = buildPayload()
     if (props.mode === 'create') await createItem(payload)
-    else await updateItem(props.item.id, payload)
+    else await updateItem(props.item.id, payload, props.idPersonaggio)
     return true
   } catch (e: any) {
-    errorMsg.value = e?.message ?? 'Errore nel salvataggio'
+    errorMsg.value = e?.response?.status === 403
+        ? 'Non hai i permessi per modificare questo personaggio'
+        : (e?.message ?? 'Errore nel salvataggio')
     return false
   } finally {
     busy.value = false

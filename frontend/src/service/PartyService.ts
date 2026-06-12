@@ -32,3 +32,49 @@ export function updateConto(itemId: number, soldi: Soldi): Promise<AxiosResponse
 export function getBancaDetail(bancaId: number): Promise<AxiosResponse<BancaDetail>> {
     return api.get<BancaDetail>(`/party/banca/${bancaId}/dettaglio`)
 }
+
+export interface Mondo {
+    id: number;
+    nome: string;
+}
+
+export function getMieiMondi(): Promise<AxiosResponse<Mondo[]>> {
+    return api.get<Mondo[]>('/party/mondi')
+}
+
+export function createParty(nome: string, mondoId: number): Promise<AxiosResponse<number>> {
+    return api.post<number>('/party', {nome, mondoId})
+}
+
+export const TIPI_PERSONAGGIO = [
+    {value: 'PG', label: 'Personaggio (PG)'},
+    {value: 'NPC', label: 'NPC'},
+    {value: 'BARCA', label: 'Barca'},
+    {value: 'BANCA', label: 'Banca'},
+    {value: 'STELLA', label: 'Stella'},
+] as const
+
+export function createPersonaggio(
+    partyId: number, nome: string, tipo: string, proprietarioUtenteId?: number
+): Promise<AxiosResponse<number>> {
+    return api.post<number>('/party/personaggio', {partyId, nome, tipo, proprietarioUtenteId})
+}
+
+export function deleteParty(partyId: number): Promise<AxiosResponse<void>> {
+    return api.delete<void>(`/party/${partyId}`)
+}
+
+export interface MembroParty {
+    utenteId: number;
+    username: string;
+    name: string;
+    ruolo: 'MASTER' | 'GIOCATORE';
+}
+
+export function getMembri(partyId: number): Promise<AxiosResponse<MembroParty[]>> {
+    return api.get<MembroParty[]>(`/party/${partyId}/membri`)
+}
+
+export function addMembro(partyId: number, username: string, ruolo: string): Promise<AxiosResponse<MembroParty>> {
+    return api.post<MembroParty>(`/party/${partyId}/membro`, {username, ruolo})
+}

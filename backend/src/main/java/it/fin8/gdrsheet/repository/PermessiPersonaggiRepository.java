@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface PermessiPersonaggiRepository extends JpaRepository<PermessiPersonaggi, Integer> {
     List<PermessiPersonaggi> findAllByIdUtente_Id(Integer idUtente);
+
+    List<PermessiPersonaggi> findAllByIdPersonaggio_Id(Integer idPersonaggio);
 }

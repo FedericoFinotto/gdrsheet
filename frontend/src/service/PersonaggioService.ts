@@ -120,8 +120,8 @@ export function createItem(payload: UpdateItemRequest): Promise<AxiosResponse<It
     return api.post<ItemDB>('/item/create', payload);
 }
 
-export function updateItem(id: number, payload: UpdateItemRequest): Promise<AxiosResponse<ItemDB>> {
-    return api.post<ItemDB>(`/item/edit/${id}`, payload);
+export function updateItem(id: number, payload: UpdateItemRequest, idPersonaggio?: number): Promise<AxiosResponse<ItemDB>> {
+    return api.post<ItemDB>(`/item/edit/${id}`, payload, {params: {idPersonaggio}});
 }
 
 export function deleteItem(id: number, idPersonaggio?: number): Promise<AxiosResponse<void>> {

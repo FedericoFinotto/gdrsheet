@@ -6,8 +6,11 @@ import it.fin8.gdrsheet.dto.LoginResponse;
 import it.fin8.gdrsheet.entity.PermessiParty;
 import it.fin8.gdrsheet.entity.PermessiPersonaggi;
 import it.fin8.gdrsheet.entity.Utente;
+import it.fin8.gdrsheet.def.TipoPermessoPersonaggio;
+import it.fin8.gdrsheet.repository.PartyRepository;
 import it.fin8.gdrsheet.repository.PermessiPartyRepository;
 import it.fin8.gdrsheet.repository.PermessiPersonaggiRepository;
+import it.fin8.gdrsheet.repository.PersonaggioRepository;
 import it.fin8.gdrsheet.repository.UtenteRepository;
 import it.fin8.gdrsheet.security.JwtService;
 import jakarta.transaction.Transactional;
@@ -25,17 +28,26 @@ public class AuthService {
     private final UtenteRepository utenteRepository;
     private final PermessiPartyRepository permessiPartyRepository;
     private final PermessiPersonaggiRepository permessiPersonaggiRepository;
+    private final PartyRepository partyRepository;
+    private final PersonaggioRepository personaggioRepository;
+    private final AuthzService authzService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
     public AuthService(UtenteRepository utenteRepository,
                        PermessiPartyRepository permessiPartyRepository,
                        PermessiPersonaggiRepository permessiPersonaggiRepository,
+                       PartyRepository partyRepository,
+                       PersonaggioRepository personaggioRepository,
+                       AuthzService authzService,
                        PasswordEncoder passwordEncoder,
                        JwtService jwtService) {
         this.utenteRepository = utenteRepository;
         this.permessiPartyRepository = permessiPartyRepository;
         this.permessiPersonaggiRepository = permessiPersonaggiRepository;
+        this.partyRepository = partyRepository;
+        this.personaggioRepository = personaggioRepository;
+        this.authzService = authzService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
     }
@@ -74,6 +86,25 @@ public class AuthService {
     }
 
     public HomeDTO getHome(Utente utente) {
+        // ADMIN/SUPERUSER: vede tutti i party e tutti i personaggi
+        if (authzService.isAdmin(utente)) {
+            List<HomeDTO.PartyHomeDTO> parties = partyRepository.findAll().stream()
+                    .map(p -> new HomeDTO.PartyHomeDTO(p.getId(), p.getNome(), "MASTER"))
+                    .sorted(Comparator.comparing(HomeDTO.PartyHomeDTO::getNome, String.CASE_INSENSITIVE_ORDER))
+                    .toList();
+            List<HomeDTO.PersonaggioHomeDTO> personaggi = personaggioRepository.findAll().stream()
+                    .map(pg -> new HomeDTO.PersonaggioHomeDTO(
+                            pg.getId(),
+                            pg.getNome(),
+                            TipoPermessoPersonaggio.PROPRIETARIO.name(),
+                            pg.getParty() != null ? pg.getParty().getId() : null,
+                            pg.getParty() != null ? pg.getParty().getNome() : null,
+                            PartyService.tipoPersonaggio(pg)))
+                    .sorted(Comparator.comparing(HomeDTO.PersonaggioHomeDTO::getNome, String.CASE_INSENSITIVE_ORDER))
+                    .toList();
+            return new HomeDTO(toUtenteDTO(utente), parties, personaggi);
+        }
+
         List<HomeDTO.PartyHomeDTO> parties = permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
                 .map(this::toPartyDTO)
                 .sorted(Comparator.comparing(HomeDTO.PartyHomeDTO::getNome, String.CASE_INSENSITIVE_ORDER))

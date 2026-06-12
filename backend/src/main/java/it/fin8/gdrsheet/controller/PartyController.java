@@ -4,7 +4,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import it.fin8.gdrsheet.dto.BancaDTO;
 import it.fin8.gdrsheet.dto.BancaDetailDTO;
+import it.fin8.gdrsheet.dto.CreatePartyRequest;
+import it.fin8.gdrsheet.dto.CreatePersonaggioRequest;
 import it.fin8.gdrsheet.dto.GiveItemRequest;
+import it.fin8.gdrsheet.dto.AddMembroRequest;
+import it.fin8.gdrsheet.dto.MembroPartyDTO;
+import it.fin8.gdrsheet.dto.MondoDTO;
 import it.fin8.gdrsheet.dto.PageDTO;
 import it.fin8.gdrsheet.dto.PartyDetailDTO;
 import it.fin8.gdrsheet.dto.PartyItemDTO;
@@ -25,6 +30,80 @@ public class PartyController {
 
     public PartyController(PartyService partyService) {
         this.partyService = partyService;
+    }
+
+    @Operation(
+            summary = "Mondi del master",
+            description = "I mondi a cui l'utente ha accesso (dai suoi party), per creare nuovi party"
+    )
+    @GetMapping("/mondi")
+    public ResponseEntity<List<MondoDTO>> getMieiMondi(@AuthenticationPrincipal Utente utente) {
+        return ResponseEntity.ok(partyService.getMieiMondi(utente));
+    }
+
+    @Operation(
+            summary = "Crea un party",
+            description = "Crea un party nel mondo indicato e rende l'utente MASTER"
+    )
+    @PostMapping
+    public ResponseEntity<Integer> createParty(
+            @Valid @RequestBody CreatePartyRequest request,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(partyService.createParty(request, utente));
+    }
+
+    @Operation(
+            summary = "Crea un personaggio",
+            description = "Crea un personaggio in un party con il tipo indicato (PG/NPC/BARCA/BANCA/STELLA)"
+    )
+    @PostMapping("/personaggio")
+    public ResponseEntity<Integer> createPersonaggio(
+            @Valid @RequestBody CreatePersonaggioRequest request,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(partyService.createPersonaggio(request, utente));
+    }
+
+    @Operation(
+            summary = "Elimina un party",
+            description = "Solo il master del party e solo se non ha personaggi associati"
+    )
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteParty(
+            @Parameter(description = "Id Party", required = true)
+            @PathVariable Integer id,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        partyService.deleteParty(id, utente);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Membri del party",
+            description = "Utenti associati al party con il loro ruolo"
+    )
+    @GetMapping("/{id}/membri")
+    public ResponseEntity<List<MembroPartyDTO>> getMembri(
+            @Parameter(description = "Id Party", required = true)
+            @PathVariable Integer id,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(partyService.getMembri(id, utente));
+    }
+
+    @Operation(
+            summary = "Associa un utente al party",
+            description = "Solo il master. Ruolo MASTER o GIOCATORE"
+    )
+    @PostMapping("/{id}/membro")
+    public ResponseEntity<MembroPartyDTO> addMembro(
+            @Parameter(description = "Id Party", required = true)
+            @PathVariable Integer id,
+            @Valid @RequestBody AddMembroRequest request,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(partyService.addMembro(id, request, utente));
     }
 
     @Operation(

@@ -4,6 +4,7 @@ import {useRouter} from 'vue-router'
 import {useAuthStore} from '../stores/auth'
 import {getHome} from '../service/AuthService'
 import {Home} from '../models/dto/Auth'
+import {createParty, getMieiMondi, Mondo} from '../service/PartyService'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -11,6 +12,44 @@ const auth = useAuthStore()
 const home = ref<Home | null>(null)
 const loading = ref(true)
 const errorMsg = ref<string | null>(null)
+
+// creazione party
+const mondi = ref<Mondo[]>([])
+const showCreaParty = ref(false)
+const nuovoPartyNome = ref('')
+const nuovoPartyMondo = ref<number | null>(null)
+const busyParty = ref(false)
+
+async function apriCreaParty() {
+  showCreaParty.value = !showCreaParty.value
+  if (showCreaParty.value && !mondi.value.length) {
+    try {
+      mondi.value = (await getMieiMondi()).data
+      if (mondi.value.length === 1) nuovoPartyMondo.value = mondi.value[0].id
+    } catch (e) {
+      console.error('Errore caricamento mondi:', e)
+    }
+  }
+}
+
+async function onCreaParty() {
+  if (!nuovoPartyNome.value.trim() || !nuovoPartyMondo.value || busyParty.value) return
+  busyParty.value = true
+  try {
+    const res = await createParty(nuovoPartyNome.value.trim(), nuovoPartyMondo.value)
+    router.push(`/party/${res.data}`)
+  } catch (e) {
+    console.error('Errore creazione party:', e)
+    errorMsg.value = 'Errore nella creazione del party'
+  } finally {
+    busyParty.value = false
+  }
+}
+
+const canCreateParty = computed(() => {
+  const r = (auth.utente?.ruolo ?? '').toUpperCase()
+  return r === 'MASTER' || r === 'ADMIN'
+})
 
 const personaggiProprietario = computed(() =>
     home.value?.personaggi.filter(p => p.permesso === 'PROPRIETARIO') ?? [])
@@ -60,6 +99,25 @@ function onLogout() {
     <div v-else-if="errorMsg" class="state error">{{ errorMsg }}</div>
 
     <template v-else-if="home">
+      <!-- Crea party -->
+      <section v-if="canCreateParty" class="block">
+        <button class="btn-add" @click="apriCreaParty">
+          <span class="plus">+</span> Crea party
+        </button>
+        <div v-if="showCreaParty" class="crea-form">
+          <input v-model="nuovoPartyNome" type="text" placeholder="Nome del party"/>
+          <select v-model="nuovoPartyMondo">
+            <option :value="null" disabled>Mondo…</option>
+            <option v-for="m in mondi" :key="m.id" :value="m.id">{{ m.nome }}</option>
+          </select>
+          <button class="btn primary" :disabled="busyParty || !nuovoPartyNome.trim() || !nuovoPartyMondo"
+                  @click="onCreaParty">
+            {{ busyParty ? 'Creazione…' : 'Crea' }}
+          </button>
+          <p v-if="!mondi.length" class="muted">Nessun mondo disponibile.</p>
+        </div>
+      </section>
+
       <!-- Party -->
       <section v-if="home.parties.length" class="block">
         <h2>I tuoi party</h2>
@@ -186,5 +244,37 @@ function onLogout() {
   border: 1px solid #d0d5dd;
   background: #fff;
   cursor: pointer;
+}
+.btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+.btn:disabled { opacity: .6; cursor: default; }
+
+.btn-add {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .4rem .8rem;
+  border: 1px dashed #94a3b8;
+  border-radius: .5rem;
+  background: #fff;
+  color: #334155;
+  font-weight: 600;
+  font-size: .85rem;
+  cursor: pointer;
+}
+.btn-add .plus { font-weight: 800; color: #2563eb; }
+
+.crea-form {
+  display: grid;
+  gap: .4rem;
+  padding: .6rem;
+  border: 1px solid #e5e7eb;
+  border-radius: .6rem;
+  background: #fff;
+}
+.crea-form input, .crea-form select {
+  padding: .45rem .6rem;
+  border: 1px solid #d0d5dd;
+  border-radius: .5rem;
 }
 </style>

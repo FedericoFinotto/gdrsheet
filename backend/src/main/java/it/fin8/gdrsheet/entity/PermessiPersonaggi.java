@@ -33,4 +33,15 @@ public class PermessiPersonaggi {
     @Column(name = "permesso", nullable = false, length = 20)
     private TipoPermessoPersonaggio permesso = TipoPermessoPersonaggio.PROPRIETARIO;
 
+    /**
+     * Colonna legacy: per ora tenuta allineata a {@link #permesso}.
+     */
+    @Column(name = "tipo")
+    private String tipo = TipoPermessoPersonaggio.PROPRIETARIO.name();
+
+    public void setPermesso(TipoPermessoPersonaggio permesso) {
+        this.permesso = permesso;
+        this.tipo = permesso != null ? permesso.name() : null;
+    }
+
 }

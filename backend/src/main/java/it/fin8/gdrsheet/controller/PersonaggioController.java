@@ -7,6 +7,9 @@ import it.fin8.gdrsheet.dto.*;
 import it.fin8.gdrsheet.entity.Personaggio;
 import it.fin8.gdrsheet.mapper.ItemMapper;
 import it.fin8.gdrsheet.repository.PersonaggioRepository;
+import it.fin8.gdrsheet.entity.Utente;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import it.fin8.gdrsheet.service.AuthzService;
 import it.fin8.gdrsheet.service.ItemService;
 import it.fin8.gdrsheet.service.ModificatoriService;
 import it.fin8.gdrsheet.service.PartyService;
@@ -31,13 +34,15 @@ public class PersonaggioController {
     private final ModificatoriService modificatoriService;
     private final PartyService partyService;
     private final ItemService itemService;
+    private final AuthzService authzService;
 
-    public PersonaggioController(PersonaggioRepository repo, PersonaggioService personaggioService, ItemMapper itemMapper, ModificatoriService modificatoriService, PartyService partyService, ItemService itemService) {
+    public PersonaggioController(PersonaggioRepository repo, PersonaggioService personaggioService, ItemMapper itemMapper, ModificatoriService modificatoriService, PartyService partyService, ItemService itemService, AuthzService authzService) {
         this.repo = repo;
         this.personaggioService = personaggioService;
         this.itemMapper = itemMapper;
         this.modificatoriService = modificatoriService;
         this.partyService = partyService;
+        this.authzService = authzService;
         this.itemService = itemService;
     }
 
@@ -159,8 +164,10 @@ public class PersonaggioController {
     public ResponseEntity<PartyDetailDTO.SoldiDTO> updateSoldi(
             @Parameter(description = "ID Personaggio", required = true)
             @PathVariable Integer id,
-            @Valid @RequestBody PartyDetailDTO.SoldiDTO soldi
+            @Valid @RequestBody PartyDetailDTO.SoldiDTO soldi,
+            @AuthenticationPrincipal Utente utente
     ) {
+        authzService.assertCanEditPersonaggio(utente, id);
         return ResponseEntity.ok(partyService.updateSoldi(id, soldi));
     }
 

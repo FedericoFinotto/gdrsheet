@@ -4,13 +4,20 @@ import it.fin8.gdrsheet.config.Constants;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoModificatore;
 import it.fin8.gdrsheet.def.TipoPermessoPersonaggio;
+import it.fin8.gdrsheet.def.TipoRuoloParty;
+import it.fin8.gdrsheet.dto.AddMembroRequest;
 import it.fin8.gdrsheet.dto.BancaDTO;
 import it.fin8.gdrsheet.dto.BancaDetailDTO;
+import it.fin8.gdrsheet.dto.MembroPartyDTO;
+import it.fin8.gdrsheet.dto.CreatePartyRequest;
+import it.fin8.gdrsheet.dto.CreatePersonaggioRequest;
 import it.fin8.gdrsheet.dto.GiveItemRequest;
+import it.fin8.gdrsheet.dto.MondoDTO;
 import it.fin8.gdrsheet.dto.PageDTO;
 import it.fin8.gdrsheet.dto.PartyDetailDTO;
 import it.fin8.gdrsheet.dto.PartyItemDTO;
 import it.fin8.gdrsheet.entity.*;
+import it.fin8.gdrsheet.repository.MondoRepository;
 import it.fin8.gdrsheet.repository.*;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
@@ -40,6 +47,9 @@ public class PartyService {
     private final CollegamentoRepository collegamentoRepository;
     private final ItemService itemService;
     private final PartyRepository partyRepository;
+    private final MondoRepository mondoRepository;
+    private final UtenteRepository utenteRepository;
+    private final AuthzService authzService;
     private final EntityManager em;
 
     public PartyService(PermessiPartyRepository permessiPartyRepository,
@@ -51,6 +61,9 @@ public class PartyService {
                         CollegamentoRepository collegamentoRepository,
                         ItemService itemService,
                         PartyRepository partyRepository,
+                        MondoRepository mondoRepository,
+                        UtenteRepository utenteRepository,
+                        AuthzService authzService,
                         EntityManager em) {
         this.permessiPartyRepository = permessiPartyRepository;
         this.permessiPersonaggiRepository = permessiPersonaggiRepository;
@@ -61,6 +74,9 @@ public class PartyService {
         this.collegamentoRepository = collegamentoRepository;
         this.itemService = itemService;
         this.partyRepository = partyRepository;
+        this.mondoRepository = mondoRepository;
+        this.utenteRepository = utenteRepository;
+        this.authzService = authzService;
         this.em = em;
     }
 
@@ -68,7 +84,16 @@ public class PartyService {
         PermessiParty permesso = permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
                 .filter(p -> Objects.equals(p.getIdParty().getId(), partyId))
                 .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Non fai parte di questo party"));
+                .orElse(null);
+        if (permesso == null && !authzService.isAdmin(utente))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Non fai parte di questo party");
+
+        Party party = permesso != null ? permesso.getIdParty()
+                : partyRepository.findById(partyId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Party non trovato"));
+        String ruoloUtente = permesso != null && permesso.getRuolo() != null
+                ? permesso.getRuolo().name()
+                : (authzService.isAdmin(utente) ? "MASTER" : null);
 
         List<Personaggio> membri = personaggioRepository.findAllByParty_IdOrderByNomeAsc(partyId);
 
@@ -116,9 +141,9 @@ public class PartyService {
         somma.add(calcolaSoldiConto(Constants.LABEL_CC_PARTY_PREFIX + partyId));
 
         return new PartyDetailDTO(
-                permesso.getIdParty().getId(),
-                permesso.getIdParty().getNome(),
-                permesso.getRuolo() != null ? permesso.getRuolo().name() : null,
+                party.getId(),
+                party.getNome(),
+                ruoloUtente,
                 personaggi,
                 somma,
                 Math.round(pesoTotale * 100) / 100.0,
@@ -216,10 +241,190 @@ public class PartyService {
         }
     }
 
+    /* =====================================================================
+     * Creazione party e personaggi
+     * ===================================================================== */
+
+    /**
+     * I mondi a cui il master ha accesso (dedotti dai suoi party).
+     */
+    public List<MondoDTO> getMieiMondi(Utente utente) {
+        if (authzService.isAdmin(utente)) {
+            return mondoRepository.findAll().stream()
+                    .map(m -> new MondoDTO(m.getId(), m.getDescrizione()))
+                    .sorted((a, b) -> String.valueOf(a.getNome()).compareToIgnoreCase(String.valueOf(b.getNome())))
+                    .toList();
+        }
+        Map<Integer, String> mondi = new LinkedHashMap<>();
+        for (PermessiParty pp : permessiPartyRepository.findAllByIdUtente_Id(utente.getId())) {
+            Party party = pp.getIdParty();
+            if (party != null && party.getMondo() != null) {
+                mondi.putIfAbsent(party.getMondo().getId(), party.getMondo().getDescrizione());
+            }
+        }
+        return mondi.entrySet().stream()
+                .map(e -> new MondoDTO(e.getKey(), e.getValue()))
+                .sorted((a, b) -> String.valueOf(a.getNome()).compareToIgnoreCase(String.valueOf(b.getNome())))
+                .toList();
+    }
+
+    /**
+     * Crea un party nel mondo indicato (che dev'essere tra i mondi del master)
+     * e rende l'utente MASTER del nuovo party.
+     */
+    @Transactional
+    public Integer createParty(CreatePartyRequest request, Utente utente) {
+        boolean accessibile = getMieiMondi(utente).stream()
+                .anyMatch(m -> Objects.equals(m.getId(), request.getMondoId()));
+        if (!accessibile)
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mondo non disponibile");
+
+        Mondo mondo = mondoRepository.findById(request.getMondoId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mondo non trovato"));
+
+        Party party = new Party();
+        party.setNome(request.getNome().trim());
+        party.setMondo(mondo);
+        Party saved = partyRepository.save(party);
+
+        PermessiParty pp = new PermessiParty();
+        pp.setIdUtente(utente);
+        pp.setIdParty(saved);
+        pp.setRuolo(TipoRuoloParty.MASTER);
+        permessiPartyRepository.save(pp);
+
+        return saved.getId();
+    }
+
+    /**
+     * Crea un personaggio in un party. Il tipo (PG/NPC/BARCA/BANCA/STELLA)
+     * diventa la label TIPO_PERSONAGGIO (PG = nessuna label). L'utente che lo
+     * crea ne diventa proprietario.
+     */
+    @Transactional
+    public Integer createPersonaggio(CreatePersonaggioRequest request, Utente utente) {
+        Party party = partyRepository.findById(request.getPartyId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Party non trovato"));
+        verificaMembership(party.getId(), utente);
+
+        String tipoLabel = tipoLabelDaTipo(request.getTipo());
+
+        Personaggio pg = new Personaggio();
+        pg.setNome(request.getNome().trim());
+        pg.setParty(party);
+        pg.setLabels(new ArrayList<>());
+        if (tipoLabel != null) {
+            PersonaggioLabel l = new PersonaggioLabel();
+            l.setPersonaggio(pg);
+            l.setLabel(LABEL_TIPO_PERSONAGGIO);
+            l.setValore(tipoLabel);
+            pg.getLabels().add(l);
+        }
+        Personaggio saved = personaggioRepository.save(pg);
+
+        // proprietario: solo per i PG. Default = chi crea; in alternativa un
+        // utente scelto, che dev'essere membro del party.
+        if (tipoLabel == null) {
+            Utente proprietario = utente;
+            if (request.getProprietarioUtenteId() != null
+                    && !Objects.equals(request.getProprietarioUtenteId(), utente.getId())) {
+                if (!permessiPartyRepository.existsByIdUtente_IdAndIdParty_Id(request.getProprietarioUtenteId(), party.getId()))
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Il proprietario dev'essere un membro del party");
+                proprietario = utenteRepository.findById(request.getProprietarioUtenteId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Utente proprietario non trovato"));
+            }
+            PermessiPersonaggi perm = new PermessiPersonaggi();
+            perm.setIdUtente(proprietario);
+            perm.setIdPersonaggio(saved);
+            perm.setPermesso(TipoPermessoPersonaggio.PROPRIETARIO);
+            permessiPersonaggiRepository.save(perm);
+        }
+
+        return saved.getId();
+    }
+
+    /**
+     * Elimina un party. Consentito solo al master del party e solo se non ha
+     * personaggi associati.
+     */
+    @Transactional
+    public void deleteParty(Integer partyId, Utente utente) {
+        Party party = partyRepository.findById(partyId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Party non trovato"));
+        verificaMaster(partyId, utente);
+
+        if (!personaggioRepository.findAllByParty_IdOrderByNomeAsc(partyId).isEmpty())
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Il party non è vuoto");
+
+        permessiPartyRepository.deleteAll(permessiPartyRepository.findAllByIdParty_Id(partyId));
+        partyRepository.delete(party);
+    }
+
+    /**
+     * Membri del party (utenti con permesso) e relativo ruolo.
+     */
+    public List<MembroPartyDTO> getMembri(Integer partyId, Utente utente) {
+        verificaMembership(partyId, utente);
+        return permessiPartyRepository.findAllByIdParty_Id(partyId).stream()
+                .map(pp -> new MembroPartyDTO(
+                        pp.getIdUtente().getId(),
+                        pp.getIdUtente().getUsername(),
+                        pp.getIdUtente().getName(),
+                        pp.getRuolo() != null ? pp.getRuolo().name() : null))
+                .sorted((a, b) -> String.valueOf(a.getUsername()).compareToIgnoreCase(String.valueOf(b.getUsername())))
+                .toList();
+    }
+
+    /**
+     * Associa un utente al party (solo il master). Ruolo MASTER o GIOCATORE.
+     */
+    @Transactional
+    public MembroPartyDTO addMembro(Integer partyId, AddMembroRequest request, Utente utente) {
+        Party party = partyRepository.findById(partyId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Party non trovato"));
+        verificaMaster(partyId, utente);
+
+        Utente target = utenteRepository.findByUsernameIgnoreCase(request.getUsername().trim())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utente non trovato"));
+
+        if (permessiPartyRepository.existsByIdUtente_IdAndIdParty_Id(target.getId(), partyId))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "L'utente fa già parte del party");
+
+        TipoRuoloParty ruolo = "MASTER".equalsIgnoreCase(request.getRuolo())
+                ? TipoRuoloParty.MASTER : TipoRuoloParty.GIOCATORE;
+
+        PermessiParty pp = new PermessiParty();
+        pp.setIdUtente(target);
+        pp.setIdParty(party);
+        pp.setRuolo(ruolo);
+        permessiPartyRepository.save(pp);
+
+        return new MembroPartyDTO(target.getId(), target.getUsername(), target.getName(), ruolo.name());
+    }
+
+    private void verificaMaster(Integer partyId, Utente utente) {
+        if (!authzService.isMasterParty(utente, partyId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo il master del party può farlo");
+    }
+
+    /**
+     * PG = personaggio normale (nessuna label); BARCA usa il valore storico NAVE.
+     */
+    private static String tipoLabelDaTipo(String tipo) {
+        String t = tipo == null ? "" : tipo.trim().toUpperCase(Locale.ROOT);
+        return switch (t) {
+            case "PG" -> null;
+            case "BARCA", "NAVE" -> "NAVE";
+            case "NPC" -> "NPC";
+            case "BANCA" -> Constants.TIPO_PERSONAGGIO_BANCA;
+            case "STELLA" -> "STELLA";
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tipo personaggio non valido: " + tipo);
+        };
+    }
+
     private void verificaMembership(Integer partyId, Utente utente) {
-        boolean membro = permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
-                .anyMatch(p -> Objects.equals(p.getIdParty().getId(), partyId));
-        if (!membro) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Non fai parte di questo party");
+        if (!authzService.isMembroParty(utente, partyId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Non fai parte di questo party");
     }
 
     /* =====================================================================
@@ -304,7 +509,8 @@ public class PartyService {
         Set<Integer> partyUtente = permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
                 .map(p -> p.getIdParty().getId())
                 .collect(Collectors.toSet());
-        boolean vistaCompleta = banca.getParty() != null && partyUtente.contains(banca.getParty().getId());
+        boolean vistaCompleta = authzService.isAdmin(utente)
+                || (banca.getParty() != null && partyUtente.contains(banca.getParty().getId()));
 
         Map<Integer, BancaDetailDTO.GruppoPartyDTO> gruppi = new LinkedHashMap<>();
         PartyDetailDTO.SoldiDTO totale = new PartyDetailDTO.SoldiDTO(0, 0, 0, 0);
@@ -448,6 +654,7 @@ public class PartyService {
     }
 
     private void verificaPermessoConto(Personaggio banca, Integer partyIntestatario, Utente utente) {
+        if (authzService.isAdmin(utente)) return;
         Set<Integer> partyUtente = permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
                 .map(p -> p.getIdParty().getId())
                 .collect(Collectors.toSet());

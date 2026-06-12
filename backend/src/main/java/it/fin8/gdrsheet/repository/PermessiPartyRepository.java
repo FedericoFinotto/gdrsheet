@@ -9,4 +9,8 @@ import java.util.List;
 @Repository
 public interface PermessiPartyRepository extends JpaRepository<PermessiParty, Integer> {
     List<PermessiParty> findAllByIdUtente_Id(Integer idUtente);
+
+    List<PermessiParty> findAllByIdParty_Id(Integer idParty);
+
+    boolean existsByIdUtente_IdAndIdParty_Id(Integer idUtente, Integer idParty);
 }
