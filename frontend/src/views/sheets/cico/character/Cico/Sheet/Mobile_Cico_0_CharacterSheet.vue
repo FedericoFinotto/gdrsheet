@@ -11,6 +11,7 @@ import Mobile_Cico_SpellBook from './Mobile_Cico_4_SpellBook.vue';
 import Mobile_Cico_Talenti from "./Mobile_Cico_5_Talenti.vue";
 import Mobile_Cico_Attacchi from "./Mobile_Cico_6_Attacchi.vue";
 import Mobile_Cico_Livelli from "./Mobile_Cico_7_Livelli.vue";
+import Mobile_Cico_Soldi from "./Mobile_Cico_8_Soldi.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -21,6 +22,7 @@ const tabs = [
   {label: 'Info', comp: Mobile_Cico_Info},
   {label: 'Abilità', comp: Mobile_Cico_Abilita},
   {label: 'Inventario', comp: Mobile_Cico_Items},
+  {label: 'Soldi', comp: Mobile_Cico_Soldi},
   {label: 'Incantesimi', comp: Mobile_Cico_SpellBook},
   {label: 'Talenti', comp: Mobile_Cico_Talenti},
   {label: 'Attacchi', comp: Mobile_Cico_Attacchi},

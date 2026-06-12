@@ -140,6 +140,18 @@ public class PersonaggioController {
     }
 
     @Operation(
+            summary = "Conti banca del personaggio",
+            description = "I conti correnti intestati al personaggio nelle varie banche"
+    )
+    @GetMapping("/{id}/conti")
+    public ResponseEntity<List<BancaDTO>> getConti(
+            @Parameter(description = "ID Personaggio", required = true)
+            @PathVariable Integer id
+    ) {
+        return ResponseEntity.ok(partyService.getContiPersonaggio(id));
+    }
+
+    @Operation(
             summary = "Aggiorna i soldi del personaggio",
             description = "Imposta i totali monete; la differenza viene scritta sull'item Borsellino (creato se mancante)"
     )

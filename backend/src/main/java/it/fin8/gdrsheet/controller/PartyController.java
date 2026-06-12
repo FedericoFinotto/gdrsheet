@@ -2,6 +2,8 @@ package it.fin8.gdrsheet.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import it.fin8.gdrsheet.dto.BancaDTO;
+import it.fin8.gdrsheet.dto.BancaDetailDTO;
 import it.fin8.gdrsheet.dto.GiveItemRequest;
 import it.fin8.gdrsheet.dto.PageDTO;
 import it.fin8.gdrsheet.dto.PartyDetailDTO;
@@ -55,6 +57,61 @@ public class PartyController {
             @AuthenticationPrincipal Utente utente
     ) {
         return ResponseEntity.ok(partyService.getPartyItems(id, utente, nome, tipo, page, size));
+    }
+
+    @Operation(
+            summary = "Banche del party",
+            description = "Personaggi TIPO_PERSONAGGIO=BANCA del party con i loro conti correnti (item con label CC)"
+    )
+    @GetMapping("/{id}/banche")
+    public ResponseEntity<List<BancaDTO>> getBanche(
+            @Parameter(description = "Id Party", required = true)
+            @PathVariable Integer id,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(partyService.getBanche(id, utente));
+    }
+
+    @Operation(
+            summary = "Dettaglio banca",
+            description = "Conti correnti della banca raggruppati per party. Vista completa per i membri del party della banca, filtrata per gli altri."
+    )
+    @GetMapping("/banca/{bancaId}/dettaglio")
+    public ResponseEntity<BancaDetailDTO> getBancaDetail(
+            @Parameter(description = "Id personaggio banca", required = true)
+            @PathVariable Integer bancaId,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(partyService.getBancaDetail(bancaId, utente));
+    }
+
+    @Operation(
+            summary = "Apre un conto in banca",
+            description = "Crea l'item conto (label CC = G<idPersonaggio> | P<idParty>) nella banca indicata"
+    )
+    @PostMapping("/banca/{bancaId}/conto")
+    public ResponseEntity<BancaDTO.ContoDTO> apriConto(
+            @Parameter(description = "Id personaggio banca", required = true)
+            @PathVariable Integer bancaId,
+            @Parameter(description = "CC: G<idPersonaggio> oppure P<idParty>", required = true)
+            @RequestParam String cc,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(partyService.apriConto(bancaId, cc, utente));
+    }
+
+    @Operation(
+            summary = "Aggiorna un conto banca",
+            description = "Imposta le monete (MR/MA/MO/MP) del conto"
+    )
+    @PostMapping("/banca/conto/{itemId}")
+    public ResponseEntity<PartyDetailDTO.SoldiDTO> updateConto(
+            @Parameter(description = "Id item conto", required = true)
+            @PathVariable Integer itemId,
+            @Valid @RequestBody PartyDetailDTO.SoldiDTO soldi,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(partyService.updateConto(itemId, soldi, utente));
     }
 
     @Operation(

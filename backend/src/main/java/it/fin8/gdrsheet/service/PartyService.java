@@ -4,6 +4,8 @@ import it.fin8.gdrsheet.config.Constants;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoModificatore;
 import it.fin8.gdrsheet.def.TipoPermessoPersonaggio;
+import it.fin8.gdrsheet.dto.BancaDTO;
+import it.fin8.gdrsheet.dto.BancaDetailDTO;
 import it.fin8.gdrsheet.dto.GiveItemRequest;
 import it.fin8.gdrsheet.dto.PageDTO;
 import it.fin8.gdrsheet.dto.PartyDetailDTO;
@@ -37,6 +39,7 @@ public class PartyService {
     private final ItemLabelRepository itemLabelRepository;
     private final CollegamentoRepository collegamentoRepository;
     private final ItemService itemService;
+    private final PartyRepository partyRepository;
     private final EntityManager em;
 
     public PartyService(PermessiPartyRepository permessiPartyRepository,
@@ -47,6 +50,7 @@ public class PartyService {
                         ItemLabelRepository itemLabelRepository,
                         CollegamentoRepository collegamentoRepository,
                         ItemService itemService,
+                        PartyRepository partyRepository,
                         EntityManager em) {
         this.permessiPartyRepository = permessiPartyRepository;
         this.permessiPersonaggiRepository = permessiPersonaggiRepository;
@@ -56,6 +60,7 @@ public class PartyService {
         this.itemLabelRepository = itemLabelRepository;
         this.collegamentoRepository = collegamentoRepository;
         this.itemService = itemService;
+        this.partyRepository = partyRepository;
         this.em = em;
     }
 
@@ -76,21 +81,39 @@ public class PartyService {
         List<PartyDetailDTO.PersonaggioSoldiDTO> personaggi = new ArrayList<>();
         PartyDetailDTO.SoldiDTO somma = new PartyDetailDTO.SoldiDTO(0, 0, 0, 0);
         double pesoTotale = 0;
+        double pesoMonete = 0;
 
         for (Personaggio pg : membri) {
-            PartyDetailDTO.SoldiDTO soldi = calcolaSoldi(pg.getId());
+            String tipoPg = tipoPersonaggio(pg);
+            // totale mostrato = soldi personali + conto banca del giocatore;
+            // per le banche invece la somma di tutti i loro conti correnti
+            PartyDetailDTO.SoldiDTO personali = calcolaSoldi(pg.getId());
+            PartyDetailDTO.SoldiDTO soldi;
+            if (Constants.TIPO_PERSONAGGIO_BANCA.equals(tipoPg)) {
+                soldi = sommaContiBanca(pg);
+            } else {
+                soldi = new PartyDetailDTO.SoldiDTO(
+                        personali.getMr(), personali.getMa(), personali.getMo(), personali.getMp());
+                soldi.add(calcolaSoldiConto(Constants.LABEL_CC_GIOCATORE_PREFIX + pg.getId()));
+            }
+
             somma.add(soldi);
+            // il peso conta solo le monete trasportate (personali)
+            pesoMonete += calcolaPesoMonete(personali);
             double peso = calcolaPeso(pg);
             pesoTotale += peso;
             personaggi.add(new PartyDetailDTO.PersonaggioSoldiDTO(
                     pg.getId(),
                     pg.getNome(),
                     soldi,
-                    tipoPersonaggio(pg),
+                    tipoPg,
                     posseduti.contains(pg.getId()),
                     peso
             ));
         }
+
+        // conto banca intestato al party
+        somma.add(calcolaSoldiConto(Constants.LABEL_CC_PARTY_PREFIX + partyId));
 
         return new PartyDetailDTO(
                 permesso.getIdParty().getId(),
@@ -99,7 +122,7 @@ public class PartyService {
                 personaggi,
                 somma,
                 Math.round(pesoTotale * 100) / 100.0,
-                Math.round(calcolaPesoMonete(somma) * 100) / 100.0
+                Math.round(pesoMonete * 100) / 100.0
         );
     }
 
@@ -199,6 +222,287 @@ public class PartyService {
         if (!membro) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Non fai parte di questo party");
     }
 
+    /* =====================================================================
+     * Banche (personaggi TIPO_PERSONAGGIO=BANCA, conti = item con label CC)
+     * ===================================================================== */
+
+    /**
+     * Le banche visibili dal party. Le banche sono condivise (vivono in un
+     * party "NPC"): per il party che le ospita si vedono tutti i conti
+     * (vista master), per gli altri party solo i conti propri (party e membri).
+     */
+    public List<BancaDTO> getBanche(Integer partyId, Utente utente) {
+        verificaMembership(partyId, utente);
+
+        Set<Integer> idMembri = personaggioRepository.findAllByParty_IdOrderByNomeAsc(partyId).stream()
+                .map(Personaggio::getId)
+                .collect(Collectors.toSet());
+
+        List<BancaDTO> result = new ArrayList<>();
+        for (Personaggio banca : personaggioRepository.findAllBanche()) {
+            boolean home = banca.getParty() != null && Objects.equals(banca.getParty().getId(), partyId);
+
+            List<BancaDTO.ContoDTO> conti = new ArrayList<>();
+            for (Item itm : (banca.getItems() != null ? banca.getItems() : List.<Item>of())) {
+                String cc = itm.getLabel(Constants.LABEL_CC);
+                if (cc == null || cc.isBlank()) continue;
+                if (!home && !contoVisibileDalParty(cc, partyId, idMembri)) continue;
+                conti.add(toContoDTO(itm, cc));
+            }
+            conti.sort((a, b) -> {
+                if (!Objects.equals(a.getTipo(), b.getTipo())) return "PARTY".equals(a.getTipo()) ? -1 : 1;
+                return a.getIntestatarioNome().compareToIgnoreCase(b.getIntestatarioNome());
+            });
+            result.add(new BancaDTO(banca.getId(), banca.getNome(), conti));
+        }
+        return result;
+    }
+
+    /**
+     * Tutte le banche viste dal personaggio (per la scheda Soldi): quelle in
+     * cui ha un conto lo includono, le altre hanno conti vuoti (per aprirne uno).
+     */
+    public List<BancaDTO> getContiPersonaggio(Integer personaggioId) {
+        String cc = Constants.LABEL_CC_GIOCATORE_PREFIX + personaggioId;
+        List<BancaDTO> result = new ArrayList<>();
+        for (Personaggio banca : personaggioRepository.findAllBanche()) {
+            Item conto = (banca.getItems() != null ? banca.getItems() : List.<Item>of()).stream()
+                    .filter(i -> cc.equals(i.getLabel(Constants.LABEL_CC)))
+                    .findFirst()
+                    .orElse(null);
+            result.add(new BancaDTO(
+                    banca.getId(),
+                    banca.getNome(),
+                    conto != null ? List.of(toContoDTO(conto, cc)) : List.of()
+            ));
+        }
+        return result;
+    }
+
+    /**
+     * Somma di tutti i conti correnti di una banca.
+     */
+    public PartyDetailDTO.SoldiDTO sommaContiBanca(Personaggio banca) {
+        PartyDetailDTO.SoldiDTO totale = new PartyDetailDTO.SoldiDTO(0, 0, 0, 0);
+        for (Item itm : (banca.getItems() != null ? banca.getItems() : List.<Item>of())) {
+            if (itm.getLabel(Constants.LABEL_CC) == null) continue;
+            totale.add(sommaMoneteItem(itm));
+        }
+        return totale;
+    }
+
+    /**
+     * Dettaglio banca: conti raggruppati per party. Chi è membro del party
+     * della banca (master/NPC) vede tutto, gli altri solo i gruppi dei
+     * propri party.
+     */
+    public BancaDetailDTO getBancaDetail(Integer bancaId, Utente utente) {
+        Personaggio banca = personaggioRepository.findPersonaggioById(bancaId);
+        if (banca == null || !Constants.TIPO_PERSONAGGIO_BANCA.equals(tipoPersonaggio(banca)))
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Banca non trovata");
+
+        Set<Integer> partyUtente = permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
+                .map(p -> p.getIdParty().getId())
+                .collect(Collectors.toSet());
+        boolean vistaCompleta = banca.getParty() != null && partyUtente.contains(banca.getParty().getId());
+
+        Map<Integer, BancaDetailDTO.GruppoPartyDTO> gruppi = new LinkedHashMap<>();
+        PartyDetailDTO.SoldiDTO totale = new PartyDetailDTO.SoldiDTO(0, 0, 0, 0);
+
+        for (Item itm : (banca.getItems() != null ? banca.getItems() : List.<Item>of())) {
+            String cc = itm.getLabel(Constants.LABEL_CC);
+            if (cc == null || cc.isBlank()) continue;
+
+            BancaDTO.ContoDTO conto = toContoDTO(itm, cc);
+
+            // party di riferimento del conto: per P il party stesso, per G il party del personaggio
+            Integer partyId;
+            if (cc.startsWith(Constants.LABEL_CC_PARTY_PREFIX)) {
+                partyId = conto.getIntestatarioId();
+            } else {
+                Personaggio pg = personaggioRepository.findPersonaggioById(conto.getIntestatarioId());
+                partyId = pg != null && pg.getParty() != null ? pg.getParty().getId() : null;
+            }
+
+            if (!vistaCompleta && (partyId == null || !partyUtente.contains(partyId))) continue;
+
+            Integer key = partyId != null ? partyId : -1;
+            BancaDetailDTO.GruppoPartyDTO gruppo = gruppi.computeIfAbsent(key, k -> new BancaDetailDTO.GruppoPartyDTO(
+                    partyId,
+                    partyId != null
+                            ? partyRepository.findById(partyId).map(Party::getNome).orElse("Party " + partyId)
+                            : "Senza party",
+                    new PartyDetailDTO.SoldiDTO(0, 0, 0, 0),
+                    new ArrayList<>()
+            ));
+            gruppo.getConti().add(conto);
+            gruppo.getTotale().add(conto.getSoldi());
+            totale.add(conto.getSoldi());
+        }
+
+        List<BancaDetailDTO.GruppoPartyDTO> lista = new ArrayList<>(gruppi.values());
+        lista.sort((a, b) -> a.getPartyNome().compareToIgnoreCase(b.getPartyNome()));
+        for (BancaDetailDTO.GruppoPartyDTO g : lista) {
+            g.getConti().sort((a, b) -> {
+                if (!Objects.equals(a.getTipo(), b.getTipo())) return "PARTY".equals(a.getTipo()) ? -1 : 1;
+                return a.getIntestatarioNome().compareToIgnoreCase(b.getIntestatarioNome());
+            });
+        }
+
+        return new BancaDetailDTO(banca.getId(), banca.getNome(), totale, lista);
+    }
+
+    private static boolean contoVisibileDalParty(String cc, Integer partyId, Set<Integer> idMembri) {
+        int id = parseIntSafe(cc.substring(1));
+        if (cc.startsWith(Constants.LABEL_CC_PARTY_PREFIX)) return Objects.equals(id, partyId);
+        return idMembri.contains(id);
+    }
+
+    /**
+     * Apre un nuovo conto (item con label CC) in una banca. Permesso: membro
+     * del party della banca (master/NPC) oppure del party dell'intestatario.
+     */
+    @Transactional
+    public BancaDTO.ContoDTO apriConto(Integer bancaId, String cc, Utente utente) {
+        Personaggio banca = personaggioRepository.findPersonaggioById(bancaId);
+        if (banca == null || !Constants.TIPO_PERSONAGGIO_BANCA.equals(tipoPersonaggio(banca)))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Il personaggio non è una banca");
+
+        String ccNorm = cc == null ? "" : cc.trim().toUpperCase(Locale.ROOT);
+        if (!ccNorm.matches("^[GP]\\d+$"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Formato CC non valido (G<id> o P<id>)");
+        int intestatarioId = Integer.parseInt(ccNorm.substring(1));
+
+        // intestatario valido + nome
+        String intestatario;
+        Integer partyIntestatario;
+        if (ccNorm.startsWith(Constants.LABEL_CC_GIOCATORE_PREFIX)) {
+            Personaggio pg = personaggioRepository.findPersonaggioById(intestatarioId);
+            if (pg == null)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Personaggio intestatario non trovato");
+            intestatario = pg.getNome();
+            partyIntestatario = pg.getParty() != null ? pg.getParty().getId() : null;
+        } else {
+            Party party = partyRepository.findById(intestatarioId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Party intestatario non trovato"));
+            intestatario = party.getNome();
+            partyIntestatario = party.getId();
+        }
+
+        verificaPermessoConto(banca, partyIntestatario, utente);
+
+        // conto già esistente in questa banca?
+        boolean esiste = (banca.getItems() != null ? banca.getItems() : List.<Item>of()).stream()
+                .anyMatch(i -> ccNorm.equals(i.getLabel(Constants.LABEL_CC)));
+        if (esiste) throw new ResponseStatusException(HttpStatus.CONFLICT, "Conto già esistente in questa banca");
+
+        Item conto = new Item();
+        conto.setNome("Conto " + intestatario);
+        conto.setTipo(TipoItem.ALTRO);
+        conto.setPersonaggio(banca);
+        conto.setLabels(new ArrayList<>());
+        if (banca.getParty() != null && banca.getParty().getMondo() != null) {
+            conto.setMondo(banca.getParty().getMondo());
+            conto.setSistema(banca.getParty().getMondo().getSistema());
+        }
+        ItemLabel lbl = new ItemLabel();
+        lbl.setItem(conto);
+        lbl.setLabel(Constants.LABEL_CC);
+        lbl.setValore(ccNorm);
+        conto.getLabels().add(lbl);
+        Item saved = itemRepository.save(conto);
+
+        return toContoDTO(saved, ccNorm);
+    }
+
+    /**
+     * Imposta le monete di un conto banca. Permesso: membro del party della
+     * banca (master/NPC) oppure del party dell'intestatario.
+     */
+    @Transactional
+    public PartyDetailDTO.SoldiDTO updateConto(Integer itemId, PartyDetailDTO.SoldiDTO target, Utente utente) {
+        Item conto = itemRepository.findById(itemId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conto non trovato"));
+        String cc = conto.getLabel(Constants.LABEL_CC);
+        if (cc == null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'item non è un conto banca");
+        Personaggio banca = conto.getPersonaggio();
+        if (banca == null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Conto non associato a una banca");
+
+        Integer partyIntestatario = null;
+        int intestatarioId = parseIntSafe(cc.substring(1));
+        if (cc.startsWith(Constants.LABEL_CC_GIOCATORE_PREFIX)) {
+            Personaggio pg = personaggioRepository.findPersonaggioById(intestatarioId);
+            if (pg != null && pg.getParty() != null) partyIntestatario = pg.getParty().getId();
+        } else {
+            partyIntestatario = intestatarioId;
+        }
+        verificaPermessoConto(banca, partyIntestatario, utente);
+
+        setModificatoreMoneta(conto, "MR", Math.max(0, target.getMr()));
+        setModificatoreMoneta(conto, "MA", Math.max(0, target.getMa()));
+        setModificatoreMoneta(conto, "MO", Math.max(0, target.getMo()));
+        setModificatoreMoneta(conto, "MP", Math.max(0, target.getMp()));
+        return target;
+    }
+
+    private void verificaPermessoConto(Personaggio banca, Integer partyIntestatario, Utente utente) {
+        Set<Integer> partyUtente = permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
+                .map(p -> p.getIdParty().getId())
+                .collect(Collectors.toSet());
+        boolean membroBanca = banca.getParty() != null && partyUtente.contains(banca.getParty().getId());
+        boolean membroIntestatario = partyIntestatario != null && partyUtente.contains(partyIntestatario);
+        if (!membroBanca && !membroIntestatario)
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Non hai accesso a questo conto");
+    }
+
+    private BancaDTO.ContoDTO toContoDTO(Item itm, String cc) {
+        boolean isParty = cc.startsWith(Constants.LABEL_CC_PARTY_PREFIX);
+        int intestatarioId = parseIntSafe(cc.substring(1));
+        String nome;
+        if (isParty) {
+            nome = partyRepository.findById(intestatarioId).map(Party::getNome)
+                    .orElse("Party " + intestatarioId);
+        } else {
+            Personaggio pg = personaggioRepository.findPersonaggioById(intestatarioId);
+            nome = pg != null ? pg.getNome() : "Personaggio " + intestatarioId;
+        }
+        return new BancaDTO.ContoDTO(
+                itm.getId(),
+                cc,
+                isParty ? "PARTY" : "GIOCATORE",
+                intestatarioId,
+                nome,
+                sommaMoneteItem(itm)
+        );
+    }
+
+    private static PartyDetailDTO.SoldiDTO sommaMoneteItem(Item itm) {
+        List<Modificatore> mods = (itm.getModificatori() != null ? itm.getModificatori() : List.<Modificatore>of()).stream()
+                .filter(m -> STAT_MONETE.contains(m.getStat().getId()))
+                .toList();
+        PartyDetailDTO.SoldiDTO soldi = new PartyDetailDTO.SoldiDTO(0, 0, 0, 0);
+        for (Modificatore m : mods) {
+            long valore = parseLong(m.getValore());
+            switch (m.getStat().getId()) {
+                case "MR" -> soldi.setMr(soldi.getMr() + valore);
+                case "MA" -> soldi.setMa(soldi.getMa() + valore);
+                case "MO" -> soldi.setMo(soldi.getMo() + valore);
+                case "MP" -> soldi.setMp(soldi.getMp() + valore);
+            }
+        }
+        return soldi;
+    }
+
+    private static int parseIntSafe(String s) {
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
     /**
      * Peso delle monete in kg, per taglio (per ora tutte 10 grammi).
      */
@@ -273,12 +577,23 @@ public class PartyService {
     }
 
     /**
-     * Somma i modificatori sulle stat moneta (MR/MA/MO/MP) degli item del
-     * personaggio, ignorando gli item disabilitati e i valori non numerici.
+     * Soldi personali: modificatori sulle stat moneta degli item del
+     * personaggio, esclusi i conti banca (label CC), ignorando gli item
+     * disabilitati e i valori non numerici.
      */
     public PartyDetailDTO.SoldiDTO calcolaSoldi(Integer personaggioId) {
+        return sommaMonete(modificatoreRepository.findMonetePersonali(personaggioId, STAT_MONETE));
+    }
+
+    /**
+     * Soldi su un conto banca (label CC = G&lt;id&gt; | P&lt;id&gt;).
+     */
+    public PartyDetailDTO.SoldiDTO calcolaSoldiConto(String cc) {
+        return sommaMonete(modificatoreRepository.findMoneteConto(cc, STAT_MONETE));
+    }
+
+    private static PartyDetailDTO.SoldiDTO sommaMonete(List<Modificatore> mods) {
         PartyDetailDTO.SoldiDTO soldi = new PartyDetailDTO.SoldiDTO(0, 0, 0, 0);
-        List<Modificatore> mods = modificatoreRepository.findAllByPersonaggioIdAndStatIds(personaggioId, STAT_MONETE);
         for (Modificatore m : mods) {
             if (m.getItem() != null && Boolean.TRUE.equals(m.getItem().isDisabled())) continue;
             long valore = parseLong(m.getValore());

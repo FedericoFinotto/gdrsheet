@@ -45,6 +45,35 @@ export interface Page<T> {
     totalPages: number;
 }
 
+export interface Conto {
+    itemId: number;
+    cc: string;                  // G<idPersonaggio> | P<idParty>
+    tipo: 'GIOCATORE' | 'PARTY';
+    intestatarioId: number;
+    intestatarioNome: string;
+    soldi: Soldi;
+}
+
+export interface Banca {
+    personaggioId: number;
+    nome: string;
+    conti: Conto[];
+}
+
+export interface GruppoPartyBanca {
+    partyId: number | null;
+    partyNome: string;
+    totale: Soldi;
+    conti: Conto[];
+}
+
+export interface BancaDetail {
+    personaggioId: number;
+    nome: string;
+    totale: Soldi;
+    gruppi: GruppoPartyBanca[];
+}
+
 export function formatKg(n: number): string {
     return `${(n ?? 0).toLocaleString('it-IT', {maximumFractionDigits: 2})} kg`;
 }

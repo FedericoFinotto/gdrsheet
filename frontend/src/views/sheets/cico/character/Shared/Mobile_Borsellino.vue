@@ -2,6 +2,7 @@
 import {computed, onMounted, reactive, ref} from 'vue'
 import {getSoldi, updateSoldi} from '../../../../../service/PersonaggioService'
 import {Soldi, totaleInMo} from '../../../../../models/dto/Party'
+import Transazione from '../../../../../components/Transazione.vue'
 
 const props = defineProps<{ idPersonaggio: number }>()
 
@@ -72,6 +73,18 @@ function onCancel() {
   if (originale.value) Object.assign(form, originale.value)
 }
 
+function step(key: keyof Soldi, delta: number) {
+  if (busy.value) return
+  form[key] = Math.max(0, (Number(form[key]) || 0) + delta)
+}
+
+function applicaTransazione(delta: Soldi) {
+  if (busy.value) return
+  for (const k of ['mr', 'ma', 'mo', 'mp'] as Array<keyof Soldi>) {
+    form[k] = Math.max(0, (Number(form[k]) || 0) + delta[k])
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -88,16 +101,24 @@ onMounted(load)
       <div class="monete">
         <label v-for="m in MONETE" :key="m.key" class="moneta" :class="m.cls">
           <span class="lbl">{{ m.label }}</span>
-          <input
-              type="number"
-              min="0"
-              step="1"
-              inputmode="numeric"
-              v-model.number="form[m.key]"
-              :disabled="busy"
-          />
+          <div class="stepper">
+            <button type="button" class="step-btn" :disabled="busy || form[m.key] <= 0"
+                    @click.prevent="step(m.key, -1)">−</button>
+            <input
+                type="number"
+                min="0"
+                step="1"
+                inputmode="numeric"
+                v-model.number="form[m.key]"
+                :disabled="busy"
+            />
+            <button type="button" class="step-btn" :disabled="busy"
+                    @click.prevent="step(m.key, 1)">+</button>
+          </div>
         </label>
       </div>
+
+      <Transazione :disabled="busy" @applica="applicaTransazione"/>
 
       <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
@@ -132,32 +153,49 @@ onMounted(load)
 
 .monete {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1fr;
   gap: .4rem;
-}
-
-@media (max-width: 480px) {
-  .monete { grid-template-columns: repeat(2, 1fr); }
 }
 
 .moneta {
   display: grid;
-  gap: .2rem;
+  grid-template-columns: 1fr 11rem;
+  align-items: center;
+  gap: .5rem;
   padding: .35rem .45rem;
   border-radius: .5rem;
   border: 1px solid #e5e7eb;
 }
 
-.moneta .lbl { font-size: .7rem; font-weight: 600; opacity: .8; }
+.moneta .lbl { font-size: .75rem; font-weight: 600; opacity: .8; }
+
+.stepper {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: .2rem;
+}
 
 .moneta input {
   width: 100%;
-  padding: .35rem .45rem;
+  min-width: 0;
+  text-align: center;
+  padding: .35rem .15rem;
   border: 1px solid #d0d5dd;
   border-radius: .4rem;
   background: #fff;
   font-variant-numeric: tabular-nums;
 }
+
+.step-btn {
+  width: 1.7rem;
+  border: 1px solid #d0d5dd;
+  border-radius: .4rem;
+  background: #f9fafb;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.step-btn:disabled { opacity: .5; cursor: default; }
 
 .moneta.mp { background: #ecfeff; border-color: #a5f3fc; }
 .moneta.mo { background: #fefce8; border-color: #fde68a; }

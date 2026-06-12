@@ -18,7 +18,7 @@ import {Item} from "../models/dto/Item";
 import {Gradi} from "../models/dto/Gradi";
 import {UpdateItemRequest} from "../models/dto/UpdateItemRequest";
 import {SaveLivelloPayload} from "../models/dto/UpdateLivelloRequest";
-import {Soldi} from "../models/dto/Party";
+import {Banca, Soldi} from "../models/dto/Party";
 import {Stat} from "../models/entity/Stat";
 
 export function getModificatoriPersonaggioById(id: number): Promise<AxiosResponse<DatiPersonaggio>> {
@@ -151,4 +151,8 @@ export function getSoldi(idPersonaggio: number): Promise<AxiosResponse<Soldi>> {
 
 export function updateSoldi(idPersonaggio: number, soldi: Soldi): Promise<AxiosResponse<Soldi>> {
     return api.post<Soldi>(`/personaggi/${idPersonaggio}/soldi`, soldi);
+}
+
+export function getContiPersonaggio(idPersonaggio: number): Promise<AxiosResponse<Banca[]>> {
+    return api.get<Banca[]>(`/personaggi/${idPersonaggio}/conti`);
 }

@@ -28,6 +28,9 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
 
     List<Item> findTop20ByNomeContainingIgnoreCaseOrderByNomeAsc(String nome);
 
+    @Query("SELECT i FROM Item i JOIN i.labels il WHERE il.label = 'CC' AND il.valore = :cc")
+    List<Item> findContiByCc(@Param("cc") String cc);
+
     List<Item> findTop20ByNomeContainingIgnoreCaseAndTipoOrderByNomeAsc(String nome, TipoItem tipo);
 
     /**

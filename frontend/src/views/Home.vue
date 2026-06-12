@@ -30,6 +30,11 @@ onMounted(async () => {
 })
 
 function apriScheda(p: {id: number; tipoPersonaggio?: string | null}) {
+  // le banche hanno una vista dedicata (solo conti correnti)
+  if (p.tipoPersonaggio === 'BANCA') {
+    router.push(`/banca/${p.id}`)
+    return
+  }
   // le navi si aprono direttamente sull'inventario (tab 2)
   const tab = p.tipoPersonaggio === 'NAVE' ? '?tab=2' : ''
   router.push(`/scheda/${p.id}${tab}`)

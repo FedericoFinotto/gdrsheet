@@ -33,6 +33,11 @@ onMounted(async () => {
 })
 
 function apriScheda(p: PersonaggioSoldi) {
+  // le banche hanno una vista dedicata (solo conti correnti)
+  if (p.tipoPersonaggio === 'BANCA') {
+    router.push(`/banca/${p.id}`)
+    return
+  }
   // le navi si aprono direttamente sull'inventario (tab 2)
   const tab = p.tipoPersonaggio === 'NAVE' ? '?tab=2' : ''
   router.push(`/scheda/${p.id}${tab}`)
@@ -51,14 +56,17 @@ const membriBarche = computed<PersonaggioSoldi[]>(() =>
     (party.value?.personaggi ?? []).filter(p => p.tipoPersonaggio === 'NAVE'))
 const membriStella = computed<PersonaggioSoldi[]>(() =>
     (party.value?.personaggi ?? []).filter(p => p.tipoPersonaggio === 'STELLA'))
+const membriBanche = computed<PersonaggioSoldi[]>(() =>
+    (party.value?.personaggi ?? []).filter(p => p.tipoPersonaggio === 'BANCA'))
 const membriAltri = computed<PersonaggioSoldi[]>(() =>
     (party.value?.personaggi ?? []).filter(p =>
-        p.tipoPersonaggio && p.tipoPersonaggio !== 'NAVE' && p.tipoPersonaggio !== 'STELLA'))
+        p.tipoPersonaggio && !['NAVE', 'STELLA', 'BANCA'].includes(p.tipoPersonaggio)))
 
 const GRUPPI = computed(() => [
   {titolo: 'Party', membri: membriParty.value},
   {titolo: 'Barche', membri: membriBarche.value},
   {titolo: 'Stella', membri: membriStella.value},
+  {titolo: 'Banche', membri: membriBanche.value},
   {titolo: 'Altro', membri: membriAltri.value},
 ].filter(g => g.membri.length > 0))
 </script>
@@ -74,6 +82,7 @@ const GRUPPI = computed(() => [
         </span>
       </div>
       <button v-if="party" class="btn" @click="router.push(`/party/${party.id}/items`)">Item</button>
+      <button v-if="party" class="btn" @click="router.push(`/party/${party.id}/banche`)">Banche</button>
     </header>
 
     <div v-if="loading" class="state">Caricamento…</div>

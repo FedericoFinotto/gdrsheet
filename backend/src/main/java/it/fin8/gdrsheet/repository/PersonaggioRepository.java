@@ -22,4 +22,11 @@ public interface PersonaggioRepository extends JpaRepository<Personaggio, Intege
     Personaggio findPersonaggioById(Integer idPersonaggio);
 
     List<Personaggio> findAllByParty_IdOrderByNomeAsc(Integer idParty);
+
+    @Query("""
+            SELECT p FROM Personaggio p JOIN p.labels l
+            WHERE l.label = 'TIPO_PERSONAGGIO' AND l.valore = 'BANCA'
+            ORDER BY p.nome
+            """)
+    List<Personaggio> findAllBanche();
 }

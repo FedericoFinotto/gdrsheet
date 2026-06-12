@@ -56,6 +56,10 @@ public final class Constants {
     public static final String ITEM_LABEL_GRUPPO_TRASFORMAZIONE = "GRP_TRASF";
     public static final String LABEL_PESO = "PESO"; // kg, su item_label e personaggio_label
     public static final String LABEL_QTA = "QTA";   // quantità item, moltiplica il peso
+    public static final String LABEL_CC = "CC";     // conto corrente banca: G<idPersonaggio> | P<idParty>
+    public static final String LABEL_CC_GIOCATORE_PREFIX = "G";
+    public static final String LABEL_CC_PARTY_PREFIX = "P";
+    public static final String TIPO_PERSONAGGIO_BANCA = "BANCA";
 
     public static final String RANK_MAX = "MAX";
 }
