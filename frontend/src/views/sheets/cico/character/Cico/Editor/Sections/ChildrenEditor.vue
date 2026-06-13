@@ -9,6 +9,8 @@ const props = defineProps<{
   modelValue: ChildRef[]
   disabled?: boolean
   excludeId?: number   // id dell'item in editing: non collegabile a se stesso
+  onlyTipo?: string    // mostra/cerca solo questo tipo
+  excludeTipo?: string // mostra/cerca qualsiasi tipo tranne questo
 }>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: ChildRef[]): void }>()
 
@@ -40,7 +42,9 @@ async function doSearch() {
     results.value = (res.data ?? []).filter(r =>
         r.tipo !== 'ATTACCO' &&
         r.id !== props.excludeId &&
-        !props.modelValue.some(c => c.id === r.id)
+        !props.modelValue.some(c => c.id === r.id) &&
+        (!props.onlyTipo || r.tipo === props.onlyTipo) &&
+        (!props.excludeTipo || r.tipo !== props.excludeTipo)
     )
   } catch (e) {
     console.error('Errore ricerca item:', e)

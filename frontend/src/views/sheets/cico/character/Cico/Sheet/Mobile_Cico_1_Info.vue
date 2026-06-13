@@ -252,22 +252,6 @@ const columnsLingue = [{field: 'nome', label: 'Lingue'}]
           <!-- Body: visibile solo da aperta -->
           <div v-if="openFrutti.has(frutto.id)" class="frutto-body">
 
-            <!-- Trasformazioni -->
-            <template v-if="trasf.length">
-              <div class="tipo-sep">Trasformazioni</div>
-              <div
-                  v-for="t in trasf" :key="t.id"
-                  class="trasf-riga"
-                  :class="{attiva: !t.disabled}"
-              >
-                <button type="button" class="trasf-toggle" :disabled="toggling" @click="toggleTrasf(t)">
-                  <span class="dot">{{ t.disabled ? '○' : '●' }}</span>
-                  <span class="trasf-nome">{{ t.nome }}</span>
-                </button>
-                <button type="button" class="btn-info" :title="`Info: ${t.nome}`" @click.stop="openInfoTrasf(t)">ⓘ</button>
-              </div>
-            </template>
-
             <!-- Forme -->
             <template v-if="forme.length">
               <div class="tipo-sep forma-sep">Forme</div>
@@ -281,6 +265,22 @@ const columnsLingue = [{field: 'nome', label: 'Lingue'}]
                   <span class="trasf-nome">{{ f.nome }}</span>
                 </button>
                 <button type="button" class="btn-info" :title="`Info: ${f.nome}`" @click.stop="openInfoTrasf(f)">ⓘ</button>
+              </div>
+            </template>
+
+            <!-- Trasformazioni -->
+            <template v-if="trasf.length">
+              <div class="tipo-sep">Trasformazioni</div>
+              <div
+                  v-for="t in trasf" :key="t.id"
+                  class="trasf-riga"
+                  :class="{attiva: !t.disabled}"
+              >
+                <button type="button" class="trasf-toggle" :disabled="toggling" @click="toggleTrasf(t)">
+                  <span class="dot">{{ t.disabled ? '○' : '●' }}</span>
+                  <span class="trasf-nome">{{ t.nome }}</span>
+                </button>
+                <button type="button" class="btn-info" :title="`Info: ${t.nome}`" @click.stop="openInfoTrasf(t)">ⓘ</button>
               </div>
             </template>
 

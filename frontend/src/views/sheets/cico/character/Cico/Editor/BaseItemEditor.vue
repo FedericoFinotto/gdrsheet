@@ -24,6 +24,7 @@ const props = withDefaults(defineProps<{
   readonly?: boolean
   mode?: 'edit' | 'create'
   idPersonaggio?: number      // solo create: aggancia l'item al FromCompendio del personaggio
+  separateForme?: boolean     // separa i child FORMA in una sezione dedicata
 }>(), {
   titolo: 'Item',
   campiLabel: () => [],
@@ -45,6 +46,7 @@ const form = reactive<{
   modificatori: ModificatoreRow[]
   attacchi: AttaccoRow[]
   children: ChildRef[]
+  forme: ChildRef[]
   qta: number
   compendio: boolean
 }>({
@@ -55,11 +57,12 @@ const form = reactive<{
   modificatori: [],
   attacchi: [],
   children: [],
+  forme: [],
   qta: 1,
   compendio: false,
 })
 
-const open = reactive({labels: false, modificatori: false, attacchi: false, children: false})
+const open = reactive({labels: false, modificatori: false, attacchi: false, children: false, forme: false})
 
 function preload() {
   form.nome = props.item.nome ?? ''
@@ -95,7 +98,7 @@ function preload() {
     sempreAttivo: !!m.sempreAttivo,
   }))
 
-  // child: ATTACCO -> sezione attacchi, il resto -> item collegati
+  // child: ATTACCO -> sezione attacchi, FORMA (se separateForme) -> forme, il resto -> item collegati
   const children = (props.item.child ?? []).map(c => c.itemTarget).filter(Boolean)
   form.attacchi = children
       .filter(t => t.tipo === 'ATTACCO')
@@ -106,9 +109,14 @@ function preload() {
         tpd: getItemLabel(t, 'TPD') ?? '',
         tipoDanni: getItemLabel(t, 'TDANNO' as any) ?? '',
       }))
-  form.children = children
-      .filter(t => t.tipo !== 'ATTACCO')
-      .map(t => ({id: t.id, nome: t.nome, tipo: t.tipo}))
+  const nonAttacco = children.filter(t => t.tipo !== 'ATTACCO')
+  if (props.separateForme) {
+    form.forme = nonAttacco.filter(t => t.tipo === 'FORMA').map(t => ({id: t.id, nome: t.nome, tipo: t.tipo}))
+    form.children = nonAttacco.filter(t => t.tipo !== 'FORMA').map(t => ({id: t.id, nome: t.nome, tipo: t.tipo}))
+  } else {
+    form.forme = []
+    form.children = nonAttacco.map(t => ({id: t.id, nome: t.nome, tipo: t.tipo}))
+  }
 }
 
 onMounted(preload)
@@ -127,6 +135,8 @@ const sumAttacchi = computed(() =>
     form.attacchi.filter(a => a.nome).map(a => a.nome).join(', ') || '—')
 const sumChildren = computed(() =>
     form.children.map(c => c.nome).join(', ') || '—')
+const sumForme = computed(() =>
+    form.forme.map(c => c.nome).join(', ') || '—')
 
 function buildPayload(): UpdateItemRequest {
   const labels: LabelRow[] = []
@@ -153,7 +163,7 @@ function buildPayload(): UpdateItemRequest {
     labels,
     modificatori: form.modificatori.filter(m => m.statId.trim()),
     attacchi: form.attacchi.filter(a => a.nome.trim()),
-    childItemIds: form.children.map(c => c.id),
+    childItemIds: [...form.children, ...form.forme].map(c => c.id),
   })
 }
 
@@ -197,6 +207,7 @@ function resetForNew() {
   form.modificatori = []
   form.attacchi = []
   form.children = []
+  form.forme = []
   form.qta = 1
 }
 
@@ -264,6 +275,19 @@ function onCancel() {
       </div>
     </section>
 
+    <!-- Forme (child FORMA, solo se separateForme) -->
+    <section v-if="separateForme" class="fold">
+      <button type="button" class="fold-head" @click="open.forme = !open.forme"
+              :aria-expanded="open.forme ? 'true' : 'false'">
+        <span class="fold-title">Forme</span>
+        <span class="fold-summary">{{ sumForme }}</span>
+        <span class="chev" :class="{ open: open.forme }">▸</span>
+      </button>
+      <div v-show="open.forme" class="fold-body">
+        <ChildrenEditor v-model="form.forme" :disabled="disabledAll" :exclude-id="props.item.id" only-tipo="FORMA"/>
+      </div>
+    </section>
+
     <!-- Item collegati (child) -->
     <section class="fold">
       <button type="button" class="fold-head" @click="open.children = !open.children"
@@ -273,7 +297,8 @@ function onCancel() {
         <span class="chev" :class="{ open: open.children }">▸</span>
       </button>
       <div v-show="open.children" class="fold-body">
-        <ChildrenEditor v-model="form.children" :disabled="disabledAll" :exclude-id="props.item.id"/>
+        <ChildrenEditor v-model="form.children" :disabled="disabledAll" :exclude-id="props.item.id"
+                        :exclude-tipo="separateForme ? 'FORMA' : undefined"/>
       </div>
     </section>
 

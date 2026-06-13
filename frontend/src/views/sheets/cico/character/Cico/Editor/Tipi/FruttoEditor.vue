@@ -6,9 +6,7 @@ import {CampoLabel} from '../../../../../../../models/dto/UpdateItemRequest'
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
 
-const CAMPI: CampoLabel[] = [
-  {key: 'TIPO_FRUTTO', label: 'Tipo frutto', placeholder: 'Paramecia / Zoan / Logia…'},
-]
+const CAMPI: CampoLabel[] = []
 </script>
 
 <template>
@@ -18,6 +16,7 @@ const CAMPI: CampoLabel[] = [
       :mode="props.mode"
       titolo="Frutto"
       :campi-label="CAMPI"
+      :separate-forme="true"
       @saved="emit('saved')"
       @cancel="emit('cancel')"
   />
