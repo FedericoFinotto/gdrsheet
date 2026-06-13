@@ -36,6 +36,16 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             WHERE i.personaggio IS NULL
               AND (:tipo IS NULL OR i.tipo = :tipo)
               AND (:nome = '' OR lower(i.nome) LIKE lower(concat('%', :nome, '%')))
+              AND (
+                i.tipo IN (it.fin8.gdrsheet.def.TipoItem.INCANTESIMO,
+                           it.fin8.gdrsheet.def.TipoItem.CLASSE,
+                           it.fin8.gdrsheet.def.TipoItem.RAZZA,
+                           it.fin8.gdrsheet.def.TipoItem.LINGUA,
+                           it.fin8.gdrsheet.def.TipoItem.COMP)
+                OR EXISTS (SELECT 1 FROM ItemLabel il
+                           WHERE il.item = i AND il.label = 'COMPENDIO'
+                             AND lower(il.valore) IN ('true', '1'))
+              )
             ORDER BY i.nome
             """)
     org.springframework.data.domain.Page<Item> findCompendio(

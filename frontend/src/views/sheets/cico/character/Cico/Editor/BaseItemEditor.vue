@@ -46,6 +46,7 @@ const form = reactive<{
   attacchi: AttaccoRow[]
   children: ChildRef[]
   qta: number
+  compendio: boolean
 }>({
   nome: '',
   descrizione: '',
@@ -55,6 +56,7 @@ const form = reactive<{
   attacchi: [],
   children: [],
   qta: 1,
+  compendio: false,
 })
 
 const open = reactive({labels: false, modificatori: false, attacchi: false, children: false})
@@ -67,6 +69,7 @@ function preload() {
   form.campi = Object.fromEntries(props.campiLabel.map(c => [c.key, '']))
 
   form.qta = 1
+  form.compendio = false
   form.labels = []
   for (const l of (props.item.labels ?? [])) {
     const key = l.label ?? ''
@@ -74,6 +77,8 @@ function preload() {
     if (showQta.value && key === 'QTA') {
       const n = Number(val)
       form.qta = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 1
+    } else if (key === 'COMPENDIO') {
+      form.compendio = ['true', '1'].includes(String(val).toLowerCase())
     } else if (campoKeys.has(key) && !form.campi[key]) {
       form.campi[key] = val
     } else {
@@ -138,6 +143,8 @@ function buildPayload(): UpdateItemRequest {
   for (const l of form.labels) {
     if (l.label.trim()) labels.push({label: l.label.trim(), valore: l.valore})
   }
+  // flag compendio
+  if (form.compendio) labels.push({label: 'COMPENDIO', valore: 'true'})
   return toRaw({
     nome: form.nome.trim(),
     descrizione: form.descrizione,
@@ -237,6 +244,12 @@ function onCancel() {
 
     <!-- slot per estensioni specifiche del tipo -->
     <slot name="specifico" :disabled="disabledAll"/>
+
+    <!-- flag compendio -->
+    <label class="compendio-flag">
+      <input type="checkbox" v-model="form.compendio" :disabled="disabledAll"/>
+      <span>Visibile nel compendio</span>
+    </label>
 
     <!-- Attacchi (item ATTACCO figli) -->
     <section class="fold">
@@ -348,6 +361,12 @@ textarea { resize: vertical; }
   margin-top: .25rem; border-top: 1px solid #e5e7eb;
   display: flex; justify-content: flex-end; gap: .5rem;
 }
+.compendio-flag {
+  display: inline-flex; align-items: center; gap: .5rem;
+  font-size: .85rem; font-weight: 600; cursor: pointer;
+}
+.compendio-flag input { width: auto; }
+
 .btn { padding: .5rem .9rem; border-radius: .5rem; border: 1px solid transparent; cursor: pointer; }
 .btn.ghost { border-color: #d0d5dd; background: #fff; }
 .btn.outline { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; font-weight: 600; }

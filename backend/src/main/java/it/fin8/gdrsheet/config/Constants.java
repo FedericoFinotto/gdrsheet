@@ -57,6 +57,7 @@ public final class Constants {
     public static final String LABEL_PESO = "PESO"; // kg, su item_label e personaggio_label
     public static final String LABEL_QTA = "QTA";   // quantità item, moltiplica il peso
     public static final String LABEL_CC = "CC";     // conto corrente banca: G<idPersonaggio> | P<idParty>
+    public static final String ITEM_LABEL_COMPENDIO = "COMPENDIO"; // visibilità nel compendio
     public static final String ITEM_LABEL_TIPO = "TIPO";           // tipo specifico item (es. BARRIERA)
     public static final String ITEM_TIPO_BARRIERA = "BARRIERA";
     public static final String ITEM_LABEL_BARR_MAX = "BARR_MAX";   // hp massimi della barriera
