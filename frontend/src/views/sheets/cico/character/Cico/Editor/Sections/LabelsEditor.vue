@@ -58,6 +58,7 @@ function remove(idx: number) {
 </template>
 
 <style scoped>
+input, select, textarea { min-width: 0; }
 .labels-editor { display: grid; gap: .4rem; }
 .empty { font-size: .85rem; opacity: .6; }
 .label-row { display: grid; grid-template-columns: 1fr 2fr auto; gap: .4rem; align-items: center; }

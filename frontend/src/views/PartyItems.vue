@@ -224,8 +224,9 @@ function personaggioShim(itm: PartyItem) {
 
 .head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: .75rem;
+  gap: .5rem;
 }
 
 .title { flex: 1; display: grid; }

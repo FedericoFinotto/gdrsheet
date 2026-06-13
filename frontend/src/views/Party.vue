@@ -308,14 +308,17 @@ const GRUPPI = computed(() => [
 
 .head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: .75rem;
+  gap: .5rem;
 }
 
 .title {
   display: flex;
   align-items: center;
   gap: .5rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .title h1 { margin: 0; font-size: 1.25rem; }

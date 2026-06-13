@@ -65,6 +65,7 @@ function remove(idx: number) {
 </template>
 
 <style scoped>
+input, select, textarea { min-width: 0; }
 .attacchi-editor { display: grid; gap: .5rem; }
 .empty { font-size: .85rem; opacity: .6; }
 

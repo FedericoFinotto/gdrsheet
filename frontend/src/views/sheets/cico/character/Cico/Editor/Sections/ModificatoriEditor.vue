@@ -98,6 +98,7 @@ function remove(idx: number) {
 </template>
 
 <style scoped>
+input, select, textarea { min-width: 0; }
 .mods-editor { display: grid; gap: .4rem; }
 .empty { font-size: .85rem; opacity: .6; }
 .mod-row {

@@ -10,6 +10,34 @@ html, body, #app {
     box-sizing: border-box;
 }
 
+/* Rete di sicurezza anti-overflow orizzontale (app usata quasi solo da telefono) */
+html, body, #app {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* media e controlli non devono mai sforare il contenitore */
+img, svg, video, canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+input, select, textarea, button {
+    max-width: 100%;
+}
+
+/* permette ai campi dentro i grid/flex di restringersi (altrimenti i number
+   input hanno una larghezza minima intrinseca che spinge fuori i bottoni) */
+input, select, textarea {
+    min-width: 0;
+}
+
+/* gli elementi di flex/grid che contengono testo lungo o input possono restringersi */
+.content, .page {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
 /* =========================
    VARIABILI (Material-like, compatte)
    ========================= */

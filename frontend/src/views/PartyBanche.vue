@@ -248,7 +248,7 @@ async function onApriConto(banca: Banca) {
   overscroll-behavior-y: contain;
 }
 
-.head { display: flex; align-items: center; gap: .75rem; }
+.head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .title { display: grid; }
 .title h1 { margin: 0; font-size: 1.2rem; }
 .muted { opacity: .65; font-size: .85rem; }
