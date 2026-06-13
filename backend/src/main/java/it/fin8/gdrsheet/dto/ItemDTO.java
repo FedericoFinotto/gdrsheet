@@ -19,4 +19,10 @@ public class ItemDTO {
      * Quantità (label QTA), default 1.
      */
     private Integer quantita;
+    /**
+     * Barriera (talento con label TIPO=BARRIERA): hp temporanei "blu".
+     */
+    private Boolean barriera;
+    private Integer barrMax;
+    private Integer barrCons;
 }

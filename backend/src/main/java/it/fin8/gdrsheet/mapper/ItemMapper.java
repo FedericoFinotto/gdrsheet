@@ -32,6 +32,12 @@ public class ItemMapper {
         dto.setTipo(entity.getTipo());
         dto.setDisabled(isDisabled(entity));
         dto.setQuantita(parseQuantita(entity.getLabel(Constants.LABEL_QTA)));
+
+        if (Constants.ITEM_TIPO_BARRIERA.equalsIgnoreCase(entity.getLabel(Constants.ITEM_LABEL_TIPO))) {
+            dto.setBarriera(true);
+            dto.setBarrMax(parseIntOrZero(entity.getLabel(Constants.ITEM_LABEL_BARR_MAX)));
+            dto.setBarrCons(parseIntOrZero(entity.getLabel(Constants.ITEM_LABEL_BARR_CONS)));
+        }
         return dto;
     }
 
@@ -41,6 +47,15 @@ public class ItemMapper {
             return Math.max(0, Integer.parseInt(s.trim()));
         } catch (NumberFormatException e) {
             return 1;
+        }
+    }
+
+    private static Integer parseIntOrZero(String s) {
+        if (s == null) return 0;
+        try {
+            return Math.max(0, Integer.parseInt(s.trim()));
+        } catch (NumberFormatException e) {
+            return 0;
         }
     }
 

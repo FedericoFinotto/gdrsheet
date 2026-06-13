@@ -373,6 +373,31 @@ public class ItemService {
         return itemRepository.save(itm);
     }
 
+    /**
+     * Imposta gli hp consumati di una barriera (label BARR_CONS), clampato 0..BARR_MAX.
+     */
+    @Transactional
+    public Item updateBarriera(Integer itemId, int consumato) {
+        Item itm = itemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Item non trovato"));
+        if (!Constants.ITEM_TIPO_BARRIERA.equalsIgnoreCase(itm.getLabel(Constants.ITEM_LABEL_TIPO)))
+            throw new RuntimeException("L'item non è una barriera");
+
+        int max = parseIntOrZero(itm.getLabel(Constants.ITEM_LABEL_BARR_MAX));
+        int cons = Math.max(0, Math.min(consumato, max));
+        itm.setLabel(Constants.ITEM_LABEL_BARR_CONS, String.valueOf(cons));
+        return itemRepository.save(itm);
+    }
+
+    private static int parseIntOrZero(String s) {
+        if (s == null) return 0;
+        try {
+            return Math.max(0, Integer.parseInt(s.trim()));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     public List<Item> searchItems(String query, TipoItem tipo) {
         String q = query == null ? "" : query.trim();
         if (q.isEmpty()) return List.of();

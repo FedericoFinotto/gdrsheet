@@ -1,140 +1,163 @@
 <script setup lang="ts">
-import {computed, defineProps, onBeforeUnmount, ref, watch} from 'vue'
-import {storeToRefs} from 'pinia'
-import debounce from 'lodash/debounce'
-import {updateHP} from "../../../../../service/PersonaggioService";
-import {useCharacterStore} from "../../../../../stores/personaggio";
-import Icona from "../../../../../components/Icona/Icona.vue";
+import {computed} from 'vue'
+import {useHp} from '../../../../../function/useHp'
+import usePopup from '../../../../../function/usePopup'
+import Mobile_HP_Popup from './Mobile_HP_Popup.vue'
+import Icona from '../../../../../components/Icona/Icona.vue'
 
 const props = defineProps<{ idPersonaggio: number }>()
+const {openPopup} = usePopup()
 
-// store slice
-const {cache} = storeToRefs(useCharacterStore())
+const {hp, hpMax, pfTemp, barriere, barriereTotal, totalMax, remaining, modifyHp} = useHp(props.idPersonaggio)
 
-// --- stati di sessione (solo UI) ---
-const delta = ref(0) // mostra l'ultima modifica cumulata (+/-)
+const pct = (v: number) => (v / Math.max(1, totalMax.value)) * 100
 
-// Helpers
-function clamp(min: number, v: number, max: number) {
-  return Math.min(max, Math.max(min, v))
-}
-
-// --- Stat rows dal cache ---
-const pfStat = computed(() =>
-    cache.value[props.idPersonaggio]?.modificatori.contatori.find(s => s.id === 'PF')
-)
-const pfTempStat = computed(() =>
-    cache.value[props.idPersonaggio]?.modificatori.contatori.find(s => s.id === 'PFTEMP')
-)
-
-// --- Valori numerici di lavoro ---
-// pfStat.valore = danni accumulati (negativo o 0)
-const damageNeg = computed<number>(() => pfStat.value?.valore ?? 0) // <= 0
-const hpMax = computed<number>(() => pfStat.value?.max ?? 0)
-const pfTemp = computed<number>(() => pfTempStat.value?.valore ?? 0)
-
-// PF correnti “reali” (non includono i temp)
-const hp = computed<number>(() => Math.max(0, hpMax.value + damageNeg.value))
-
-// --- Gradiente barra (HP reali + HP temp + vuoto) ---
-const total = computed<number>(() => Math.max(0, hpMax.value + pfTemp.value))
-const hpPercent = computed<number>(() => (total.value > 0 ? (hp.value / total.value) * 100 : 0))
-const tempPercent = computed<number>(() =>
-    total.value > 0 ? (pfTemp.value / total.value) * 100 : 0
-)
-
-const barraGradient = computed<string>(() =>
-    `linear-gradient(to right,` +
-    `#28a745 0%,#28a745 ${hpPercent.value}%,` +
-    `#17a2b8 ${hpPercent.value}%,#17a2b8 ${hpPercent.value + tempPercent.value}%,` +
-    `#ddd ${hpPercent.value + tempPercent.value}%,#ddd 100%)`
-)
-
-// --- Sync backend (invia: danni negativi + PF temp) ---
-const debouncedUpdate = debounce(() => {
-  updateHP(
-      props.idPersonaggio,
-      pfStat.value?.valore ?? 0,     // danni (≤ 0)
-      pfTempStat.value?.valore ?? 0  // pf temp (≥ 0)
-  ).then(() => {
-    // reset feedback UI
-    delta.value = 0
-    // console.log('HP sincronizzati')
+// ordine di consumo (da destra): barriere → temp → vita.
+// quindi sulla barra: vita (verde) | temp (arancio) | barriere (azzurro, separate) | grigio
+const segments = computed(() => {
+  const segs: Array<{ w: number; cls: string; sep: boolean }> = []
+  if (hp.value > 0) segs.push({w: pct(hp.value), cls: 'seg-hp', sep: false})
+  if (pfTemp.value > 0) segs.push({w: pct(pfTemp.value), cls: 'seg-temp', sep: true})
+  barriere.value.forEach((b) => {
+    if (b.current > 0) segs.push({w: pct(b.current), cls: 'seg-barr', sep: true})
   })
-}, 3000)
+  const vuoto = totalMax.value - remaining.value
+  if (vuoto > 0) segs.push({w: pct(vuoto), cls: 'seg-empty', sep: false})
+  return segs
+})
 
-watch([damageNeg, pfTemp], () => debouncedUpdate(), {flush: 'post'})
-onBeforeUnmount(() => debouncedUpdate.cancel())
+// dettaglio: vita [+ temp] [+ barriere]
+const breakdown = computed(() => {
+  const parts = [String(hp.value)]
+  if (pfTemp.value > 0) parts.push(String(pfTemp.value))
+  if (barriereTotal.value > 0) parts.push(String(barriereTotal.value))
+  return parts.join(' + ')
+})
+const hasBreakdown = computed(() => pfTemp.value > 0 || barriereTotal.value > 0)
 
-/**
- * Modifica PF secondo il nuovo modello:
- * - amount < 0 => Danno: prima PFTEMP, poi danni (valore più negativo)
- * - amount > 0 => Cura: riduce i danni verso 0 (non tocca PFTEMP)
- */
-function modifyHp(amount: number) {
-  if (!pfStat.value) return
-  delta.value += amount
-
-  // stato attuale
-  const curMax = hpMax.value
-  const curDamage = pfStat.value.valore ?? 0 // <= 0
-  const curTemp = pfTempStat.value?.valore ?? 0
-
-  if (amount < 0) {
-    // --- Danno ---
-    let dmg = -amount
-
-    // 1) Consuma PF TEMP
-    if (pfTempStat.value && curTemp > 0) {
-      const cut = Math.min(dmg, curTemp)
-      pfTempStat.value.valore = Math.max(0, curTemp - cut)
-      dmg -= cut
-    }
-
-    // 2) Il resto diventa danno (più negativo)
-    if (dmg > 0) {
-      // non superare -hpMax per evitare numeri senza senso
-      const minDamage = -curMax
-      pfStat.value.valore = clamp(minDamage, curDamage - dmg, 0)
-    }
-  } else if (amount > 0) {
-    // --- Cura ---
-    // Riduce i danni verso 0 (non ripristina PF TEMP)
-    // Max curabile: -curDamage (es. curDamage = -15 => max 15)
-    const curable = -curDamage
-    if (curable > 0) {
-      const heal = Math.min(amount, curable)
-      pfStat.value.valore = curDamage + heal // meno negativo, verso 0
-    }
-  }
+function apriPopup() {
+  openPopup(Mobile_HP_Popup, {idPersonaggio: props.idPersonaggio}, {closable: true, autoClose: 0})
 }
 </script>
 
 <template>
-  <div class="bar-container" :style="{ backgroundImage: barraGradient }">
-    <Icona name="SUB" class="bar-btn" @click.stop="modifyHp(-1)"/>
-    <button class="hp-mod" @click.stop="modifyHp(-50)">-50</button>
-    <div class="bar-wrapper">
-      <div class="bar">
-        <div class="bar-delta" v-if="delta < 0">
-          ({{ delta }})
-        </div>
-
-        <div class="bar-center">
-          <template v-if="pfTemp > 0">
-            {{ hp + pfTemp }} ({{ hp }} + {{ pfTemp }}) / {{ hpMax }}
-          </template>
-          <template v-else>
-            {{ hp }} / {{ hpMax }}
-          </template>
-        </div>
-
-        <div class="bar-delta" v-if="delta > 0">
-          +{{ delta }}
-        </div>
-      </div>
+  <div class="hp-bar" @click="apriPopup" title="Gestisci HP e barriere">
+    <div class="hp-track">
+      <div v-for="(s, i) in segments" :key="i" class="hp-seg" :class="[s.cls, { sep: s.sep }]"
+           :style="{ width: s.w + '%' }"/>
     </div>
-    <button class="hp-mod" @click.stop="modifyHp(+50)">+50</button>
-    <Icona name="ADD" class="bar-btn" @click.stop="modifyHp(+1)"/>
+
+    <div class="hp-overlay">
+      <Icona name="SUB" class="bar-btn" @click.stop="modifyHp(-1)"/>
+      <button class="hp-mod" @click.stop="modifyHp(-50)">-50</button>
+      <div class="hp-text">
+        {{ remaining }} / {{ totalMax }}<span v-if="hasBreakdown" class="bd">&nbsp;({{ breakdown }})</span>
+      </div>
+      <button class="hp-mod" @click.stop="modifyHp(+50)">+50</button>
+      <Icona name="ADD" class="bar-btn" @click.stop="modifyHp(+1)"/>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.hp-bar {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  height: 2rem;
+  border: 1px solid #94a3b8;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #e5e7eb;
+  cursor: pointer;
+  padding: 0;
+}
+
+.hp-overlay {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  padding: 0 .3rem;
+}
+
+.hp-mod {
+  background: transparent;
+  border: 0;
+  font-weight: 700;
+  font-size: .8rem;
+  cursor: pointer;
+  color: #334155;
+  flex-shrink: 0;
+}
+
+.hp-track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+
+.hp-seg {
+  height: 100%;
+}
+
+.hp-seg.seg-hp {
+  background: #22c55e;
+}
+
+.hp-seg.seg-temp {
+  background: #fdba74;
+}
+
+/* arancione pastello */
+.hp-seg.seg-barr {
+  background: #93c5fd;
+}
+
+/* azzurro pastello */
+.hp-seg.seg-empty {
+  background: transparent;
+}
+
+/* separatore evidente tra segmenti contigui (in particolare tra barriere) */
+.hp-seg.sep {
+  box-shadow: inset 2px 0 0 #ffffff;
+}
+
+.hp-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: .85rem;
+  color: #0f172a;
+  text-shadow: 0 0 3px rgba(255, 255, 255, .9), 0 0 3px rgba(255, 255, 255, .9);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.extra {
+  margin-left: 1px;
+}
+
+.extra.temp {
+  color: #0f766e;
+}
+
+.extra.barr {
+  color: #1d4ed8;
+}
+
+.bar-btn {
+  flex-shrink: 0;
+  cursor: pointer;
+  font-size: .9rem;
+  color: #475569;
+}
+</style>

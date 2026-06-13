@@ -6,4 +6,7 @@ export interface Item {
     tipo: TipoItem;
     disabled: boolean;
     quantita?: number; // label QTA, default 1
+    barriera?: boolean;
+    barrMax?: number;
+    barrCons?: number;
 }

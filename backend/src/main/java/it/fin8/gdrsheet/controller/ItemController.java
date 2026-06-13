@@ -235,6 +235,24 @@ public class ItemController {
     }
 
     @Operation(
+            summary = "Aggiorna gli hp consumati di una barriera",
+            description = "Imposta BARR_CONS (clampato 0..BARR_MAX) sul talento barriera"
+    )
+    @PostMapping("/barriera/{id}")
+    public ResponseEntity<Void> updateBarriera(
+            @Parameter(description = "Id item barriera", required = true)
+            @PathVariable Integer id,
+            @RequestParam int consumato,
+            @RequestParam(required = false) Integer idPersonaggio,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        if (idPersonaggio != null)
+            authzService.assertCanEditPersonaggio(utente, idPersonaggio);
+        itemService.updateBarriera(id, consumato);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
             summary = "Scollega un item dal personaggio",
             description = "Rimuove l'item dall'equipaggiamento del personaggio (collegamento FromCompendio); l'item resta nel compendio"
     )

@@ -20,6 +20,7 @@ import {Modificatore} from "../../../../../models/entity/Modificatore";
 import {Avanzamento} from "../../../../../models/entity/Avanzamento";
 import {Item} from "../../../../../models/dto/Item";
 import {getItemLabel, LABELS, thereIsValoreLabel} from "../../../../../models/entity/ItemLabel";
+import {useHp} from "../../../../../function/useHp";
 
 const router = useRouter()
 const {openPopup} = usePopup()
@@ -34,6 +35,13 @@ const {item, personaggio} = props.data;
 
 const characterStore = useCharacterStore();
 const {cache} = storeToRefs(characterStore);
+
+// --- barriera: controlli +/- reset/distruggi sul talento ---
+const idPersonaggioCorrente = personaggio?.modificatori?.id;
+const hpApi = idPersonaggioCorrente ? useHp(idPersonaggioCorrente) : null;
+const barriera = computed(() =>
+    hpApi?.barriere.value.find((b: any) => b.id === item.id) ?? null);
+
 
 const listaAbilita = ref<ItemDB[]>([]);
 const listaAttacchi = ref<ItemDB[]>([]);
@@ -150,6 +158,23 @@ function showInfoItemPopup(itm) {
           name="EDIT"
           @click.stop="router.push(`/itemeditor/${itemDetail.id}?personaggio=${personaggio.modificatori.id}`)"
       />
+    </div>
+
+    <!-- Barriera: controlli HP temporanei "blu" -->
+    <div v-if="barriera && hpApi" class="barriera-box">
+      <div class="barr-head">
+        <span class="titolo">🛡 Barriera</span>
+        <span class="val">{{ barriera.current }} / {{ barriera.max }}</span>
+      </div>
+      <div class="barr-track">
+        <div class="barr-fill" :style="{ width: (barriera.max > 0 ? (barriera.current / barriera.max) * 100 : 0) + '%' }"/>
+      </div>
+      <div class="barr-actions">
+        <button class="btn" :disabled="barriera.current <= 0" @click="hpApi.modifyBarriera(barriera.id, -1)">−1</button>
+        <button class="btn" :disabled="barriera.current >= barriera.max" @click="hpApi.modifyBarriera(barriera.id, +1)">+1</button>
+        <button class="btn" :disabled="barriera.current >= barriera.max" @click="hpApi.resetBarriera(barriera.id)">Reset</button>
+        <button class="btn danger" :disabled="barriera.current <= 0" @click="hpApi.distruggiBarriera(barriera.id)">Distruggi</button>
+      </div>
     </div>
 
     <div v-if="itemDetail?.labels?.length" style="display: flex">
@@ -272,3 +297,27 @@ function showInfoItemPopup(itm) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.barriera-box {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  border-radius: .6rem;
+  padding: .5rem .6rem;
+  display: grid;
+  gap: .4rem;
+  margin: .5rem 0;
+}
+.barr-head { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; }
+.barr-head .titolo { font-weight: 700; }
+.barr-head .val { font-weight: 800; color: #1d4ed8; font-variant-numeric: tabular-nums; }
+.barr-track { height: .55rem; background: #dbeafe; border-radius: 999px; overflow: hidden; }
+.barr-fill { height: 100%; background: #3b82f6; }
+.barr-actions { display: flex; flex-wrap: wrap; gap: .35rem; }
+.barr-actions .btn {
+  border: 1px solid #d0d5dd; background: #fff; border-radius: .5rem;
+  padding: .35rem .65rem; cursor: pointer; font-weight: 600; font-size: .85rem;
+}
+.barr-actions .btn:disabled { opacity: .5; cursor: default; }
+.barr-actions .btn.danger { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+</style>
