@@ -62,6 +62,8 @@ public final class Constants {
     public static final String ITEM_TIPO_BARRIERA = "BARRIERA";
     public static final String ITEM_LABEL_BARR_MAX = "BARR_MAX";   // hp massimi della barriera
     public static final String ITEM_LABEL_BARR_CONS = "BARR_CONS"; // hp consumati della barriera
+    public static final String ITEM_LABEL_FRUTTO_LVL = "$V_LVL";       // variabile livello del frutto
+    public static final String ITEM_LABEL_FORMA_MOD_LVL = "$M_P_LVL";  // forma: imposta il livello del frutto padre
     public static final String LABEL_CC_GIOCATORE_PREFIX = "G";
     public static final String LABEL_CC_PARTY_PREFIX = "P";
     public static final String TIPO_PERSONAGGIO_BANCA = "BANCA";

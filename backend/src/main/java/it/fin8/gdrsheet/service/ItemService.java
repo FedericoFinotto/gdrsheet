@@ -237,8 +237,14 @@ public class ItemService {
         applyAttacchi(saved, request.getAttacchi());
         applyChildren(saved, request.getChildItemIds());
 
-        // aggancio al personaggio tramite il suo FromCompendio (non per gli item intestati direttamente)
-        if (pg != null && saved.getPersonaggio() == null) {
+        // bootstrap struttura di un frutto appena creato (variabile livello + 3 forme)
+        if (TipoItem.FRUTTO.equals(saved.getTipo())) {
+            bootstrapFrutto(saved);
+        }
+
+        // aggancio al personaggio tramite il suo FromCompendio (non per gli item intestati
+        // direttamente, né quando l'item sarà collegato come child di un altro item)
+        if (pg != null && saved.getPersonaggio() == null && !Boolean.TRUE.equals(request.getSkipFromCompendio())) {
             Item fromCompendio = ensureFromCompendio(pg.getId());
             Collegamento link = new Collegamento();
             link.setItemSource(fromCompendio);
@@ -247,6 +253,47 @@ public class ItemService {
         }
 
         return saved;
+    }
+
+    /**
+     * Inizializza la struttura di un frutto appena creato:
+     * <ul>
+     *   <li>una variabile di livello sul frutto ({@code $V_LVL = 0});</li>
+     *   <li>tre forme collegate come child, ciascuna con un modificatore che imposta
+     *       il livello del frutto padre ({@code $M_P_LVL = "=N"}).</li>
+     * </ul>
+     * Le forme di default vengono create solo se il frutto non ne ha già di proprie
+     * (es. aggiunte a mano in fase di creazione).
+     */
+    private void bootstrapFrutto(Item frutto) {
+        // variabile di livello sul frutto (solo se non già presente)
+        if (frutto.getLabel(Constants.ITEM_LABEL_FRUTTO_LVL) == null) {
+            addLabelRow(frutto, Constants.ITEM_LABEL_FRUTTO_LVL, "0");
+            itemRepository.save(frutto);
+        }
+
+        // se ci sono già forme collegate (es. aggiunte a mano), non ricreare la struttura
+        // di default; uso il repository perché i collegamenti appena salvati da applyChildren
+        // non sono riflessi nella collection in memoria del frutto.
+        boolean haForme = collegamentoRepository.findAllByItemSource_Id(frutto.getId()).stream()
+                .anyMatch(c -> TipoItem.FORMA.equals(c.getItemTarget().getTipo()));
+        if (haForme) return;
+
+        for (int n = 1; n <= 3; n++) {
+            Item forma = new Item();
+            forma.setNome("Forma " + n);
+            forma.setTipo(TipoItem.FORMA);
+            forma.setMondo(frutto.getMondo());
+            forma.setSistema(frutto.getSistema());
+            forma.setLabels(new ArrayList<>());
+            addLabelRow(forma, Constants.ITEM_LABEL_FORMA_MOD_LVL, "=" + n);
+            Item savedForma = itemRepository.save(forma);
+
+            Collegamento link = new Collegamento();
+            link.setItemSource(frutto);
+            link.setItemTarget(savedForma);
+            collegamentoRepository.save(link);
+        }
     }
 
     /**
@@ -396,6 +443,21 @@ public class ItemService {
         } catch (NumberFormatException e) {
             return 0;
         }
+    }
+
+    /**
+     * Restituisce gli item che hanno questo item come child (i suoi "padri"),
+     * escluso il FromCompendio del personaggio. Deduplicati per id.
+     */
+    public List<ItemDTO> getParents(Integer itemId) {
+        Map<Integer, Item> byId = new LinkedHashMap<>();
+        for (Collegamento c : collegamentoRepository.findAllByItemTarget_Id(itemId)) {
+            Item src = c.getItemSource();
+            if (src == null) continue;
+            if (Constants.ITEM_FROM_COMPENDIO.equals(src.getNome())) continue;
+            byId.putIfAbsent(src.getId(), src);
+        }
+        return byId.values().stream().map(itemMapper::toDTO).toList();
     }
 
     public List<Item> searchItems(String query, TipoItem tipo) {

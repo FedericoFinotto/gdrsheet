@@ -38,6 +38,11 @@ export function getItem(id: number): Promise<AxiosResponse<ItemDB>> {
         .get<ItemDB>(`/item/${id}`);
 }
 
+export function getItemParents(id: number): Promise<AxiosResponse<Item[]>> {
+    return api
+        .get<Item[]>(`/item/${id}/parents`);
+}
+
 export function calcolaFormula(formula: string, datiPersonaggio: DatiPersonaggio): Promise<AxiosResponse<CalcoloResponse>> {
     const payload: CalcoloRequest = {
         formula,

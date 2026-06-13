@@ -12,7 +12,10 @@ const props = defineProps<{
   onlyTipo?: string    // mostra/cerca solo questo tipo
   excludeTipo?: string // mostra/cerca qualsiasi tipo tranne questo
 }>()
-const emit = defineEmits<{ (e: 'update:modelValue', v: ChildRef[]): void }>()
+const emit = defineEmits<{
+  (e: 'update:modelValue', v: ChildRef[]): void
+  (e: 'create-new', tipo: string | undefined): void
+}>()
 
 const router = useRouter()
 const route = useRoute()
@@ -101,6 +104,10 @@ function remove(idx: number) {
       </ul>
       <div v-else-if="query.trim().length >= 2" class="hint">Nessun risultato.</div>
     </div>
+
+    <button type="button" class="btn-create" :disabled="disabled" @click="emit('create-new', onlyTipo)">
+      + Crea nuovo
+    </button>
   </div>
 </template>
 
@@ -148,5 +155,13 @@ input {
   border: 1px solid #fecaca; background: #fef2f2; color: #991b1b;
   border-radius: .5rem; padding: .3rem .55rem; cursor: pointer;
 }
+
+.btn-create {
+  justify-self: start; margin-top: .15rem;
+  border: 1px dashed #93c5fd; background: #eff6ff; color: #1d4ed8;
+  border-radius: .5rem; padding: .4rem .7rem; font-weight: 600; cursor: pointer;
+}
+.btn-create:hover { background: #dbeafe; }
+
 button:disabled { opacity: .6; cursor: default; }
 </style>

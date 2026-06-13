@@ -45,6 +45,14 @@ public class UpdateItemRequest {
     private Integer idPersonaggio;
 
     /**
+     * Solo in creazione: se true, l'item NON viene agganciato al FromCompendio del
+     * personaggio (resta comunque del mondo/sistema del party). Usato quando l'item
+     * sarà collegato come child di un altro item (creazione "al volo" di un figlio),
+     * per evitare il doppio collegamento.
+     */
+    private Boolean skipFromCompendio;
+
+    /**
      * Stato completo delle labels (chiave/valore, chiavi ripetibili).
      */
     private List<LabelRowDTO> labels;

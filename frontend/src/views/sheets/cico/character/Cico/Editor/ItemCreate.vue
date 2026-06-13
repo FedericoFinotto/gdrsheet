@@ -42,7 +42,10 @@ const EditorComp = computed(() => editorForType(tipo.value))
 
 function onTipoChange(e: Event) {
   const v = (e.target as HTMLSelectElement).value
-  const q = idPersonaggio.value ? `?personaggio=${idPersonaggio.value}` : ''
+  const params = new URLSearchParams()
+  if (route.query.link) params.set('link', '1')   // mantieni il flag "crea e collega"
+  if (idPersonaggio.value) params.set('personaggio', String(idPersonaggio.value))
+  const q = params.toString() ? `?${params.toString()}` : ''
   router.replace(v ? `/itemcreate/${v}${q}` : `/itemcreate${q}`)
 }
 

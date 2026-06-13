@@ -204,8 +204,6 @@ public class PersonaggioService {
             Set<Integer> livelliClasse = classe.getLivelli();
             if (entity != null && livelliClasse != null && !livelliClasse.isEmpty()) {
                 advanceRoots.add(entity);
-//                advanceRoots.addAll(entity.getAvanzamento().stream().filter(x -> livelliClasse.contains(x.getLivello()) && !x.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO)).map(Avanzamento::getItemTarget).toList());
-//                advanceRoots.addAll(entity.getAvanzamento().stream().filter(x -> Objects.equals(x.getLivello(), classe.getMax()) && x.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO)).map(Avanzamento::getItemTarget).toList());
             }
         }
 
@@ -217,6 +215,10 @@ public class PersonaggioService {
                                 .toList()
                 )
         );
+
+        // TODO:
+        // in questo punto vorrei che venissero estrapolati tutti gli item in result.getItems che hanno la almeno una label del tipo ADD_CLASSE_N
+        // poi dovrò aggiungere i livelli al result.getLivelli
         return result;
     }
 

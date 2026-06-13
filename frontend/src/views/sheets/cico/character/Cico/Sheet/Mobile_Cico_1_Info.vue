@@ -116,21 +116,23 @@ const itemsLingue = computed(() =>
         .sort((a: any, b: any) => a.nome.localeCompare(b.nome))
 )
 
-// ── Toggle trasformazione figlia di un frutto ──
+// ── Toggle trasformazione/forma ──
+// siblings: lista entro cui cercare lo stesso gruppo per la mutua esclusione.
+// Se non fornita (trasformazioni indipendenti) usa tutte trasf+forme del personaggio.
 const toggling = ref(false)
-async function toggleTrasf(trasf: any) {
+async function toggleTrasf(trasf: any, siblings?: any[]) {
   if (toggling.value) return
   toggling.value = true
   try {
     const items = cache.value[props.idPersonaggio]?.items
-    const allLive: any[] = [
+    const scope: any[] = siblings ?? [
       ...(items?.trasformazioni ?? []),
       ...(items?.forme ?? []),
     ]
     const toSwitch: number[] = []
     if (trasf.disabled) {
-      // attivare: prima disabilita le altre attive dello stesso gruppo
-      allLive
+      // attivare: prima disabilita le altre attive dello stesso gruppo nel scope
+      scope
           .filter(t => !t.disabled && t.gruppo === trasf.gruppo)
           .forEach(t => toSwitch.push(t.id))
     }
@@ -260,7 +262,7 @@ const columnsLingue = [{field: 'nome', label: 'Lingue'}]
                   class="trasf-riga forma-riga"
                   :class="{attiva: !f.disabled}"
               >
-                <button type="button" class="trasf-toggle" :disabled="toggling" @click="toggleTrasf(f)">
+                <button type="button" class="trasf-toggle" :disabled="toggling" @click="toggleTrasf(f, forme)">
                   <span class="dot forma-dot">{{ f.disabled ? '◇' : '◆' }}</span>
                   <span class="trasf-nome">{{ f.nome }}</span>
                 </button>
@@ -276,7 +278,7 @@ const columnsLingue = [{field: 'nome', label: 'Lingue'}]
                   class="trasf-riga"
                   :class="{attiva: !t.disabled}"
               >
-                <button type="button" class="trasf-toggle" :disabled="toggling" @click="toggleTrasf(t)">
+                <button type="button" class="trasf-toggle" :disabled="toggling" @click="toggleTrasf(t, trasf)">
                   <span class="dot">{{ t.disabled ? '○' : '●' }}</span>
                   <span class="trasf-nome">{{ t.nome }}</span>
                 </button>

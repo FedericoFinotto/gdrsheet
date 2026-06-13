@@ -45,6 +45,7 @@ export interface UpdateItemRequest {
     descrizione?: string;
     tipo?: TipoItem;          // usato solo in creazione
     idPersonaggio?: number;   // solo creazione: aggancia al FromCompendio del personaggio
+    skipFromCompendio?: boolean; // creazione "al volo" di un figlio: non agganciare al FromCompendio
     labels?: LabelRow[];      // stato completo delle labels
     modificatori?: ModificatoreRow[]; // stato completo dei modificatori
     attacchi?: AttaccoRow[];  // stato completo degli attacchi figli

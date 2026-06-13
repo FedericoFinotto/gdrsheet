@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref, toRaw, watch} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
 import {ItemDB} from '../../../../../../models/entity/ItemDB'
 import {
   AttaccoRow,
@@ -11,6 +12,7 @@ import {
 } from '../../../../../../models/dto/UpdateItemRequest'
 import {createItem, updateItem} from '../../../../../../service/PersonaggioService'
 import {getItemLabel} from '../../../../../../models/entity/ItemLabel'
+import useChildCreate from '../../../../../../function/useChildCreate'
 import LabelsEditor from './Sections/LabelsEditor.vue'
 import ModificatoriEditor from './Sections/ModificatoriEditor.vue'
 import AttacchiEditor from './Sections/AttacchiEditor.vue'
@@ -119,8 +121,59 @@ function preload() {
   }
 }
 
-onMounted(preload)
+const router = useRouter()
+const route = useRoute()
+const childCreate = useChildCreate()
+
+// editor figlio aperto dal flusso "crea e collega": ha ?link=1 nell'URL
+const isLinkCreate = computed(() => props.mode === 'create' && !!route.query.link)
+
+// Snapshot del form per preservarlo durante la creazione al volo di un figlio
+function snapshotForm() {
+  return JSON.parse(JSON.stringify(toRaw(form)))
+}
+
+function restoreSnapshot(snap: any) {
+  form.nome = snap.nome ?? ''
+  form.descrizione = snap.descrizione ?? ''
+  form.campi = {...(snap.campi ?? {})}
+  form.labels = snap.labels ?? []
+  form.modificatori = snap.modificatori ?? []
+  form.attacchi = snap.attacchi ?? []
+  form.children = snap.children ?? []
+  form.forme = snap.forme ?? []
+  form.qta = snap.qta ?? 1
+  form.compendio = !!snap.compendio
+}
+
+// Al mount: se sto tornando da una creazione di figlio (draft pendente e NON sono io
+// l'editor figlio), ripristino il form e aggancio il nuovo item creato.
+function mountInit() {
+  const slot = !route.query.link ? childCreate.peekDraft() : null
+  if (slot && slot.tipo === props.item.tipo) {
+    childCreate.takeDraft()
+    restoreSnapshot(slot.snapshot)
+    const created = childCreate.takeCreatedChild()
+    if (created) {
+      const list = slot.target === 'forme' ? form.forme : form.children
+      if (!list.some(c => c.id === created.id)) list.push(created)
+    }
+    return
+  }
+  preload()
+}
+
+onMounted(mountInit)
 watch(() => props.item?.id, preload)
+
+// Crea un nuovo item collegato al volo: salva lo stato corrente e apre l'editor di creazione.
+function onCreateChild(target: 'children' | 'forme', tipo?: string) {
+  childCreate.stashDraft({target, tipo: props.item.tipo, snapshot: snapshotForm()})
+  const tipoSeg = tipo ? `/${tipo}` : ''
+  const params = new URLSearchParams({link: '1'})
+  if (props.idPersonaggio) params.set('personaggio', String(props.idPersonaggio))
+  router.push(`/itemcreate${tipoSeg}?${params.toString()}`)
+}
 
 const busy = ref(false)
 const errorMsg = ref<string | null>(null)
@@ -160,6 +213,8 @@ function buildPayload(): UpdateItemRequest {
     descrizione: form.descrizione,
     tipo: props.mode === 'create' ? props.item.tipo : undefined,
     idPersonaggio: props.mode === 'create' ? props.idPersonaggio : undefined,
+    // creazione "al volo" di un figlio: tieni mondo/sistema ma non agganciare al FromCompendio
+    skipFromCompendio: isLinkCreate.value ? true : undefined,
     labels,
     modificatori: form.modificatori.filter(m => m.statId.trim()),
     attacchi: form.attacchi.filter(a => a.nome.trim()),
@@ -167,19 +222,20 @@ function buildPayload(): UpdateItemRequest {
   })
 }
 
-async function doSave(): Promise<boolean> {
+async function doSave(): Promise<ItemDB | null> {
   busy.value = true
   errorMsg.value = null
   try {
     const payload = buildPayload()
-    if (props.mode === 'create') await createItem(payload)
-    else await updateItem(props.item.id, payload, props.idPersonaggio)
-    return true
+    const res = props.mode === 'create'
+        ? await createItem(payload)
+        : await updateItem(props.item.id, payload, props.idPersonaggio)
+    return res.data ?? null
   } catch (e: any) {
     errorMsg.value = e?.response?.status === 403
         ? 'Non hai i permessi per modificare questo personaggio'
         : (e?.message ?? 'Errore nel salvataggio')
-    return false
+    return null
   } finally {
     busy.value = false
   }
@@ -187,7 +243,16 @@ async function doSave(): Promise<boolean> {
 
 async function onSave() {
   if (!canSave.value) return
-  if (await doSave()) emit('saved')
+  const saved = await doSave()
+  if (!saved) return
+  // se sono l'editor figlio del flusso "crea e collega", registro l'item creato;
+  // altrimenti (salvataggio normale) ripulisco eventuali draft pendenti
+  if (isLinkCreate.value) {
+    childCreate.setCreatedChild({id: saved.id, nome: saved.nome, tipo: saved.tipo})
+  } else {
+    childCreate.clearDraft()
+  }
+  emit('saved')
 }
 
 /* Salva e continua: salva, poi resta nell'editor con un nuovo item dello stesso tipo */
@@ -212,6 +277,9 @@ function resetForNew() {
 }
 
 function onCancel() {
+  // se annullo l'editor figlio del flusso "crea e collega" lascio il draft (il padre
+  // lo ripristina senza agganciare nulla); se annullo un editor normale lo ripulisco
+  if (!isLinkCreate.value) childCreate.clearDraft()
   emit('cancel')
 }
 </script>
@@ -284,7 +352,8 @@ function onCancel() {
         <span class="chev" :class="{ open: open.forme }">▸</span>
       </button>
       <div v-show="open.forme" class="fold-body">
-        <ChildrenEditor v-model="form.forme" :disabled="disabledAll" :exclude-id="props.item.id" only-tipo="FORMA"/>
+        <ChildrenEditor v-model="form.forme" :disabled="disabledAll" :exclude-id="props.item.id" only-tipo="FORMA"
+                        @create-new="onCreateChild('forme', 'FORMA')"/>
       </div>
     </section>
 
@@ -298,7 +367,8 @@ function onCancel() {
       </button>
       <div v-show="open.children" class="fold-body">
         <ChildrenEditor v-model="form.children" :disabled="disabledAll" :exclude-id="props.item.id"
-                        :exclude-tipo="separateForme ? 'FORMA' : undefined"/>
+                        :exclude-tipo="separateForme ? 'FORMA' : undefined"
+                        @create-new="onCreateChild('children', $event)"/>
       </div>
     </section>
 
@@ -337,7 +407,7 @@ function onCancel() {
 
     <div class="actions">
       <button type="button" class="btn ghost" @click="onCancel" :disabled="busy">Annulla</button>
-      <button v-if="mode === 'create'" type="button" class="btn outline" :disabled="!canSave" @click="onSaveAndNew">
+      <button v-if="mode === 'create' && !isLinkCreate" type="button" class="btn outline" :disabled="!canSave" @click="onSaveAndNew">
         Salva e continua
       </button>
       <button type="submit" class="btn primary" :disabled="!canSave">Salva</button>

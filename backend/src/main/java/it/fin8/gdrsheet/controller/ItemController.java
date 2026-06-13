@@ -59,6 +59,18 @@ public class ItemController {
     }
 
     @Operation(
+            summary = "Recupera i padri di un item",
+            description = "Item che hanno questo item come child, escluso il FromCompendio"
+    )
+    @GetMapping("/{id}/parents")
+    public ResponseEntity<List<ItemDTO>> getParents(
+            @Parameter(description = "Id Item", required = true)
+            @PathVariable Integer id
+    ) {
+        return ResponseEntity.ok(itemService.getParents(id));
+    }
+
+    @Operation(
             summary = "Recupera una lista di incantesimi per classe e livello",
             description = "Recupera una lista di incantesimi per classe e livello"
     )

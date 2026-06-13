@@ -2,7 +2,8 @@
 import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import type {AxiosResponse} from 'axios'
-import {deleteItem, getItem, unlinkItem} from '../../../../../../service/PersonaggioService'
+import {deleteItem, getItem, getItemParents, unlinkItem} from '../../../../../../service/PersonaggioService'
+import type {Item} from '../../../../../../models/dto/Item'
 import {useCharacterStore} from '../../../../../../stores/personaggio'
 import usePopup from '../../../../../../function/usePopup'
 import {useAuthStore} from '../../../../../../stores/auth'
@@ -21,6 +22,7 @@ const {closePopup} = usePopup()
 const loading = ref(false)
 const errorMsg = ref<string | null>(null)
 const item = ref<ItemDB | null>(null)
+const parents = ref<Item[]>([])
 
 const EditorComp = computed(() => editorForType(item.value?.tipo))
 
@@ -92,9 +94,16 @@ async function load(id: number) {
   loading.value = true;
   errorMsg.value = null;
   item.value = null
+  parents.value = []
   try {
     const res: AxiosResponse<ItemDB> = await getItem(id)
     item.value = res.data
+    try {
+      const pres = await getItemParents(id)
+      parents.value = pres.data ?? []
+    } catch (e) {
+      console.error('Errore caricamento padri item:', e)
+    }
   } catch (e: any) {
     errorMsg.value = e?.message ?? 'Errore nel caricamento'
   } finally {
@@ -113,6 +122,11 @@ watch(() => route.params.id, v => {
 
 function goBack() {
   router.back()
+}
+
+function openParent(p: Item) {
+  const path = `/itemeditor/${p.id}` + (idPersonaggio.value ? `?personaggio=${idPersonaggio.value}` : '')
+  router.push(path)
 }
 
 // dopo il salvataggio: chiudi il popup di dettaglio (mostra dati vecchi),
@@ -145,6 +159,16 @@ async function onSaved() {
         </button>
       </div>
     </header>
+
+    <div v-if="parents.length" class="parent-bar">
+      <span class="parent-label">Collegato a:</span>
+      <button
+          v-for="p in parents" :key="p.id"
+          type="button" class="parent-chip"
+          :title="`Apri ${p.nome}`"
+          @click="openParent(p)"
+      >{{ p.nome }}</button>
+    </div>
 
     <div class="editor-scroll">
       <div v-if="loading" class="state loading">Caricamento…</div>
@@ -211,6 +235,35 @@ async function onSaved() {
   background: #eef2ff;
   color: #3730a3;
 }
+
+.parent-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .4rem;
+  padding: .5rem 1rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.parent-label {
+  font-size: .8rem;
+  font-weight: 600;
+  opacity: .7;
+}
+
+.parent-chip {
+  font-size: .8rem;
+  padding: .25rem .6rem;
+  border-radius: .5rem;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.parent-chip:hover { background: #dbeafe; }
 
 .editor-scroll {
   flex: 1;
