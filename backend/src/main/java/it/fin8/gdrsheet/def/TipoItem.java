@@ -24,7 +24,8 @@ public enum TipoItem {
     COMP("Competenza"),
     LINGUA("Lingua"),
     IDOLO("Idolo"),
-    FRUTTO("Frutto")
+    FRUTTO("Frutto"),
+    FORMA("Forma")
     ;
 
     private final String label;

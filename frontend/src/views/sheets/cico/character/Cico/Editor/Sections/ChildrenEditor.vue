@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {ref} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
 import {ChildRef} from '../../../../../../../models/dto/UpdateItemRequest'
 import {searchItems} from '../../../../../../../service/PersonaggioService'
 import {Item} from '../../../../../../../models/dto/Item'
@@ -10,6 +11,15 @@ const props = defineProps<{
   excludeId?: number   // id dell'item in editing: non collegabile a se stesso
 }>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: ChildRef[]): void }>()
+
+const router = useRouter()
+const route = useRoute()
+
+function editChild(c: ChildRef) {
+  const idPg = route.query.personaggio
+  const path = `/itemeditor/${c.id}` + (idPg ? `?personaggio=${idPg}` : '')
+  router.push(path)
+}
 
 const query = ref('')
 const results = ref<Item[]>([])
@@ -63,6 +73,7 @@ function remove(idx: number) {
     <div v-for="(c, i) in modelValue" :key="c.id" class="child-row">
       <span class="nome">{{ c.nome }}</span>
       <span class="pill">{{ c.tipo }}</span>
+      <button type="button" class="btn-edit" @click="editChild(c)" title="Modifica">✎</button>
       <button type="button" class="btn-del" :disabled="disabled" @click="remove(i)" title="Scollega">✕</button>
     </div>
 
@@ -95,7 +106,7 @@ input, select, textarea { min-width: 0; }
 .empty { font-size: .85rem; opacity: .6; }
 
 .child-row {
-  display: grid; grid-template-columns: 1fr auto auto; gap: .4rem; align-items: center;
+  display: grid; grid-template-columns: 1fr auto auto auto; gap: .4rem; align-items: center;
   padding: .35rem .5rem; border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff;
 }
 .nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -122,6 +133,12 @@ input {
 }
 .result:hover { background: #f9fafb; }
 .plus { color: #2563eb; font-weight: 700; }
+
+.btn-edit {
+  border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8;
+  border-radius: .5rem; padding: .3rem .55rem; cursor: pointer;
+}
+.btn-edit:hover { background: #dbeafe; }
 
 .btn-del {
   border: 1px solid #fecaca; background: #fef2f2; color: #991b1b;
