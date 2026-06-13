@@ -155,10 +155,14 @@ public class ItemController {
             @RequestParam(required = false) String nome,
             @RequestParam(required = false) TipoItem tipo,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal Utente utente
     ) {
-        var p = repo.findCompendio(nome == null ? "" : nome.trim(), tipo,
-                org.springframework.data.domain.PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 50))));
+        String nomeQ = nome == null ? "" : nome.trim();
+        var pr = org.springframework.data.domain.PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 50)));
+        var p = authzService.isMasterOrAdmin(utente)
+                ? repo.findCompendioAll(nomeQ, tipo, pr)
+                : repo.findCompendio(nomeQ, tipo, pr);
         return ResponseEntity.ok(new PageDTO<>(
                 p.getContent().stream().map(itemMapper::toDTO).toList(),
                 p.getNumber(), p.getSize(), p.getTotalElements(), Math.max(1, p.getTotalPages())

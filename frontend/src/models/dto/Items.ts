@@ -23,4 +23,5 @@ export interface Items {
     competenze: Item[];
     lingue: Item[];
     idoli: Item[];
+    frutti: Item[];
 }

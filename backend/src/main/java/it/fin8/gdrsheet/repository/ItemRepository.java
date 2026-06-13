@@ -56,6 +56,20 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
 
     List<Item> findTop20ByNomeContainingIgnoreCaseAndTipoOrderByNomeAsc(String nome, TipoItem tipo);
 
+    /** Compendio senza filtro COMPENDIO — visibile solo ad admin/master. */
+    @Query("""
+            SELECT i FROM Item i
+            WHERE i.personaggio IS NULL
+              AND (:tipo IS NULL OR i.tipo = :tipo)
+              AND (:nome = '' OR lower(i.nome) LIKE lower(concat('%', :nome, '%')))
+            ORDER BY i.nome
+            """)
+    org.springframework.data.domain.Page<Item> findCompendioAll(
+            @Param("nome") String nome,
+            @Param("tipo") TipoItem tipo,
+            org.springframework.data.domain.Pageable pageable
+    );
+
     /**
      * Restituisce l'intera entità Item e il valore (livello) associato,
      * filtrando per tipo INCANTESIMO, label e lista di IDs.

@@ -151,6 +151,9 @@ public class PersonaggioService {
             if (TipoItem.IDOLO.equals(itm.getTipo())) {
                 itemsDTO.getIdoli().add(itemMapper.toDTO(itm));
             }
+            if (TipoItem.FRUTTO.equals(itm.getTipo())) {
+                itemsDTO.getFrutti().add(itemMapper.toDTO(itm));
+            }
         }
 
         for (InfoClasseDTO classe : allPersonaggioItems.getLivelli().getClassi()) {

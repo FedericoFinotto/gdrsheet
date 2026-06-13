@@ -28,6 +28,7 @@ public class ItemsDTO {
     private List<ItemDTO> competenze;
     private List<ItemDTO> lingue;
     private List<ItemDTO> idoli;
+    private List<ItemDTO> frutti;
 
     public ItemsDTO() {
         abilita = new ArrayList<>();
@@ -47,5 +48,6 @@ public class ItemsDTO {
         competenze = new ArrayList<>();
         lingue = new ArrayList<>();
         idoli = new ArrayList<>();
+        frutti = new ArrayList<>();
     }
 }
