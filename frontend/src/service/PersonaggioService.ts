@@ -18,7 +18,7 @@ import {Item} from "../models/dto/Item";
 import {Gradi} from "../models/dto/Gradi";
 import {UpdateItemRequest} from "../models/dto/UpdateItemRequest";
 import {SaveLivelloPayload} from "../models/dto/UpdateLivelloRequest";
-import {Banca, Soldi} from "../models/dto/Party";
+import {Banca, Page, Soldi} from "../models/dto/Party";
 import {Stat} from "../models/entity/Stat";
 
 export function getModificatoriPersonaggioById(id: number): Promise<AxiosResponse<DatiPersonaggio>> {
@@ -134,6 +134,12 @@ export function unlinkItem(id: number, idPersonaggio: number): Promise<AxiosResp
 
 export function searchItems(q: string, tipo?: string): Promise<AxiosResponse<Item[]>> {
     return api.get<Item[]>('/item/search', {params: {q, tipo}});
+}
+
+export function getCompendio(
+    params: { nome?: string; tipo?: string; page?: number; size?: number } = {}
+): Promise<AxiosResponse<Page<Item>>> {
+    return api.get<Page<Item>>('/item/compendio', {params});
 }
 
 let statsCache: Stat[] | null = null;

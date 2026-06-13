@@ -5,6 +5,7 @@ import type {AxiosResponse} from 'axios'
 import {deleteItem, getItem, unlinkItem} from '../../../../../../service/PersonaggioService'
 import {useCharacterStore} from '../../../../../../stores/personaggio'
 import usePopup from '../../../../../../function/usePopup'
+import {useAuthStore} from '../../../../../../stores/auth'
 
 // Editors: registro tipo -> componente
 import {editorForType} from './editorRegistry'
@@ -35,6 +36,13 @@ const unlinking = ref(false)
 // scollegabile: c'è il contesto personaggio e non è un item intestato (es. livelli)
 const canUnlink = computed(() =>
     !!idPersonaggio.value && !!item.value && item.value.tipo !== 'LIVELLO')
+
+// eliminazione: solo master e admin
+const auth = useAuthStore()
+const canDelete = computed(() => {
+  const r = (auth.utente?.ruolo ?? '').toUpperCase()
+  return r === 'MASTER' || r === 'ADMIN' || r === 'SUPERUSER'
+})
 
 async function onUnlink() {
   if (!item.value || !idPersonaggio.value || unlinking.value) return
@@ -132,7 +140,7 @@ async function onSaved() {
         <button v-if="canUnlink" type="button" class="btn-unlink" :disabled="unlinking || deleting" @click="onUnlink">
           {{ unlinking ? 'Scollegamento…' : 'Scollega' }}
         </button>
-        <button v-if="item" type="button" class="btn-delete" :disabled="deleting || unlinking" @click="onDelete">
+        <button v-if="item && canDelete" type="button" class="btn-delete" :disabled="deleting || unlinking" @click="onDelete">
           {{ deleting ? 'Eliminazione…' : 'Elimina' }}
         </button>
       </div>
@@ -213,6 +221,9 @@ async function onSaved() {
   padding: .75rem 1rem calc(2rem + env(safe-area-inset-bottom, 0px));
   display: grid;
   gap: .75rem;
+  /* senza questo, con contenuto più corto dello schermo le righe del grid
+     si stirano (align-content: stretch) creando spazi vuoti casuali */
+  align-content: start;
 }
 
 .state {

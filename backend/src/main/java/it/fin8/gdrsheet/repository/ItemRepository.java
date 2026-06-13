@@ -31,6 +31,19 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
     @Query("SELECT i FROM Item i JOIN i.labels il WHERE il.label = 'CC' AND il.valore = :cc")
     List<Item> findContiByCc(@Param("cc") String cc);
 
+    @Query("""
+            SELECT i FROM Item i
+            WHERE i.personaggio IS NULL
+              AND (:tipo IS NULL OR i.tipo = :tipo)
+              AND (:nome = '' OR lower(i.nome) LIKE lower(concat('%', :nome, '%')))
+            ORDER BY i.nome
+            """)
+    org.springframework.data.domain.Page<Item> findCompendio(
+            @Param("nome") String nome,
+            @Param("tipo") TipoItem tipo,
+            org.springframework.data.domain.Pageable pageable
+    );
+
     List<Item> findTop20ByNomeContainingIgnoreCaseAndTipoOrderByNomeAsc(String nome, TipoItem tipo);
 
     /**

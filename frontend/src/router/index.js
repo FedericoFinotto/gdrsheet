@@ -5,6 +5,7 @@ import Party from '@/views/Party.vue';
 import PartyItems from '@/views/PartyItems.vue';
 import PartyBanche from '@/views/PartyBanche.vue';
 import BancaDetail from '@/views/BancaDetail.vue';
+import Compendio from '@/views/Compendio.vue';
 import Mobile_Cico_0_CharacterSheet from "../views/sheets/cico/character/Cico/Sheet/Mobile_Cico_0_CharacterSheet.vue";
 import ItemEditor from "../views/sheets/cico/character/Cico/Editor/ItemEditor.vue";
 import ItemCreate from "../views/sheets/cico/character/Cico/Editor/ItemCreate.vue";
@@ -16,6 +17,7 @@ const routes = [
   {path: '/party/:id/items', name: 'PartyItems', component: PartyItems},
   {path: '/party/:id/banche', name: 'PartyBanche', component: PartyBanche},
   {path: '/banca/:id', name: 'BancaDetail', component: BancaDetail},
+  {path: '/compendio', name: 'Compendio', component: Compendio},
   {
     path: '/scheda/:id',
     name: 'Scheda',

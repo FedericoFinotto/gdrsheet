@@ -46,6 +46,16 @@ public class AuthzService {
     }
 
     /**
+     * Ruolo applicativo MASTER (o admin): richiesto per le operazioni
+     * distruttive sul compendio, come la cancellazione degli item.
+     */
+    public boolean isMasterOrAdmin(Utente utente) {
+        if (isAdmin(utente)) return true;
+        if (utente == null || utente.getRuolo() == null) return false;
+        return utente.getRuolo().trim().toUpperCase(Locale.ROOT).equals("MASTER");
+    }
+
+    /**
      * L'utente è membro (qualsiasi ruolo) del party.
      */
     public boolean isMembroParty(Utente utente, Integer partyId) {

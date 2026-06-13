@@ -3,7 +3,9 @@ package it.fin8.gdrsheet.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import it.fin8.gdrsheet.def.TipoItem;
+import it.fin8.gdrsheet.dto.ClasseDetailDTO;
 import it.fin8.gdrsheet.dto.ItemDTO;
+import it.fin8.gdrsheet.dto.PageDTO;
 import it.fin8.gdrsheet.dto.SpellBookIncantesimoDTO;
 import it.fin8.gdrsheet.dto.UpdateItemRequest;
 import it.fin8.gdrsheet.dto.UpdateLivelloRequest;
@@ -15,6 +17,7 @@ import it.fin8.gdrsheet.entity.Utente;
 import it.fin8.gdrsheet.mapper.ItemMapper;
 import it.fin8.gdrsheet.repository.ItemRepository;
 import it.fin8.gdrsheet.service.AuthzService;
+import it.fin8.gdrsheet.service.ClasseService;
 import it.fin8.gdrsheet.service.ItemService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -31,12 +34,14 @@ public class ItemController {
     private final ItemService itemService;
     private final ItemMapper itemMapper;
     private final AuthzService authzService;
+    private final ClasseService classeService;
 
-    public ItemController(ItemRepository repo, ItemService itemService, ItemMapper itemMapper, AuthzService authzService) {
+    public ItemController(ItemRepository repo, ItemService itemService, ItemMapper itemMapper, AuthzService authzService, ClasseService classeService) {
         this.repo = repo;
         this.itemService = itemService;
         this.itemMapper = itemMapper;
         this.authzService = authzService;
+        this.classeService = classeService;
     }
 
     @Operation(
@@ -142,6 +147,47 @@ public class ItemController {
     }
 
     @Operation(
+            summary = "Compendio",
+            description = "Lista paginata degli item del compendio (non legati a personaggi), con filtri nome/tipo"
+    )
+    @GetMapping("/compendio")
+    public ResponseEntity<PageDTO<ItemDTO>> getCompendio(
+            @RequestParam(required = false) String nome,
+            @RequestParam(required = false) TipoItem tipo,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        var p = repo.findCompendio(nome == null ? "" : nome.trim(), tipo,
+                org.springframework.data.domain.PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 50))));
+        return ResponseEntity.ok(new PageDTO<>(
+                p.getContent().stream().map(itemMapper::toDTO).toList(),
+                p.getNumber(), p.getSize(), p.getTotalElements(), Math.max(1, p.getTotalPages())
+        ));
+    }
+
+    @Operation(
+            summary = "Dettaglio classe per l'editor",
+            description = "Classe con label, tabella dei 20 livelli e abilità concesse"
+    )
+    @GetMapping("/classe/{id}")
+    public ResponseEntity<ClasseDetailDTO> getClasse(
+            @Parameter(description = "Id item classe", required = true)
+            @PathVariable Integer id
+    ) {
+        return ResponseEntity.ok(classeService.getClasse(id));
+    }
+
+    @Operation(
+            summary = "Crea/aggiorna una classe completa",
+            description = "Salva item CLASSE, item AVANZAMENTO per livello (BAB/TS/DV/GRADI/SP_SLOT) e abilità concesse"
+    )
+    @PostMapping("/classe")
+    public ResponseEntity<ClasseDetailDTO> saveClasse(@Valid @RequestBody ClasseDetailDTO dto) {
+        Item saved = classeService.saveClasse(dto);
+        return ResponseEntity.ok(classeService.getClasse(saved.getId()));
+    }
+
+    @Operation(
             summary = "Crea un nuovo item",
             description = "Crea un nuovo item generico con labels e modificatori"
     )
@@ -179,6 +225,9 @@ public class ItemController {
             @RequestParam(required = false) Integer idPersonaggio,
             @AuthenticationPrincipal Utente utente
     ) {
+        if (!authzService.isMasterOrAdmin(utente))
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "Solo master e admin possono eliminare gli item");
         if (idPersonaggio != null)
             authzService.assertCanEditPersonaggio(utente, idPersonaggio);
         itemService.deleteItem(id, idPersonaggio);

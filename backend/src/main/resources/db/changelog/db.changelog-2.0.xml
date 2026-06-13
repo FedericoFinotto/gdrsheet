@@ -195,6 +195,30 @@
         <sql>SELECT setval(pg_get_serial_sequence('personaggio', 'id'), COALESCE((SELECT max(id) FROM personaggio), 0) + 1, false)</sql>
     </changeSet>
 
+    <!-- avanzamento.id autoincrement (per l'editor delle classi) -->
+
+    <changeSet id="114" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM information_schema.columns
+                WHERE table_name = 'avanzamento' AND column_name = 'id'
+                  AND (column_default IS NOT NULL OR is_identity = 'YES')
+            </sqlCheck>
+        </preConditions>
+        <comment>avanzamento.id autoincrement</comment>
+        <addAutoIncrement tableName="avanzamento" columnName="id" columnDataType="integer"/>
+    </changeSet>
+
+    <changeSet id="115" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT CASE WHEN pg_get_serial_sequence('avanzamento', 'id') IS NULL THEN 0 ELSE 1 END
+            </sqlCheck>
+        </preConditions>
+        <comment>allinea la sequence di avanzamento.id al massimo attuale</comment>
+        <sql>SELECT setval(pg_get_serial_sequence('avanzamento', 'id'), COALESCE((SELECT max(id) FROM avanzamento), 0) + 1, false)</sql>
+    </changeSet>
+
     <!-- Soldi: stats MR/MA/MO/MP (i valori vivono come modificatori sugli item dei personaggi) -->
 
     <changeSet id="110" author="developer">
