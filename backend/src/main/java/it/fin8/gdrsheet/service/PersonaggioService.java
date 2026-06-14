@@ -216,10 +216,109 @@ public class PersonaggioService {
                 )
         );
 
-        // TODO:
-        // in questo punto vorrei che venissero estrapolati tutti gli item in result.getItems che hanno la almeno una label del tipo ADD_CLASSE_N
-        // poi dovrò aggiungere i livelli al result.getLivelli
+        // Livelli di classe extra concessi dagli item (label ADD_CLASSE_<n> = +1 livello,
+        // valore = id della classe). Aggiornano solo le InfoClasseDTO della classe.
+        applyAddClasseLevels(result);
+
         return result;
+    }
+
+    /**
+     * Aggiunge alle classi i livelli extra concessi dagli item del personaggio.
+     * Le label sono indicizzate a coppie per indice {@code <n>}:
+     * <ul>
+     *   <li>{@code ADD_CLASSE_<n>} = id della classe;</li>
+     *   <li>{@code ADD_CLASSE_<n>_VALORE} = numero di livelli da aggiungere (default 1).</li>
+     * </ul>
+     * Gli item disabilitati non concedono livelli. I livelli aggiunti contano come
+     * non maledetti (validi per gli incantesimi). Se la classe esiste già, i livelli
+     * vengono aggiunti dopo il più alto presente; altrimenti viene creata una classe nuova.
+     */
+    private void applyAddClasseLevels(AllPersonaggioItems result) {
+        final String prefix = Constants.ITEM_LABEL_ADD_CLASSE_PREFIX;
+        final String suffixValore = Constants.ITEM_LABEL_ADD_CLASSE_VALUE_SUFFIX;
+
+        // conteggio livelli extra per id classe
+        Map<Integer, Integer> extraPerClasse = new LinkedHashMap<>();
+        for (Item itm : result.getItems()) {
+            if (itm == null || itm.getLabels() == null) continue;
+            boolean disabled = utilService.parseBooleanFromString(
+                    itm.getLabel(Constants.ITEM_LABEL_DISABILITATO),
+                    Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE,
+                    Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
+            if (disabled) continue;
+
+            // accoppia per indice le label ADD_CLASSE_<n> (id classe) e ADD_CLASSE_<n>_VALORE (n. livelli)
+            for (ItemLabel l : itm.getLabels()) {
+                String key = l.getLabel();
+                if (key == null || !key.startsWith(prefix)) continue;
+                String rest = key.substring(prefix.length());
+                if (!rest.endsWith(suffixValore)) {
+                    Integer classId = parseIntOrNull(l.getValore());
+                    if (classId != null) {
+                        String livelliString = itm.getLabel(prefix + rest + suffixValore);
+                        if (livelliString != null) {
+                            Integer livelli = parseIntOrNull(livelliString);
+                            if (livelli != null) {
+                                extraPerClasse.put(classId, livelli);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (extraPerClasse.isEmpty()) return;
+
+        List<InfoClasseDTO> classi = new ArrayList<>(result.getLivelli().getClassi());
+
+        for (Map.Entry<Integer, Integer> e : extraPerClasse.entrySet()) {
+            Integer idClasse = e.getKey();
+            int extra = e.getValue();
+
+            InfoClasseDTO info = classi.stream()
+                    .filter(c -> c.getClasse() != null && idClasse.equals(c.getClasse().getId()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (info == null) {
+                // la classe non ha ancora livelli base: creane una nuova
+                Item classe = itemRepository.findItemById(idClasse);
+                if (classe == null) continue;
+                info = new InfoClasseDTO();
+                info.setClasse(classe);
+                info.setLivelli(new HashSet<>());
+                info.setLivelloTotale(0);
+                info.setLivelloNonMaledetto(0);
+                info.setLivelloMax(0);
+                info.setLivelloMaxNonMaledetto(0);
+                classi.add(info);
+            }
+
+            int baseMax = info.getLivelloMax() != null ? info.getLivelloMax() : 0;
+            Set<Integer> livelli = info.getLivelli() != null ? new HashSet<>(info.getLivelli()) : new HashSet<>();
+            for (int i = 1; i <= extra; i++) livelli.add(baseMax + i);
+            info.setLivelli(livelli);
+
+            info.setLivelloTotale((info.getLivelloTotale() != null ? info.getLivelloTotale() : 0) + extra);
+            info.setLivelloNonMaledetto((info.getLivelloNonMaledetto() != null ? info.getLivelloNonMaledetto() : 0) + extra);
+            info.setLivelloMax(baseMax + extra);
+            info.setLivelloMaxNonMaledetto((info.getLivelloMaxNonMaledetto() != null ? info.getLivelloMaxNonMaledetto() : 0) + extra);
+        }
+
+        // riordina per nome classe, coerente con CalcoloService.getLivelli
+        classi.sort(Comparator.comparing(
+                c -> c.getClasse() != null ? c.getClasse().getNome() : null,
+                Comparator.nullsLast(String::compareToIgnoreCase)));
+        result.getLivelli().setClassi(classi);
+    }
+
+    private static Integer parseIntOrNull(String s) {
+        if (s == null) return null;
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     /**
@@ -516,6 +615,32 @@ public class PersonaggioService {
         return new ArrayList<>();
     }
 
+    /**
+     * Trova l'avanzamento della classe per il livello richiesto. Se non esiste un
+     * avanzamento esatto (es. livello oltre la tabella, per via dei livelli extra
+     * concessi dagli item), ripiega sull'avanzamento più alto disponibile non
+     * superiore al livello richiesto; se anche quello manca, sul più basso presente.
+     */
+    private Avanzamento findAvanzamentoPerLivello(Item classe, int livelloRichiesto) {
+        List<Avanzamento> avz = classe.getAvanzamento().stream()
+                .filter(y -> y.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO))
+                .toList();
+        if (avz.isEmpty()) return null;
+
+        Avanzamento esatto = avz.stream()
+                .filter(y -> y.getLivello() == livelloRichiesto)
+                .findFirst().orElse(null);
+        if (esatto != null) return esatto;
+
+        Avanzamento piuAltoDisponibile = avz.stream()
+                .filter(y -> y.getLivello() <= livelloRichiesto)
+                .max(Comparator.comparingInt(Avanzamento::getLivello))
+                .orElse(null);
+        if (piuAltoDisponibile != null) return piuAltoDisponibile;
+
+        return avz.stream().min(Comparator.comparingInt(Avanzamento::getLivello)).orElse(null);
+    }
+
     private SpellBookDTO generateSpellBook(Item classe, Integer lvl, Integer livelloEffettivo, Integer idPersonaggio) {
         ItemLabel spellList = classe.getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_LISTA_INCANTESIMI)).findFirst().orElse(null);
         if (spellList == null) return null;
@@ -525,8 +650,8 @@ public class PersonaggioService {
         spellBook.setSpellList(spellList.getValore());
         String slotBonus = utilService.getItemLabel(classe, Constants.ITEM_LABEL_SPELL_SLOT_BONUS);
 
-        Avanzamento avanzamentoTotale = classe.getAvanzamento().stream().filter(y -> y.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO) && Math.toIntExact(lvl) == y.getLivello()).findFirst().orElse(null);
-        Avanzamento avanzamento = classe.getAvanzamento().stream().filter(y -> y.getItemTarget().getTipo().equals(TipoItem.AVANZAMENTO) && Math.toIntExact(livelloEffettivo) == y.getLivello()).findFirst().orElse(null);
+        Avanzamento avanzamentoTotale = findAvanzamentoPerLivello(classe, Math.toIntExact(lvl));
+        Avanzamento avanzamento = findAvanzamentoPerLivello(classe, Math.toIntExact(livelloEffettivo));
         Item preparedSpell = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_INCANTESIMI_PREPARATI, idPersonaggio);
         List<SpellBookIncantesimoDTO> incantesimi = preparedSpell.getChild().stream().map(x -> itemMapper.toIncantesimoDTO(classe, x)).toList();
         if (avanzamento != null && avanzamentoTotale != null) {
@@ -545,7 +670,7 @@ public class PersonaggioService {
 
 
                 for (int i = 0; i < slotsMaxLvl.size(); i++) {
-                    if (slotsMaxLvl.get(i) > 0) {
+                    if (slots.get(i) > 0) {
                         SpellBookLivelloDTO spellBookLivello = new SpellBookLivelloDTO();
                         spellBookLivello.setLivello(i);
                         spellBookLivello.setSlot(slots.get(i));
