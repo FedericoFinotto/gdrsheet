@@ -12,6 +12,7 @@ export const ICONS = {
     SUB: {kind: 'fa', classes: 'fa-solid fa-minus'},
     HAMBURGER: {kind: 'fa', classes: 'fa-solid fa-bars'},
     COMPENDIO: {kind: 'fa', classes: 'fa-solid fa-book'},
+    DADO: {kind: 'fa', classes: 'fa-solid fa-dice-d20'},
     SPINNER: {kind: 'fa', classes: 'fa-solid fa-circle-notch'},
     XMARK: {kind: 'fa', classes: 'fa-solid fa-xmark'},
     CHECK: {kind: 'fa', classes: 'fa-solid fa-check'},

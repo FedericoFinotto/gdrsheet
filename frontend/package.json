@@ -8,6 +8,7 @@
     "serve": "vite preview"
   },
   "dependencies": {
+    "@3d-dice/dice-box-threejs": "^0.0.12",
     "@fortawesome/fontawesome-free": "^7.0.0",
     "axios": "^1.10.0",
     "pinia": "^3.0.3",

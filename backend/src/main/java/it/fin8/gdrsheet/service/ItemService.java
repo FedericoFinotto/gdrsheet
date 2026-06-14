@@ -706,15 +706,25 @@ public class ItemService {
 
         Map<String, String> rimanenti = new HashMap<>(desiderati);
 
+        boolean isRank = TipoModificatore.RANK.equals(tipo);
+
         for (Modificatore m : esistenti) {
             String statId = m.getStat().getId();
             String nuovoValore = rimanenti.remove(statId);
             if (nuovoValore == null) {
                 modificatoreRepository.delete(m);
                 if (itm.getModificatori() != null) itm.getModificatori().remove(m); // tieni allineata la collection in memoria
-            } else if (!nuovoValore.equals(m.getValore())) {
-                m.setValore(nuovoValore);
-                modificatoreRepository.save(m);
+            } else {
+                boolean changed = false;
+                if (!nuovoValore.equals(m.getValore())) {
+                    m.setValore(nuovoValore);
+                    changed = true;
+                }
+                if (isRank && !Boolean.TRUE.equals(m.getSempreAttivo())) {
+                    m.setSempreAttivo(true);
+                    changed = true;
+                }
+                if (changed) modificatoreRepository.save(m);
             }
         }
 
@@ -724,6 +734,7 @@ public class ItemService {
             m.setStat(findStat(e.getKey()));
             m.setTipo(tipo);
             m.setValore(e.getValue());
+            if (isRank) m.setSempreAttivo(true);
             modificatoreRepository.save(m);
         }
     }
