@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 public class ClasseService {
 
     private static final int LIVELLI = 20;
-    private static final List<String> STAT_LIVELLO = List.of("BAB", "TMP", "RFL", "VLT", "DV", "GRADI");
+    private static final List<String> STAT_LIVELLO = List.of("BAB", "TMP", "RFL", "VLT", "DV");
 
     private final ItemRepository itemRepository;
     private final AvanzamentoRepository avanzamentoRepository;
@@ -61,6 +61,10 @@ public class ClasseService {
                 : Arrays.stream(abClasse.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList());
         dto.setSpellList(classe.getLabel(Constants.ITEM_LABEL_LISTA_INCANTESIMI));
         dto.setSpellSlotBonus(classe.getLabel(Constants.ITEM_LABEL_SPELL_SLOT_BONUS));
+        dto.setRank1(classe.getLabel(Constants.ITEM_LABEL_RANK_PRIMO));
+        dto.setRank(classe.getLabel(Constants.ITEM_LABEL_RANK));
+        int numLivelli = parseNumLivelli(classe.getLabel(Constants.ITEM_LABEL_NUM_LIVELLI_CLASSE));
+        dto.setNumLivelli(numLivelli);
 
         List<Avanzamento> avanzamenti = avanzamentoRepository.findAllByItemSource_Id(id);
 
@@ -81,7 +85,7 @@ public class ClasseService {
         dto.setAbilitaConcesse(concesse);
 
         List<ClasseDetailDTO.LivelloClasseDTO> livelli = new ArrayList<>();
-        for (int l = 1; l <= LIVELLI; l++) {
+        for (int l = 1; l <= numLivelli; l++) {
             Item avz = avzPerLivello.get(l);
             ClasseDetailDTO.LivelloClasseDTO row = new ClasseDetailDTO.LivelloClasseDTO();
             row.setLivello(l);
@@ -91,7 +95,6 @@ public class ClasseService {
                 row.setRfl(valoreMod(avz, "RFL"));
                 row.setVlt(valoreMod(avz, "VLT"));
                 row.setDv(valoreMod(avz, "DV"));
-                row.setGradi(valoreMod(avz, "GRADI"));
                 row.setSpSlot(avz.getLabel(Constants.ITEM_LABEL_SPELL_SLOT));
             }
             livelli.add(row);
@@ -128,6 +131,11 @@ public class ClasseService {
         putSingleLabel(classe, Constants.ITEM_LABEL_ABILITA_CLASSE, abClasse);
         putSingleLabel(classe, Constants.ITEM_LABEL_LISTA_INCANTESIMI, dto.getSpellList());
         putSingleLabel(classe, Constants.ITEM_LABEL_SPELL_SLOT_BONUS, dto.getSpellSlotBonus());
+        putSingleLabel(classe, Constants.ITEM_LABEL_RANK_PRIMO, dto.getRank1());
+        putSingleLabel(classe, Constants.ITEM_LABEL_RANK, dto.getRank());
+
+        int numLivelli = parseNumLivelli(dto.getNumLivelli() == null ? null : String.valueOf(dto.getNumLivelli()));
+        putSingleLabel(classe, Constants.ITEM_LABEL_NUM_LIVELLI_CLASSE, String.valueOf(numLivelli));
 
         classe = itemRepository.save(classe);
 
@@ -143,7 +151,7 @@ public class ClasseService {
         if (dto.getLivelli() != null) {
             for (ClasseDetailDTO.LivelloClasseDTO row : dto.getLivelli()) {
                 int l = row.getLivello();
-                if (l < 1 || l > LIVELLI) continue;
+                if (l < 1 || l > numLivelli) continue;
 
                 Item avz = avzPerLivello.get(l);
                 if (avz == null) {
@@ -171,7 +179,7 @@ public class ClasseService {
                 setModValore(avz, "RFL", row.getRfl());
                 setModValore(avz, "VLT", row.getVlt());
                 setModValore(avz, "DV", row.getDv());
-                setModValore(avz, "GRADI", row.getGradi());
+                setModValore(avz, "GRADI", null); // gradi ora gestiti da RANK_1/RANK sulla classe: pulizia vecchio mod
 
                 putSingleLabel(avz, Constants.ITEM_LABEL_SPELL_SLOT, row.getSpSlot());
                 putSingleLabel(avz, Constants.ITEM_LABEL_LISTA_INCANTESIMI,
@@ -184,8 +192,9 @@ public class ClasseService {
         if (dto.getAbilitaConcesse() != null) {
             record Chiave(int livello, int itemId) {
             }
+            int maxLiv = numLivelli;
             Set<Chiave> desiderate = dto.getAbilitaConcesse().stream()
-                    .filter(a -> a.getItemId() != null && a.getLivello() >= 1 && a.getLivello() <= LIVELLI)
+                    .filter(a -> a.getItemId() != null && a.getLivello() >= 1 && a.getLivello() <= maxLiv)
                     .map(a -> new Chiave(a.getLivello(), a.getItemId()))
                     .collect(Collectors.toSet());
 
@@ -213,6 +222,18 @@ public class ClasseService {
         }
 
         return classe;
+    }
+
+    /**
+     * Numero di livelli della classe, clampato a [1, 40]. Default 20 se assente/non valido.
+     */
+    private int parseNumLivelli(String raw) {
+        if (raw == null || raw.isBlank()) return LIVELLI;
+        try {
+            return Math.max(1, Math.min(40, Integer.parseInt(raw.trim())));
+        } catch (NumberFormatException e) {
+            return LIVELLI;
+        }
     }
 
     private static String valoreMod(Item item, String statId) {

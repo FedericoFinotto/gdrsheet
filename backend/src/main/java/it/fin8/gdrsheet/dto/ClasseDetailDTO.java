@@ -39,6 +39,21 @@ public class ClasseDetailDTO {
      */
     private String spellSlotBonus;
 
+    /**
+     * Formula gradi quando la classe è il livello 1 del personaggio (label RANK_1).
+     */
+    private String rank1;
+
+    /**
+     * Formula gradi per tutti gli altri livelli (label RANK).
+     */
+    private String rank;
+
+    /**
+     * Numero di livelli della classe (label LIVELLI_CLASSE). Default 20.
+     */
+    private Integer numLivelli;
+
     private List<LivelloClasseDTO> livelli;
 
     private List<AbilitaConcessaDTO> abilitaConcesse;
@@ -55,7 +70,6 @@ public class ClasseDetailDTO {
         private String rfl;        // riflessi
         private String vlt;        // volontà
         private String dv;         // es. "3d8"
-        private String gradi;      // es. "6*(@INT+4)"
         private String spSlot;     // es. "4,2,1,0,0,0,0,0,0,0" (vuoto = non incantatore)
     }
 

@@ -84,6 +84,13 @@ function readItemLevel(it: any): number | null {
   const n = Number(raw)
   return Number.isFinite(n) ? n : null
 }
+// gradi congelati sul livello (non retroattivi): se presenti vincono sul calcolo da formula
+function readGradiLivello(): number | null {
+  const raw = (getItemLabel(props.item, 'GRADI_LIVELLO') ?? '').toString().trim()
+  if (!raw) return null
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : null
+}
 
 /* Abilità di classe */
 const abilitaClasse = ref<AbilitaClasse[]>([])
@@ -196,7 +203,12 @@ async function refreshGradiInfo() {
         form.classeId,
         levelsStr
     )
-    if (token === lastGradiReq) gradiInfo.value = unwrap<Gradi>(res)
+    if (token === lastGradiReq) {
+      const g = unwrap<Gradi>(res)
+      const frozen = readGradiLivello()
+      if (frozen != null) g.toConsume = frozen   // valore congelato: non ricalcolare
+      gradiInfo.value = g
+    }
   } catch (e) {
     if (token === lastGradiReq) gradiInfo.value = null
     console.error('Errore getGradiClasseByPersonaggioLivelloClasse:', e)

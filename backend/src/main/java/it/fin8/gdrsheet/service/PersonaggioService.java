@@ -772,56 +772,75 @@ public class PersonaggioService {
     }
 
     public GradiDTO getGradi(Integer idPersonaggio, Integer livello, Integer idClasse, String livelli) {
+        Item classe = itemRepository.findById(idClasse)
+                .orElseThrow(() -> new RuntimeException("Classe non trovata"));
 
-        List<Integer> listaLivelli = Arrays.stream(livelli.split(","))
+        int count = contaLivelliSelezionati(livelli);
+        Integer total = computeGradi(classe, livello, idPersonaggio, count);
+
+        List<String> formule = new ArrayList<>();
+        String rank1 = classe.getLabel(Constants.ITEM_LABEL_RANK_PRIMO);
+        String rank = classe.getLabel(Constants.ITEM_LABEL_RANK);
+        if (livello != null && livello == 1 && rank1 != null && !rank1.isBlank()) formule.add(rank1);
+        if (rank != null && !rank.isBlank()) formule.add(rank);
+
+        return new GradiDTO(formule, total != null ? total : 0, livello + 3);
+    }
+
+    private int contaLivelliSelezionati(String livelli) {
+        if (livelli == null || livelli.isBlank()) return 1;
+        int n = (int) Arrays.stream(livelli.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
-                .map(Integer::parseInt)
-                .toList();
+                .count();
+        return Math.max(1, n);
+    }
+
+    /**
+     * Calcola i gradi di un livello dalle formule della classe ({@code RANK_1}/{@code RANK})
+     * con l'Intelligenza permanente corrente del personaggio.
+     * <ul>
+     *   <li>Livelli normali: {@code RANK} × numero di livelli-classe selezionati.</li>
+     *   <li>Livello 1 del personaggio: il primo livello-classe usa {@code RANK_1}, gli
+     *       eventuali altri selezionati usano {@code RANK}.</li>
+     * </ul>
+     * Ritorna null se non c'è una formula applicabile o il risultato non è numerico.
+     */
+    public Integer computeGradi(Item classe, Integer livello, Integer idPersonaggio, int numLivelliSelezionati) {
+        if (classe == null) return null;
+        String fRank = classe.getLabel(Constants.ITEM_LABEL_RANK);
+        String fRank1 = classe.getLabel(Constants.ITEM_LABEL_RANK_PRIMO);
+        boolean noRank = (fRank == null || fRank.isBlank());
+        boolean noRank1 = (fRank1 == null || fRank1.isBlank());
+        if (noRank && noRank1) return null;
 
         DatiPersonaggioDTO dati = getDatiPersonaggio(idPersonaggio);
         CaratteristicaDTO INT = dati.getCaratteristica("INT");
         INT.setModificatore(INT.getModificatorePermanente());
         List<CaratteristicaDTO> caratteristiche = List.of(INT);
 
-        int total = 0;
-        List<String> formule = new ArrayList<>();
+        Integer rank = calcolaFormulaIntera(fRank, caratteristiche);
+        Integer rank1 = calcolaFormulaIntera(fRank1, caratteristiche);
 
-        Item classe = itemRepository.findById(idClasse)
-                .orElseThrow(() -> new RuntimeException("Classe non trovata"));
+        int n = Math.max(1, numLivelliSelezionati);
 
-        List<Item> lvls = classe.getAvanzamento().stream()
-                .filter(x -> listaLivelli.contains(x.getLivello()))
-                .map(Avanzamento::getItemTarget)
-                .filter(it -> it.getTipo().equals(TipoItem.AVANZAMENTO))
-                .toList();
-
-        for (Item item : lvls) {
-            Modificatore mod = item.getModificatori().stream()
-                    .filter(x -> "GRADI".equals(x.getStat().getId()))
-                    .findFirst().orElse(null);
-
-            if (mod != null) {
-                String formula = mod.getValore();
-                if (formula == null || formula.isBlank()) continue;
-
-                // se la formula contiene 4* e il livello passato non è 1, rimuovi il moltiplicatore iniziale "4*"
-                // gestisce anche spazi: "4*X", "4 * X", ecc.
-                String formulaEff = (livello != 1)
-                        ? formula.replaceFirst("^\\s*4\\s*\\*\\s*", "")
-                        : formula;
-
-                // (opzionale) normalizza il simbolo × se mai usato
-                // formulaEff = formulaEff.replace('×','*');
-
-                formule.add(formulaEff);
-
-                String valore = calcoloService.calcola(formulaEff, caratteristiche);
-                total += Integer.parseInt(valore);
-            }
+        if (livello != null && livello == 1) {
+            int primo = (rank1 != null) ? rank1 : (rank != null ? rank : 0);
+            int altri = (rank != null) ? rank * (n - 1) : 0;
+            return primo + altri;
         }
 
-        return new GradiDTO(formule, total, livello + 3);
+        if (rank == null) return null;
+        return rank * n;
+    }
+
+    private Integer calcolaFormulaIntera(String formula, List<CaratteristicaDTO> caratteristiche) {
+        if (formula == null || formula.isBlank()) return null;
+        try {
+            return Integer.parseInt(calcoloService.calcola(formula, caratteristiche));
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     public List<Modificatore> elaboraModificatoriStatLivello(List<Modificatore> allMods) {

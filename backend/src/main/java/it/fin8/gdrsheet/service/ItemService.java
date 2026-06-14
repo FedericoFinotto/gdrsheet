@@ -38,6 +38,8 @@ public class ItemService {
     private CollegamentoRepository collegamentoRepository;
     @Autowired
     private ModificatoreRepository modificatoreRepository;
+    @Autowired
+    private PersonaggioService personaggioService;
 
     public Item switchItemState(Integer itemId, Integer personaggioId) {
         Item itm = itemRepository.findItemById(itemId);
@@ -665,6 +667,21 @@ public class ItemService {
 
         // --- contenuti del livello (grants) ---
         applyGrants(livello, request.getGrantsSelezionati());
+
+        // --- congela i gradi del livello (non retroattivo): se manca GRADI_LIVELLO,
+        //     calcola dalla formula della classe (RANK_1/RANK) con l'INT attuale e salva.
+        if (livello.getLabel(Constants.ITEM_LABEL_GRADI_LIVELLO) == null
+                && request.getClasseId() != null
+                && request.getLivello() != null
+                && livello.getPersonaggio() != null) {
+            Item classe = itemRepository.findById(request.getClasseId()).orElse(null);
+            int numLivelli = (request.getLivelliClasse() != null && !request.getLivelliClasse().isEmpty())
+                    ? request.getLivelliClasse().size() : 1;
+            Integer gradi = personaggioService.computeGradi(classe, request.getLivello(), livello.getPersonaggio().getId(), numLivelli);
+            if (gradi != null) {
+                putSingleLabel(livello, Constants.ITEM_LABEL_GRADI_LIVELLO, String.valueOf(gradi));
+            }
+        }
 
         return itemRepository.save(livello);
     }

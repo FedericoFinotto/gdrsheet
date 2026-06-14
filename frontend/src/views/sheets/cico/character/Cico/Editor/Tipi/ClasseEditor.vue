@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import {computed, onMounted, reactive, ref} from 'vue'
+import {computed, onMounted, reactive, ref, watch} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
 import {ItemDB} from '../../../../../../../models/entity/ItemDB'
 import {Stat} from '../../../../../../../models/entity/Stat'
 import {Item} from '../../../../../../../models/dto/Item'
@@ -9,6 +10,14 @@ import {getStats, searchItems} from '../../../../../../../service/PersonaggioSer
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
 
+const router = useRouter()
+const route = useRoute()
+
+function editConcessa(itemId: number) {
+  const idPg = route.query.personaggio
+  router.push(`/itemeditor/${itemId}` + (idPg ? `?personaggio=${idPg}` : ''))
+}
+
 interface LivelloClasse {
   livello: number
   bab: string
@@ -16,7 +25,6 @@ interface LivelloClasse {
   rfl: string
   vlt: string
   dv: string
-  gradi: string
   spSlot: string
 }
 
@@ -33,8 +41,11 @@ const form = reactive({
   abilitaClasse: [] as string[],
   spellList: '',
   spellSlotBonus: '',
+  rank1: '',
+  rank: '',
+  numLivelli: 20,
   livelli: Array.from({length: 20}, (_, i) => ({
-    livello: i + 1, bab: '', tmp: '', rfl: '', vlt: '', dv: '', gradi: '', spSlot: '',
+    livello: i + 1, bab: '', tmp: '', rfl: '', vlt: '', dv: '', spSlot: '',
   })) as LivelloClasse[],
   abilitaConcesse: [] as AbilitaConcessa[],
 })
@@ -45,6 +56,20 @@ const errorMsg = ref<string | null>(null)
 const disabledAll = computed(() => !!props.readonly || busy.value)
 const canSave = computed(() => form.nome.trim().length > 0 && !busy.value && !props.readonly)
 
+/* numero di livelli della classe -> righe mostrate nella tabella */
+function ensureLivelli(n: number) {
+  for (let i = form.livelli.length; i < n; i++) {
+    form.livelli.push({livello: i + 1, bab: '', tmp: '', rfl: '', vlt: '', dv: '', spSlot: ''})
+  }
+}
+function clampNumLivelli() {
+  const n = Math.max(1, Math.min(40, Math.floor(Number(form.numLivelli) || 20)))
+  form.numLivelli = n
+  ensureLivelli(n)
+}
+watch(() => form.numLivelli, clampNumLivelli)
+const livelliVisibili = computed<LivelloClasse[]>(() => form.livelli.slice(0, form.numLivelli))
+
 /* ---- caricamento ---- */
 onMounted(async () => {
   loadStats()
@@ -54,9 +79,17 @@ onMounted(async () => {
     const d = res.data
     form.nome = d.nome ?? ''
     form.descrizione = d.descrizione ?? ''
-    form.abilitaClasse = d.abilitaClasse ?? []
+    const tokensAb: string[] = d.abilitaClasse ?? []
+    form.abilitaClasse = tokensAb.map(t => t.replace('!', '').trim()).filter(Boolean)
+    abPersonaggio.value = new Set(
+        tokensAb.filter(t => t.includes('!')).map(t => t.replace('!', '').trim()).filter(Boolean)
+    )
     form.spellList = d.spellList ?? ''
     form.spellSlotBonus = d.spellSlotBonus ?? ''
+    form.rank1 = d.rank1 ?? ''
+    form.rank = d.rank ?? ''
+    form.numLivelli = Math.max(1, Math.min(40, Number(d.numLivelli) || 20))
+    ensureLivelli(form.numLivelli)
     for (const row of (d.livelli ?? [])) {
       const target = form.livelli[row.livello - 1]
       if (!target) continue
@@ -65,7 +98,6 @@ onMounted(async () => {
       target.rfl = row.rfl ?? ''
       target.vlt = row.vlt ?? ''
       target.dv = row.dv ?? ''
-      target.gradi = row.gradi ?? ''
       target.spSlot = row.spSlot ?? ''
     }
     form.abilitaConcesse = (d.abilitaConcesse ?? []).map((a: any) => ({
@@ -82,6 +114,9 @@ onMounted(async () => {
 /* ---- abilità di classe (multi-selezione dalle stat) ---- */
 const stats = ref<Stat[]>([])
 const filtroAbilita = ref('')
+// id abilità marcate come "abilità personaggio" (serializzate con "!"):
+// valgono anche nei livelli che non usano questa classe
+const abPersonaggio = ref<Set<string>>(new Set())
 
 async function loadStats() {
   try {
@@ -98,10 +133,28 @@ const abilitaDisponibili = computed(() =>
             || s.label.toLowerCase().includes(filtroAbilita.value.trim().toLowerCase()))
 )
 
+function isSelected(id: string): boolean {
+  return form.abilitaClasse.includes(id)
+}
+
+function isPersonaggio(id: string): boolean {
+  return abPersonaggio.value.has(id)
+}
+
 function toggleAbilita(id: string) {
   const i = form.abilitaClasse.indexOf(id)
-  if (i >= 0) form.abilitaClasse.splice(i, 1)
-  else form.abilitaClasse.push(id)
+  if (i >= 0) {
+    form.abilitaClasse.splice(i, 1)
+    abPersonaggio.value.delete(id) // deselezionando, perde anche il flag personaggio
+  } else {
+    form.abilitaClasse.push(id)
+  }
+}
+
+function togglePersonaggio(id: string) {
+  if (!isSelected(id)) return
+  if (abPersonaggio.value.has(id)) abPersonaggio.value.delete(id)
+  else abPersonaggio.value.add(id)
 }
 
 function statLabel(id: string): string {
@@ -115,7 +168,6 @@ const gen = reactive({
   rfl: 'SCARSO' as 'BUONO' | 'SCARSO',
   vlt: 'BUONO' as 'BUONO' | 'SCARSO',
   dado: 8,
-  puntiGradi: 4,
 })
 
 function babPer(l: number): number {
@@ -129,14 +181,13 @@ function tsPer(l: number, tipo: 'BUONO' | 'SCARSO'): number {
 }
 
 function generaTabella() {
-  for (const row of form.livelli) {
+  for (const row of livelliVisibili.value) {
     const l = row.livello
     row.bab = `+${babPer(l)}`
     row.tmp = `+${tsPer(l, gen.tmp)}`
     row.rfl = `+${tsPer(l, gen.rfl)}`
     row.vlt = `+${tsPer(l, gen.vlt)}`
     row.dv = `${l}d${gen.dado}`
-    row.gradi = `${l + 3}*(@INT+${gen.puntiGradi})`
   }
 }
 
@@ -194,10 +245,13 @@ async function onSave() {
       id: props.mode === 'create' ? null : props.item.id,
       nome: form.nome.trim(),
       descrizione: form.descrizione || null,
-      abilitaClasse: form.abilitaClasse,
+      abilitaClasse: form.abilitaClasse.map(id => abPersonaggio.value.has(id) ? `${id}!` : id),
       spellList: form.spellList.trim() || null,
       spellSlotBonus: form.spellSlotBonus.trim() || null,
-      livelli: form.livelli,
+      rank1: form.rank1.trim() || null,
+      rank: form.rank.trim() || null,
+      numLivelli: form.numLivelli,
+      livelli: form.livelli.slice(0, form.numLivelli),
       abilitaConcesse: form.abilitaConcesse.map(a => ({livello: a.livello, itemId: a.itemId})),
     }
     await api.post('/item/classe', payload)
@@ -246,19 +300,34 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
           <span class="chev" :class="{ open: open.abilita }">▸</span>
         </button>
         <div v-show="open.abilita" class="fold-body">
-          <div v-if="form.abilitaClasse.length" class="chips">
-            <button v-for="id in form.abilitaClasse" :key="id" type="button" class="chip"
-                    :disabled="disabledAll" @click="toggleAbilita(id)">
-              {{ statLabel(id) }} ✕
-            </button>
-          </div>
-          <input v-model="filtroAbilita" type="text" placeholder="Filtra abilità…" :disabled="disabledAll"/>
-          <div class="ab-list">
-            <label v-for="s in abilitaDisponibili" :key="s.id" class="ab-row">
-              <input type="checkbox" :checked="form.abilitaClasse.includes(s.id)"
-                     :disabled="disabledAll" @change="toggleAbilita(s.id)"/>
-              <span>{{ s.label }}</span>
+          <!-- Gradi (abilità): formule a livello di classe -->
+          <div class="rank-grid">
+            <label class="field">
+              <span class="lbl">Gradi al 1° livello del personaggio (RANK_1)</span>
+              <input v-model.trim="form.rank1" type="text" placeholder="Es.: 4*(@INT+4)" :disabled="disabledAll"/>
             </label>
+            <label class="field">
+              <span class="lbl">Gradi agli altri livelli (RANK)</span>
+              <input v-model.trim="form.rank" type="text" placeholder="Es.: (@INT+4)" :disabled="disabledAll"/>
+            </label>
+          </div>
+
+          <input v-model="filtroAbilita" type="text" placeholder="Filtra abilità…" :disabled="disabledAll"/>
+          <p class="muted hint-pg">
+            <strong>Pg</strong> = abilità personaggio: vale anche nei livelli che non usano questa classe.
+          </p>
+          <div class="ab-list">
+            <div v-for="s in abilitaDisponibili" :key="s.id" class="ab-riga" :class="{ sel: isSelected(s.id) }">
+              <button type="button" class="ab-toggle" :disabled="disabledAll" @click="toggleAbilita(s.id)">
+                <span class="dot">{{ isSelected(s.id) ? '●' : '○' }}</span>
+                <span class="ab-nome">{{ s.label }}</span>
+              </button>
+              <button v-if="isSelected(s.id)" type="button" class="ab-pg" :class="{ on: isPersonaggio(s.id) }"
+                      :disabled="disabledAll" @click="togglePersonaggio(s.id)"
+                      title="Abilità personaggio: vale anche nei livelli di altre classi">
+                Pg
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -290,10 +359,16 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
       <section class="fold">
         <button type="button" class="fold-head" @click="open.tabella = !open.tabella">
           <span class="fold-title">Tabella livelli</span>
-          <span class="fold-summary">{{ form.livelli.filter(l => l.bab).length }}/20 compilati</span>
+          <span class="fold-summary">{{ livelliVisibili.filter(l => l.bab).length }}/{{ form.numLivelli }} compilati</span>
           <span class="chev" :class="{ open: open.tabella }">▸</span>
         </button>
         <div v-show="open.tabella" class="fold-body">
+          <label class="field">
+            <span class="lbl">Livelli classe</span>
+            <input v-model.number="form.numLivelli" type="number" min="1" max="40" :disabled="disabledAll"/>
+            <span class="muted">Quanti livelli ha la classe (default 20). Determina le righe sotto.</span>
+          </label>
+
           <!-- generatore -->
           <div class="gen">
             <div class="gen-grid">
@@ -332,10 +407,6 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
                   <option value="SCARSO">Scarso</option>
                 </select>
               </label>
-              <label class="field">
-                <span class="lbl">Punti abilità/liv</span>
-                <input v-model.number="gen.puntiGradi" type="number" min="2" max="10" :disabled="disabledAll"/>
-              </label>
             </div>
             <button type="button" class="btn outline" :disabled="disabledAll" @click="generaTabella">
               ⚙ Genera tabella livelli
@@ -344,7 +415,7 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
 
           <!-- tabella -->
           <div class="liv-list">
-            <div v-for="row in form.livelli" :key="row.livello" class="liv-card">
+            <div v-for="row in livelliVisibili" :key="row.livello" class="liv-card">
               <div class="liv-num">{{ row.livello }}</div>
               <div class="liv-fields">
                 <label><span>BAB</span><input v-model.trim="row.bab" :disabled="disabledAll"/></label>
@@ -352,7 +423,6 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
                 <label><span>RFL</span><input v-model.trim="row.rfl" :disabled="disabledAll"/></label>
                 <label><span>VLT</span><input v-model.trim="row.vlt" :disabled="disabledAll"/></label>
                 <label><span>DV</span><input v-model.trim="row.dv" :disabled="disabledAll"/></label>
-                <label><span>GRADI</span><input v-model.trim="row.gradi" :disabled="disabledAll"/></label>
                 <label v-if="incantatore" class="full">
                   <span>SP_SLOT</span>
                   <input v-model.trim="row.spSlot" placeholder="4,2,1,0,0,0,0,0,0,0" :disabled="disabledAll"/>
@@ -374,6 +444,8 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
           <div v-for="(a, i) in form.abilitaConcesse" :key="`${a.itemId}-${a.livello}`" class="conc-row">
             <span class="liv-pill">Liv {{ a.livello }}</span>
             <span class="nome">{{ a.nome }}</span>
+            <button type="button" class="btn-edit" :disabled="disabledAll || !a.itemId"
+                    @click="editConcessa(a.itemId!)" title="Modifica">✎</button>
             <button type="button" class="btn-del" :disabled="disabledAll" @click="rimuoviConcessa(i)">✕</button>
           </div>
 
@@ -413,6 +485,9 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
 <style scoped>
 .classe-editor { display: grid; gap: .75rem; }
 
+.rank-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+@media (max-width: 700px) { .rank-grid { grid-template-columns: 1fr; } }
+
 .ce-head { display: flex; align-items: baseline; gap: .5rem; }
 .ce-head h2 { margin: 0; font-size: 1rem; }
 .muted { opacity: .7; font-size: .85rem; }
@@ -441,15 +516,31 @@ textarea { resize: vertical; }
 .chev.open { transform: rotate(90deg); }
 .fold-body { padding: .6rem .75rem; display: grid; gap: .5rem; }
 
-/* abilità di classe */
-.chips { display: flex; flex-wrap: wrap; gap: .3rem; }
-.chip {
-  border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3;
-  border-radius: 1rem; padding: .15rem .6rem; font-size: .78rem; cursor: pointer;
+/* abilità di classe — lista a righe (stile trasformazioni) */
+.hint-pg { margin: 0; }
+.ab-list {
+  display: grid; gap: .3rem; max-height: 18rem; overflow-y: auto;
+  padding: .15rem; border: 1px solid #eef2f7; border-radius: .5rem;
 }
-.ab-list { display: grid; gap: .15rem; max-height: 14rem; overflow-y: auto; }
-.ab-row { display: flex; align-items: center; gap: .4rem; font-size: .9rem; padding: .15rem 0; }
-.ab-row input { width: auto; min-width: auto; }
+.ab-riga {
+  display: flex; align-items: center; gap: .4rem;
+  border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff; padding: .15rem .35rem;
+}
+.ab-riga.sel { border-color: #c7d2fe; background: #eef2ff; }
+.ab-toggle {
+  flex: 1; display: flex; align-items: center; gap: .5rem;
+  border: 0; background: transparent; cursor: pointer; text-align: left;
+  padding: .35rem .25rem; font-size: .9rem; min-width: 0;
+}
+.ab-toggle .dot { font-size: .9rem; color: #6366f1; width: 1rem; text-align: center; }
+.ab-riga.sel .ab-toggle .dot { color: #4338ca; }
+.ab-nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ab-pg {
+  flex: 0 0 auto; border: 1px solid #c7d2fe; background: #fff; color: #4338ca;
+  border-radius: 1rem; padding: .1rem .55rem; font-size: .75rem; font-weight: 700; cursor: pointer;
+}
+.ab-pg.on { background: #4338ca; border-color: #4338ca; color: #fff; }
+.ab-toggle:disabled, .ab-pg:disabled { opacity: .6; cursor: default; }
 
 /* generatore */
 .gen { display: grid; gap: .5rem; border: 1px dashed #cbd5e1; border-radius: .5rem; padding: .5rem; background: #f8fafc; }
@@ -473,9 +564,15 @@ textarea { resize: vertical; }
 
 /* abilità concesse */
 .conc-row {
-  display: grid; grid-template-columns: auto 1fr auto; gap: .4rem; align-items: center;
+  display: grid; grid-template-columns: auto 1fr auto auto; gap: .4rem; align-items: center;
   border: 1px solid #e5e7eb; border-radius: .5rem; padding: .35rem .5rem; background: #fff;
 }
+.btn-edit {
+  border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8;
+  border-radius: .5rem; padding: .25rem .5rem; cursor: pointer;
+}
+.btn-edit:hover { background: #dbeafe; }
+.btn-edit:disabled { opacity: .6; cursor: default; }
 .conc-row .nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .liv-pill {
   font-size: .72rem; padding: .1rem .45rem; border-radius: .5rem;

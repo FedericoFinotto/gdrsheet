@@ -71,5 +71,11 @@ public final class Constants {
     public static final String TIPO_PERSONAGGIO_BANCA = "BANCA";
 
     public static final String RANK_MAX = "MAX";
+
+    // Gradi/abilità: formule sulla CLASSE e valore congelato sul LIVELLO
+    public static final String ITEM_LABEL_RANK_PRIMO = "RANK_1"; // formula gradi quando è il livello 1 del personaggio
+    public static final String ITEM_LABEL_RANK = "RANK";         // formula gradi per tutti gli altri livelli
+    public static final String ITEM_LABEL_GRADI_LIVELLO = "GRADI_LIVELLO"; // valore gradi congelato sul livello (non retroattivo)
+    public static final String ITEM_LABEL_NUM_LIVELLI_CLASSE = "LIVELLI_CLASSE"; // numero di livelli della classe (default 20)
 }
 
