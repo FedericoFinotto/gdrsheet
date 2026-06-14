@@ -96,6 +96,8 @@ const disableLabel = computed(() => {
       return item.disabled ? 'Prega' : 'Disabilita';
     case TIPO_ITEM.FRUTTO:
       return item.disabled ? 'Mangia' : 'Disattiva';
+    case TIPO_ITEM.INCANTESIMO:
+      return null;
     default:
       return item.disabled ? 'Attiva' : 'Disattiva';
   }
