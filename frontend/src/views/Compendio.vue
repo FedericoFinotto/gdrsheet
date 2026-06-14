@@ -83,7 +83,7 @@ onMounted(load)
         <h1>📖 Compendio</h1>
         <span v-if="pagina" class="muted">{{ pagina.totalElements }} item</span>
       </div>
-      <button class="btn primary" @click="router.push('/itemcreate')">+ Crea oggetto</button>
+      <button class="btn primary" @click="router.push('/itemcreate?compendio=1')">+ Crea oggetto</button>
     </header>
 
     <!-- filtri -->

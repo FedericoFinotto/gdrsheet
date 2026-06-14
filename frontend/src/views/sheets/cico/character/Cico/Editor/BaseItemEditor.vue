@@ -74,7 +74,8 @@ function preload() {
   form.campi = Object.fromEntries(props.campiLabel.map(c => [c.key, '']))
 
   form.qta = 1
-  form.compendio = false
+  // creando dalla pagina del compendio (?compendio=1) il flag è attivo di default
+  form.compendio = props.mode === 'create' && route.query.compendio === '1'
   form.labels = []
   for (const l of (props.item.labels ?? [])) {
     const key = l.label ?? ''

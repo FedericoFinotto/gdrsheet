@@ -396,11 +396,23 @@ public class PersonaggioService {
 
         List<ItemLabel> itemCounters = itemLabelRepository.findByLabelLikeAndItem_IdIn("$V_%", itemIds);
         List<ItemLabel> itemModifiers = itemLabelRepository.findByLabelLikeAndItem_IdIn("$M_%", itemIds);
-        List<ContatoreItemDTO> itemCounterList = itemCounters.stream()
+        List<ContatoreItemDTO> itemCounterList = new ArrayList<>(itemCounters.stream()
                 .map(sv -> modificatoriService.calcolaContatoreItem(
                         sv, itemModifiers
                 ))
-                .toList();
+                .toList());
+
+        // Espone la quantità (label QTA) come variabile $QTA usabile nei modificatori dell'item:
+        // in una formula "$QTA" diventa "@<itemId>_QTA" e viene risolto qui sotto.
+        Map<Integer, Integer> qtaByItem = new HashMap<>();
+        for (ItemLabel q : itemLabelRepository.findByLabelAndItem_IdIn(Constants.LABEL_QTA, itemIds)) {
+            Integer v = parseIntOrNull(q.getValore());
+            if (q.getItem() != null && v != null) qtaByItem.put(q.getItem().getId(), v);
+        }
+        for (Integer iid : itemIds) {
+            itemCounterList.add(new ContatoreItemDTO(iid + "_QTA", qtaByItem.getOrDefault(iid, 1)));
+        }
+
         dto.getContatoriItem().addAll(itemCounterList);
 
         // 9a) Calcolo Caratteristiche (sequenziale)
