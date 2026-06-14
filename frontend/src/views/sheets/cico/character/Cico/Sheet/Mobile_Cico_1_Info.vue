@@ -9,9 +9,14 @@ import Tabella from "../../../../../../components/Tabella.vue";
 import Mobile_DettaglioItem from "../../Dettaglio/Mobile_DettaglioItem.vue";
 import {getItem, switchItemState} from "../../../../../../service/PersonaggioService";
 import usePopup from "../../../../../../function/usePopup";
+import useDiceRoll from "../../../../../../function/useDiceRoll";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore);
+
+// durante il tiro globale del d20 il BAB sparisce: è già incluso in
+// Lotta/Mischia/Distanza, che ricevono la somma sulle varie parti.
+const {risultato} = useDiceRoll()
 
 const props = defineProps({
   idPersonaggio: {type: Number, required: true}
@@ -213,7 +218,7 @@ const columnsLingue = [{field: 'nome', label: 'Lingue'}]
       <Mobile_Stat id="CAS" :id-personaggio="idPersonaggio" label="Sorpreso"/>
     </div>
     <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
-      <Mobile_Stat id="BAB" :id-personaggio="idPersonaggio" label="BAB"/>
+      <Mobile_Stat v-if="risultato === null" id="BAB" :id-personaggio="idPersonaggio" label="BAB"/>
       <Mobile_Stat id="LTT" :id-personaggio="idPersonaggio" label="Lotta"/>
       <Mobile_Stat id="MSC" :id-personaggio="idPersonaggio" label="Mischia"/>
       <Mobile_Stat id="GTT" :id-personaggio="idPersonaggio" label="Distanza"/>

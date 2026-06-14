@@ -24,6 +24,16 @@ export function testoModificatore(mod: number | string): string {
     return str;
 }
 
+// Somma `bonus` a ogni numero intero presente nel testo. Una volta sommato il
+// tiro il valore è "secco", quindi NON si antepone il segno + (resta solo il
+// segno - per i negativi): es. "+6 / +1" con bonus 15 -> "21 / 16".
+// Le notazioni di dado (es. "1d6") restano invariate.
+export function applicaBonusDado(testo: string, bonus: number): string {
+    if (!bonus || !testo) return testo;
+    if (REGEX_DICE.test(testo.trim())) return testo;
+    return testo.replace(/[+-]?\d+/g, (m) => String(Number(m) + bonus));
+}
+
 export function removePlus(valore: string) {
     return valore.replace('+', '');
 }

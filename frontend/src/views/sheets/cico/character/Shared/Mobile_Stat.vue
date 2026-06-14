@@ -2,11 +2,22 @@
 import {computed, defineProps} from 'vue'
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
-import {testoModificatore} from "../../../../../function/Utils";
+import {applicaBonusDado, testoModificatore} from "../../../../../function/Utils";
 import usePopup from "../../../../../function/usePopup";
+import useDiceRoll from "../../../../../function/useDiceRoll";
 import Mobile_DettaglioCaratteristica from "../Dettaglio/Mobile_DettaglioCaratteristica.vue";
 
 const {openPopup} = usePopup()
+const {risultato} = useDiceRoll()
+
+// stat a cui va sommato il risultato del tiro globale del d20:
+// caratteristiche, tiri salvezza, CA/contatto/sorpreso, BAB/lotta/mischia/distanza
+const STAT_BONUS_D20 = new Set([
+  'FOR', 'DES', 'COS', 'INT', 'SAG', 'CAR',
+  'TMP', 'RFL', 'VLT',
+  'CA', 'CAC', 'CAS',
+  'BAB', 'LTT', 'MSC', 'GTT',
+])
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore);
@@ -78,12 +89,23 @@ const stat = computed(() => {
     return null;
   }
 });
+
+// modificatore mostrato: se è in corso un tiro globale e la stat è idonea,
+// somma il risultato del d20 al valore.
+const modificatoreVisualizzato = computed(() => {
+  if (!stat.value) return '';
+  const base = testoModificatore(stat.value.modificatore) ?? '';
+  if (risultato.value !== null && STAT_BONUS_D20.has(props.id)) {
+    return applicaBonusDado(base, risultato.value);
+  }
+  return base;
+});
 </script>
 
 <template>
   <div class="stat-box">
     <div class="label">{{ label ?? id }}</div>
-    <div class="modifier" @click="showPopup">{{ stat ? (testoModificatore(stat.modificatore) ?? '') : '' }}</div>
+    <div class="modifier" @click="showPopup">{{ modificatoreVisualizzato }}</div>
     <div class="base">{{ stat ? (stat.valore ?? '') : '' }}</div>
   </div>
 </template>

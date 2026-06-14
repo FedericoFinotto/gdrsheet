@@ -3,13 +3,15 @@ import {computed, defineProps, markRaw, onMounted, watch} from 'vue'
 import Tabella from '../../../../../../components/Tabella.vue'
 import {storeToRefs} from 'pinia'
 import {useCharacterStore} from "../../../../../../stores/personaggio";
-import {testoModificatore} from "../../../../../../function/Utils";
+import {applicaBonusDado, testoModificatore} from "../../../../../../function/Utils";
+import useDiceRoll from "../../../../../../function/useDiceRoll";
 import Mobile_DettaglioAbilita from "../../Dettaglio/Mobile_DettaglioAbilita.vue";
 
 const props = defineProps<{ idPersonaggio: number }>()
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore)
+const {risultato} = useDiceRoll()
 
 onMounted(() => {
   characterStore.fetchCharacter(props.idPersonaggio)
@@ -24,7 +26,9 @@ const abilita = computed(() => {
       ...abilita,
       id: abilita.abilita.id,
       nome: abilita.abilita.nome,
-      valore: testoModificatore(abilita.abilita.modificatore),
+      valore: risultato.value !== null
+          ? applicaBonusDado(testoModificatore(abilita.abilita.modificatore), risultato.value)
+          : testoModificatore(abilita.abilita.modificatore),
       caratteristica: abilita?.base?.id ?? '',
       expandedComponent: markRaw(Mobile_DettaglioAbilita),
       expandedProps: {data: {...abilita}}
