@@ -10,6 +10,7 @@ import it.fin8.gdrsheet.entity.Item;
 import it.fin8.gdrsheet.mapper.StatMapper;
 import it.fin8.gdrsheet.repository.ItemRepository;
 import net.objecthunter.exp4j.ExpressionBuilder;
+import net.objecthunter.exp4j.function.Function;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -34,6 +35,18 @@ public class CalcoloService {
     private static final Pattern PATTERN_PLACEH = Pattern.compile("@\\w+");
     private static final Pattern PATTERN_DICE = Pattern.compile("\\d+d\\d+(?:\\d+)?");
     private static final Pattern PATTERN_NUMBER = Pattern.compile("^[+-]?\\d+$");
+
+    // Funzioni di arrotondamento utilizzabili nelle formule
+    private static final Function FN_ECCESSO = new Function("ECCESSO", 1) {
+        @Override public double apply(double... args) { return Math.ceil(args[0]); }
+    };
+    private static final Function FN_DIFETTO = new Function("DIFETTO", 1) {
+        @Override public double apply(double... args) { return Math.floor(args[0]); }
+    };
+    private static final Function FN_TRONCATO = new Function("TRONCATO", 1) {
+        @Override public double apply(double... args) { return (double) (long) args[0]; }
+    };
+    private static final Function[] FUNZIONI = {FN_ECCESSO, FN_DIFETTO, FN_TRONCATO};
 
     public String calcola(String formula, List<CaratteristicaDTO> caratteristiche) {
         if (formula == null || formula.isBlank()) return "0";
@@ -66,7 +79,9 @@ public class CalcoloService {
         long result = 0;
         if (!numericExpr.isBlank()) {
             try {
-                double eval = new ExpressionBuilder(numericExpr).build().evaluate();
+                double eval = new ExpressionBuilder(numericExpr)
+                        .functions(FUNZIONI)
+                        .build().evaluate();
                 result = (long) Math.floor(eval); // arrotonda sempre per difetto
             } catch (Exception e) {
             }

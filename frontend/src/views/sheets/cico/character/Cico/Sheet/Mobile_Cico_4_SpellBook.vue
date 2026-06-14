@@ -108,7 +108,7 @@ async function recomputeAllSlots() {
           }
 
           if (runId !== lastSlotsRun) return;
-          slotBonusMap.value[keySlot(idClasse, livello)] = Math.min(bonusTot, 3);
+          slotBonusMap.value[keySlot(idClasse, livello)] = bonusTot;
         } catch {
           // ignora errori singoli
         }
