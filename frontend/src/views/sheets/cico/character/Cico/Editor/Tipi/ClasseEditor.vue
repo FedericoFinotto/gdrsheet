@@ -24,7 +24,6 @@ interface LivelloClasse {
   tmp: string
   rfl: string
   vlt: string
-  dv: string
   spSlot: string
 }
 
@@ -44,8 +43,9 @@ const form = reactive({
   rank1: '',
   rank: '',
   numLivelli: 20,
+  dv: '',
   livelli: Array.from({length: 20}, (_, i) => ({
-    livello: i + 1, bab: '', tmp: '', rfl: '', vlt: '', dv: '', spSlot: '',
+    livello: i + 1, bab: '', tmp: '', rfl: '', vlt: '', spSlot: '',
   })) as LivelloClasse[],
   abilitaConcesse: [] as AbilitaConcessa[],
 })
@@ -59,7 +59,7 @@ const canSave = computed(() => form.nome.trim().length > 0 && !busy.value && !pr
 /* numero di livelli della classe -> righe mostrate nella tabella */
 function ensureLivelli(n: number) {
   for (let i = form.livelli.length; i < n; i++) {
-    form.livelli.push({livello: i + 1, bab: '', tmp: '', rfl: '', vlt: '', dv: '', spSlot: ''})
+    form.livelli.push({livello: i + 1, bab: '', tmp: '', rfl: '', vlt: '', spSlot: ''})
   }
 }
 function clampNumLivelli() {
@@ -88,6 +88,7 @@ onMounted(async () => {
     form.spellSlotBonus = d.spellSlotBonus ?? ''
     form.rank1 = d.rank1 ?? ''
     form.rank = d.rank ?? ''
+    form.dv = d.dv ?? ''
     form.numLivelli = Math.max(1, Math.min(40, Number(d.numLivelli) || 20))
     ensureLivelli(form.numLivelli)
     for (const row of (d.livelli ?? [])) {
@@ -97,7 +98,6 @@ onMounted(async () => {
       target.tmp = row.tmp ?? ''
       target.rfl = row.rfl ?? ''
       target.vlt = row.vlt ?? ''
-      target.dv = row.dv ?? ''
       target.spSlot = row.spSlot ?? ''
     }
     form.abilitaConcesse = (d.abilitaConcesse ?? []).map((a: any) => ({
@@ -167,7 +167,6 @@ const gen = reactive({
   tmp: 'BUONO' as 'BUONO' | 'SCARSO',
   rfl: 'SCARSO' as 'BUONO' | 'SCARSO',
   vlt: 'BUONO' as 'BUONO' | 'SCARSO',
-  dado: 8,
 })
 
 function babPer(l: number): number {
@@ -187,7 +186,6 @@ function generaTabella() {
     row.tmp = `+${tsPer(l, gen.tmp)}`
     row.rfl = `+${tsPer(l, gen.rfl)}`
     row.vlt = `+${tsPer(l, gen.vlt)}`
-    row.dv = `${l}d${gen.dado}`
   }
 }
 
@@ -250,6 +248,7 @@ async function onSave() {
       spellSlotBonus: form.spellSlotBonus.trim() || null,
       rank1: form.rank1.trim() || null,
       rank: form.rank.trim() || null,
+      dv: form.dv.trim() || null,
       numLivelli: form.numLivelli,
       livelli: form.livelli.slice(0, form.numLivelli),
       abilitaConcesse: form.abilitaConcesse.map(a => ({livello: a.livello, itemId: a.itemId})),
@@ -363,11 +362,18 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
           <span class="chev" :class="{ open: open.tabella }">▸</span>
         </button>
         <div v-show="open.tabella" class="fold-body">
-          <label class="field">
-            <span class="lbl">Livelli classe</span>
-            <input v-model.number="form.numLivelli" type="number" min="1" max="40" :disabled="disabledAll"/>
-            <span class="muted">Quanti livelli ha la classe (default 20). Determina le righe sotto.</span>
-          </label>
+          <div class="rank-grid">
+            <label class="field">
+              <span class="lbl">Livelli classe</span>
+              <input v-model.number="form.numLivelli" type="number" min="1" max="40" :disabled="disabledAll"/>
+              <span class="muted">Quanti livelli ha la classe (default 20).</span>
+            </label>
+            <label class="field">
+              <span class="lbl">Dadi vita</span>
+              <input v-model.trim="form.dv" type="text" placeholder="Es.: 2d10 — vuoto = nessuno" :disabled="disabledAll"/>
+              <span class="muted">Impostato a ogni livello preso in questa classe. Vuoto = la classe non dà dadi vita.</span>
+            </label>
+          </div>
 
           <!-- generatore -->
           <div class="gen">
@@ -378,12 +384,6 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
                   <option value="ALTO">Alto (guerriero)</option>
                   <option value="MEDIO">Medio (chierico)</option>
                   <option value="BASSO">Basso (mago)</option>
-                </select>
-              </label>
-              <label class="field">
-                <span class="lbl">Dado vita</span>
-                <select v-model.number="gen.dado" :disabled="disabledAll">
-                  <option v-for="d in [4, 6, 8, 10, 12]" :key="d" :value="d">d{{ d }}</option>
                 </select>
               </label>
               <label class="field">
@@ -422,7 +422,6 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
                 <label><span>TMP</span><input v-model.trim="row.tmp" :disabled="disabledAll"/></label>
                 <label><span>RFL</span><input v-model.trim="row.rfl" :disabled="disabledAll"/></label>
                 <label><span>VLT</span><input v-model.trim="row.vlt" :disabled="disabledAll"/></label>
-                <label><span>DV</span><input v-model.trim="row.dv" :disabled="disabledAll"/></label>
                 <label v-if="incantatore" class="full">
                   <span>SP_SLOT</span>
                   <input v-model.trim="row.spSlot" placeholder="4,2,1,0,0,0,0,0,0,0" :disabled="disabledAll"/>

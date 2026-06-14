@@ -6,6 +6,7 @@ export interface SaveLivelloPayload {
     caratteristiche: Record<string, number>
     classeId: number | null
     maledizioneNome: string | null
+    dv: string | null
     livelliClasse: number[]
     ranghi: Array<{ abilitaId: string; punti: number }>
     grantsSelezionati: Array<{ id: string; tipo: 'ITEM' | 'MOD'; livello: number; descrizione: string }>
@@ -18,6 +19,7 @@ export interface UpdateLivelloRequest {
     classeId: Id | null
     maledizioneId: Id | null
     maledizioneNome: string | null
+    dv: string | null
     // mappa: <abilitaUid string> -> PUNTI SPESI (non ranks)
     ranghi: Record<string, number>
     // mappa livelli di classe

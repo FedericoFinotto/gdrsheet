@@ -496,6 +496,7 @@ public class ItemService {
             Item attacco = link.getItemTarget();
             if (richiesti.contains(attacco.getId())) continue;
             collegamentoRepository.delete(link);
+            if (itm.getChild() != null) itm.getChild().remove(link); // allinea la collection in memoria
             // se l'attacco non è referenziato da nessun altro item, eliminalo
             long altriParent = attacco.getParent() == null ? 0
                     : attacco.getParent().stream().filter(p -> !Objects.equals(p.getId(), link.getId())).count();
@@ -554,6 +555,7 @@ public class ItemService {
                 .filter(c -> !desiderati.contains(c.getItemTarget().getId()))
                 .toList();
         collegamentoRepository.deleteAll(daEliminare);
+        if (itm.getChild() != null) itm.getChild().removeAll(daEliminare); // allinea la collection in memoria
 
         Set<Integer> giaPresenti = linkAltri.stream()
                 .map(c -> c.getItemTarget().getId())
@@ -592,6 +594,7 @@ public class ItemService {
                 .filter(m -> !byId.containsKey(m.getId()))
                 .toList();
         modificatoreRepository.deleteAll(daEliminare);
+        if (itm.getModificatori() != null) itm.getModificatori().removeAll(daEliminare); // allinea la collection in memoria
 
         // aggiorna gli esistenti
         for (Modificatore m : esistenti) {
@@ -642,6 +645,11 @@ public class ItemService {
         putSingleLabel(livello, Constants.ITEM_LABEL_CLASSE,
                 request.getClasseId() == null ? null : String.valueOf(request.getClasseId()));
         putSingleLabel(livello, Constants.ITEM_LABEL_MALEDIZIONE, request.getMaledizioneNome());
+        putSingleLabel(livello, Constants.ITEM_LABEL_DADI_VITA, request.getDv());
+        // gradi congelati dal frontend (somma calcolata, eventualmente corretta a mano)
+        if (request.getGradi() != null) {
+            putSingleLabel(livello, Constants.ITEM_LABEL_GRADI_LIVELLO, String.valueOf(request.getGradi()));
+        }
 
         String lvlClasse = (request.getLivelliClasse() == null || request.getLivelliClasse().isEmpty())
                 ? null
@@ -703,6 +711,7 @@ public class ItemService {
             String nuovoValore = rimanenti.remove(statId);
             if (nuovoValore == null) {
                 modificatoreRepository.delete(m);
+                if (itm.getModificatori() != null) itm.getModificatori().remove(m); // tieni allineata la collection in memoria
             } else if (!nuovoValore.equals(m.getValore())) {
                 m.setValore(nuovoValore);
                 modificatoreRepository.save(m);
@@ -747,6 +756,7 @@ public class ItemService {
                 .filter(c -> !desiredItemIds.contains(c.getItemTarget().getId()))
                 .toList();
         collegamentoRepository.deleteAll(daEliminare);
+        if (livello.getChild() != null) livello.getChild().removeAll(daEliminare); // allinea la collection in memoria
 
         Set<Integer> giaPresenti = children.stream()
                 .map(c -> c.getItemTarget().getId())
@@ -782,6 +792,7 @@ public class ItemService {
 
         // le copie rimaste non corrispondono ad alcun grant selezionato
         modificatoreRepository.deleteAll(copieEsistenti);
+        if (livello.getModificatori() != null) livello.getModificatori().removeAll(copieEsistenti); // allinea la collection in memoria
 
         for (Modificatore src : daCreare) {
             Modificatore copia = new Modificatore();

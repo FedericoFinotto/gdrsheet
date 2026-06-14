@@ -47,6 +47,17 @@ public class UpdateLivelloRequest {
     private String maledizioneNome;
 
     /**
+     * Dadi vita di questo livello (label DV), es. "2d10". Pre-valorizzato dalla classe.
+     */
+    private String dv;
+
+    /**
+     * Gradi (punti abilità) di questo livello (label GRADI_LIVELLO). Pre-valorizzato
+     * dalla somma calcolata dai livelli; una volta impostato è congelato (non retroattivo).
+     */
+    private Integer gradi;
+
+    /**
      * Livelli di classe coperti da questo livello (label LVL_CLASSE, comma separated).
      */
     private List<Integer> livelliClasse;

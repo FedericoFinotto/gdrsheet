@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 public class ClasseService {
 
     private static final int LIVELLI = 20;
-    private static final List<String> STAT_LIVELLO = List.of("BAB", "TMP", "RFL", "VLT", "DV");
+    private static final List<String> STAT_LIVELLO = List.of("BAB", "TMP", "RFL", "VLT");
 
     private final ItemRepository itemRepository;
     private final AvanzamentoRepository avanzamentoRepository;
@@ -65,6 +65,7 @@ public class ClasseService {
         dto.setRank(classe.getLabel(Constants.ITEM_LABEL_RANK));
         int numLivelli = parseNumLivelli(classe.getLabel(Constants.ITEM_LABEL_NUM_LIVELLI_CLASSE));
         dto.setNumLivelli(numLivelli);
+        dto.setDv(classe.getLabel(Constants.ITEM_LABEL_DADI_VITA));
 
         List<Avanzamento> avanzamenti = avanzamentoRepository.findAllByItemSource_Id(id);
 
@@ -94,7 +95,6 @@ public class ClasseService {
                 row.setTmp(valoreMod(avz, "TMP"));
                 row.setRfl(valoreMod(avz, "RFL"));
                 row.setVlt(valoreMod(avz, "VLT"));
-                row.setDv(valoreMod(avz, "DV"));
                 row.setSpSlot(avz.getLabel(Constants.ITEM_LABEL_SPELL_SLOT));
             }
             livelli.add(row);
@@ -136,6 +136,7 @@ public class ClasseService {
 
         int numLivelli = parseNumLivelli(dto.getNumLivelli() == null ? null : String.valueOf(dto.getNumLivelli()));
         putSingleLabel(classe, Constants.ITEM_LABEL_NUM_LIVELLI_CLASSE, String.valueOf(numLivelli));
+        putSingleLabel(classe, Constants.ITEM_LABEL_DADI_VITA, dto.getDv());
 
         classe = itemRepository.save(classe);
 
@@ -178,7 +179,7 @@ public class ClasseService {
                 setModValore(avz, "TMP", row.getTmp());
                 setModValore(avz, "RFL", row.getRfl());
                 setModValore(avz, "VLT", row.getVlt());
-                setModValore(avz, "DV", row.getDv());
+                setModValore(avz, "DV", null);    // DV ora gestito a livello di classe e congelato sul livello
                 setModValore(avz, "GRADI", null); // gradi ora gestiti da RANK_1/RANK sulla classe: pulizia vecchio mod
 
                 putSingleLabel(avz, Constants.ITEM_LABEL_SPELL_SLOT, row.getSpSlot());

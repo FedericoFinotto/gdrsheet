@@ -54,6 +54,12 @@ public class ClasseDetailDTO {
      */
     private Integer numLivelli;
 
+    /**
+     * Dadi vita della classe (label DV), es. "2d10". Un solo valore per classe:
+     * pre-valorizza il DV di ogni livello preso in questa classe.
+     */
+    private String dv;
+
     private List<LivelloClasseDTO> livelli;
 
     private List<AbilitaConcessaDTO> abilitaConcesse;
@@ -69,7 +75,6 @@ public class ClasseDetailDTO {
         private String tmp;        // tempra
         private String rfl;        // riflessi
         private String vlt;        // volontà
-        private String dv;         // es. "3d8"
         private String spSlot;     // es. "4,2,1,0,0,0,0,0,0,0" (vuoto = non incantatore)
     }
 

@@ -52,6 +52,7 @@ const form = reactive<UpdateLivelloRequest>({
   caratteristiche: {FOR: null, DES: null, COS: null, INT: null, SAG: null, CAR: null},
   classeId: null,
   maledizioneNome: null,
+  dv: null,
   ranghi: {},
   livelliClasse: {}
 });
@@ -156,6 +157,11 @@ const livelliDisponibili = computed<number[]>(() => {
 
 /* Gradi */
 const gradiInfo = ref<Gradi | null>(null)
+// budget gradi del livello: input editabile, pre-valorizzato con la somma calcolata,
+// congelato sul livello (label GRADI_LIVELLO) al salvataggio
+const gradiInput = ref<number | null>(null)
+const gradiFrozen = ref(false)
+const budgetGradi = computed(() => Number(gradiInput.value ?? 0))
 const livelliSelezionati = computed<number[]>(() =>
     Object.entries(form.livelliClasse)
         .filter(([, v]) => !!v)
@@ -167,10 +173,10 @@ const totalPointsSpent = computed(
     () => Object.values(form.ranghi).reduce((a, b) => a + (Number(b) || 0), 0)
 )
 const showGradiTab = computed(
-    () => !!form.classeId && !!gradiInfo.value && (gradiInfo.value!.toConsume > 0) && abilita.value.length > 0
+    () => !!form.classeId && !!gradiInfo.value && (budgetGradi.value > 0) && abilita.value.length > 0
 )
 const sumAbil = computed(() => {
-  const total = gradiInfo.value?.toConsume ?? 0
+  const total = budgetGradi.value
   const used = totalPointsSpent.value
   const max = gradiInfo.value?.max ?? 0
   return `${used}/${total} (max ${max})`
@@ -205,9 +211,9 @@ async function refreshGradiInfo() {
     )
     if (token === lastGradiReq) {
       const g = unwrap<Gradi>(res)
-      const frozen = readGradiLivello()
-      if (frozen != null) g.toConsume = frozen   // valore congelato: non ricalcolare
       gradiInfo.value = g
+      // se non congelato, l'input segue la somma calcolata dai livelli selezionati
+      if (!gradiFrozen.value) gradiInput.value = g.toConsume
     }
   } catch (e) {
     if (token === lastGradiReq) gradiInfo.value = null
@@ -237,7 +243,7 @@ function canInc(r: SkillRow): boolean {
   const nextSpent = r.spent + 1
   const nextEffect = r.isClass ? nextSpent : Math.floor(nextSpent / 2)
   const wouldExceedMax = r.max < (r.current + nextEffect)
-  const wouldExceedBudget = (totalPointsSpent.value + 1) > gradiInfo.value.toConsume
+  const wouldExceedBudget = (totalPointsSpent.value + 1) > budgetGradi.value
   return !wouldExceedMax && !wouldExceedBudget
 }
 function inc(uid: string) {
@@ -252,7 +258,7 @@ function onDirectChange(uid: string, val: string) {
   const n = Math.max(0, Math.floor(Number(val)))
   form.ranghi[uid] = n
   if (gradiInfo.value) {
-    const overflow = totalPointsSpent.value - gradiInfo.value.toConsume
+    const overflow = totalPointsSpent.value - budgetGradi.value
     if (overflow > 0) form.ranghi[uid] = Math.max(0, n - overflow)
   }
   const a = abilita.value.find(x => abilUid(x) === uid)
@@ -281,6 +287,15 @@ onMounted(async () => {
 
     const classeLabel = getItemLabel(props.item, LABELS.CLASSE)
     const maledizioneLabel = getItemLabel(props.item, LABELS.MALEDIZIONE)
+
+    const dvLabel = getItemLabel(props.item, 'DV')
+    if (typeof dvLabel === 'string' && dvLabel.trim()) form.dv = dvLabel.trim()
+
+    const gradiLabel = readGradiLivello()
+    if (gradiLabel != null) {
+      gradiInput.value = gradiLabel
+      gradiFrozen.value = true   // valore già congelato: non ricalcolare
+    }
 
     if (classeLabel) form.classeId = Number(classeLabel)
     if (typeof maledizioneLabel === 'string' && maledizioneLabel.trim()) {
@@ -319,7 +334,7 @@ onMounted(async () => {
   }
 })
 
-async function loadClasseDetail(id: Id | null) {
+async function loadClasseDetail(id: Id | null, propagaDv = false) {
   if (!id) {
     classeDetail.value = null
     selectedGrantIds.value.clear()
@@ -329,6 +344,17 @@ async function loadClasseDetail(id: Id | null) {
   try {
     const res = await getItem(id)
     classeDetail.value = unwrap<any>(res)
+
+    // dadi vita dalla classe (può anche non averne -> stringa vuota).
+    // - al primo caricamento: pre-valorizza solo se il livello non ha già un DV
+    // - al cambio classe (propagaDv): segue la classe, svuotando se la classe non ha DV
+    const dvClasse = getItemLabel(classeDetail.value, 'DV')
+    const dvClasseStr = (typeof dvClasse === 'string' ? dvClasse.trim() : '')
+    if (propagaDv) {
+      form.dv = dvClasseStr || null
+    } else if (!form.dv && dvClasseStr) {
+      form.dv = dvClasseStr
+    }
 
     if (personaggioId.value != null && form.livello != null) {
       const ac = await getAbilitaClasseByPersonaggioLivelloClasse(personaggioId.value, form.livello, id)
@@ -351,9 +377,13 @@ async function loadClasseDetail(id: Id | null) {
   }
 }
 
+let classeWatchInit = true
 watch(() => form.classeId, async (id, prev) => {
   if (id === prev) return
-  await loadClasseDetail(id)
+  // al primo fire (assegnazione iniziale da label) non propagare il DV: lo gestisce onMounted
+  const propaga = !classeWatchInit
+  classeWatchInit = false
+  await loadClasseDetail(id, propaga)
 })
 
 watch([abilita, () => props.item.id], () => {
@@ -380,6 +410,8 @@ async function onSave() {
       caratteristiche: cleanedCaratteristiche(form.caratteristiche) as Record<string, number>,
       classeId: form.classeId,
       maledizioneNome: form.maledizioneNome?.trim() || null,
+      dv: form.dv?.trim() || null,
+      gradi: gradiInput.value != null ? Number(gradiInput.value) : null,
       livelliClasse: livelliSelezionati.value,
       ranghi: Object.entries(form.ranghi)
           .filter(([, v]) => (Number(v) || 0) > 0)
@@ -438,6 +470,17 @@ const sumClasseMaledizione = computed(() =>
         :summary="sumClasseMaledizione"
     />
 
+    <div v-if="form.classeId" class="dv-row">
+      <label class="dv-field">
+        <span class="dv-lbl">Dadi vita</span>
+        <input v-model.trim="form.dv" type="text" placeholder="Es.: 2d10" :disabled="disabledAll"/>
+      </label>
+      <label class="dv-field">
+        <span class="dv-lbl">Gradi (punti abilità)</span>
+        <input v-model.number="gradiInput" type="number" min="0" :disabled="disabledAll"/>
+      </label>
+    </div>
+
     <TabContenutiLivello
         :disabled="disabledAll"
         :classe-id="form.classeId"
@@ -473,6 +516,12 @@ const sumClasseMaledizione = computed(() =>
   display: flex;
   flex-direction: column;
   gap: .75rem;
+}
+.dv-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.dv-field { display: grid; gap: .3rem; }
+.dv-lbl { font-size: .8rem; font-weight: 600; opacity: .85; }
+.dv-field input {
+  width: 100%; padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff;
 }
 .sp-head {
   display: flex;
