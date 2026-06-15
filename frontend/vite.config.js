@@ -45,6 +45,10 @@ export default defineConfig({
             '@': '/src'
         }
     },
+    // dice-box carica worker offscreen + Ammo (WASM): niente pre-bundling
+    optimizeDeps: {
+        exclude: ['@3d-dice/dice-box']
+    },
     server: {
         host: true,
         port: 5173,
