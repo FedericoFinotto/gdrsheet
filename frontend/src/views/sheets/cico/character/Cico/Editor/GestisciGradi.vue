@@ -81,6 +81,12 @@ const modificato = computed(() => colonne.value.some(colonnaModificata))
 
 const isClasse = (col: Colonna, uid: string) => col.classSet.has(uid.toLowerCase())
 
+// le professioni (stat id che inizia con "PR") sono a parte: non consumano il
+// budget del livello e non rientrano nel conteggio.
+const isProfessione = (uid: string) => uid.toUpperCase().startsWith('PR')
+const righeNormali = computed(() => righe.value.filter(r => !isProfessione(r.uid)))
+const righeProfessioni = computed(() => righe.value.filter(r => isProfessione(r.uid)))
+
 // valore applicato: pieno se abilità di classe, metà se trasversale/cross
 function applicato(col: Colonna, uid: string): number {
   const p = punti(uid, livId(col))
@@ -90,9 +96,9 @@ function applicato(col: Colonna, uid: string): number {
 const livId = (col: Colonna) => col.id
 const fmt = (n: number) => Number.isInteger(n) ? String(n) : n.toFixed(1)
 
-// totale punti spesi a quel livello (confronto col budget GRADI_LIVELLO)
+// totale punti spesi a quel livello (solo abilità non-professione, confronto col budget)
 const totaleColonna = (col: Colonna) =>
-    righe.value.reduce((s, r) => s + punti(r.uid, col.id), 0)
+    righeNormali.value.reduce((s, r) => s + punti(r.uid, col.id), 0)
 const sforato = (col: Colonna) => totaleColonna(col) > col.budget
 // somma dei valori APPLICATI per riga (effetto totale sull'abilità)
 const totaleRiga = (uid: string) =>
@@ -101,7 +107,8 @@ const totaleRiga = (uid: string) =>
 // si può incrementare se: c'è budget al livello E il cap per-abilità
 // (gradi max = livello+3, cumulativo per livello) non viene superato.
 function canInc(col: Colonna, uid: string): boolean {
-  if (totaleColonna(col) >= col.budget) return false
+  // le professioni non consumano il budget del livello
+  if (!isProfessione(uid) && totaleColonna(col) >= col.budget) return false
   const delta = isClasse(col, uid) ? 1 : 0.5
   const idx = colonne.value.findIndex(c => c.id === col.id)
   let cum = 0
@@ -266,8 +273,8 @@ onMounted(carica)
           </tr>
         </thead>
         <tbody>
-          <tr v-for="r in righe" :key="r.uid">
-            <td class="sticky-col abil-col">{{ r.nome }}</td>
+          <tr v-for="r in righeNormali" :key="r.uid">
+            <td class="sticky-col abil-col" :title="r.nome">{{ r.nome }}</td>
             <td
                 v-for="c in colonne" :key="c.id"
                 class="cell" :class="{ classe: isClasse(c, r.uid) }"
@@ -291,6 +298,41 @@ onMounted(carica)
           </tr>
         </tfoot>
       </table>
+
+      <!-- Professioni: a parte, non contano nel budget né nel conteggio -->
+      <template v-if="righeProfessioni.length">
+        <h3 class="prof-title">Professioni</h3>
+        <table class="gg-table">
+          <thead>
+            <tr>
+              <th class="sticky-col abil-col">Professione</th>
+              <th v-for="c in colonne" :key="c.id" class="lvl-col">
+                <div class="lvl-head">
+                  <span>Lv {{ c.livello }}</span>
+                  <span class="lvl-max">libere</span>
+                </div>
+              </th>
+              <th class="tot-col">Tot</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in righeProfessioni" :key="r.uid">
+              <td class="sticky-col abil-col" :title="r.nome">{{ r.nome }}</td>
+              <td
+                  v-for="c in colonne" :key="c.id"
+                  class="cell" :class="{ classe: isClasse(c, r.uid) }"
+              >
+                <div class="stepper">
+                  <button type="button" class="step" @click="dec(r.uid, c)" :disabled="punti(r.uid, c.id) <= 0">−</button>
+                  <span class="val">{{ fmt(applicato(c, r.uid)) }}</span>
+                  <button type="button" class="step" @click="inc(r.uid, c)" :disabled="!canInc(c, r.uid)">+</button>
+                </div>
+              </td>
+              <td class="tot-col">{{ fmt(totaleRiga(r.uid)) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
     </div>
   </div>
 </template>
@@ -365,7 +407,22 @@ onMounted(carica)
 .lvl-head { display: flex; flex-direction: column; line-height: 1.1; }
 .lvl-max { font-size: .68rem; font-weight: 600; color: #64748b; }
 
-.abil-col { text-align: left; min-width: 8.5rem; white-space: nowrap; }
+/* larghezza fissa così le due tabelle (abilità e professioni) restano allineate */
+.abil-col {
+  text-align: left;
+  width: 9rem;
+  min-width: 9rem;
+  max-width: 9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prof-title {
+  margin: .8rem 0 .3rem;
+  font-size: .95rem;
+  color: #475569;
+}
 
 .sticky-col { position: sticky; left: 0; background: #fff; z-index: 2; }
 .gg-table thead .sticky-col { z-index: 3; background: #f8fafc; }
