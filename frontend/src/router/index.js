@@ -9,6 +9,7 @@ import Compendio from '@/views/Compendio.vue';
 import Mobile_Cico_0_CharacterSheet from "../views/sheets/cico/character/Cico/Sheet/Mobile_Cico_0_CharacterSheet.vue";
 import ItemEditor from "../views/sheets/cico/character/Cico/Editor/ItemEditor.vue";
 import ItemCreate from "../views/sheets/cico/character/Cico/Editor/ItemCreate.vue";
+import GestisciGradi from "../views/sheets/cico/character/Cico/Editor/GestisciGradi.vue";
 
 const routes = [
   {path: '/', component: Home},
@@ -34,6 +35,12 @@ const routes = [
     path: '/itemcreate/:tipo?',
     name: 'ItemCreate',
     component: ItemCreate
+  },
+  {
+    path: '/gestisci-gradi/:idPersonaggio',
+    name: 'GestisciGradi',
+    component: GestisciGradi,
+    props: route => ({idPersonaggio: Number(route.params.idPersonaggio)})
   }
 ];
 

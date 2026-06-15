@@ -70,13 +70,22 @@ public class ItemMapper {
         String maledizioneString = entity.getLabel(Constants.ITEM_LABEL_MALEDIZIONE);
 
         if (classeString != null) {
-            Item classeItem = itemRepository.findItemById(Integer.valueOf(classeString));
+            Integer classeId = Integer.valueOf(classeString);
+            Item classeItem = itemRepository.findItemById(classeId);
             dto.setClasse(classeItem.getNome());
+            dto.setClasseId(classeId);
         }
         if (maledizioneString != null) {
             dto.setMaledizione(maledizioneString);
         }
         dto.setLivelliClasse(utilService.parseStringToIntList(entity.getLabel(Constants.ITEM_LIVELLO_LVL_CLASSE)));
+        String gradiString = entity.getLabel(Constants.ITEM_LABEL_GRADI_LIVELLO);
+        if (gradiString != null && !gradiString.isBlank()) {
+            try {
+                dto.setGradi(Integer.valueOf(gradiString.trim()));
+            } catch (NumberFormatException ignored) {
+            }
+        }
         return dto;
     }
 

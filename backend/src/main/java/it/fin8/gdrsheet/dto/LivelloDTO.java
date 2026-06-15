@@ -14,6 +14,8 @@ import java.util.List;
 public class LivelloDTO extends ItemDTO {
     Integer livello;
     String classe;
+    Integer classeId;
     String maledizione;
     List<Integer> livelliClasse;
+    Integer gradi; // valore congelato GRADI_LIVELLO (punti assegnabili a questo livello), null se non impostato
 }

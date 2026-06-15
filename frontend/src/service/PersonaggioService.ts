@@ -121,6 +121,24 @@ export function saveLivello(payload: SaveLivelloPayload): Promise<AxiosResponse<
     return api.post<ItemDB>(`/item/editlivello/${payload.livelloId}`, payload);
 }
 
+// Salva SOLO i ranghi di un livello: il backend sostituisce i modificatori RANK
+// senza toccare labels/caratteristiche/contenuti. Usato dalla pagina "Gestisci gradi".
+export function saveRanghiLivello(
+    livelloId: number,
+    personaggioId: number,
+    ranghi: Array<{ abilitaId: string; punti: number }>
+): Promise<AxiosResponse<ItemDB>> {
+    return api.post<ItemDB>(`/item/editranghi/${livelloId}`, {livelloId, personaggioId, ranghi});
+}
+
+// Salva i ranghi di più livelli in un'unica transazione (un solo persist).
+export function saveRanghiBulk(
+    personaggioId: number,
+    livelli: Array<{ livelloId: number; ranghi: Array<{ abilitaId: string; punti: number }> }>
+): Promise<AxiosResponse<void>> {
+    return api.post<void>('/item/editranghi-bulk', {personaggioId, livelli});
+}
+
 export function createItem(payload: UpdateItemRequest): Promise<AxiosResponse<ItemDB>> {
     return api.post<ItemDB>('/item/create', payload);
 }

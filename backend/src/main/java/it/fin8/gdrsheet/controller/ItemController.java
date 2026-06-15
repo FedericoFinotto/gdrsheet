@@ -9,6 +9,7 @@ import it.fin8.gdrsheet.dto.PageDTO;
 import it.fin8.gdrsheet.dto.SpellBookIncantesimoDTO;
 import it.fin8.gdrsheet.dto.UpdateItemRequest;
 import it.fin8.gdrsheet.dto.UpdateLivelloRequest;
+import it.fin8.gdrsheet.dto.UpdateRanghiBulkRequest;
 import it.fin8.gdrsheet.dto.UpdatePreparedRequest;
 import it.fin8.gdrsheet.dto.UpdateSpellRequest;
 import it.fin8.gdrsheet.dto.UpdateSpellUsageRequest;
@@ -296,6 +297,32 @@ public class ItemController {
         if (dto.getPersonaggioId() != null)
             authzService.assertCanEditPersonaggio(utente, dto.getPersonaggioId());
         return ResponseEntity.ok(itemService.updateLivello(id, dto));
+    }
+
+    @Operation(
+            summary = "Aggiorna SOLO i ranghi di un item Livello",
+            description = "Sostituisce i modificatori RANK del livello senza toccare labels, caratteristiche o contenuti. Usato dalla pagina Gestisci gradi."
+    )
+    @PostMapping("/editranghi/{id}")
+    public ResponseEntity<Item> updateRanghiLivello(@PathVariable Integer id,
+                                                    @Valid @RequestBody UpdateLivelloRequest dto,
+                                                    @AuthenticationPrincipal Utente utente) {
+        if (dto.getPersonaggioId() != null)
+            authzService.assertCanEditPersonaggio(utente, dto.getPersonaggioId());
+        return ResponseEntity.ok(itemService.updateRanghiLivello(id, dto));
+    }
+
+    @Operation(
+            summary = "Aggiorna i ranghi di più livelli in un'unica transazione",
+            description = "Sostituisce i modificatori RANK di tutti i livelli indicati in un solo persist. Usato dalla pagina Gestisci gradi."
+    )
+    @PostMapping("/editranghi-bulk")
+    public ResponseEntity<Void> updateRanghiBulk(@Valid @RequestBody UpdateRanghiBulkRequest dto,
+                                                 @AuthenticationPrincipal Utente utente) {
+        if (dto.getPersonaggioId() != null)
+            authzService.assertCanEditPersonaggio(utente, dto.getPersonaggioId());
+        itemService.updateRanghiLivelliBulk(dto);
+        return ResponseEntity.noContent().build();
     }
 
 }

@@ -695,6 +695,52 @@ public class ItemService {
     }
 
     /**
+     * Aggiorna SOLO i modificatori RANK di un livello (pagina "Gestisci gradi"),
+     * senza toccare labels, caratteristiche o contenuti concessi.
+     */
+    @Transactional
+    public Item updateRanghiLivello(Integer id, UpdateLivelloRequest request) {
+        Item livello = caricaLivello(id, null);
+        applicaRanghi(livello, request.getRanghi());
+        return itemRepository.save(livello);
+    }
+
+    /**
+     * Aggiorna i ranghi di più livelli in un'unica transazione (salvataggio bulk
+     * della pagina "Gestisci gradi"): o vanno a buon fine tutti, o nessuno.
+     */
+    @Transactional
+    public void updateRanghiLivelliBulk(UpdateRanghiBulkRequest request) {
+        if (request.getLivelli() == null) return;
+        for (UpdateRanghiBulkRequest.LivelloRanghi l : request.getLivelli()) {
+            if (l.getLivelloId() == null) continue;
+            Item livello = caricaLivello(l.getLivelloId(), request.getPersonaggioId());
+            applicaRanghi(livello, l.getRanghi());
+            itemRepository.save(livello);
+        }
+    }
+
+    /** Carica un item LIVELLO verificando il tipo e (se passato) l'appartenenza al personaggio. */
+    private Item caricaLivello(Integer id, Integer personaggioId) {
+        Item livello = itemRepository.findById(id).orElseThrow(() -> new RuntimeException("Item non trovato"));
+        if (!TipoItem.LIVELLO.equals(livello.getTipo()))
+            throw new RuntimeException("L'item " + id + " non è di tipo LIVELLO");
+        if (personaggioId != null && (livello.getPersonaggio() == null
+                || !personaggioId.equals(livello.getPersonaggio().getId())))
+            throw new RuntimeException("Il livello " + id + " non appartiene al personaggio " + personaggioId);
+        return livello;
+    }
+
+    /** Sostituisce i modificatori RANK del livello con i ranghi (punti > 0) indicati. */
+    private void applicaRanghi(Item livello, List<UpdateLivelloRequest.RangoSpesoDTO> ranghi) {
+        Map<String, String> desiderati = (ranghi == null ? List.<UpdateLivelloRequest.RangoSpesoDTO>of() : ranghi).stream()
+                .filter(r -> r.getAbilitaId() != null && r.getPunti() != null && r.getPunti() > 0)
+                .collect(Collectors.toMap(UpdateLivelloRequest.RangoSpesoDTO::getAbilitaId,
+                        r -> String.valueOf(r.getPunti()), (a, b) -> a));
+        replaceModificatoriPerTipo(livello, TipoModificatore.RANK, desiderati);
+    }
+
+    /**
      * Sostituisce i modificatori del tipo dato con la mappa statId -> valore.
      * I modificatori esistenti sulla stessa stat vengono aggiornati, gli altri
      * eliminati; quelli mancanti vengono creati.

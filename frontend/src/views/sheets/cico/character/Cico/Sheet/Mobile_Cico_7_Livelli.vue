@@ -70,14 +70,23 @@ async function aggiungiLivello() {
     creandoLivello.value = false;
   }
 }
+
+function gestisciGradi() {
+  router.push(`/gestisci-gradi/${props.idPersonaggio}`);
+}
 </script>
 
 <template>
   <div>
-    <button type="button" class="btn-add-livello" :disabled="creandoLivello" @click="aggiungiLivello">
-      <span class="plus">+</span>
-      <span>{{ creandoLivello ? 'Creazione…' : 'Aggiungi livello' }}</span>
-    </button>
+    <div class="livelli-actions">
+      <button type="button" class="btn-add-livello" :disabled="creandoLivello" @click="aggiungiLivello">
+        <span class="plus">+</span>
+        <span>{{ creandoLivello ? 'Creazione…' : 'Aggiungi livello' }}</span>
+      </button>
+      <button type="button" class="btn-gestisci-gradi" @click="gestisciGradi">
+        Gestisci gradi
+      </button>
+    </div>
     <div class="spazietto"/>
     <Tabella
         v-if="itemsLivelli.length > 0"
@@ -106,4 +115,24 @@ async function aggiungiLivello() {
 .btn-add-livello:hover { background: #f8fafc; }
 .btn-add-livello:disabled { opacity: .6; cursor: default; }
 .plus { font-weight: 800; color: #2563eb; }
+
+.livelli-actions {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn-gestisci-gradi {
+  padding: .4rem .8rem;
+  border: 1px solid #2563eb;
+  border-radius: .5rem;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+  font-size: .85rem;
+  cursor: pointer;
+}
+
+.btn-gestisci-gradi:hover { background: #dbeafe; }
 </style>
