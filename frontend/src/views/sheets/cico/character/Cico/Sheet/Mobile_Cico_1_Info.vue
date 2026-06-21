@@ -101,25 +101,6 @@ const gruppiTrasformazioni = computed(() => {
   return map
 })
 
-// ── Idoli, Competenze, Lingue ──
-const itemsIdoli = computed(() => {
-  const items = cache.value[props.idPersonaggio]?.items
-  return (items?.idoli ?? [])
-      .map((itm: any) => ({
-        ...itm,
-        expandedComponent: markRaw(Mobile_DettaglioItem),
-        expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
-      }))
-      .sort((a: any, b: any) => a.nome.localeCompare(b.nome))
-})
-const itemsCompetenze = computed(() =>
-    [...(cache.value[props.idPersonaggio]?.items?.competenze ?? [])]
-        .sort((a: any, b: any) => a.nome.localeCompare(b.nome))
-)
-const itemsLingue = computed(() =>
-    [...(cache.value[props.idPersonaggio]?.items?.lingue ?? [])]
-        .sort((a: any, b: any) => a.nome.localeCompare(b.nome))
-)
 
 // ── Toggle trasformazione/forma ──
 // siblings: lista entro cui cercare lo stesso gruppo per la mutua esclusione.
@@ -187,10 +168,14 @@ function toggleFruttoOpen(id: number) {
   openFrutti.value = s
 }
 
-const columnsTrasformazioni = [{field: 'nome', label: 'Trasformazioni', disabled: (row: any) => row.disabled}]
-const columnsIdoli = [{field: 'nome', label: 'Idoli', disabled: (row: any) => row.disabled}]
-const columnsCompetenze = [{field: 'nome', label: 'Competenze'}]
-const columnsLingue = [{field: 'nome', label: 'Lingue'}]
+// ── Apertura/chiusura card gruppo trasformazioni ──
+const openGruppi = ref<Set<string>>(new Set())
+function toggleGruppoOpen(gruppo: string) {
+  const s = new Set(openGruppi.value)
+  s.has(gruppo) ? s.delete(gruppo) : s.add(gruppo)
+  openGruppi.value = s
+}
+
 </script>
 
 <template>
@@ -298,24 +283,41 @@ const columnsLingue = [{field: 'nome', label: 'Lingue'}]
       <div class="spazietto"/>
     </template>
 
-    <!-- Trasformazioni indipendenti (non figlie di alcun frutto), divise per gruppo come prima -->
-    <template v-for="(trasf, gruppo) in gruppiTrasformazioni" :key="gruppo">
-      <Tabella
-          v-if="trasf.length"
-          :columns="columnsTrasformazioni"
-          :expandable="true"
-          :items="trasf"
-      />
-      <div class="spazietto"/>
-    </template>
+    <!-- Trasformazioni indipendenti (non figlie di alcun frutto), raggruppate per gruppo come i frutti -->
+    <div v-if="Object.keys(gruppiTrasformazioni).length" class="frutti-list">
+      <div v-for="(trasf, gruppo) in gruppiTrasformazioni" :key="gruppo" class="frutto-card">
 
-    <Tabella v-if="itemsIdoli.length" :columns="columnsIdoli" :expandable="true" :items="itemsIdoli"/>
+        <!-- Header: chiuso mostra il gruppo e la trasformazione attiva -->
+        <button type="button" class="frutto-head" @click="toggleGruppoOpen(String(gruppo))">
+          <span class="chev" :class="{open: openGruppi.has(String(gruppo))}">▸</span>
+          <span class="frutto-nome">Trasformazioni {{ gruppo }}</span>
+          <template v-if="!openGruppi.has(String(gruppo))">
+            <span
+                v-for="t in trasf.filter(x => !x.disabled)" :key="t.id"
+                class="pill-attiva"
+            >{{ strippaPrefisso(t.nome) }}</span>
+            <span v-if="trasf.every(x => x.disabled)" class="pill-nessuna">—</span>
+          </template>
+        </button>
+
+        <!-- Body: una trasformazione per riga, con toggle e info -->
+        <div v-if="openGruppi.has(String(gruppo))" class="frutto-body">
+          <div
+              v-for="t in trasf" :key="t.id"
+              class="trasf-riga"
+              :class="{attiva: !t.disabled}"
+          >
+            <button type="button" class="trasf-toggle" :disabled="toggling" @click="toggleTrasf(t, trasf)">
+              <span class="dot">{{ t.disabled ? '○' : '●' }}</span>
+              <span class="trasf-nome">{{ t.nome }}</span>
+            </button>
+            <button type="button" class="btn-info" :title="`Info: ${t.nome}`" @click.stop="openInfoTrasf(t)">ⓘ</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
     <div class="spazietto"/>
-
-    <Tabella v-if="itemsCompetenze.length" :columns="columnsCompetenze" :expandable="false" :items="itemsCompetenze"/>
-    <div class="spazietto"/>
-
-    <Tabella v-if="itemsLingue.length" :columns="columnsLingue" :expandable="false" :items="itemsLingue"/>
   </div>
 </template>
 
@@ -335,11 +337,13 @@ const columnsLingue = [{field: 'nome', label: 'Lingue'}]
   width: 100%;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: .5rem;
   padding: .55rem .75rem;
   background: #f9fafb;
   border: 0;
   cursor: pointer;
+  text-align: left;
   text-align: left;
 }
 .frutto-head:hover { background: #f3f4f6; }
@@ -366,7 +370,8 @@ const columnsLingue = [{field: 'nome', label: 'Lingue'}]
   background: #dbeafe;
   color: #1e40af;
   font-weight: 600;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .pill-nessuna { font-size: .8rem; opacity: .45; }
 

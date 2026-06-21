@@ -21,6 +21,7 @@ const itemsEquipaggiamento = ref<any[]>([]);
 const itemsConsumabili = ref<any[]>([]);
 const itemsMunizioni = ref<any[]>([]);
 const itemsFrutti = ref<any[]>([]);
+const itemsIdoli = ref<any[]>([]);
 
 watch(
     () => cache.value[props.idPersonaggio]?.items,
@@ -31,6 +32,7 @@ watch(
         itemsConsumabili.value = [];
         itemsMunizioni.value = [];
         itemsFrutti.value = [];
+        itemsIdoli.value = [];
         return;
       }
 
@@ -93,6 +95,16 @@ watch(
             };
           })
           .sort((a, b) => a.nome.localeCompare(b.nome));
+
+      itemsIdoli.value = (newChar.idoli ?? [])
+          .map(itm => {
+            return {
+              ...itm,
+              expandedComponent: markRaw(Mobile_DettaglioItem),
+              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
+            };
+          })
+          .sort((a, b) => a.nome.localeCompare(b.nome));
     },
     {immediate: true, deep: true}
 );
@@ -116,6 +128,9 @@ const columnsMunizioni = [
 ];
 const columnsFrutti = [
   {field: 'nome', label: 'Frutti', disabled: (row) => row.disabled},
+];
+const columnsIdoli = [
+  {field: 'nome', label: 'Idoli', disabled: (row) => row.disabled},
 ];
 </script>
 
@@ -162,6 +177,13 @@ const columnsFrutti = [
              :columns="columnsFrutti"
              :expandable="true"
              :items="itemsFrutti"
+    >
+    </Tabella>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsIdoli.length > 0"
+             :columns="columnsIdoli"
+             :expandable="true"
+             :items="itemsIdoli"
     >
     </Tabella>
   </div>
