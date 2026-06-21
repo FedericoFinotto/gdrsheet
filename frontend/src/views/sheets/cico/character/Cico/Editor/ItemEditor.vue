@@ -2,7 +2,7 @@
 import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import type {AxiosResponse} from 'axios'
-import {deleteItem, getItem, getItemParents, unlinkItem} from '../../../../../../service/PersonaggioService'
+import {deleteItem, getItem, getItemDisabled, getItemParents, switchItemState, unlinkItem} from '../../../../../../service/PersonaggioService'
 import type {Item} from '../../../../../../models/dto/Item'
 import {useCharacterStore} from '../../../../../../stores/personaggio'
 import usePopup from '../../../../../../function/usePopup'
@@ -34,6 +34,38 @@ const idPersonaggio = computed<number | undefined>(() => {
 
 const deleting = ref(false)
 const unlinking = ref(false)
+
+// stato abilitato/disabilitato (toggle esplicito)
+const disabled = ref(false)
+const toggling = ref(false)
+// ha senso solo nel contesto personaggio e non per i livelli
+const canToggle = computed(() =>
+    !!idPersonaggio.value && !!item.value && item.value.tipo !== 'LIVELLO')
+
+async function loadStato() {
+  if (!idPersonaggio.value || !item.value) return
+  try {
+    const res = await getItemDisabled(item.value.id, idPersonaggio.value)
+    disabled.value = !!res.data
+  } catch (e) {
+    console.error('Errore stato item:', e)
+  }
+}
+
+async function onToggleStato() {
+  if (!item.value || !idPersonaggio.value || toggling.value) return
+  toggling.value = true
+  try {
+    await switchItemState(item.value.id, idPersonaggio.value)
+    disabled.value = !disabled.value
+    await characterStore.fetchCharacter(idPersonaggio.value, true)
+  } catch (e) {
+    errorMsg.value = (e as any)?.message ?? 'Errore nel cambio stato'
+    console.error('Errore switch stato item:', e)
+  } finally {
+    toggling.value = false
+  }
+}
 
 // scollegabile: c'è il contesto personaggio e non è un item intestato (es. livelli)
 const canUnlink = computed(() =>
@@ -104,6 +136,7 @@ async function load(id: number) {
     } catch (e) {
       console.error('Errore caricamento padri item:', e)
     }
+    await loadStato()
   } catch (e: any) {
     errorMsg.value = e?.message ?? 'Errore nel caricamento'
   } finally {
@@ -151,6 +184,10 @@ async function onSaved() {
       <div class="meta">
         <span v-if="item">#{{ item.id }}</span>
         <span v-if="item?.tipo" class="pill">{{ item.tipo }}</span>
+        <button v-if="canToggle" type="button" class="btn-toggle" :class="disabled ? 'off' : 'on'"
+                :disabled="toggling || deleting || unlinking" @click="onToggleStato">
+          {{ toggling ? '…' : (disabled ? 'Disabilitato' : 'Abilitato') }}
+        </button>
         <button v-if="canUnlink" type="button" class="btn-unlink" :disabled="unlinking || deleting" @click="onUnlink">
           {{ unlinking ? 'Scollegamento…' : 'Scollega' }}
         </button>
@@ -303,6 +340,17 @@ async function onSaved() {
   background: #fff;
   cursor: pointer;
 }
+
+.btn-toggle {
+  padding: .3rem .7rem;
+  border-radius: .5rem;
+  border: 1px solid transparent;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-toggle.on { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
+.btn-toggle.off { border-color: #fed7aa; background: #fff7ed; color: #9a3412; }
+.btn-toggle:disabled { opacity: .6; cursor: default; }
 
 .btn-delete {
   padding: .3rem .7rem;

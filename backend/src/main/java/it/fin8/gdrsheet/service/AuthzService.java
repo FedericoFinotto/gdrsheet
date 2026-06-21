@@ -97,6 +97,38 @@ public class AuthzService {
         return isProprietario || isMasterParty(utente, partyId);
     }
 
+    /**
+     * L'utente è proprietario del personaggio.
+     */
+    public boolean isProprietarioPersonaggio(Utente utente, Integer personaggioId) {
+        if (utente == null || personaggioId == null) return false;
+        return permessiPersonaggiRepository.findAllByIdPersonaggio_Id(personaggioId).stream()
+                .filter(p -> TipoPermessoPersonaggio.PROPRIETARIO.equals(p.getPermesso()))
+                .anyMatch(p -> Objects.equals(p.getIdUtente().getId(), utente.getId()));
+    }
+
+    /**
+     * Regola di visibilità di un item nel contesto di un personaggio:
+     * <ul>
+     *   <li>vuoto/null: visibile a tutti i membri del party (comportamento normale);</li>
+     *   <li>OWNER: solo proprietario, master e admin;</li>
+     *   <li>MASTER: solo master e admin.</li>
+     * </ul>
+     */
+    public boolean canViewVisibilita(Utente utente, Personaggio personaggio, String visibilita) {
+        if (visibilita == null || visibilita.isBlank()) return true;
+        if (isAdmin(utente)) return true;
+        Integer partyId = (personaggio != null && personaggio.getParty() != null)
+                ? personaggio.getParty().getId() : null;
+        boolean master = isMasterParty(utente, partyId);
+        String v = visibilita.trim().toUpperCase(Locale.ROOT);
+        if (v.equals("MASTER")) return master;
+        if (v.equals("OWNER")) {
+            return master || (personaggio != null && isProprietarioPersonaggio(utente, personaggio.getId()));
+        }
+        return true; // valore non riconosciuto: visibile
+    }
+
     public void assertCanEditPersonaggio(Utente utente, Integer personaggioId) {
         if (!canEditPersonaggio(utente, personaggioId)) {
             throw new org.springframework.web.server.ResponseStatusException(

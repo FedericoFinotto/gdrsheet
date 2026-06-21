@@ -77,5 +77,8 @@ public final class Constants {
     public static final String ITEM_LABEL_RANK = "RANK";         // formula gradi per tutti gli altri livelli
     public static final String ITEM_LABEL_GRADI_LIVELLO = "GRADI_LIVELLO"; // valore gradi congelato sul livello (non retroattivo)
     public static final String ITEM_LABEL_NUM_LIVELLI_CLASSE = "LIVELLI_CLASSE"; // numero di livelli della classe (default 20)
+    public static final String ITEM_LABEL_VISIBILITA = "VISIBILITA";   // visibilità item: vuoto=tutti, OWNER, MASTER
+    public static final String ITEM_VISIBILITA_OWNER = "OWNER";        // solo proprietario + master + admin
+    public static final String ITEM_VISIBILITA_MASTER = "MASTER";      // solo master + admin
 }
 

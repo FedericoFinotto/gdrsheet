@@ -68,13 +68,14 @@ public class PersonaggioController {
     @GetMapping("/items/{id}")
     public ResponseEntity<ItemsDTO> getAllPersonaggioItemsDTOByIdPersonaggio(
             @Parameter(description = "ID del personaggio", required = true)
-            @PathVariable Integer id
+            @PathVariable Integer id,
+            @AuthenticationPrincipal Utente utente
     ) {
         // garantisce FromCompendio e stat_value completi all'apertura del personaggio
         itemService.ensureFromCompendio(id);
         personaggioService.ensureStatValues(id);
 
-        ItemsDTO result = personaggioService.getAllPersonaggioItemsDTOByIdPersonaggio(id);
+        ItemsDTO result = personaggioService.getAllPersonaggioItemsDTOByIdPersonaggio(id, utente);
 
         return ResponseEntity.ok(result);
     }

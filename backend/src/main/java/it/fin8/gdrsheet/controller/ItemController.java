@@ -60,6 +60,18 @@ public class ItemController {
     }
 
     @Operation(
+            summary = "Stato abilitato/disabilitato di un item",
+            description = "true se l'item è disabilitato nel contesto del personaggio"
+    )
+    @GetMapping("/{id}/disabled")
+    public ResponseEntity<Boolean> isItemDisabled(
+            @PathVariable Integer id,
+            @RequestParam(required = false) Integer personaggio
+    ) {
+        return ResponseEntity.ok(itemService.isItemDisabled(id, personaggio));
+    }
+
+    @Operation(
             summary = "Recupera i padri di un item",
             description = "Item che hanno questo item come child, escluso il FromCompendio"
     )

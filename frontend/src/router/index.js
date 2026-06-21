@@ -6,6 +6,8 @@ import PartyItems from '@/views/PartyItems.vue';
 import PartyBanche from '@/views/PartyBanche.vue';
 import BancaDetail from '@/views/BancaDetail.vue';
 import Compendio from '@/views/Compendio.vue';
+import Users from '@/views/Users.vue';
+import SetPassword from '@/views/SetPassword.vue';
 import Mobile_Cico_0_CharacterSheet from "../views/sheets/cico/character/Cico/Sheet/Mobile_Cico_0_CharacterSheet.vue";
 import ItemEditor from "../views/sheets/cico/character/Cico/Editor/ItemEditor.vue";
 import ItemCreate from "../views/sheets/cico/character/Cico/Editor/ItemCreate.vue";
@@ -19,6 +21,8 @@ const routes = [
   {path: '/party/:id/banche', name: 'PartyBanche', component: PartyBanche},
   {path: '/banca/:id', name: 'BancaDetail', component: BancaDetail},
   {path: '/compendio', name: 'Compendio', component: Compendio},
+  {path: '/users', name: 'Users', component: Users},
+  {path: '/set-password', name: 'SetPassword', component: SetPassword},
   {
     path: '/scheda/:id',
     name: 'Scheda',
@@ -59,6 +63,11 @@ router.beforeEach((to) => {
   }
   if (to.path === '/login' && token) {
     return {path: '/'};
+  }
+  // utente che deve impostare la password: forzato sulla pagina dedicata
+  const mustSetPassword = localStorage.getItem('auth_must_set_password') === '1';
+  if (token && mustSetPassword && to.path !== '/set-password') {
+    return {path: '/set-password'};
   }
   return true;
 });

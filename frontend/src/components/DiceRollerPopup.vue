@@ -44,10 +44,14 @@ const totale = computed(() =>
 )
 const haRisultati = computed(() => risultati.value.length > 0)
 
+// quantità di dadi da aggiungere a ogni click sul dado
+const quantita = ref(1)
+
 function aggiungi(d: Dado) {
+  const n = Math.max(1, Math.floor(Number(quantita.value) || 1))
   const esistente = pool.value.find(v => v.key === d.key)
-  if (esistente) esistente.count++
-  else pool.value.push({key: d.key, sides: d.sides, count: 1})
+  if (esistente) esistente.count += n
+  else pool.value.push({key: d.key, sides: d.sides, count: n})
 }
 
 function rimuovi(v: VocePool) {
@@ -110,6 +114,12 @@ function tira() {
       <button type="button" class="btn primary" :disabled="poolVuoto" @click="tira">Tira</button>
       <button type="button" class="btn" :disabled="poolVuoto && !haRisultati" @click="pulisci">Pulisci</button>
     </div>
+
+    <!-- quantità da aggiungere a ogni click -->
+    <label class="qta-row">
+      <span>Quantità per dado</span>
+      <input v-model.number="quantita" type="number" min="1" step="1"/>
+    </label>
 
     <!-- dadi disponibili -->
     <div class="dadi-grid">
@@ -240,6 +250,25 @@ function tira() {
 .btn.primary { border-color: #2563eb; background: #2563eb; color: #fff; }
 .btn.primary:hover { background: #1d4ed8; }
 .btn:disabled { opacity: .5; cursor: default; }
+
+.qta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  font-size: .9rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.qta-row input {
+  width: 5rem;
+  padding: .4rem .5rem;
+  border: 1px solid #d0d5dd;
+  border-radius: .5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 
 .dadi-grid {
   display: grid;

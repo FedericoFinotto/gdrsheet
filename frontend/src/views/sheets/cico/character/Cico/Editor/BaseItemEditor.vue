@@ -52,6 +52,7 @@ const form = reactive<{
   forme: ChildRef[]
   qta: number
   compendio: boolean
+  visibilita: string
 }>({
   nome: '',
   descrizione: '',
@@ -63,6 +64,7 @@ const form = reactive<{
   forme: [],
   qta: 1,
   compendio: false,
+  visibilita: '',
 })
 
 const open = reactive({labels: false, modificatori: false, attacchi: false, children: false, forme: false})
@@ -77,6 +79,7 @@ function preload() {
   form.qta = 1
   // creando dalla pagina del compendio (?compendio=1) il flag è attivo di default
   form.compendio = props.mode === 'create' && route.query.compendio === '1'
+  form.visibilita = ''
   form.labels = []
   for (const l of (props.item.labels ?? [])) {
     const key = l.label ?? ''
@@ -86,6 +89,8 @@ function preload() {
       form.qta = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 1
     } else if (key === 'COMPENDIO') {
       form.compendio = ['true', '1'].includes(String(val).toLowerCase())
+    } else if (key === 'VISIBILITA') {
+      form.visibilita = String(val).toUpperCase()
     } else if (campoKeys.has(key) && !form.campi[key]) {
       form.campi[key] = val
     } else {
@@ -146,6 +151,7 @@ function restoreSnapshot(snap: any) {
   form.forme = snap.forme ?? []
   form.qta = snap.qta ?? 1
   form.compendio = !!snap.compendio
+  form.visibilita = snap.visibilita ?? ''
 }
 
 // Al mount: se sto tornando da una creazione di figlio (draft pendente e NON sono io
@@ -210,6 +216,8 @@ function buildPayload(): UpdateItemRequest {
   }
   // flag compendio
   if (form.compendio) labels.push({label: 'COMPENDIO', valore: 'true'})
+  // visibilità item (vuoto = visibile a tutti)
+  if (form.visibilita) labels.push({label: 'VISIBILITA', valore: form.visibilita})
   return toRaw({
     nome: form.nome.trim(),
     descrizione: form.descrizione,
@@ -332,6 +340,16 @@ function onCancel() {
       <span>Visibile nel compendio</span>
     </label>
 
+    <!-- visibilità item nel personaggio -->
+    <label class="field">
+      <span class="lbl">Visibilità</span>
+      <select v-model="form.visibilita" :disabled="disabledAll">
+        <option value="">Tutti</option>
+        <option value="OWNER">Proprietario</option>
+        <option value="MASTER">Master</option>
+      </select>
+    </label>
+
     <!-- Attacchi (item ATTACCO figli) -->
     <section class="fold">
       <button type="button" class="fold-head" @click="open.attacchi = !open.attacchi"
@@ -431,7 +449,7 @@ function onCancel() {
 .field { display: grid; gap: .35rem; margin: 0; }
 .lbl { font-size: .8rem; font-weight: 600; opacity: .85; margin: 0; }
 
-input[type="text"], textarea {
+input[type="text"], textarea, select {
   width: 100%; padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff; margin: 0;
 }
 textarea { resize: vertical; }

@@ -59,6 +59,24 @@ public class ItemService {
         return itm;
     }
 
+    /**
+     * Stato disabilitato di un item nel contesto di un personaggio: per gli item del
+     * compendio guarda il collegamento (FromCompendio), per quelli intestati l'item stesso.
+     */
+    public boolean isItemDisabled(Integer itemId, Integer personaggioId) {
+        Item itm = itemRepository.findItemById(itemId);
+        if (itm == null) return false;
+        String stato;
+        if (itm.getPersonaggio() == null && personaggioId != null) {
+            stato = utilService.findRightConnectionLink(itm, personaggioId)
+                    .map(l -> l.getLabel(Constants.ITEM_LABEL_DISABILITATO))
+                    .orElse(null);
+        } else {
+            stato = itm.getLabel(Constants.ITEM_LABEL_DISABILITATO);
+        }
+        return Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE.equals(stato);
+    }
+
     private static void toggleDisabled(Supplier<String> getter, Consumer<String> setter) {
         String v = getter.get();
         v = (v == null) ? "" : v.trim();
@@ -251,6 +269,9 @@ public class ItemService {
             Collegamento link = new Collegamento();
             link.setItemSource(fromCompendio);
             link.setItemTarget(saved);
+            // un item appena aggiunto nasce disabilitato: va abilitato esplicitamente
+            link.setLabels(new ArrayList<>());
+            link.setLabel(Constants.ITEM_LABEL_DISABILITATO, Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE);
             collegamentoRepository.save(link);
         }
 

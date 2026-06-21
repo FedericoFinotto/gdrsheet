@@ -54,6 +54,9 @@ public class PersonaggioService {
     @Autowired
     private UtilService utilService;
 
+    @Autowired
+    private AuthzService authzService;
+
     /**
      * Flattens iteratively the item hierarchy into a list.
      */
@@ -102,10 +105,15 @@ public class PersonaggioService {
     }
 
 
-    public ItemsDTO getAllPersonaggioItemsDTOByIdPersonaggio(Integer id) {
+    public ItemsDTO getAllPersonaggioItemsDTOByIdPersonaggio(Integer id, Utente utente) {
         ItemsDTO itemsDTO = new ItemsDTO();
         AllPersonaggioItems allPersonaggioItems = getAllPersonaggioItemsByIdPersonaggio(id);
+        Personaggio personaggio = personaggioRepository.findPersonaggioById(id);
         for (Item itm : allPersonaggioItems.getItems()) {
+            // filtro di visibilità (label VISIBILITA): nasconde l'item a chi non è autorizzato
+            if (!authzService.canViewVisibilita(utente, personaggio, itm.getLabel(Constants.ITEM_LABEL_VISIBILITA))) {
+                continue;
+            }
             if (TipoItem.ABILITA.equals(itm.getTipo())) {
                 itemsDTO.getAbilita().add(itemMapper.toDTO(itm));
             }

@@ -50,6 +50,11 @@ const canCreateParty = computed(() => {
   const r = (auth.utente?.ruolo ?? '').toUpperCase()
   return r === 'MASTER' || r === 'ADMIN'
 })
+// master/admin possono gestire gli utenti
+const canManageUsers = computed(() => {
+  const r = (auth.utente?.ruolo ?? '').toUpperCase()
+  return r === 'MASTER' || r === 'ADMIN' || r === 'SUPERUSER'
+})
 
 const personaggiProprietario = computed(() =>
     home.value?.personaggi.filter(p => p.permesso === 'PROPRIETARIO') ?? [])
@@ -92,7 +97,11 @@ function onLogout() {
         <h1>{{ home?.utente?.name ?? auth.utente?.name ?? '' }}</h1>
         <span class="muted">@{{ home?.utente?.username ?? auth.utente?.username ?? '' }}</span>
       </div>
-      <button class="btn ghost" @click="onLogout">Esci</button>
+      <div class="head-actions">
+        <button v-if="canManageUsers" class="btn ghost" @click="router.push('/users')">Utenti</button>
+        <button class="btn ghost" @click="router.push('/set-password')">Password</button>
+        <button class="btn ghost" @click="onLogout">Esci</button>
+      </div>
     </header>
 
     <div v-if="loading" class="state">Caricamento…</div>
@@ -191,6 +200,7 @@ function onLogout() {
   gap: .75rem;
 }
 
+.head-actions { display: inline-flex; gap: .4rem; flex-wrap: wrap; justify-content: flex-end; }
 .user { display: grid; }
 .user h1 { margin: 0; font-size: 1.25rem; }
 .muted { opacity: .65; font-size: .85rem; }

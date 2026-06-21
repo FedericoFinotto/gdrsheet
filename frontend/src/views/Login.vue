@@ -13,11 +13,15 @@ const busy = ref(false)
 const errorMsg = ref<string | null>(null)
 
 async function onSubmit() {
-  if (!username.value.trim() || !password.value) return
+  if (!username.value.trim()) return
   busy.value = true
   errorMsg.value = null
   try {
-    await auth.login(username.value.trim(), password.value)
+    const mustSet = await auth.login(username.value.trim(), password.value)
+    if (mustSet) {
+      router.replace('/set-password')
+      return
+    }
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
     router.replace(redirect)
   } catch (e: any) {
@@ -42,12 +46,13 @@ async function onSubmit() {
 
       <label class="field">
         <span class="lbl">Password</span>
-        <input v-model="password" type="password" autocomplete="current-password" required/>
+        <input v-model="password" type="password" autocomplete="current-password"/>
+        <span class="hint">Lascia vuoto al primo accesso se non hai ancora una password.</span>
       </label>
 
       <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
-      <button type="submit" class="btn primary" :disabled="busy || !username.trim() || !password">
+      <button type="submit" class="btn primary" :disabled="busy || !username.trim()">
         {{ busy ? 'Accesso…' : 'Accedi' }}
       </button>
     </form>
@@ -82,6 +87,7 @@ h1 {
 
 .field { display: grid; gap: .35rem; }
 .lbl { font-size: .8rem; font-weight: 600; opacity: .85; }
+.hint { font-size: .75rem; opacity: .6; }
 
 input {
   width: 100%;

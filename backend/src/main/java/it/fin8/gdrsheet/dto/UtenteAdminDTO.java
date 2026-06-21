@@ -1,6 +1,5 @@
 package it.fin8.gdrsheet.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -10,9 +9,10 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class LoginRequest {
-    @NotBlank
+public class UtenteAdminDTO {
+    private Integer id;
     private String username;
-    // può essere vuota: utenti appena creati accedono senza password e la impostano
-    private String password;
+    private String name;
+    private String ruolo;
+    private boolean mustSetPassword;
 }

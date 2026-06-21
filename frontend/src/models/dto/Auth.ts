@@ -10,6 +10,15 @@ export interface UtenteAuth {
 export interface LoginResponse {
     token: string;
     utente: UtenteAuth;
+    mustSetPassword?: boolean;
+}
+
+export interface UtenteAdmin {
+    id: number;
+    username: string;
+    name: string;
+    ruolo: string;
+    mustSetPassword: boolean;
 }
 
 export interface PartyHome {

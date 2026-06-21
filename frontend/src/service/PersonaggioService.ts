@@ -58,6 +58,11 @@ export function switchItemState(id: number, idPersonaggio: number): Promise<Axio
         .get<ItemDB>(`/item/switch-state/${idPersonaggio}/${id}`);
 }
 
+export function getItemDisabled(id: number, personaggio?: number): Promise<AxiosResponse<boolean>> {
+    return api
+        .get<boolean>(`/item/${id}/disabled`, {params: {personaggio}});
+}
+
 export function updateHP(idPersonaggio: number, pf: number, pfTemp: number): Promise<AxiosResponse<boolean>> {
     const payload: UpdateHPRequest = {
         idPersonaggio,
