@@ -264,7 +264,7 @@ function showInfoItemPopup(itm) {
     <!-- Descrizione -->
     <div v-if="itemDetail.descrizione">
       <strong>Descrizione</strong><br>
-      {{ itemDetail.descrizione }}
+      <div class="descrizione-html" v-safe-html="itemDetail.descrizione"></div>
       <div style="height: 20px"></div>
       <div class="spazietto"/>
     </div>
@@ -316,6 +316,12 @@ function showInfoItemPopup(itm) {
 </template>
 
 <style scoped>
+.descrizione-html { display: inline-block; width: 100%; white-space: pre-wrap; }
+.descrizione-html :deep(ul),
+.descrizione-html :deep(ol) { margin: .3rem 0 .3rem 1.2rem; padding: 0; }
+.descrizione-html :deep(h3) { margin: .4rem 0 .2rem; font-size: 1rem; }
+.descrizione-html :deep(p) { margin: .3rem 0; }
+
 .action-bar {
   display: flex;
   flex-wrap: wrap;

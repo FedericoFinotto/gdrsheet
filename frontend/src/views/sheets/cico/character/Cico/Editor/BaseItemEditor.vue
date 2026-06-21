@@ -13,6 +13,7 @@ import {
 import {createItem, updateItem} from '../../../../../../service/PersonaggioService'
 import {getItemLabel} from '../../../../../../models/entity/ItemLabel'
 import useChildCreate from '../../../../../../function/useChildCreate'
+import HtmlEditor from '../../../../../../components/HtmlEditor.vue'
 import LabelsEditor from './Sections/LabelsEditor.vue'
 import ModificatoriEditor from './Sections/ModificatoriEditor.vue'
 import AttacchiEditor from './Sections/AttacchiEditor.vue'
@@ -401,7 +402,7 @@ function onCancel() {
 
     <label class="field">
       <span class="lbl">Descrizione</span>
-      <textarea v-model="form.descrizione" rows="10" :disabled="disabledAll" spellcheck="false"/>
+      <HtmlEditor v-model="form.descrizione" :rows="10" :disabled="disabledAll"/>
     </label>
 
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>

@@ -4,6 +4,7 @@ import {saveSpell} from '../../../../../../service/PersonaggioService'
 import {ItemLabel} from "../../../../../../models/entity/ItemLabel";
 import {ItemDB} from "../../../../../../models/entity/ItemDB";
 import {UpdateSpellRequest} from "../../../../../../models/dto/UpdateSpellRequest";
+import HtmlEditor from "../../../../../../components/HtmlEditor.vue";
 
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean }>()
@@ -729,7 +730,7 @@ function onCancel() { emit('cancel') }
 
     <label class="field">
       <span class="lbl">Descrizione</span>
-      <textarea v-model="form.descrizione" rows="16" :disabled="disabledAll" spellcheck="false"/>
+      <HtmlEditor v-model="form.descrizione" :rows="16" :disabled="disabledAll"/>
     </label>
 
     <div class="actions">

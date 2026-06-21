@@ -16,6 +16,7 @@ import App from './App.vue'
 import router from './router'
 import {createPinia} from "pinia";
 import {ACCENT_COLOR, BORDER_COLOR, PRIMARY_COLOR, SECONDARY_COLOR, TERTIARY_COLOR} from "./function/Constants";
+import {vSafeHtml} from "./directives/safeHtml";
 
 const app = createApp(App)
 document.documentElement.style.setProperty('--primary-color', PRIMARY_COLOR);
@@ -28,6 +29,9 @@ document.documentElement.style.setProperty('--accent-color', ACCENT_COLOR);
 app.use(router)
 app.use(PrimeVue)
 app.use(createPinia())
+
+// Direttiva globale per HTML sanificato (descrizioni ecc.)
+app.directive('safe-html', vSafeHtml)
 
 // Register global components
 app.component('Toast', Toast)

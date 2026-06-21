@@ -6,6 +6,7 @@ import {Stat} from '../../../../../../../models/entity/Stat'
 import {Item} from '../../../../../../../models/dto/Item'
 import api from '../../../../../../../service/api'
 import {getStats, searchItems} from '../../../../../../../service/PersonaggioService'
+import HtmlEditor from '../../../../../../../components/HtmlEditor.vue'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
@@ -288,7 +289,7 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
 
       <label class="field">
         <span class="lbl">Descrizione</span>
-        <textarea v-model="form.descrizione" rows="3" :disabled="disabledAll"/>
+        <HtmlEditor v-model="form.descrizione" :rows="4" :disabled="disabledAll"/>
       </label>
 
       <!-- Abilità di classe -->
