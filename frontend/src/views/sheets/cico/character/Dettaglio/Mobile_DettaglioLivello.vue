@@ -68,6 +68,8 @@ const disableLabel = computed(() => {
       return itemInfo.disabled ? 'Trasformati' : 'Torna alla forma Base';
     case TIPO_ITEM.IDOLO:
       return itemInfo.disabled ? 'Prega' : 'Disabilita';
+    case TIPO_ITEM.LIVELLO:
+      return itemInfo.disabled ? 'Abilita livello' : 'Disabilita livello';
     default:
       return null;
   }

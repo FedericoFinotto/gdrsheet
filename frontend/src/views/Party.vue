@@ -13,6 +13,8 @@ import {
 } from '../service/PartyService'
 import {formatKg, formatPesoTotale, PartyDetail, PersonaggioSoldi} from '../models/dto/Party'
 import SoldiView from '../components/SoldiView.vue'
+import {listUsers} from '../service/AuthService'
+import {UtenteAdmin} from '../models/dto/Auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -83,9 +85,46 @@ const nuovoUsername = ref('')
 const nuovoRuolo = ref('GIOCATORE')
 const busyMembro = ref(false)
 
+// autocomplete utenti
+const tuttiUtenti = ref<UtenteAdmin[]>([])
+const ricercaUtente = ref('')
+const showSuggerimenti = ref(false)
+
+const suggerimenti = computed(() => {
+  const q = ricercaUtente.value.trim().toLowerCase()
+  if (!q) return []
+  return tuttiUtenti.value.filter(u =>
+    u.username.toLowerCase().includes(q) || u.name.toLowerCase().includes(q)
+  ).slice(0, 8)
+})
+
+function selezionaUtente(u: UtenteAdmin) {
+  nuovoUsername.value = u.username
+  ricercaUtente.value = `${u.name} (@${u.username})`
+  showSuggerimenti.value = false
+}
+
+function onRicercaInput() {
+  nuovoUsername.value = ''
+  showSuggerimenti.value = true
+}
+
+function onRicercaBlur() {
+  setTimeout(() => { showSuggerimenti.value = false }, 150)
+}
+
 async function apriGestione() {
   showGestione.value = !showGestione.value
-  if (showGestione.value) await caricaMembri()
+  if (showGestione.value) {
+    await caricaMembri()
+    if (!tuttiUtenti.value.length) {
+      try {
+        tuttiUtenti.value = (await listUsers()).data
+      } catch (e) {
+        console.error('Errore caricamento utenti:', e)
+      }
+    }
+  }
 }
 
 async function onAddMembro() {
@@ -95,6 +134,7 @@ async function onAddMembro() {
     const res = await addMembro(party.value.id, nuovoUsername.value.trim(), nuovoRuolo.value)
     membri.value.push(res.data)
     nuovoUsername.value = ''
+    ricercaUtente.value = ''
   } catch (e: any) {
     console.error('Errore aggiunta membro:', e)
     errorMsg.value = e?.response?.status === 404
@@ -213,7 +253,23 @@ const GRUPPI = computed(() => [
         </div>
 
         <div class="crea-form">
-          <input v-model="nuovoUsername" type="text" placeholder="Username utente"/>
+          <div class="autocomplete">
+            <input
+              v-model="ricercaUtente"
+              type="text"
+              placeholder="Cerca utente per username o nome…"
+              autocomplete="off"
+              @input="onRicercaInput"
+              @focus="showSuggerimenti = true"
+              @blur="onRicercaBlur"
+            />
+            <ul v-if="showSuggerimenti && suggerimenti.length" class="suggerimenti">
+              <li v-for="u in suggerimenti" :key="u.id" @mousedown.prevent="selezionaUtente(u)">
+                <span class="sug-nome">{{ u.name }}</span>
+                <span class="sug-username">@{{ u.username }}</span>
+              </li>
+            </ul>
+          </div>
           <select v-model="nuovoRuolo">
             <option value="GIOCATORE">Giocatore</option>
             <option value="MASTER">Master</option>
@@ -433,6 +489,34 @@ const GRUPPI = computed(() => [
 
 .gestione { gap: .6rem; }
 .btn.danger { justify-self: start; background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+
+.autocomplete { position: relative; }
+.autocomplete input { width: 100%; box-sizing: border-box; padding: .45rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; }
+.suggerimenti {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  list-style: none;
+  margin: .15rem 0 0;
+  padding: 0;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: .5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,.1);
+  overflow: hidden;
+}
+.suggerimenti li {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .45rem .7rem;
+  cursor: pointer;
+}
+.suggerimenti li:hover { background: #f0f7ff; }
+.sug-nome { font-weight: 600; flex: 1; }
+.sug-username { font-size: .82rem; color: #64748b; }
 
 .membri { display: grid; gap: .35rem; }
 .membro {

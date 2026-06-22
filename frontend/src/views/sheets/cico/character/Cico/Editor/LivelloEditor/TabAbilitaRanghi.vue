@@ -1,5 +1,6 @@
 <script setup lang="ts">
 
+import {computed} from 'vue'
 import TabExpandable from "../../../../../../../components/TabExpandable.vue";
 
 type SkillRow = {
@@ -9,6 +10,7 @@ type SkillRow = {
 
 const props = defineProps<{
   disabled: boolean
+  loading?: boolean
   rows: SkillRow[]
   sumAbil: string
   canInc: (r: SkillRow) => boolean
@@ -21,26 +23,27 @@ const emit = defineEmits<{
   (e: 'direct-change', uid: string, value: string): void
 }>()
 
-function onInc(uid: string) {
-  emit('inc', uid)
-}
+const isProfessione = (uid: string) => uid.toUpperCase().startsWith('PR')
+const rowsAbilita = computed(() => props.rows.filter(r => !isProfessione(r.uid)))
+const rowsProfessioni = computed(() => props.rows.filter(r => isProfessione(r.uid)))
+const sumProf = computed(() => {
+  const spent = rowsProfessioni.value.reduce((s, r) => s + r.spent, 0)
+  return `${spent} punti`
+})
 
-function onDec(uid: string) {
-  emit('dec', uid)
-}
-
+function onInc(uid: string) { emit('inc', uid) }
+function onDec(uid: string) { emit('dec', uid) }
 function onDirect(uid: string, ev: Event) {
-  const val = (ev.target as HTMLInputElement).value
-  emit('direct-change', uid, val)
+  emit('direct-change', uid, (ev.target as HTMLInputElement).value)
 }
 </script>
 
 <template>
-  <TabExpandable title="Abilità & Ranghi" :defaultOpen="defaultOpen">
+  <TabExpandable title="Abilità" :defaultOpen="defaultOpen" :loading="loading">
     <template #summary>{{ sumAbil }}</template>
     <template #content>
       <div class="skills">
-        <div class="skill-row" v-for="r in rows" :key="r.uid">
+        <div class="skill-row" v-for="r in rowsAbilita" :key="r.uid">
           <div class="skill-main">
             <div class="skill-badges">
               <span v-if="r.isClass" class="pill blue">CLASSE</span>
@@ -60,17 +63,54 @@ function onDirect(uid: string, ev: Event) {
             <div class="stat">
               <div class="stat-label">Punti</div>
               <div class="counter">
-                <button type="button" class="btn" @click.stop="onDec(r.uid)" :disabled="disabled || r.spent<=0">−
-                </button>
-                <input type="number"
-                       inputmode="numeric"
-                       min="0"
-                       step="1"
-                       :value="r.spent"
-                       @input="onDirect(r.uid, $event)"
-                       :disabled="disabled"/>
-                <button type="button" class="btn" @click.stop="onInc(r.uid)" :disabled="disabled || !canInc(r)">+
-                </button>
+                <button type="button" class="btn" @click.stop="onDec(r.uid)" :disabled="disabled || r.spent<=0">−</button>
+                <input type="number" inputmode="numeric" min="0" step="1"
+                       :value="r.spent" @input="onDirect(r.uid, $event)" :disabled="disabled"/>
+                <button type="button" class="btn" @click.stop="onInc(r.uid)" :disabled="disabled || !canInc(r)">+</button>
+              </div>
+            </div>
+            <div class="stat tight">
+              <div class="stat-label">Effetto</div>
+              <div class="stat-value">+{{ r.effect }}</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Totale</div>
+              <div class="stat-value">{{ r.total }}/{{ r.max }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+  </TabExpandable>
+
+  <TabExpandable title="Professioni" :defaultOpen="defaultOpen" :loading="loading">
+    <template #summary>{{ sumProf }}</template>
+    <template #content>
+      <div class="skills">
+        <div class="skill-row" v-for="r in rowsProfessioni" :key="r.uid">
+          <div class="skill-main">
+            <div class="skill-badges">
+              <span v-if="r.isClass" class="pill blue">CLASSE</span>
+              <span v-else-if="r.isOtherClass" class="pill blue">CROSS</span>
+              <span v-else class="pill red">CROSS</span>
+            </div>
+            <div class="skill-name">
+              <ins v-if="r.isClass || r.isOtherClass">{{ r.name }}</ins>
+              <span v-else>{{ r.name }}</span>
+            </div>
+          </div>
+          <div class="skill-stats">
+            <div class="stat">
+              <div class="stat-label">Attuale</div>
+              <div class="stat-value">{{ r.current }}</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Punti</div>
+              <div class="counter">
+                <button type="button" class="btn" @click.stop="onDec(r.uid)" :disabled="disabled || r.spent<=0">−</button>
+                <input type="number" inputmode="numeric" min="0" step="1"
+                       :value="r.spent" @input="onDirect(r.uid, $event)" :disabled="disabled"/>
+                <button type="button" class="btn" @click.stop="onInc(r.uid)" :disabled="disabled || !canInc(r)">+</button>
               </div>
             </div>
             <div class="stat tight">

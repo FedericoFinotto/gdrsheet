@@ -169,8 +169,11 @@ const livelliSelezionati = computed<number[]>(() =>
         .filter(n => Number.isFinite(n))
         .sort((a, b) => a - b)
 )
+const isProfessione = (uid: string) => uid.toUpperCase().startsWith('PR')
 const totalPointsSpent = computed(
-    () => Object.values(form.ranghi).reduce((a, b) => a + (Number(b) || 0), 0)
+    () => Object.entries(form.ranghi)
+        .filter(([uid]) => !isProfessione(uid))
+        .reduce((a, [, b]) => a + (Number(b) || 0), 0)
 )
 const showGradiTab = computed(
     () => !!form.classeId && !!gradiInfo.value && (budgetGradi.value > 0) && abilita.value.length > 0
@@ -243,6 +246,7 @@ function canInc(r: SkillRow): boolean {
   const nextSpent = r.spent + 1
   const nextEffect = r.isClass ? nextSpent : Math.floor(nextSpent / 2)
   const wouldExceedMax = r.max < (r.current + nextEffect)
+  if (isProfessione(r.uid)) return !wouldExceedMax
   const wouldExceedBudget = (totalPointsSpent.value + 1) > budgetGradi.value
   return !wouldExceedMax && !wouldExceedBudget
 }
@@ -257,7 +261,7 @@ function dec(uid: string) {
 function onDirectChange(uid: string, val: string) {
   const n = Math.max(0, Math.floor(Number(val)))
   form.ranghi[uid] = n
-  if (gradiInfo.value) {
+  if (gradiInfo.value && !isProfessione(uid)) {
     const overflow = totalPointsSpent.value - budgetGradi.value
     if (overflow > 0) form.ranghi[uid] = Math.max(0, n - overflow)
   }
@@ -483,6 +487,7 @@ const sumClasseMaledizione = computed(() =>
 
     <TabContenutiLivello
         :disabled="disabledAll"
+        :loading="busy"
         :classe-id="form.classeId"
         :classe="classeDetail"
         :livello="item"
@@ -493,8 +498,8 @@ const sumClasseMaledizione = computed(() =>
     />
 
     <TabAbilitaRanghi
-        v-if="showGradiTab"
         :disabled="disabledAll"
+        :loading="busy"
         :rows="rows"
         :sum-abil="sumAbil"
         :can-inc="canInc"

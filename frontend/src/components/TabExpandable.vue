@@ -4,6 +4,7 @@ import {ref} from 'vue'
 const props = defineProps<{
   title?: string
   defaultOpen?: boolean
+  loading?: boolean
   // alternativa a slot: componenti da rendere
   summaryIs?: any
   summaryProps?: Record<string, any>
@@ -14,6 +15,7 @@ const props = defineProps<{
 const open = ref(!!props.defaultOpen)
 
 function toggle() {
+  if (props.loading) return
   open.value = !open.value
 }
 
@@ -24,18 +26,20 @@ const panelId = `tabexp-${Math.random().toString(36).slice(2)}`
 <template>
   <section class="fold">
     <button type="button" class="fold-head" @click="toggle"
+            :class="{ 'fold-head--loading': loading }"
             :aria-expanded="open ? 'true' : 'false'"
             :aria-controls="panelId">
       <span class="fold-title">{{ title }}</span>
       <span class="fold-summary">
-        <slot name="summary">
+        <span v-if="loading" class="spinner" aria-label="Caricamento…"/>
+        <slot v-else name="summary">
           <component v-if="summaryIs" :is="summaryIs" v-bind="summaryProps"/>
         </slot>
       </span>
-      <span class="chev" :class="{ open }">▸</span>
+      <span class="chev" :class="{ open: open && !loading }">▸</span>
     </button>
 
-    <div class="fold-body" :id="panelId" v-show="open">
+    <div class="fold-body" :id="panelId" v-show="open && !loading">
       <slot name="content">
         <component v-if="contentIs" :is="contentIs" v-bind="contentProps"/>
       </slot>
@@ -68,6 +72,11 @@ const panelId = `tabexp-${Math.random().toString(36).slice(2)}`
   text-align: left;
 }
 
+.fold-head--loading {
+  cursor: default;
+  opacity: .7;
+}
+
 .fold-title {
   font-weight: 600;
 }
@@ -91,5 +100,21 @@ const panelId = `tabexp-${Math.random().toString(36).slice(2)}`
 
 .fold-body {
   padding: .6rem .75rem;
+}
+
+/* spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: inline-block;
+  width: .9rem;
+  height: .9rem;
+  border: 2px solid #d1d5db;
+  border-top-color: #6b7280;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  vertical-align: middle;
 }
 </style>

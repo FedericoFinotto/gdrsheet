@@ -8,6 +8,7 @@ import {GrantRow} from "../../../../../../../models/dto/GrantRow";
 
 const props = defineProps<{
   disabled: boolean
+  loading?: boolean
   classeId: number | null
   classe: any | null
   livello: ItemDB | null
@@ -189,9 +190,9 @@ function getSelectedGrantRows(): GrantRow[] {
 
 <template>
   <TabExpandable
-      v-if="classeId && livelliSelezionati.length"
       title="Contenuti del livello"
       :defaultOpen="defaultOpen"
+      :loading="loading"
   >
     <template #summary>{{ summaryText }}</template>
     <template #content>
