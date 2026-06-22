@@ -63,6 +63,7 @@ function isExpanded(id: string | number) {
 
 /* --------- Stato riga --------- */
 function isRowDisabled(row: any): boolean {
+  if (row.disabled) return true
   return props.columns.some(col => typeof col.disabled === 'function' && col.disabled(row))
 }
 function rowClass(row: any, rowIndex: number) {
@@ -271,6 +272,18 @@ img.row-icon {
 .subtext {
   font-size: 0.7rem;
   color: gray;
+}
+
+.tbl-row.is-disabled {
+  opacity: .45;
+  text-decoration: line-through;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 4px,
+    rgba(0,0,0,.04) 4px,
+    rgba(0,0,0,.04) 8px
+  );
 }
 
 .cell-badge {

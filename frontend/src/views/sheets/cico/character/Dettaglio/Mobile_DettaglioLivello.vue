@@ -115,12 +115,22 @@ function showInfoAbilitaPopup(itm) {
 
 <template>
   <div class="abilita-detail-card" v-if="!loading && itemDetail">
-    <button class="bottone" @click="switchState" v-if="disableLabel">{{ disableLabel }}</button>
-    <div class="icona-wrapper">
-      <Icona
-          name="EDIT"
+    <div class="action-bar">
+      <button
+          v-if="disableLabel"
+          type="button"
+          class="action-btn toggle"
+          :class="itemInfo.disabled ? 'enable' : 'disable'"
+          @click="switchState"
+      >{{ disableLabel }}</button>
+      <button
+          type="button"
+          class="action-btn edit"
           @click.stop="router.push(`/itemeditor/${itemDetail.id}?personaggio=${personaggio.modificatori.id}`)"
-      />
+      >
+        <Icona name="EDIT"/>
+        <span>Modifica</span>
+      </button>
     </div>
 
     <!-- Labels dinamiche -->
@@ -196,3 +206,49 @@ function showInfoAbilitaPopup(itm) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+  padding-bottom: .6rem;
+  margin-bottom: .6rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  border-radius: .5rem;
+  padding: .4rem .75rem;
+  font-weight: 600;
+  font-size: .85rem;
+  line-height: 1;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.action-btn:hover { filter: brightness(.97); }
+
+.action-btn.toggle.enable {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.action-btn.toggle.disable {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.action-btn.edit {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  margin-left: auto;
+}
+</style>

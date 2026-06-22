@@ -123,7 +123,11 @@ const onTouchEnd = (e: TouchEvent) => {
 </script>
 
 <template>
-  <div class="character-sheet" v-if="loaded">
+  <div class="fullpage-loading" v-if="!loaded">
+    <span class="loading-spinner"/>
+  </div>
+
+  <div class="character-sheet" v-else>
     <!-- Header tab -->
     <div class="tab-header-wrapper" ref="headerEl">
       <div class="tab-header">
@@ -153,3 +157,28 @@ const onTouchEnd = (e: TouchEvent) => {
   </div>
 </template>
 
+<style scoped>
+.fullpage-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f9fafb;
+}
+
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid #d1d5db;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+</style>
