@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import {defineProps, ref, watch} from 'vue';
+import {computed, defineAsyncComponent, defineProps, ref, watch} from 'vue';
 import Tabella from "../../../../../../components/Tabella.vue";
 import {useCharacterStore} from "../../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import {getValoreFormula} from "../../../../../../function/Calcolo";
-import {removePlus, testoFormula, testoModificatore} from "../../../../../../function/Utils";
+import {applicaBonusDado, removePlus, risolviFormulaDanno, testoFormula, testoModificatore} from "../../../../../../function/Utils";
 import {Attacco} from "../../../../../../models/dto/Attacco";
+import useDiceRoll from "../../../../../../function/useDiceRoll";
+import usePopup from "../../../../../../function/usePopup";
+
+const DiceRollerPopup = defineAsyncComponent(() => import('../../../../../../components/DiceRollerPopup.vue'))
+const {openPopup} = usePopup()
 
 const characterStore = useCharacterStore();
 const {cache} = storeToRefs(characterStore);
+const {risultato} = useDiceRoll()
 
 const props = defineProps({
   idPersonaggio: {
@@ -16,7 +22,19 @@ const props = defineProps({
     required: true
   }
 });
-const itemsAttacchi = ref<Object[]>([]);
+
+interface AttaccoRow {
+  id: any
+  nome: string
+  nomeItem: string
+  atk: string | null        // valore base calcolato
+  dmg: string | null
+  attacco: string
+  colpo: string
+  [key: string]: any
+}
+
+const itemsAttacchi = ref<AttaccoRow[]>([]);
 
 watch(
     () => cache.value[props.idPersonaggio]?.items,
@@ -26,12 +44,10 @@ watch(
         return;
       }
 
-      // Ordina prima
       const sorted = [...newChar.attacchi].sort((a: Attacco, b: Attacco) =>
           a.nomeItem.localeCompare(b.nomeItem)
       );
 
-      // Enrich asincrono: trasforma ogni itm in { ...itm, atk }
       itemsAttacchi.value = await Promise.all(
           sorted.map(async itm => {
             let atkVal: string | null = null;
@@ -44,7 +60,7 @@ watch(
 
             if (itm.colpo) {
               const resp = await getValoreFormula(cache.value[props.idPersonaggio].modificatori, itm.colpo);
-              dannoVal = testoModificatore(resp.data.risultato);
+              dannoVal = risolviFormulaDanno(resp.data.formula, cache.value[props.idPersonaggio].modificatori);
             }
 
             return {
@@ -60,20 +76,34 @@ watch(
     {immediate: true, deep: true}
 );
 
+// applica il bonus d20 al valore atk quando il dado è attivo
+const itemsDisplay = computed(() => {
+  if (risultato.value === null) return itemsAttacchi.value
+  return itemsAttacchi.value.map(itm => ({
+    ...itm,
+    atk: itm.atk != null ? applicaBonusDado(itm.atk, risultato.value!) : itm.atk
+  }))
+})
+
+function apriDanno(row: AttaccoRow) {
+  if (!row.dmg) return
+  openPopup(DiceRollerPopup, {initialFormula: row.dmg}, {closable: true, autoClose: 0})
+}
+
 const columnsAttacchi = [
   {field: 'nome', subfield: 'nomeItem', label: 'Arma'},
   {field: 'atk', subfield: 'attacco', label: 'Colpire'},
-  {field: 'dmg', subfield: 'colpo', label: 'Danno'}
+  {field: 'dmg', subfield: 'colpo', label: 'Danno', onClick: (row: any) => apriDanno(row)}
 ];
 </script>
 
 <template>
   <div>
     <Tabella
-        v-if="itemsAttacchi.length > 0"
+        v-if="itemsDisplay.length > 0"
         :columns="columnsAttacchi"
         :expandable="false"
-        :items="itemsAttacchi"
+        :items="itemsDisplay"
     />
   </div>
 </template>

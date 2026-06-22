@@ -38,6 +38,9 @@ interface ColumnDef {
 
   type?: 'text' | 'counter' | 'icons';
 
+  // click handler opzionale sulla cella testo (stoppa la propagazione alla riga)
+  onClick?: Fn<void>;
+
   // counter
   counter?: CounterDef;
 
@@ -197,7 +200,11 @@ function clickIcon(ic: RowIcon, row: any) {
 
           <!-- Colonna TESTO -->
           <template v-else>
-            <div class="cell-content">
+            <div
+                class="cell-content"
+                :class="{ 'cell-clickable': !!col.onClick }"
+                @click="col.onClick ? ($event.stopPropagation(), col.onClick(row)) : undefined"
+            >
               <div class="primary">
                 {{ row[col.field] }}
                 <span v-if="col.badge && col.badge(row)" class="cell-badge">{{ col.badge(row) }}</span>
@@ -284,6 +291,16 @@ img.row-icon {
     rgba(0,0,0,.04) 4px,
     rgba(0,0,0,.04) 8px
   );
+}
+
+.cell-clickable {
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+.cell-clickable:hover {
+  opacity: .75;
 }
 
 .cell-badge {

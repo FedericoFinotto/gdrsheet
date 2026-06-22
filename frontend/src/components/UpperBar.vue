@@ -122,4 +122,5 @@ function d20Cancel() {
   from { opacity: 0; transform: translateX(-4px) scale(.8); }
   to   { opacity: 1; transform: none; }
 }
+
 </style>

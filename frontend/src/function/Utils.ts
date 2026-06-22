@@ -3,6 +3,7 @@ import {ItemDB, TIPO_ITEM} from "../models/entity/ItemDB";
 import {Modificatore} from "../models/entity/Modificatore";
 import {Avanzamento} from "../models/entity/Avanzamento";
 import {LABELS} from "../models/entity/ItemLabel";
+import {DatiPersonaggio} from "../models/dto/DatiPersonaggio";
 
 const REGEX_DICE = /^\d+d\d+(?:[+-]\d+)?$/i;
 
@@ -36,6 +37,28 @@ export function applicaBonusDado(testo: string, bonus: number): string {
 
 export function removePlus(valore: string) {
     return valore.replace('+', '');
+}
+
+/**
+ * Risolve le variabili simboliche nella formula danno usando i valori numerici del personaggio.
+ * Es: "16d8+14d6+MSCd10+FOR" → "16d8+14d6+171d10+169"
+ */
+export function risolviFormulaDanno(formula: string, stats: DatiPersonaggio): string {
+    const vars: Record<string, number> = {}
+    for (const c of stats.caratteristiche ?? []) vars[c.id] = c.modificatore
+    for (const b of stats.bonusAttacco ?? []) vars[b.id] = b.attacchiMultipli?.[0] ?? b.modificatore
+    for (const t of stats.tiriSalvezza ?? []) vars[t.id] = t.modificatore
+    for (const a of stats.attributi ?? []) vars[a.id] = a.modificatore
+    for (const ca of stats.classeArmatura ?? []) vars[ca.id] = ca.modificatore
+
+    return formula
+        .replace(/@/g, '')
+        .replace(/\*/g, '')
+        .replace(/0\.5/g, '½')
+        .replace(/[A-Z]{2,}/g, match => {
+            const val = vars[match]
+            return val !== undefined ? String(val) : match
+        })
 }
 
 export function testoFormula(formula: string): string {
