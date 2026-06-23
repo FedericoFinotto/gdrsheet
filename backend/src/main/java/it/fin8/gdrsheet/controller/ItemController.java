@@ -299,6 +299,21 @@ public class ItemController {
     }
 
     @Operation(
+            summary = "Collega un item esistente al personaggio",
+            description = "Aggiunge un item del compendio all'equipaggiamento del personaggio tramite FromCompendio"
+    )
+    @PostMapping("/link/{id}")
+    public ResponseEntity<Void> linkItem(
+            @Parameter(description = "Id Item", required = true) @PathVariable Integer id,
+            @Parameter(description = "Id Personaggio", required = true) @RequestParam Integer idPersonaggio,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        authzService.assertCanEditPersonaggio(utente, idPersonaggio);
+        itemService.linkItem(id, idPersonaggio);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
             summary = "Aggiorna un item Livello",
             description = "Aggiorna labels, caratteristiche (BASE), ranghi (RANK) e contenuti concessi di un item LIVELLO"
     )

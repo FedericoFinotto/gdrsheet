@@ -412,6 +412,29 @@ public class ItemService {
         return itemRepository.save(itm);
     }
 
+    /**
+     * Collega un item esistente del compendio al personaggio tramite il suo FromCompendio.
+     * L'item nasce disabilitato (come per createItem) e va abilitato esplicitamente.
+     */
+    @Transactional
+    public void linkItem(Integer itemId, Integer idPersonaggio) {
+        Item target = itemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Item non trovato: " + itemId));
+
+        Item fromCompendio = ensureFromCompendio(idPersonaggio);
+
+        boolean giaPresente = collegamentoRepository.findAllByItemTarget_Id(itemId).stream()
+                .anyMatch(c -> Objects.equals(c.getItemSource().getId(), fromCompendio.getId()));
+        if (giaPresente) return; // idempotente
+
+        Collegamento link = new Collegamento();
+        link.setItemSource(fromCompendio);
+        link.setItemTarget(target);
+        link.setLabels(new ArrayList<>());
+        link.setLabel(Constants.ITEM_LABEL_DISABILITATO, Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE);
+        collegamentoRepository.save(link);
+    }
+
     @Transactional
     public Item updateItem(Integer id, UpdateItemRequest request) {
         Item itm = itemRepository.findById(id).orElseThrow(() -> new RuntimeException("Item non trovato"));

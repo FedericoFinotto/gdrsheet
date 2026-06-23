@@ -23,6 +23,7 @@ import TabLivelloBase from './TabLivelloBase.vue'
 import TabClasseMaledizione from './TabClasseMaledizione.vue'
 import TabContenutiLivello from './TabContenutiLivello.vue'
 import TabAbilitaRanghi from './TabAbilitaRanghi.vue'
+import TabItemExtra from './TabItemExtra.vue'
 import {GrantRow} from "../../../../../../../models/dto/GrantRow";
 
 type Id = number
@@ -283,6 +284,23 @@ function onDirectChange(uid: string, val: string) {
 const selectedGrantIds = ref<Set<string>>(new Set())
 const selectedGrants = ref<GrantRow[]>([])
 
+/* Item extra: item generici non derivati dalla classe */
+const extraItems = ref<ItemDB[]>([])
+
+// ID degli item presenti negli avanzamenti classe (non devono apparire come "extra")
+const classeAvanzamentiItemIds = computed<Set<number>>(() => {
+  const arr: any[] = classeDetail.value?.avanzamento ?? []
+  const ids = new Set<number>()
+  for (const a of arr) {
+    if (a?.itemTarget?.tipo !== 'AVANZAMENTO' && a?.itemTarget?.id != null)
+      ids.add(Number(a.itemTarget.id))
+  }
+  return ids
+})
+
+// Tipi esclusi dagli extra (gestiti altrove)
+const TIPI_ESCLUSI_EXTRA = new Set(['CLASSE', 'RAZZA', 'MALEDIZIONE', 'AVANZAMENTO', 'LIVELLO', 'PERSONAGGIO', 'ATTACCO'])
+
 /* onMounted & watchers */
 onMounted(async () => {
   try {
@@ -331,6 +349,12 @@ onMounted(async () => {
     preloadAttualiDaStats()
 
     if (form.classeId) await loadClasseDetail(form.classeId)
+
+    // Pre-popola item extra: figli del livello non gestiti dalla classe
+    const classeIds = classeAvanzamentiItemIds.value
+    extraItems.value = (props.item.child ?? [])
+        .map((c: any) => c.itemTarget)
+        .filter((t: any) => t && !TIPI_ESCLUSI_EXTRA.has(t.tipo) && !classeIds.has(Number(t.id)))
   } catch (e) {
     console.error('Errore inizializzazione LivelloEditor:', e)
   } finally {
@@ -420,8 +444,12 @@ async function onSave() {
       ranghi: Object.entries(form.ranghi)
           .filter(([, v]) => (Number(v) || 0) > 0)
           .map(([abilitaId, punti]) => ({abilitaId, punti: Number(punti)})),
-      grantsSelezionati: Array.from(selectedGrants.value)
-          .map(g => ({id: g.id, tipo: g.tipo, livello: g.livello, descrizione: g.descrizione}))
+      grantsSelezionati: [
+        ...Array.from(selectedGrants.value)
+            .map(g => ({id: g.id, tipo: g.tipo, livello: g.livello, descrizione: g.descrizione})),
+        ...extraItems.value
+            .map(i => ({id: `item-${i.id}`, tipo: 'ITEM' as const, livello: 0, descrizione: i.nome}))
+      ]
     })
     await saveLivello(payload)
     emit('saved')
@@ -495,6 +523,13 @@ const sumClasseMaledizione = computed(() =>
         :default-open="true"
         v-model:selected-grant-ids="selectedGrantIds"
         v-model:selected-grants="selectedGrants"
+    />
+
+    <TabItemExtra
+        :disabled="disabledAll"
+        :loading="busy"
+        :items="extraItems"
+        @update:items="extraItems = $event"
     />
 
     <TabAbilitaRanghi

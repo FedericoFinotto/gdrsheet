@@ -160,6 +160,10 @@ export function unlinkItem(id: number, idPersonaggio: number): Promise<AxiosResp
     return api.post<void>(`/item/unlink/${id}`, null, {params: {idPersonaggio}});
 }
 
+export function linkItem(id: number, idPersonaggio: number): Promise<AxiosResponse<void>> {
+    return api.post<void>(`/item/link/${id}`, null, {params: {idPersonaggio}});
+}
+
 export function updateBarriera(id: number, consumato: number, idPersonaggio?: number): Promise<AxiosResponse<void>> {
     return api.post<void>(`/item/barriera/${id}`, null, {params: {consumato, idPersonaggio}});
 }

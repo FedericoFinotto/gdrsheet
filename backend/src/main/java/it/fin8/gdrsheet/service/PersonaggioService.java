@@ -49,6 +49,9 @@ public class PersonaggioService {
     private ModificatoriService modificatoriService;
 
     @Autowired
+    private CollegamentoRepository collegamentoRepository;
+
+    @Autowired
     private CalcoloService calcoloService;
 
     @Autowired
@@ -109,6 +112,15 @@ public class PersonaggioService {
         ItemsDTO itemsDTO = new ItemsDTO();
         AllPersonaggioItems allPersonaggioItems = getAllPersonaggioItemsByIdPersonaggio(id);
         Personaggio personaggio = personaggioRepository.findPersonaggioById(id);
+
+        // Calcola gli id degli item collegati direttamente via FromCompendio (scollegabili)
+        Item fromCompendio = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_FROM_COMPENDIO, id);
+        Set<Integer> scollegabiliIds = new HashSet<>();
+        if (fromCompendio != null) {
+            collegamentoRepository.findAllByItemSource_Id(fromCompendio.getId())
+                    .forEach(c -> scollegabiliIds.add(c.getItemTarget().getId()));
+        }
+
         for (Item itm : allPersonaggioItems.getItems()) {
             // filtro di visibilità (label VISIBILITA): nasconde l'item a chi non è autorizzato
             if (!authzService.canViewVisibilita(utente, personaggio, itm.getLabel(Constants.ITEM_LABEL_VISIBILITA))) {
@@ -151,10 +163,14 @@ public class PersonaggioService {
                 itemsDTO.getTrasformazioni().add(itemMapper.toTrasformazioneDTO(itm));
             }
             if (TipoItem.COMP.equals(itm.getTipo())) {
-                itemsDTO.getCompetenze().add(itemMapper.toDTO(itm));
+                ItemDTO dto = itemMapper.toDTO(itm);
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
+                itemsDTO.getCompetenze().add(dto);
             }
             if (TipoItem.LINGUA.equals(itm.getTipo())) {
-                itemsDTO.getLingue().add(itemMapper.toDTO(itm));
+                ItemDTO dto = itemMapper.toDTO(itm);
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
+                itemsDTO.getLingue().add(dto);
             }
             if (TipoItem.IDOLO.equals(itm.getTipo())) {
                 itemsDTO.getIdoli().add(itemMapper.toDTO(itm));

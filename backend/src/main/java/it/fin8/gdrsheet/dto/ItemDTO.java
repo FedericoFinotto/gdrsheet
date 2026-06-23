@@ -25,4 +25,8 @@ public class ItemDTO {
     private Boolean barriera;
     private Integer barrMax;
     private Integer barrCons;
+    /**
+     * True se l'item è collegato direttamente via FromCompendio (può essere scollegato dall'utente).
+     */
+    private Boolean scollegabile;
 }
