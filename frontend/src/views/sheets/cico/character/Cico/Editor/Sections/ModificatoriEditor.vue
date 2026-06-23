@@ -4,6 +4,9 @@ import {ModificatoreRow} from '../../../../../../../models/dto/UpdateItemRequest
 import {TIPO_MODIFICATORE} from '../../../../../../../models/entity/Modificatore'
 import {Stat} from '../../../../../../../models/entity/Stat'
 import {getStats} from '../../../../../../../service/PersonaggioService'
+import {VARIABILI_FORMULA} from '../../../../../../../function/labelCatalog'
+import InfoHelpPopup from '../../../../../../../components/InfoHelpPopup.vue'
+import usePopup from '../../../../../../../function/usePopup'
 
 const props = defineProps<{
   modelValue: ModificatoreRow[]
@@ -12,6 +15,16 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'update:modelValue', v: ModificatoreRow[]): void }>()
 
 const TIPI = Object.values(TIPO_MODIFICATORE)
+
+const {openPopup} = usePopup()
+
+function apriInfoVariabili() {
+  openPopup(InfoHelpPopup, {
+    titolo: 'Variabili utilizzabili',
+    nota: 'Usa le variabili nelle formule, es.: BAB+FOR oppure DIFETTO(LVL/2). Anteporre @ è facoltativo.',
+    voci: VARIABILI_FORMULA,
+  }, {closable: true, autoClose: 0})
+}
 
 const stats = ref<Stat[]>([])
 onMounted(async () => {
@@ -42,6 +55,10 @@ function remove(idx: number) {
 
 <template>
   <div class="mods-editor">
+    <div class="mods-toolbar">
+      <button type="button" class="btn-info" title="Variabili utilizzabili nelle formule" @click="apriInfoVariabili">ⓘ Variabili</button>
+    </div>
+
     <div v-if="!modelValue.length" class="empty">Nessun modificatore.</div>
 
     <div v-for="(row, i) in modelValue" :key="row.id ?? `new-${i}`" class="mod-row">
@@ -100,6 +117,12 @@ function remove(idx: number) {
 <style scoped>
 input, select, textarea { min-width: 0; }
 .mods-editor { display: grid; gap: .4rem; }
+.mods-toolbar { display: flex; justify-content: flex-end; }
+.btn-info {
+  border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3;
+  border-radius: .5rem; padding: .3rem .6rem; cursor: pointer; font-size: .8rem;
+}
+.btn-info:hover { background: #e0e7ff; }
 .empty { font-size: .85rem; opacity: .6; }
 .mod-row {
   display: grid; grid-template-columns: 11rem 8rem 1fr 1fr auto auto; gap: .4rem; align-items: center;
