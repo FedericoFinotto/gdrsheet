@@ -7,7 +7,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @AllArgsConstructor
@@ -28,10 +30,18 @@ public class DatiPersonaggioDTO {
     List<ContatoreItemDTO> contatoriItem;
     DadiVitaDTO dadiVita;
 
+    // Info anagrafiche (personaggio_label): LUOGO_NASCITA, DATA_NASCITA, RAZZA, ...
+    Map<String, String> info;
+    // Peso totale trasportato (kg): peso personaggio + oggetti + monete
+    Double pesoTotale;
+    // Taglia attuale (numerica): taglia base + somma ADD_TAGLIA
+    Integer tagliaAttuale;
+
     public DatiPersonaggioDTO(Personaggio personaggio) {
         id = personaggio.getId();
         nome = personaggio.getNome();
         caratteristiche = new ArrayList<>();
+        info = new LinkedHashMap<>();
         abilita = new ArrayList<>();
         tiriSalvezza = new ArrayList<>();
         classeArmatura = new ArrayList<>();

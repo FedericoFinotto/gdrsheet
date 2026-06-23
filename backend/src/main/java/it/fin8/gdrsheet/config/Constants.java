@@ -39,7 +39,8 @@ public final class Constants {
     public static final String ITEM_LABEL_LISTA_COMPETENZE = "COMP";
     public static final String ITEM_LABEL_LISTA_LINGUE = "LINGUE";
     public static final String ITEM_LABEL_COMPETENZA_RICHIESTA = "REQ_COMP";
-    public static final String ITEM_LABEL_TAGLIA = "TAGLIA";
+    public static final String ITEM_LABEL_TAGLIA = "TAGLIA";       // SET: imposta la taglia a un valore
+    public static final String ITEM_LABEL_ADD_TAGLIA = "ADD_TAGLIA"; // ADD: incrementa/decrementa la taglia base
     public static final String ITEM_LABEL_SPELL_SLOT = "SP_SLOT";
     public static final String ITEM_LABEL_SPELL_SLOT_BONUS = "SP_SLOT_BONUS";
     public static final String COLLEGAMENTO_LABEL_LIVELLO = "LIVELLO";
@@ -80,5 +81,10 @@ public final class Constants {
     public static final String ITEM_LABEL_VISIBILITA = "VISIBILITA";   // visibilità item: vuoto=tutti, OWNER, MASTER
     public static final String ITEM_VISIBILITA_OWNER = "OWNER";        // solo proprietario + master + admin
     public static final String ITEM_VISIBILITA_MASTER = "MASTER";      // solo master + admin
+
+    // Info anagrafiche del personaggio (personaggio_label)
+    public static final List<String> PERSONAGGIO_INFO_LABELS = List.of(
+            "LUOGO_NASCITA", "DATA_NASCITA", "RAZZA", "SESSO", "PELLE", "ETA",
+            "ALTEZZA", "PESO", "CAPELLI", "OCCHI", "ALLINEAMENTO", "TAGLIA");
 }
 

@@ -504,10 +504,30 @@ public class ModificatoriService {
                 .orElse(null);
     }
 
-    private Integer getTaglia(List<ItemLabel> taglia) {
+    /**
+     * Taglia effettiva del personaggio. Parte dalla taglia base (la
+     * personaggio_label TAGLIA, rappresentata da una label con item nullo).
+     * Un item con label TAGLIA SOSTITUISCE la base. Infine le label ADD_TAGLIA
+     * sommano/sottraggono alla taglia effettiva.
+     */
+    public Integer getTaglia(List<ItemLabel> taglia) {
         try {
-            TreeMap<Integer, ItemLabel> tagliaPerLivello = taglia.stream()
-                    .filter(c -> c != null && c.getItem() != null && c.getItem().getTipo() == TipoItem.CLASSE)
+            List<ItemLabel> set = taglia.stream()
+                    .filter(c -> c != null && Constants.ITEM_LABEL_TAGLIA.equals(c.getLabel()))
+                    .toList();
+
+            // taglia base: il SET del personaggio (item == null)
+            int effettiva = set.stream()
+                    .filter(x -> x.getItem() == null)
+                    .map(ItemLabel::getValore)
+                    .map(this::parseTaglia)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(0);
+
+            // override da item CLASSE: quello al livello più alto
+            TreeMap<Integer, ItemLabel> tagliaPerLivello = set.stream()
+                    .filter(c -> c.getItem() != null && c.getItem().getTipo() == TipoItem.CLASSE)
                     .map(c -> new AbstractMap.SimpleEntry<>(estraiLvlDaTaglia(c), c))
                     .filter(e -> e.getKey() != null)
                     .collect(Collectors.toMap(
@@ -516,35 +536,52 @@ public class ModificatoriService {
                             (a, b) -> a,          // in caso di stesso LVL tieni il primo
                             TreeMap::new          // <Integer, ItemLabel> dedotti correttamente
                     ));
-
-
             ItemLabel tagliaDiClasse = tagliaPerLivello.isEmpty()
                     ? null
                     : tagliaPerLivello.lastEntry().getValue();
 
-            ItemLabel tagliaNonClasse = taglia.stream().filter(x -> !x.getItem().getTipo().equals(TipoItem.CLASSE)).findFirst().orElse(null);
+            // override da item NON di classe (es. oggetto magico)
+            ItemLabel tagliaNonClasse = set.stream()
+                    .filter(x -> x.getItem() != null && x.getItem().getTipo() != TipoItem.CLASSE)
+                    .findFirst()
+                    .orElse(null);
 
-            int tagliaValore = 0;
-
+            // un item con TAGLIA sostituisce la base
             if (tagliaDiClasse != null) {
-                tagliaValore = Integer.parseInt(tagliaDiClasse.getValore());
+                effettiva = Integer.parseInt(tagliaDiClasse.getValore());
             }
-
             if (tagliaNonClasse != null) {
-                tagliaValore = Integer.parseInt(tagliaNonClasse.getValore());
+                effettiva = Integer.parseInt(tagliaNonClasse.getValore());
             }
 
-            return tagliaValore;
+            // ADD_TAGLIA: incrementi/decrementi sulla taglia effettiva
+            int add = taglia.stream()
+                    .filter(c -> c != null && Constants.ITEM_LABEL_ADD_TAGLIA.equals(c.getLabel()))
+                    .map(c -> parseTaglia(c.getValore()))
+                    .filter(Objects::nonNull)
+                    .mapToInt(Integer::intValue)
+                    .sum();
+
+            return effettiva + add;
         } catch (Exception e) {
             return 0;
         }
 
     }
 
+    private Integer parseTaglia(String s) {
+        if (s == null) return null;
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     private Integer getTagliaClasse(List<ItemLabel> taglia) {
         try {
             TreeMap<Integer, ItemLabel> tagliaPerLivello = taglia.stream()
-                    .filter(c -> c != null && c.getItem() != null && c.getItem().getTipo() == TipoItem.CLASSE)
+                    .filter(c -> c != null && Constants.ITEM_LABEL_TAGLIA.equals(c.getLabel()) && c.getItem() != null && c.getItem().getTipo() == TipoItem.CLASSE)
                     .map(c -> new AbstractMap.SimpleEntry<>(estraiLvlDaTaglia(c), c))
                     .filter(e -> e.getKey() != null)
                     .collect(Collectors.toMap(

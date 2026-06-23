@@ -50,6 +50,15 @@ export function risolviFormulaDanno(formula: string, stats: DatiPersonaggio): st
     for (const t of stats.tiriSalvezza ?? []) vars[t.id] = t.modificatore
     for (const a of stats.attributi ?? []) vars[a.id] = a.modificatore
     for (const ca of stats.classeArmatura ?? []) vars[ca.id] = ca.modificatore
+    // variabili anagrafiche/peso disponibili nelle formule
+    const info = stats.info ?? {}
+    const numInfo = (k: string) => {
+        const n = parseFloat(String(info[k] ?? '').replace(',', '.'))
+        return isNaN(n) ? undefined : n
+    }
+    if (numInfo('PESO') !== undefined) vars['PESO'] = numInfo('PESO')!
+    if (numInfo('ETA') !== undefined) vars['ETA'] = numInfo('ETA')!
+    if (numInfo('ALTEZZA') !== undefined) vars['ALTEZZA'] = numInfo('ALTEZZA')!
 
     return formula
         .replace(/@/g, '')

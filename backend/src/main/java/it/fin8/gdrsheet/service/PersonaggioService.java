@@ -12,6 +12,7 @@ import it.fin8.gdrsheet.mapper.ModificatoreMapper;
 import it.fin8.gdrsheet.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.concurrent.ForkJoinPool;
@@ -50,6 +51,10 @@ public class PersonaggioService {
 
     @Autowired
     private CollegamentoRepository collegamentoRepository;
+
+    @Autowired
+    @org.springframework.context.annotation.Lazy
+    private PartyService partyService;
 
     @Autowired
     private CalcoloService calcoloService;
@@ -396,7 +401,17 @@ public class PersonaggioService {
         allMods = Stream.concat(allMods.stream(), modificatoriPerLivello.stream())
                 .toList();
 
-        List<ItemLabel> taglia = itemLabelRepository.findByLabelAndItem_IdIn(Constants.ITEM_LABEL_TAGLIA, itemIds);
+        List<ItemLabel> taglia = new ArrayList<>(itemLabelRepository.findByLabelAndItem_IdIn(Constants.ITEM_LABEL_TAGLIA, itemIds));
+        // ADD_TAGLIA: incrementi/decrementi della taglia base da item attivi
+        taglia.addAll(itemLabelRepository.findByLabelAndItem_IdIn(Constants.ITEM_LABEL_ADD_TAGLIA, itemIds));
+        // SET manuale del personaggio (personaggio_label TAGLIA), come label senza item
+        if (p.getLabels() != null) {
+            p.getLabels().stream()
+                    .filter(l -> Constants.ITEM_LABEL_TAGLIA.equals(l.getLabel())
+                            && l.getValore() != null && !l.getValore().isBlank())
+                    .findFirst()
+                    .ifPresent(l -> taglia.add(new ItemLabel(null, null, Constants.ITEM_LABEL_TAGLIA, l.getValore())));
+        }
 
         // 7) Raggruppa Modificatori e Rank in DTO
         Map<String, List<ModificatoreDTO>> modsDtoByStat = allMods.stream()
@@ -436,6 +451,20 @@ public class PersonaggioService {
         for (Integer iid : itemIds) {
             itemCounterList.add(new ContatoreItemDTO(iid + "_QTA", qtaByItem.getOrDefault(iid, 1)));
         }
+
+        // Info anagrafiche + peso totale, esposti anche come variabili nelle formule
+        // (@PESO, @ETA, @ALTEZZA, @PESO_TOTALE) tramite la lista dei contatori item.
+        Map<String, String> info = new LinkedHashMap<>();
+        if (p.getLabels() != null) {
+            for (PersonaggioLabel l : p.getLabels()) {
+                if (Constants.PERSONAGGIO_INFO_LABELS.contains(l.getLabel())) {
+                    info.put(l.getLabel(), l.getValore());
+                }
+            }
+        }
+        double pesoTotale = partyService.calcolaPeso(p);
+        CalcoloService.variabiliPersonaggio(info, pesoTotale)
+                .forEach((k, v) -> itemCounterList.add(new ContatoreItemDTO(k, v)));
 
         dto.getContatoriItem().addAll(itemCounterList);
 
@@ -551,7 +580,48 @@ public class PersonaggioService {
         }
 
         modificatoriService.applicaSinergie(dto, carList);
+
+        dto.setInfo(info);
+        dto.setPesoTotale(pesoTotale);
+        dto.setTagliaAttuale(modificatoriService.getTaglia(taglia));
+
         return dto;
+    }
+
+    /**
+     * Aggiorna nome e info anagrafiche (personaggio_label) del personaggio.
+     * Le label non presenti nella mappa vengono rimosse; quelle con valore
+     * vuoto/null non vengono salvate.
+     */
+    @Transactional
+    public void updateInfoPersonaggio(Integer id, String nome, Map<String, String> info) {
+        Personaggio p = personaggioRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Personaggio non trovato"));
+
+        if (nome != null && !nome.isBlank()) {
+            p.setNome(nome.trim());
+        }
+
+        if (p.getLabels() == null) {
+            p.setLabels(new ArrayList<>());
+        }
+        // rimuove le sole label anagrafiche gestite, lascia intatte le altre (PESO escluso: gestito qui)
+        p.getLabels().removeIf(l -> Constants.PERSONAGGIO_INFO_LABELS.contains(l.getLabel()));
+
+        if (info != null) {
+            for (String key : Constants.PERSONAGGIO_INFO_LABELS) {
+                String val = info.get(key);
+                if (val != null && !val.isBlank()) {
+                    PersonaggioLabel l = new PersonaggioLabel();
+                    l.setPersonaggio(p);
+                    l.setLabel(key);
+                    l.setValore(val.trim());
+                    p.getLabels().add(l);
+                }
+            }
+        }
+
+        personaggioRepository.save(p);
     }
 
     public Boolean updateHP(UpdateHPRequest upd) {

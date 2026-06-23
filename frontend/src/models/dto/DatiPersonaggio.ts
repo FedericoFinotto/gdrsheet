@@ -18,4 +18,7 @@ export interface DatiPersonaggio {
     contatori: Contatore[];
     attributi: Attributo[];
     dadiVita: DadiVita
+    info?: Record<string, string>;
+    pesoTotale?: number;
+    tagliaAttuale?: number;
 }

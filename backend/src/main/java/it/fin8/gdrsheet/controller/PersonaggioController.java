@@ -95,6 +95,22 @@ public class PersonaggioController {
     }
 
     @Operation(
+            summary = "Aggiorna le info anagrafiche del personaggio",
+            description = "Aggiorna nome e personaggio_label (luogo/data nascita, razza, sesso, peso, ecc.)"
+    )
+    @PostMapping("/{id}/info")
+    public ResponseEntity<DatiPersonaggioDTO> updateInfo(
+            @Parameter(description = "ID Personaggio", required = true)
+            @PathVariable Integer id,
+            @Valid @RequestBody UpdateInfoPersonaggioRequest request,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        authzService.assertCanEditPersonaggio(utente, id);
+        personaggioService.updateInfoPersonaggio(id, request.getNome(), request.getInfo());
+        return ResponseEntity.ok(personaggioService.getDatiPersonaggio(id));
+    }
+
+    @Operation(
             summary = "Aggiorna i punti ferita",
             description = "Aggiorna i punti ferita"
     )

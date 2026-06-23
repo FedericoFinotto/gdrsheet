@@ -62,7 +62,8 @@ public class CalcoloService {
                     .map(c -> c.getModificatore() != null ? c.getModificatore() : 0)
                     .findFirst()
                     .orElse(0);
-            replaced = replaced.replace(ph, String.valueOf(mod));
+            // confine di parola finale: @PESO non deve intaccare @PESO_TOTALE
+            replaced = replaced.replaceAll(Pattern.quote(ph) + "\\b", Matcher.quoteReplacement(String.valueOf(mod)));
         }
 
         // 2. Estrai e salva la parte col dado (es: 1d8)
@@ -112,10 +113,38 @@ public class CalcoloService {
                     .toList());
         }
 
+        // Variabili anagrafiche/peso disponibili nelle formule: PESO, ETA, ALTEZZA, PESO_TOTALE
+        variabiliPersonaggio(dati.getInfo(), dati.getPesoTotale())
+                .forEach((k, v) -> caratteristiche.add(new CaratteristicaDTO(k, k, null, v, null, null)));
+
         List<Item> initialRoots = itemRepository.findAllByPersonaggioIdWithChild(dati.getId());
         caratteristiche.add(new CaratteristicaDTO("LVL", "Livello", null, Integer.parseInt(String.valueOf(getLivelli(initialRoots).getLivello())), null, null));
 
         return calcola(formula, caratteristiche);
+    }
+
+    /**
+     * Variabili "anagrafiche" del personaggio usabili nelle formule (@PESO,
+     * @ETA, @ALTEZZA, @PESO_TOTALE). Valori arrotondati all'intero. Le voci
+     * mancanti/non numeriche vengono omesse.
+     */
+    public static Map<String, Integer> variabiliPersonaggio(Map<String, String> info, Double pesoTotale) {
+        Map<String, Integer> v = new LinkedHashMap<>();
+        if (pesoTotale != null) v.put("PESO_TOTALE", (int) Math.round(pesoTotale));
+        if (info != null) {
+            putIfNum(v, "PESO", info.get("PESO"));
+            putIfNum(v, "ALTEZZA", info.get("ALTEZZA"));
+            putIfNum(v, "ETA", info.get("ETA"));
+        }
+        return v;
+    }
+
+    private static void putIfNum(Map<String, Integer> map, String key, String raw) {
+        if (raw == null || raw.isBlank()) return;
+        try {
+            map.put(key, (int) Math.round(Double.parseDouble(raw.trim().replace(',', '.'))));
+        } catch (NumberFormatException ignored) {
+        }
     }
 
     public InfoLivelliDTO getLivelli(List<Item> initialRoots) {

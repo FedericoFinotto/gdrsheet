@@ -7,9 +7,10 @@ import Mobile_HP from "../../Shared/Mobile_HP.vue";
 import Mobile_Contatore from "../../Shared/Mobile_Contatore.vue";
 import Tabella from "../../../../../../components/Tabella.vue";
 import Mobile_DettaglioItem from "../../Dettaglio/Mobile_DettaglioItem.vue";
-import {getItem, switchItemState} from "../../../../../../service/PersonaggioService";
+import {getItem, switchItemState, updatePersonaggioInfo} from "../../../../../../service/PersonaggioService";
 import usePopup from "../../../../../../function/usePopup";
 import useDiceRoll from "../../../../../../function/useDiceRoll";
+import {testoTaglia} from "../../../../../../function/Utils";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore);
@@ -176,12 +177,123 @@ function toggleGruppoOpen(gruppo: string) {
   openGruppi.value = s
 }
 
+// ── Accordion Info Personaggio ──
+const INFO_FIELDS: { key: string; label: string; type?: string }[] = [
+  {key: 'LUOGO_NASCITA', label: 'Luogo di Nascita'},
+  {key: 'DATA_NASCITA', label: 'Data di Nascita'},
+  {key: 'RAZZA', label: 'Razza'},
+  {key: 'SESSO', label: 'Sesso'},
+  {key: 'PELLE', label: 'Pelle'},
+  {key: 'ETA', label: 'Età', type: 'number'},
+  {key: 'ALTEZZA', label: 'Altezza (cm)', type: 'number'},
+  {key: 'PESO', label: 'Peso (kg)', type: 'number'},
+  {key: 'CAPELLI', label: 'Capelli'},
+  {key: 'OCCHI', label: 'Occhi'},
+  {key: 'ALLINEAMENTO', label: 'Allineamento'},
+  {key: 'TAGLIA', label: 'Taglia (base)', type: 'select'},
+]
+
+const TAGLIE: { value: string; label: string }[] = [
+  {value: '-4', label: 'Piccolissima'},
+  {value: '-3', label: 'Minuta'},
+  {value: '-2', label: 'Minuscola'},
+  {value: '-1', label: 'Piccola'},
+  {value: '0', label: 'Media'},
+  {value: '1', label: 'Grande'},
+  {value: '2', label: 'Enorme'},
+  {value: '3', label: 'Mastodontica'},
+  {value: '4', label: 'Colossale'},
+]
+
+const infoOpen = ref(false)
+const editNome = ref('')
+const editInfo = ref<Record<string, string>>({})
+const savingInfo = ref(false)
+
+function syncInfoFromStore() {
+  const mod = cache.value[props.idPersonaggio]?.modificatori
+  editNome.value = mod?.nome ?? ''
+  const src = mod?.info ?? {}
+  const dst: Record<string, string> = {}
+  for (const f of INFO_FIELDS) dst[f.key] = src[f.key] ?? ''
+  editInfo.value = dst
+}
+
+// inizializza e tieni allineato quando cambiano i dati o si apre l'accordion
+watch(
+    () => [cache.value[props.idPersonaggio]?.modificatori?.nome, cache.value[props.idPersonaggio]?.modificatori?.info],
+    () => { if (!savingInfo.value) syncInfoFromStore() },
+    {immediate: true, deep: true}
+)
+
+function toggleInfoOpen() {
+  if (!infoOpen.value) syncInfoFromStore()
+  infoOpen.value = !infoOpen.value
+}
+
+const pesoTotale = computed(() => cache.value[props.idPersonaggio]?.modificatori?.pesoTotale)
+const tagliaAttuale = computed(() => {
+  const t = cache.value[props.idPersonaggio]?.modificatori?.tagliaAttuale
+  return t != null ? testoTaglia(t) : null
+})
+
+async function salvaInfo() {
+  if (savingInfo.value) return
+  savingInfo.value = true
+  try {
+    await updatePersonaggioInfo(props.idPersonaggio, editNome.value.trim(), {...editInfo.value})
+    await characterStore.fetchCharacter(props.idPersonaggio, true)
+    infoOpen.value = false
+  } catch (e) {
+    console.error('Errore salvataggio info personaggio:', e)
+  } finally {
+    savingInfo.value = false
+  }
+}
+
 </script>
 
 <template>
   <div>
-    <div class="nome">
-      <h2>{{ cache[idPersonaggio].modificatori?.nome ?? "" }}</h2>
+    <!-- Accordion Info Personaggio -->
+    <div class="info-card">
+      <button type="button" class="info-head" @click="toggleInfoOpen">
+        <span class="chev" :class="{open: infoOpen}">▸</span>
+        <h2 class="info-nome">{{ cache[idPersonaggio].modificatori?.nome ?? "" }}</h2>
+        <span v-if="pesoTotale != null" class="info-peso-badge">{{ pesoTotale }} kg</span>
+      </button>
+
+      <div v-if="infoOpen" class="info-body">
+        <label class="info-field info-field--full">
+          <span class="info-label">Nome</span>
+          <input v-model="editNome" type="text" class="info-input"/>
+        </label>
+
+        <label v-for="f in INFO_FIELDS" :key="f.key" class="info-field">
+          <span class="info-label">{{ f.label }}</span>
+          <select v-if="f.type === 'select'" v-model="editInfo[f.key]" class="info-input">
+            <option value="">—</option>
+            <option v-for="t in TAGLIE" :key="t.value" :value="t.value">{{ t.label }}</option>
+          </select>
+          <input v-else v-model="editInfo[f.key]" :type="f.type || 'text'" class="info-input"/>
+        </label>
+
+        <div v-if="tagliaAttuale" class="info-peso-row">
+          <span class="info-label">Taglia effettiva</span>
+          <span class="info-peso-val">{{ tagliaAttuale }}</span>
+        </div>
+
+        <div class="info-peso-row">
+          <span class="info-label">Peso totale</span>
+          <span class="info-peso-val">{{ pesoTotale != null ? pesoTotale + ' kg' : '—' }}</span>
+        </div>
+
+        <div class="info-actions">
+          <button type="button" class="btn-salva" :disabled="savingInfo" @click="salvaInfo">
+            {{ savingInfo ? 'Salvataggio…' : 'Salva' }}
+          </button>
+        </div>
+      </div>
     </div>
     <Mobile_HP v-if="cache[idPersonaggio].modificatori" :id-personaggio="idPersonaggio"/>
     <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
@@ -322,6 +434,85 @@ function toggleGruppoOpen(gruppo: string) {
 </template>
 
 <style scoped>
+/* ── Accordion Info Personaggio ── */
+.info-card {
+  border: 1px solid #e5e7eb;
+  border-radius: .6rem;
+  background: #fff;
+  overflow: hidden;
+  margin-bottom: .6rem;
+}
+.info-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem .75rem;
+  background: #f9fafb;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.info-head:hover { background: #f3f4f6; }
+.info-nome { margin: 0; font-size: 1.2rem; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.info-peso-badge {
+  font-size: .75rem;
+  font-weight: 600;
+  padding: .15rem .5rem;
+  border-radius: .4rem;
+  background: #ecfccb;
+  color: #3f6212;
+}
+.info-body {
+  border-top: 1px solid #e5e7eb;
+  padding: .75rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .6rem;
+}
+.info-field { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
+.info-field--full { grid-column: 1 / -1; }
+.info-label {
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #6b7280;
+}
+.info-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: .4rem .55rem;
+  border: 1px solid #d0d5dd;
+  border-radius: .45rem;
+  font-size: .9rem;
+}
+.info-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px #e0e7ff; }
+.info-peso-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .5rem .55rem;
+  border-radius: .45rem;
+  background: #f0fdf4;
+}
+.info-peso-val { font-weight: 700; color: #166534; }
+.info-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+.btn-salva {
+  padding: .45rem 1.2rem;
+  border: 0;
+  border-radius: .45rem;
+  background: #4f46e5;
+  color: #fff;
+  font-weight: 600;
+  font-size: .9rem;
+  cursor: pointer;
+}
+.btn-salva:hover:not(:disabled) { background: #4338ca; }
+.btn-salva:disabled { opacity: .5; cursor: default; }
+
 /* ── Frutti ── */
 .frutti-list { display: grid; gap: .4rem; }
 
