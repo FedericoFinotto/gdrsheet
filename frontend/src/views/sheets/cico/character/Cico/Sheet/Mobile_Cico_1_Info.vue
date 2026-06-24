@@ -259,7 +259,7 @@ async function salvaInfo() {
     <div class="info-card">
       <button type="button" class="info-head" @click="toggleInfoOpen">
         <span class="chev" :class="{open: infoOpen}">▸</span>
-        <h2 class="info-nome">{{ cache[idPersonaggio].modificatori?.nome ?? "" }}</h2>
+        <h2 class="info-nome">{{ cache[idPersonaggio]?.modificatori?.nome ?? "" }}</h2>
         <span v-if="pesoTotale != null" class="info-peso-badge">{{ pesoTotale }} kg</span>
       </button>
 
@@ -295,8 +295,8 @@ async function salvaInfo() {
         </div>
       </div>
     </div>
-    <Mobile_HP v-if="cache[idPersonaggio].modificatori" :id-personaggio="idPersonaggio"/>
-    <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
+    <Mobile_HP v-if="cache[idPersonaggio]?.modificatori" :id-personaggio="idPersonaggio"/>
+    <div v-if="cache[idPersonaggio]?.modificatori" class="stat-block">
       <Mobile_Stat id="FOR" :id-personaggio="idPersonaggio"/>
       <Mobile_Stat id="DES" :id-personaggio="idPersonaggio"/>
       <Mobile_Stat id="COS" :id-personaggio="idPersonaggio"/>
@@ -304,17 +304,17 @@ async function salvaInfo() {
       <Mobile_Stat id="SAG" :id-personaggio="idPersonaggio"/>
       <Mobile_Stat id="CAR" :id-personaggio="idPersonaggio"/>
     </div>
-    <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
+    <div v-if="cache[idPersonaggio]?.modificatori" class="stat-block">
       <Mobile_Stat id="TMP" :id-personaggio="idPersonaggio" label="Tempra"/>
       <Mobile_Stat id="RFL" :id-personaggio="idPersonaggio" label="Riflessi"/>
       <Mobile_Stat id="VLT" :id-personaggio="idPersonaggio" label="Volonta"/>
     </div>
-    <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
+    <div v-if="cache[idPersonaggio]?.modificatori" class="stat-block">
       <Mobile_Stat id="CA" :id-personaggio="idPersonaggio" label="CA"/>
       <Mobile_Stat id="CAC" :id-personaggio="idPersonaggio" label="Contatto"/>
       <Mobile_Stat id="CAS" :id-personaggio="idPersonaggio" label="Sorpreso"/>
     </div>
-    <div v-if="cache[idPersonaggio].modificatori" class="stat-block">
+    <div v-if="cache[idPersonaggio]?.modificatori" class="stat-block">
       <Mobile_Stat v-if="risultato === null" id="BAB" :id-personaggio="idPersonaggio" label="BAB"/>
       <Mobile_Stat id="LTT" :id-personaggio="idPersonaggio" label="Lotta"/>
       <Mobile_Stat id="MSC" :id-personaggio="idPersonaggio" label="Mischia"/>
@@ -322,13 +322,13 @@ async function salvaInfo() {
     </div>
     <div class="stat-block">
       <Mobile_Stat
-          v-for="stat in cache[idPersonaggio].modificatori.attributi.filter(x => x.modificatori.length > 0)"
+          v-for="stat in (cache[idPersonaggio]?.modificatori?.attributi ?? []).filter(x => x.modificatori.length > 0)"
           :id="stat.id" :id-personaggio="idPersonaggio" :label="stat.label"
       />
     </div>
     <div class="stat-block">
       <Mobile_Contatore
-          v-for="stat in cache[idPersonaggio].modificatori.contatori.filter(x => x.id !== 'PF' && x.id != 'PFTEMP' && x.max > 0)"
+          v-for="stat in (cache[idPersonaggio]?.modificatori?.contatori ?? []).filter(x => x.id !== 'PF' && x.id != 'PFTEMP' && x.max > 0)"
           :id-stat="stat.id" :id-personaggio="idPersonaggio"
       />
     </div>

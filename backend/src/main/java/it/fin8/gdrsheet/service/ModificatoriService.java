@@ -75,11 +75,11 @@ public class ModificatoriService {
         int valorePermanente = Optional.of(modificatoriAttivi)
                 .orElse(Collections.emptyList())
                 .stream()
-                .filter(x -> x.getNota() == null && x.getPermanente())
+                .filter(x -> x.getNota() == null && Boolean.TRUE.equals(x.getPermanente()))
                 .mapToInt(ModificatoreDTO::getValore)
                 .sum();
 
-        if (modificatoriAttivi.stream().filter(x -> x.getNota() == null && x.getPermanente()).noneMatch(x -> x.getTipo().equals(TipoModificatore.BASE))) {
+        if (modificatoriAttivi.stream().filter(x -> x.getNota() == null && Boolean.TRUE.equals(x.getPermanente())).noneMatch(x -> x.getTipo().equals(TipoModificatore.BASE))) {
             valorePermanente += valoreBase;
         }
 

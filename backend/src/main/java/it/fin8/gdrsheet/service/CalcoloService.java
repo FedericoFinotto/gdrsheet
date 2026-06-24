@@ -210,9 +210,10 @@ public class CalcoloService {
                 .map(e -> {
                     InfoClasseDTO dto = new InfoClasseDTO();
 
-                    // Tutti i livelli → Set<Integer>
+                    // Tutti i livelli → Set<Integer> (ignora livelli senza LVL_CLASSE valido)
                     Set<Integer> livelliSet = e.getValue().stream()
-                            .map(x -> Integer.parseInt(x.getLabel(Constants.ITEM_LIVELLO_LVL_CLASSE)))
+                            .map(x -> parseIntOrNull(x.getLabel(Constants.ITEM_LIVELLO_LVL_CLASSE)))
+                            .filter(Objects::nonNull)
                             .collect(Collectors.toSet());
 
                     Integer livelloMax = livelliSet.stream()
@@ -230,7 +231,8 @@ public class CalcoloService {
                     Integer livelloMaxNonMaledetto = livelliAttivi.stream()
                             .filter(x -> e.getKey().getId().toString()
                                     .equals(x.getLabel(Constants.ITEM_LABEL_CLASSE)))
-                            .map(x -> Integer.parseInt(x.getLabel(Constants.ITEM_LIVELLO_LVL_CLASSE)))
+                            .map(x -> parseIntOrNull(x.getLabel(Constants.ITEM_LIVELLO_LVL_CLASSE)))
+                            .filter(Objects::nonNull)
                             .max(Integer::compareTo)
                             .orElse(0);
 
@@ -250,5 +252,14 @@ public class CalcoloService {
 
         out.setClassi(classi);
         return out;
+    }
+
+    private static Integer parseIntOrNull(String s) {
+        if (s == null || s.isBlank()) return null;
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

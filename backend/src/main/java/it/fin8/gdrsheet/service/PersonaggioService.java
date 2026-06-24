@@ -759,7 +759,9 @@ public class PersonaggioService {
         Avanzamento avanzamentoTotale = findAvanzamentoPerLivello(classe, Math.toIntExact(lvl));
         Avanzamento avanzamento = findAvanzamentoPerLivello(classe, Math.toIntExact(livelloEffettivo));
         Item preparedSpell = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_INCANTESIMI_PREPARATI, idPersonaggio);
-        List<SpellBookIncantesimoDTO> incantesimi = preparedSpell.getChild().stream().map(x -> itemMapper.toIncantesimoDTO(classe, x)).toList();
+        List<SpellBookIncantesimoDTO> incantesimi = (preparedSpell == null || preparedSpell.getChild() == null)
+                ? new ArrayList<>()
+                : preparedSpell.getChild().stream().map(x -> itemMapper.toIncantesimoDTO(classe, x)).toList();
         if (avanzamento != null && avanzamentoTotale != null) {
             ItemLabel spellSlot = avanzamento.getItemTarget().getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_SPELL_SLOT)).findFirst().orElse(null);
             ItemLabel spellSlotTotali = avanzamentoTotale.getItemTarget().getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_SPELL_SLOT)).findFirst().orElse(null);
