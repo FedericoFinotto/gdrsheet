@@ -21,4 +21,5 @@ public class SpellBookIncantesimoDTO extends ItemDTO {
     private Integer nUsed;
     private Boolean alwaysPrep;
     private List<String> componenti;
+    private String scuola; // SCUOLA_SP grezza: scuola/sottoscuole/descrittori
 }

@@ -99,6 +99,8 @@ public class ItemMapper {
         dto.setIdClasse(classe.getId());
         dto.setClasse(classe.getNome());
         dto.setSpellList(utilService.getItemLabel(classe, Constants.ITEM_LABEL_LISTA_INCANTESIMI));
+        dto.setComponenti(utilService.getItemLabels(entity, Constants.ITEM_LABEL_COMPONENTE));
+        dto.setScuola(utilService.getItemLabel(entity, Constants.ITEM_LABEL_SCUOLA_SP));
         return dto;
     }
 

@@ -71,12 +71,35 @@ function normalizeSpell(raw: any) {
   return {id, nome, alwaysPrep, ...itm};
 }
 
-const spells = computed(() =>
+const spellsAll = computed(() =>
     (spellsRaw.value ?? [])
         .map(normalizeSpell)
         .filter(s => s?.id != null)
         .sort((a, b) => (a?.nome ?? '').localeCompare(b?.nome ?? ''))
 );
+
+// --- filtri ---
+const fNome = ref('');
+const fLista = ref('');
+const fScuola = ref('');   // scuola / sottoscuola / descrittori
+const fComp = ref('');     // componenti (V/S/M…)
+
+const spells = computed(() => {
+  const nome = fNome.value.trim().toLowerCase();
+  const lista = fLista.value.trim().toLowerCase();
+  const scuola = fScuola.value.trim().toLowerCase();
+  const comp = fComp.value.trim().toLowerCase();
+  return spellsAll.value.filter((s: any) => {
+    if (nome && !String(s.nome ?? '').toLowerCase().includes(nome)) return false;
+    if (lista && !String(s.spellList ?? '').toLowerCase().includes(lista)) return false;
+    if (scuola && !String(s.scuola ?? '').toLowerCase().includes(scuola)) return false;
+    if (comp) {
+      const compStr = Array.isArray(s.componenti) ? s.componenti.join(',').toLowerCase() : '';
+      if (!compStr.includes(comp)) return false;
+    }
+    return true;
+  });
+});
 
 // stato prepared e "sempre"
 const prepared = ref<Record<number, number>>({});
@@ -85,11 +108,11 @@ const alwaysPrepared = ref<Record<number, boolean>>({});
 let preparedInitialSnapshot: Record<number, number> = {};
 let alwaysInitialSnapshot: Record<number, boolean> = {};
 
-watch([spells, () => props.preparedInit], () => {
+watch([spellsAll, () => props.preparedInit], () => {
   const nextPrep: Record<number, number> = {};
   const nextAlways: Record<number, boolean> = {};
 
-  for (const s of spells.value) {
+  for (const s of spellsAll.value) {
     const initVal = props.preparedInit[s.id as number];
     const fromSentinel = initVal === -54;
     const fromItem = Boolean((s as any).alwaysPrep);
@@ -148,7 +171,7 @@ const reset = () => {
 // conferma: costruisce la mappa con numerico >=0 o -54 se "sempre"
 const confirm = () => {
   const out: Record<number, number> = {};
-  for (const s of spells.value) {
+  for (const s of spellsAll.value) {
     const id = s.id as number;
     out[id] = alwaysPrepared.value[id] ? -54 : (prepared.value[id] ?? 0);
   }
@@ -174,6 +197,13 @@ const confirm = () => {
       <div v-else-if="error" class="state error">{{ error }}</div>
 
       <template v-else>
+        <div class="filtri">
+          <input v-model="fNome" type="text" class="filtro" placeholder="Nome…"/>
+          <input v-model="fLista" type="text" class="filtro" placeholder="Lista incantesimi…"/>
+          <input v-model="fScuola" type="text" class="filtro" placeholder="Scuola / descrittori…"/>
+          <input v-model="fComp" type="text" class="filtro" placeholder="Componenti (V/S/M…)"/>
+        </div>
+
         <div v-if="!spells.length" class="state">Nessun incantesimo disponibile.</div>
 
         <div v-else class="spell-list">
@@ -215,3 +245,24 @@ const confirm = () => {
     </footer>
   </div>
 </template>
+
+<style scoped>
+.filtri {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .4rem;
+  margin-bottom: .6rem;
+}
+@media (max-width: 520px) {
+  .filtri { grid-template-columns: 1fr; }
+}
+.filtro {
+  width: 100%;
+  box-sizing: border-box;
+  padding: .4rem .55rem;
+  border: 1px solid #d0d5dd;
+  border-radius: .5rem;
+  font-size: .85rem;
+  background: #fff;
+}
+</style>

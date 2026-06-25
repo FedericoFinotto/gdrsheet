@@ -35,6 +35,7 @@ public final class Constants {
     public static final String ITEM_LABEL_DISABILITATO_VALORE_FALSE = "0";
     public static final String ITEM_LABEL_LISTA_INCANTESIMI = "SPELL";
     public static final String ITEM_LABEL_COMPONENTE = "COMP_SP";
+    public static final String ITEM_LABEL_SCUOLA_SP = "SCUOLA_SP"; // scuola/sottoscuole/descrittori incantesimo
     public static final String ITEM_LABEL_ABILITA_CLASSE = "ABCLASSE";
     public static final String ITEM_LABEL_LISTA_COMPETENZE = "COMP";
     public static final String ITEM_LABEL_LISTA_LINGUE = "LINGUE";
