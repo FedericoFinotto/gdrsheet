@@ -25,4 +25,5 @@ export interface Items {
     idoli: Item[];
     frutti: Item[];
     forme: Item[];
+    privilegi: Item[];
 }

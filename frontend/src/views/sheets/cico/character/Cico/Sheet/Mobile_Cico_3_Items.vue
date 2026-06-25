@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {defineProps, markRaw, ref, watch} from 'vue';
+import {computed, markRaw} from 'vue';
 import Tabella from "../../../../../../components/Tabella.vue";
 import {useCharacterStore} from "../../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
@@ -15,176 +15,81 @@ const props = defineProps({
     required: true
   }
 });
-const itemsArmi = ref<any[]>([]);
-const itemsOggetti = ref<any[]>([]);
-const itemsEquipaggiamento = ref<any[]>([]);
-const itemsConsumabili = ref<any[]>([]);
-const itemsMunizioni = ref<any[]>([]);
-const itemsFrutti = ref<any[]>([]);
-const itemsIdoli = ref<any[]>([]);
 
-watch(
-    () => cache.value[props.idPersonaggio]?.items,
-    (newChar) => {
-      if (!newChar) {
-        itemsOggetti.value = [];
-        itemsEquipaggiamento.value = [];
-        itemsConsumabili.value = [];
-        itemsMunizioni.value = [];
-        itemsFrutti.value = [];
-        itemsIdoli.value = [];
-        return;
-      }
+// Avvolge una lista di item col componente di dettaglio espandibile e ordina per nome.
+function wrap(list: any[] | undefined) {
+  return (list ?? [])
+      .map(itm => ({
+        ...itm,
+        expandedComponent: markRaw(Mobile_DettaglioItem),
+        expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
+      }))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+}
 
-      itemsArmi.value = newChar.armi
-          .map(itm => {
-            return {
-              ...itm,
-              expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
-            };
-          })
-          .sort((a, b) => a.nome.localeCompare(b.nome));
+const items = computed(() => cache.value[props.idPersonaggio]?.items)
 
-      itemsOggetti.value = newChar.oggetti
-          .map(itm => {
-            return {
-              ...itm,
-              expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
-            };
-          })
-          .sort((a, b) => a.nome.localeCompare(b.nome));
+// Inventario
+const itemsOggetti = computed(() => wrap(items.value?.oggetti));
+const itemsArmi = computed(() => wrap(items.value?.armi));
+const itemsEquipaggiamento = computed(() => wrap(items.value?.equipaggiamento));
+const itemsConsumabili = computed(() => wrap(items.value?.consumabili));
+const itemsMunizioni = computed(() => wrap(items.value?.munizioni));
+const itemsFrutti = computed(() => wrap(items.value?.frutti));
+const itemsIdoli = computed(() => wrap(items.value?.idoli));
 
-      itemsEquipaggiamento.value = newChar.equipaggiamento
-          .map(itm => {
-            return {
-              ...itm,
-              expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
-            };
-          })
-          .sort((a, b) => a.nome.localeCompare(b.nome));
+// Capacità (ex pagina Talenti)
+const itemsAbilitaPassive = computed(() => wrap(items.value?.abilita));
+const itemsTalenti = computed(() => wrap(items.value?.talenti));
+const itemsPrivilegi = computed(() => wrap(items.value?.privilegi));
+const itemsMaledizioni = computed(() => wrap(items.value?.maledizioni));
 
-      itemsConsumabili.value = newChar.consumabili
-          .map(itm => {
-            return {
-              ...itm,
-              expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
-            };
-          })
-          .sort((a, b) => a.nome.localeCompare(b.nome));
+const badgeQta = (row: any) => row.quantita != null && row.quantita !== 1 ? `x${row.quantita}` : null;
 
-      itemsMunizioni.value = newChar.munizioni
-          .map(itm => {
-            return {
-              ...itm,
-              expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
-            };
-          })
-          .sort((a, b) => a.nome.localeCompare(b.nome));
-
-      itemsFrutti.value = (newChar.frutti ?? [])
-          .map(itm => {
-            return {
-              ...itm,
-              expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
-            };
-          })
-          .sort((a, b) => a.nome.localeCompare(b.nome));
-
-      itemsIdoli.value = (newChar.idoli ?? [])
-          .map(itm => {
-            return {
-              ...itm,
-              expandedComponent: markRaw(Mobile_DettaglioItem),
-              expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
-            };
-          })
-          .sort((a, b) => a.nome.localeCompare(b.nome));
-    },
-    {immediate: true, deep: true}
-);
-
-const badgeQta = (row) => row.quantita != null && row.quantita !== 1 ? `x${row.quantita}` : null;
-
-const columnsOggetti = [
-  {field: 'nome', label: 'Oggetti', disabled: (row) => row.disabled, badge: badgeQta},
+const col = (label: string, withBadge = false) => [
+  {field: 'nome', label, disabled: (row: any) => row.disabled, ...(withBadge ? {badge: badgeQta} : {})},
 ];
-const columnsArmi = [
-  {field: 'nome', label: 'Armi', disabled: (row) => row.disabled, badge: badgeQta},
-];
-const columnsEquipaggiamento = [
-  {field: 'nome', label: 'Equipaggiamento', disabled: (row) => row.disabled, badge: badgeQta},
-];
-const columnsConsumabili = [
-  {field: 'nome', label: 'Consumabili', disabled: (row) => row.disabled, badge: badgeQta},
-];
-const columnsMunizioni = [
-  {field: 'nome', label: 'Munizioni', disabled: (row) => row.disabled, badge: badgeQta},
-];
-const columnsFrutti = [
-  {field: 'nome', label: 'Frutti', disabled: (row) => row.disabled},
-];
-const columnsIdoli = [
-  {field: 'nome', label: 'Idoli', disabled: (row) => row.disabled},
-];
+
+const columnsOggetti = col('Oggetti', true);
+const columnsArmi = col('Armi', true);
+const columnsEquipaggiamento = col('Equipaggiamento', true);
+const columnsConsumabili = col('Consumabili', true);
+const columnsMunizioni = col('Munizioni', true);
+const columnsFrutti = col('Frutti');
+const columnsIdoli = col('Idoli');
+const columnsAbilitaPassive = col('Abilità Passive');
+const columnsTalenti = col('Talenti');
+const columnsPrivilegi = col('Privilegi di Classe');
+const columnsMaledizioni = col('Maledizioni');
 </script>
 
 <template>
   <div>
     <BottoneAggiungiItem :id-personaggio="props.idPersonaggio" label="Aggiungi oggetto"/>
     <div class="spazietto"/>
-    <Tabella v-if="itemsOggetti.length > 0"
-             :columns="columnsOggetti"
-             :expandable="true"
-             :items="itemsOggetti"
-    >
-    </Tabella>
+    <Tabella v-if="itemsOggetti.length > 0" :columns="columnsOggetti" :expandable="true" :items="itemsOggetti"/>
     <div class="spazietto"/>
-    <Tabella v-if="itemsArmi.length > 0"
-             :columns="columnsArmi"
-             :expandable="true"
-             :items="itemsArmi"
-    >
-    </Tabella>
+    <Tabella v-if="itemsArmi.length > 0" :columns="columnsArmi" :expandable="true" :items="itemsArmi"/>
     <div class="spazietto"/>
-    <Tabella v-if="itemsEquipaggiamento.length > 0"
-             :columns="columnsEquipaggiamento"
-             :expandable="true"
-             :items="itemsEquipaggiamento"
-    >
-    </Tabella>
+    <Tabella v-if="itemsEquipaggiamento.length > 0" :columns="columnsEquipaggiamento" :expandable="true" :items="itemsEquipaggiamento"/>
     <div class="spazietto"/>
-    <Tabella v-if="itemsConsumabili.length > 0"
-             :columns="columnsConsumabili"
-             :expandable="true"
-             :items="itemsConsumabili"
-    >
-    </Tabella>
+    <Tabella v-if="itemsConsumabili.length > 0" :columns="columnsConsumabili" :expandable="true" :items="itemsConsumabili"/>
     <div class="spazietto"/>
-    <Tabella v-if="itemsMunizioni.length > 0"
-             :columns="columnsMunizioni"
-             :expandable="true"
-             :items="itemsMunizioni"
-    >
-    </Tabella>
+    <Tabella v-if="itemsMunizioni.length > 0" :columns="columnsMunizioni" :expandable="true" :items="itemsMunizioni"/>
     <div class="spazietto"/>
-    <Tabella v-if="itemsFrutti.length > 0"
-             :columns="columnsFrutti"
-             :expandable="true"
-             :items="itemsFrutti"
-    >
-    </Tabella>
+    <Tabella v-if="itemsFrutti.length > 0" :columns="columnsFrutti" :expandable="true" :items="itemsFrutti"/>
     <div class="spazietto"/>
-    <Tabella v-if="itemsIdoli.length > 0"
-             :columns="columnsIdoli"
-             :expandable="true"
-             :items="itemsIdoli"
-    >
-    </Tabella>
+    <Tabella v-if="itemsIdoli.length > 0" :columns="columnsIdoli" :expandable="true" :items="itemsIdoli"/>
+
+    <div class="spazietto"/>
+    <BottoneAggiungiItem :id-personaggio="props.idPersonaggio" tipo="TALENTO" label="Aggiungi talento"/>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsAbilitaPassive.length > 0" :columns="columnsAbilitaPassive" :expandable="true" :items="itemsAbilitaPassive"/>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsTalenti.length > 0" :columns="columnsTalenti" :expandable="true" :items="itemsTalenti"/>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsPrivilegi.length > 0" :columns="columnsPrivilegi" :expandable="true" :items="itemsPrivilegi"/>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsMaledizioni.length > 0" :columns="columnsMaledizioni" :expandable="true" :items="itemsMaledizioni"/>
   </div>
 </template>

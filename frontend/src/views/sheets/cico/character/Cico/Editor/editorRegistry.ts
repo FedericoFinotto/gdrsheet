@@ -27,6 +27,7 @@ import LinguaEditor from './Tipi/LinguaEditor.vue'
 import IdoloEditor from './Tipi/IdoloEditor.vue'
 import FruttoEditor from './Tipi/FruttoEditor.vue'
 import FormaEditor from './Tipi/FormaEditor.vue'
+import PrivilegioEditor from './Tipi/PrivilegioEditor.vue'
 
 export const EDITOR_BY_TYPE: Record<TipoItem, Component> = {
     [TIPO_ITEM.ABILITA]: AbilitaEditor,
@@ -51,6 +52,7 @@ export const EDITOR_BY_TYPE: Record<TipoItem, Component> = {
     [TIPO_ITEM.IDOLO]: IdoloEditor,
     [TIPO_ITEM.FRUTTO]: FruttoEditor,
     [TIPO_ITEM.FORMA]: FormaEditor,
+    [TIPO_ITEM.PRIVILEGIO]: PrivilegioEditor,
 }
 
 // Fallback per eventuali tipi non mappati
@@ -85,6 +87,7 @@ export const TIPO_ITEM_LABELS: Record<TipoItem, string> = {
     [TIPO_ITEM.IDOLO]: 'Idolo',
     [TIPO_ITEM.FRUTTO]: 'Frutto',
     [TIPO_ITEM.FORMA]: 'Forma',
+    [TIPO_ITEM.PRIVILEGIO]: 'Privilegio di Classe',
 }
 
 // Tipi creabili dalla pagina di creazione.

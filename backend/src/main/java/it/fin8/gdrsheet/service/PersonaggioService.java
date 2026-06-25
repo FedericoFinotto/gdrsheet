@@ -186,6 +186,9 @@ public class PersonaggioService {
             if (TipoItem.FORMA.equals(itm.getTipo())) {
                 itemsDTO.getForme().add(itemMapper.toDTO(itm));
             }
+            if (TipoItem.PRIVILEGIO.equals(itm.getTipo())) {
+                itemsDTO.getPrivilegi().add(itemMapper.toDTO(itm));
+            }
         }
 
         for (InfoClasseDTO classe : allPersonaggioItems.getLivelli().getClassi()) {

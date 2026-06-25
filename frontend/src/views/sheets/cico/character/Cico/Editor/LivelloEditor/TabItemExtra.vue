@@ -20,6 +20,7 @@ const TIPI_DISPONIBILI = [
   {value: '', label: 'Tutti i tipi'},
   {value: TIPO_ITEM.ABILITA,      label: 'Abilità'},
   {value: TIPO_ITEM.TALENTO,      label: 'Talento'},
+  {value: TIPO_ITEM.PRIVILEGIO,   label: 'Privilegio di Classe'},
   {value: TIPO_ITEM.COMPETENZA,   label: 'Competenza'},
   {value: TIPO_ITEM.LINGUA,       label: 'Lingua'},
   {value: TIPO_ITEM.INCANTESIMO,  label: 'Incantesimo'},

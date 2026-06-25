@@ -34,11 +34,24 @@ export function useHp(idPersonaggio: number) {
   const hp = computed<number>(() => Math.max(0, hpMax.value + damageNeg.value))
   const pfTemp = computed<number>(() => pfTempStat.value?.valore ?? 0)
 
-  // --- barriere: talenti con label TIPO=BARRIERA ---
+  // --- barriere: qualunque item con label TIPO=BARRIERA, a prescindere dal tipo
+  // (talento, abilità passiva, privilegio, maledizione…) ---
+  function itemsConBarriera(): any[] {
+    const it = cache.value[idPersonaggio]?.items
+    if (!it) return []
+    return [
+      ...(it.talenti ?? []),
+      ...(it.abilita ?? []),
+      ...(it.privilegi ?? []),
+      ...(it.maledizioni ?? []),
+      ...(it.oggetti ?? []),
+      ...(it.equipaggiamento ?? []),
+      ...(it.idoli ?? []),
+    ].filter((t: any) => t.barriera)
+  }
+
   const barriere = computed<Barriera[]>(() => {
-    const talenti = cache.value[idPersonaggio]?.items?.talenti ?? []
-    return talenti
-        .filter((t: any) => t.barriera)
+    return itemsConBarriera()
         .map((t: any) => {
           const max = Number(t.barrMax) || 0
           const cons = Number(t.barrCons) || 0
@@ -59,7 +72,7 @@ export function useHp(idPersonaggio: number) {
   const remaining = computed<number>(() => hp.value + pfTemp.value + barriereTotal.value)
 
   function talentiBarriera(): any[] {
-    return (cache.value[idPersonaggio]?.items?.talenti ?? []).filter((t: any) => t.barriera)
+    return itemsConBarriera()
   }
 
   // --- sync backend ---
