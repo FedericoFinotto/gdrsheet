@@ -23,12 +23,15 @@ function parseTipo(v: unknown): TipoItem | null {
 const tipo = ref<TipoItem | null>(parseTipo(route.params.tipo))
 watch(() => route.params.tipo, v => { tipo.value = parseTipo(v) })
 
+// nome eventualmente pre-compilato (creazione "al volo" dalla ricerca di un item da collegare)
+const nomeIniziale = computed<string>(() => String(route.query.nome ?? ''))
+
 // item vuoto per l'editor in modalità creazione
 const blankItem = computed<ItemDB | null>(() => {
   if (!tipo.value) return null
   return {
     id: 0,
-    nome: '',
+    nome: nomeIniziale.value,
     tipo: tipo.value,
     descrizione: '',
     child: [],
@@ -45,6 +48,7 @@ function onTipoChange(e: Event) {
   const params = new URLSearchParams()
   if (route.query.link) params.set('link', '1')   // mantieni il flag "crea e collega"
   if (route.query.compendio) params.set('compendio', '1') // mantieni il flag "mostra nel compendio"
+  if (route.query.nome) params.set('nome', String(route.query.nome)) // mantieni il nome pre-compilato
   if (idPersonaggio.value) params.set('personaggio', String(idPersonaggio.value))
   const q = params.toString() ? `?${params.toString()}` : ''
   router.replace(v ? `/itemcreate/${v}${q}` : `/itemcreate${q}`)

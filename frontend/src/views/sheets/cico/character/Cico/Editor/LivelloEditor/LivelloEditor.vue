@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref, toRaw, watch} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
+import useChildCreate from '../../../../../../../function/useChildCreate'
 
 import {ItemDB} from '../../../../../../../models/entity/ItemDB'
 import {Classe} from '../../../../../../../models/dto/Classe'
@@ -24,6 +26,9 @@ import TabClasseMaledizione from './TabClasseMaledizione.vue'
 import TabContenutiLivello from './TabContenutiLivello.vue'
 import TabAbilitaRanghi from './TabAbilitaRanghi.vue'
 import TabItemExtra from './TabItemExtra.vue'
+import TabExpandable from '../../../../../../../components/TabExpandable.vue'
+import ModificatoriEditor from '../Sections/ModificatoriEditor.vue'
+import {ModificatoreRow} from '../../../../../../../models/dto/UpdateItemRequest'
 import {GrantRow} from "../../../../../../../models/dto/GrantRow";
 
 type Id = number
@@ -43,6 +48,10 @@ type SkillRow = {
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
+
+const router = useRouter()
+const route = useRoute()
+const childCreate = useChildCreate()
 
 const personaggioId = ref<Id | null>(null)
 const classeDetail = ref<any | null>(null)
@@ -287,6 +296,9 @@ const selectedGrants = ref<GrantRow[]>([])
 /* Item extra: item generici non derivati dalla classe */
 const extraItems = ref<ItemDB[]>([])
 
+/* Modificatori liberi del livello (aggiunti a mano, come su un item qualunque) */
+const modificatoriLiberi = ref<ModificatoreRow[]>([])
+
 // ID degli item presenti negli avanzamenti classe (non devono apparire come "extra")
 const classeAvanzamentiItemIds = computed<Set<number>>(() => {
   const arr: any[] = classeDetail.value?.avanzamento ?? []
@@ -355,6 +367,54 @@ onMounted(async () => {
     extraItems.value = (props.item.child ?? [])
         .map((c: any) => c.itemTarget)
         .filter((t: any) => t && !TIPI_ESCLUSI_EXTRA.has(t.tipo) && !classeIds.has(Number(t.id)))
+
+    // Pre-popola modificatori liberi: quelli propri del livello (no BASE/RANK, no copie da grant).
+    // Oltre a id_sorgente (dati nuovi), escludo anche per match stat+valore con i modificatori
+    // concessi dalla classe per i livelli selezionati (sana i dati vecchi senza id_sorgente).
+    const grantedSig = new Map<string, number>() // "statId|valore" -> conteggio disponibile
+    const lvSel = new Set(livelliSelezionati.value)
+    for (const a of (classeDetail.value?.avanzamento ?? [])) {
+      if (a?.itemTarget?.tipo !== 'AVANZAMENTO') continue
+      if (!lvSel.has(Number(a?.livello))) continue
+      for (const gm of (a.itemTarget.modificatori ?? [])) {
+        if (gm?.stat?.id === 'GRADI') continue
+        const k = `${gm?.stat?.id}|${gm?.valore}`
+        grantedSig.set(k, (grantedSig.get(k) ?? 0) + 1)
+      }
+    }
+    modificatoriLiberi.value = (props.item.modificatori ?? [])
+        .filter((m: any) => m.tipo !== 'BASE' && m.tipo !== 'RANK')
+        .filter((m: any) => {
+          if (m.idSorgente != null) return false // copia da grant (dati nuovi)
+          const k = `${m.stat?.id}|${m.valore}`
+          const left = grantedSig.get(k) ?? 0
+          if (left > 0) { grantedSig.set(k, left - 1); return false } // match con concesso dalla classe
+          return true
+        })
+        .map((m: any) => ({
+          id: m.id,
+          statId: m.stat?.id ?? '',
+          tipo: m.tipo,
+          valore: String(m.valore ?? ''),
+          nota: m.nota ?? '',
+          sempreAttivo: !!m.sempreAttivo,
+        }))
+
+    // Ritorno dal flusso "crea e collega" di un item aggiuntivo: ripristina lo stato
+    // salvato e aggancia il nuovo item creato.
+    const draft = !route.query.link ? childCreate.peekDraft() : null
+    if (draft && draft.target === 'extra' && draft.tipo === 'LIVELLO') {
+      childCreate.takeDraft()
+      const snap = draft.snapshot
+      if (snap?.form) Object.assign(form, snap.form)
+      if (Array.isArray(snap?.extraItems)) extraItems.value = snap.extraItems
+      if (Array.isArray(snap?.modificatoriLiberi)) modificatoriLiberi.value = snap.modificatoriLiberi
+      if (snap?.gradiInput !== undefined) gradiInput.value = snap.gradiInput
+      const created = childCreate.takeCreatedChild()
+      if (created && !extraItems.value.some((i: any) => i.id === created.id)) {
+        extraItems.value = [...extraItems.value, created as any]
+      }
+    }
   } catch (e) {
     console.error('Errore inizializzazione LivelloEditor:', e)
   } finally {
@@ -405,6 +465,26 @@ async function loadClasseDetail(id: Id | null, propagaDv = false) {
   }
 }
 
+/* Crea-e-collega un item aggiuntivo: salva lo stato corrente del livello e apre la
+ * creazione di un nuovo item col nome pre-compilato. Al ritorno viene agganciato. */
+function snapshotForm() {
+  return JSON.parse(JSON.stringify({
+    form,
+    extraItems: extraItems.value,
+    modificatoriLiberi: modificatoriLiberi.value,
+    gradiInput: gradiInput.value,
+  }))
+}
+
+function onCreateExtra(tipo: string | undefined, nome: string) {
+  childCreate.stashDraft({target: 'extra', tipo: 'LIVELLO', snapshot: snapshotForm()})
+  const tipoSeg = tipo ? `/${tipo}` : ''
+  const params = new URLSearchParams({link: '1'})
+  if (personaggioId.value != null) params.set('personaggio', String(personaggioId.value))
+  if (nome && nome.trim()) params.set('nome', nome.trim())
+  router.push(`/itemcreate${tipoSeg}?${params.toString()}`)
+}
+
 let classeWatchInit = true
 watch(() => form.classeId, async (id, prev) => {
   if (id === prev) return
@@ -449,7 +529,17 @@ async function onSave() {
             .map(g => ({id: g.id, tipo: g.tipo, livello: g.livello, descrizione: g.descrizione})),
         ...extraItems.value
             .map(i => ({id: `item-${i.id}`, tipo: 'ITEM' as const, livello: 0, descrizione: i.nome}))
-      ]
+      ],
+      modificatoriLiberi: modificatoriLiberi.value
+          .filter(m => m.statId && m.statId.trim())
+          .map(m => ({
+            id: m.id,
+            statId: m.statId,
+            tipo: m.tipo,
+            valore: String(m.valore ?? ''),
+            nota: m.nota ?? '',
+            sempreAttivo: !!m.sempreAttivo,
+          }))
     })
     await saveLivello(payload)
     emit('saved')
@@ -530,7 +620,15 @@ const sumClasseMaledizione = computed(() =>
         :loading="busy"
         :items="extraItems"
         @update:items="extraItems = $event"
+        @create-new="onCreateExtra"
     />
+
+    <TabExpandable title="Modificatori" :loading="busy">
+      <template #summary>{{ modificatoriLiberi.filter(m => m.statId).length || '—' }}</template>
+      <template #content>
+        <ModificatoriEditor v-model="modificatoriLiberi" :disabled="disabledAll"/>
+      </template>
+    </TabExpandable>
 
     <TabAbilitaRanghi
         :disabled="disabledAll"

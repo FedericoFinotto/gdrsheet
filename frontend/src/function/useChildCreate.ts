@@ -7,7 +7,7 @@ import {ref, shallowRef} from 'vue'
 import {ChildRef} from '../models/dto/UpdateItemRequest'
 
 export interface ParentDraft {
-    target: 'children' | 'forme'   // in quale lista del padre va il nuovo figlio
+    target: 'children' | 'forme' | 'extra'   // in quale lista del padre va il nuovo figlio
     tipo: string                   // tipo dell'item padre (guardia al ripristino)
     snapshot: any                  // copia piatta del form del padre
 }

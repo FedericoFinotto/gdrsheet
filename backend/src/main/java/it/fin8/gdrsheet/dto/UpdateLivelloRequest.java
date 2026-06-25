@@ -73,6 +73,12 @@ public class UpdateLivelloRequest {
      */
     private List<GrantSelezionatoDTO> grantsSelezionati;
 
+    /**
+     * Modificatori "liberi" aggiunti a mano al livello (come su un item qualunque).
+     * Null = non toccare i modificatori liberi esistenti.
+     */
+    private List<UpdateItemRequest.ModificatoreRowDTO> modificatoriLiberi;
+
     @Getter
     @Setter
     @NoArgsConstructor

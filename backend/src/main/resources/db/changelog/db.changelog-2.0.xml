@@ -221,6 +221,21 @@
 
     <!-- Soldi: stats MR/MA/MO/MP (i valori vivono come modificatori sugli item dei personaggi) -->
 
+    <!-- modificatori: id_sorgente per distinguere le copie da grant (di classe)
+         dai modificatori liberi aggiunti a mano su un livello -->
+
+    <changeSet id="116" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="modificatori" columnName="id_sorgente"/>
+            </not>
+        </preConditions>
+        <comment>modificatori.id_sorgente: id del modificatore sorgente per le copie da grant</comment>
+        <addColumn tableName="modificatori">
+            <column name="id_sorgente" type="integer"/>
+        </addColumn>
+    </changeSet>
+
     <changeSet id="110" author="developer">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">

@@ -10,6 +10,7 @@ export interface SaveLivelloPayload {
     livelliClasse: number[]
     ranghi: Array<{ abilitaId: string; punti: number }>
     grantsSelezionati: Array<{ id: string; tipo: 'ITEM' | 'MOD'; livello: number; descrizione: string }>
+    modificatoriLiberi: Array<{ id?: number; statId: string; tipo: string; valore: string; nota: string; sempreAttivo: boolean }>
 }
 
 export interface UpdateLivelloRequest {

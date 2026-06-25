@@ -42,4 +42,11 @@ public class Modificatore {
     @Column(name = "always", length = Integer.MAX_VALUE)
     private Boolean sempreAttivo;
 
+    /**
+     * Per le copie create da un grant di classe: id del modificatore sorgente.
+     * Null per i modificatori "propri" del livello (BASE, RANK e quelli liberi).
+     */
+    @Column(name = "id_sorgente")
+    private Integer idSorgente;
+
 }

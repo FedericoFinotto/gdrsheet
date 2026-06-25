@@ -71,8 +71,9 @@ public class PersonaggioController {
             @PathVariable Integer id,
             @AuthenticationPrincipal Utente utente
     ) {
-        // garantisce FromCompendio e stat_value completi all'apertura del personaggio
+        // garantisce FromCompendio, PreparedSpell e stat_value completi all'apertura del personaggio
         itemService.ensureFromCompendio(id);
+        itemService.ensurePreparedSpell(id);
         personaggioService.ensureStatValues(id);
 
         ItemsDTO result = personaggioService.getAllPersonaggioItemsDTOByIdPersonaggio(id, utente);

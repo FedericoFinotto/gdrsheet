@@ -13,6 +13,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:items', v: ItemDB[]): void
+  (e: 'create-new', tipo: string | undefined, nome: string): void
 }>()
 
 const TIPI_DISPONIBILI = [
@@ -104,6 +105,14 @@ const summaryText = computed(() =>
               :disabled="disabled"
               class="search-input"
           />
+          <button
+              v-if="query.trim().length"
+              type="button"
+              class="btn-add-named"
+              :disabled="disabled"
+              :title="`Crea e collega «${query.trim()}»`"
+              @click="emit('create-new', tipoFiltro || undefined, query.trim())"
+          >+</button>
         </div>
 
         <!-- Risultati ricerca -->
@@ -196,6 +205,20 @@ const summaryText = computed(() =>
   display: flex;
   gap: .4rem;
 }
+
+.btn-add-named {
+  flex: 0 0 auto;
+  border: 1px solid #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: .5rem;
+  padding: 0 .8rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.btn-add-named:hover { background: #dbeafe; }
+.btn-add-named:disabled { opacity: .6; cursor: default; }
 
 .tipo-select {
   flex: 0 0 auto;

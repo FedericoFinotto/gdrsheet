@@ -14,7 +14,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', v: ChildRef[]): void
-  (e: 'create-new', tipo: string | undefined): void
+  (e: 'create-new', tipo: string | undefined, nome?: string): void
 }>()
 
 const router = useRouter()
@@ -85,13 +85,23 @@ function remove(idx: number) {
     </div>
 
     <div class="search-box">
-      <input
-          type="text"
-          v-model="query"
-          :disabled="disabled"
-          placeholder="Cerca un item da collegare (min 2 caratteri)…"
-          @input="onQueryInput"
-      />
+      <div class="search-row">
+        <input
+            type="text"
+            v-model="query"
+            :disabled="disabled"
+            placeholder="Cerca un item da collegare (min 2 caratteri)…"
+            @input="onQueryInput"
+        />
+        <button
+            v-if="query.trim().length"
+            type="button"
+            class="btn-add-named"
+            :disabled="disabled"
+            :title="`Crea e collega «${query.trim()}»`"
+            @click="emit('create-new', onlyTipo, query.trim())"
+        >+</button>
+      </div>
       <div v-if="searching" class="hint">Ricerca…</div>
       <ul v-else-if="results.length" class="results">
         <li v-for="r in results" :key="r.id">
@@ -127,9 +137,17 @@ input, select, textarea { min-width: 0; }
 }
 
 .search-box { display: grid; gap: .35rem; margin-top: .25rem; }
+.search-row { display: flex; gap: .4rem; align-items: stretch; }
+.search-row input { flex: 1; }
 input {
   width: 100%; padding: .45rem .55rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff;
 }
+.btn-add-named {
+  flex: 0 0 auto;
+  border: 1px solid #93c5fd; background: #eff6ff; color: #1d4ed8;
+  border-radius: .5rem; padding: 0 .8rem; font-weight: 700; font-size: 1.1rem; cursor: pointer;
+}
+.btn-add-named:hover { background: #dbeafe; }
 .hint { font-size: .8rem; opacity: .6; }
 
 .results {

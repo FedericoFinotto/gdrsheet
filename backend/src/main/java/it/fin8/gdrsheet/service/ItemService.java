@@ -413,6 +413,33 @@ public class ItemService {
     }
 
     /**
+     * Garantisce che il personaggio abbia il suo item "PreparedSpell" (contenitore
+     * degli incantesimi preparati, intestato direttamente al personaggio). Sana i
+     * personaggi più vecchi creati senza questo item.
+     */
+    @Transactional
+    public Item ensurePreparedSpell(Integer idPersonaggio) {
+        Item preparedSpell = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_INCANTESIMI_PREPARATI, idPersonaggio);
+        if (preparedSpell != null) return preparedSpell;
+
+        Personaggio pg = personaggioRepository.findPersonaggioById(idPersonaggio);
+        if (pg == null) throw new RuntimeException("Personaggio non trovato: " + idPersonaggio);
+
+        Item itm = new Item();
+        itm.setNome(Constants.ITEM_INCANTESIMI_PREPARATI);
+        itm.setTipo(TipoItem.ALTRO);
+        itm.setDescrizione(Constants.ITEM_INCANTESIMI_PREPARATI);
+        itm.setPersonaggio(pg);
+        itm.setLabels(new ArrayList<>());
+        if (pg.getParty() != null && pg.getParty().getMondo() != null) {
+            Mondo mondo = pg.getParty().getMondo();
+            itm.setMondo(mondo);
+            itm.setSistema(mondo.getSistema());
+        }
+        return itemRepository.save(itm);
+    }
+
+    /**
      * Collega un item esistente del compendio al personaggio tramite il suo FromCompendio.
      * L'item nasce disabilitato (come per createItem) e va abilitato esplicitamente.
      */
@@ -720,6 +747,9 @@ public class ItemService {
         // --- contenuti del livello (grants) ---
         applyGrants(livello, request.getGrantsSelezionati());
 
+        // --- modificatori liberi (aggiunti a mano) ---
+        applyModificatoriLiberi(livello, request.getModificatoriLiberi());
+
         // --- congela i gradi del livello (non retroattivo): se manca GRADI_LIVELLO,
         //     calcola dalla formula della classe (RANK_1/RANK) con l'INT attuale e salva.
         if (livello.getLabel(Constants.ITEM_LABEL_GRADI_LIVELLO) == null
@@ -875,9 +905,11 @@ public class ItemService {
         // --- modificatori concessi (copie sul livello) ---
         List<Modificatore> sorgenti = modificatoreRepository.findAllById(desiredModIds);
 
+        // solo le COPIE da grant (id_sorgente valorizzato): i modificatori liberi
+        // (id_sorgente null) non vanno toccati qui.
         List<Modificatore> copieEsistenti = livello.getModificatori() != null
                 ? livello.getModificatori().stream()
-                .filter(m -> !TipoModificatore.BASE.equals(m.getTipo()) && !TipoModificatore.RANK.equals(m.getTipo()))
+                .filter(m -> m.getIdSorgente() != null)
                 .collect(Collectors.toCollection(ArrayList::new))
                 : new ArrayList<>();
 
@@ -903,7 +935,62 @@ public class ItemService {
             copia.setValore(src.getValore());
             copia.setNota(src.getNota());
             copia.setSempreAttivo(src.getSempreAttivo());
+            copia.setIdSorgente(src.getId());
             modificatoreRepository.save(copia);
+        }
+    }
+
+    /**
+     * Applica i modificatori "liberi" di un livello (aggiunti a mano, come su un
+     * item qualunque). Gestisce solo i modificatori propri del livello con
+     * id_sorgente null e tipo diverso da BASE/RANK: BASE, RANK e le copie da grant
+     * non vengono toccati.
+     */
+    private void applyModificatoriLiberi(Item livello, List<UpdateItemRequest.ModificatoreRowDTO> rows) {
+        if (rows == null) return;
+
+        List<Modificatore> liberi = livello.getModificatori() != null
+                ? livello.getModificatori().stream()
+                .filter(m -> m.getIdSorgente() == null
+                        && !TipoModificatore.BASE.equals(m.getTipo())
+                        && !TipoModificatore.RANK.equals(m.getTipo()))
+                .collect(Collectors.toCollection(ArrayList::new))
+                : new ArrayList<>();
+
+        Map<Integer, UpdateItemRequest.ModificatoreRowDTO> byId = rows.stream()
+                .filter(r -> r.getId() != null)
+                .collect(Collectors.toMap(UpdateItemRequest.ModificatoreRowDTO::getId, r -> r, (a, b) -> a));
+
+        // elimina i liberi non più presenti
+        List<Modificatore> daEliminare = liberi.stream()
+                .filter(m -> !byId.containsKey(m.getId()))
+                .toList();
+        modificatoreRepository.deleteAll(daEliminare);
+        if (livello.getModificatori() != null) livello.getModificatori().removeAll(daEliminare);
+
+        // aggiorna gli esistenti
+        for (Modificatore m : liberi) {
+            UpdateItemRequest.ModificatoreRowDTO r = byId.get(m.getId());
+            if (r == null) continue;
+            m.setStat(findStat(r.getStatId()));
+            m.setTipo(r.getTipo() != null ? r.getTipo() : TipoModificatore.MOD);
+            if (r.getValore() != null) m.setValore(r.getValore());
+            m.setNota(r.getNota());
+            m.setSempreAttivo(r.getSempreAttivo());
+            modificatoreRepository.save(m);
+        }
+
+        // crea i nuovi (id_sorgente null)
+        for (UpdateItemRequest.ModificatoreRowDTO r : rows) {
+            if (r.getId() != null) continue;
+            Modificatore m = new Modificatore();
+            m.setItem(livello);
+            m.setStat(findStat(r.getStatId()));
+            m.setTipo(r.getTipo() != null ? r.getTipo() : TipoModificatore.MOD);
+            m.setValore(r.getValore() != null ? r.getValore() : "0");
+            m.setNota(r.getNota());
+            m.setSempreAttivo(r.getSempreAttivo());
+            modificatoreRepository.save(m);
         }
     }
 

@@ -175,11 +175,12 @@ onMounted(mountInit)
 watch(() => props.item?.id, preload)
 
 // Crea un nuovo item collegato al volo: salva lo stato corrente e apre l'editor di creazione.
-function onCreateChild(target: 'children' | 'forme', tipo?: string) {
+function onCreateChild(target: 'children' | 'forme', tipo?: string, nome?: string) {
   childCreate.stashDraft({target, tipo: props.item.tipo, snapshot: snapshotForm()})
   const tipoSeg = tipo ? `/${tipo}` : ''
   const params = new URLSearchParams({link: '1'})
   if (props.idPersonaggio) params.set('personaggio', String(props.idPersonaggio))
+  if (nome && nome.trim()) params.set('nome', nome.trim())
   router.push(`/itemcreate${tipoSeg}?${params.toString()}`)
 }
 
@@ -373,7 +374,7 @@ function onCancel() {
       </button>
       <div v-show="open.forme" class="fold-body">
         <ChildrenEditor v-model="form.forme" :disabled="disabledAll" :exclude-id="props.item.id" only-tipo="FORMA"
-                        @create-new="onCreateChild('forme', 'FORMA')"/>
+                        @create-new="(t, n) => onCreateChild('forme', 'FORMA', n)"/>
       </div>
     </section>
 
@@ -388,7 +389,7 @@ function onCancel() {
       <div v-show="open.children" class="fold-body">
         <ChildrenEditor v-model="form.children" :disabled="disabledAll" :exclude-id="props.item.id"
                         :exclude-tipo="separateForme ? 'FORMA' : undefined"
-                        @create-new="onCreateChild('children', $event)"/>
+                        @create-new="(t, n) => onCreateChild('children', t, n)"/>
       </div>
     </section>
 
