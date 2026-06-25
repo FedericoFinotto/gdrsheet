@@ -2,6 +2,7 @@
 import {computed} from 'vue'
 import {Classe} from '../../../../../../models/dto/Classe'
 import TabExpandable from "../../../../../../../components/TabExpandable.vue";
+import SearchSelect from "../../../../../../../components/SearchSelect.vue";
 
 const props = defineProps<{
   disabled: boolean
@@ -44,10 +45,8 @@ const livelliClasseLocal = computed({
       <div class="row">
         <label class="field full-width">
           <span class="lbl">Classe <span class="required">*</span></span>
-          <select v-model="classeIdLocal" :disabled="disabled" required>
-            <option :value="null" disabled>— Seleziona una classe —</option>
-            <option v-for="c in classi" :key="'c-'+c.id" :value="c.id">{{ c.nome }}</option>
-          </select>
+          <SearchSelect v-model="classeIdLocal" :disabled="disabled" placeholder="— Seleziona una classe —"
+                        :options="classi.map(c => ({value: c.id, label: c.nome}))"/>
         </label>
       </div>
 

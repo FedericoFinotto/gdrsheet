@@ -8,6 +8,7 @@ import api from '../../../../../../../service/api'
 import {getStats, searchItems} from '../../../../../../../service/PersonaggioService'
 import HtmlEditor from '../../../../../../../components/HtmlEditor.vue'
 import {SPELL_LIST_CODES, spellListLabel} from '../../../../../../../function/spellLists'
+import SearchSelect from '../../../../../../../components/SearchSelect.vue'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
@@ -454,18 +455,16 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
                   <button type="button" class="chip-x" :disabled="disabledAll" @click="removeLista(s, code)">✕</button>
                 </span>
               </div>
-              <select :disabled="disabledAll" @change="addLista(s, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value=''">
-                <option value="">+ Aggiungi lista…</option>
-                <option v-for="c in listeDisponibili(s)" :key="c" :value="c">{{ spellListLabel(c) }} ({{ c }})</option>
-              </select>
+              <SearchSelect :model-value="''" :disabled="disabledAll" placeholder="+ Aggiungi lista…"
+                            :options="listeDisponibili(s).map(c => ({value: c, label: `${spellListLabel(c)} (${c})`}))"
+                            @update:model-value="addLista(s, $event as string)"/>
             </div>
 
             <div class="rank-grid">
               <label class="field">
                 <span class="lbl">Progressione</span>
-                <select v-model="s.progressione" :disabled="disabledAll">
-                  <option v-for="p in PROGRESSIONI" :key="p" :value="p">{{ p }}</option>
-                </select>
+                <SearchSelect v-model="s.progressione" :disabled="disabledAll"
+                              :options="PROGRESSIONI" :sort="false"/>
               </label>
               <label class="field">
                 <span class="lbl">Formula slot bonus</span>
@@ -515,32 +514,23 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
             <div class="gen-grid">
               <label class="field">
                 <span class="lbl">BAB</span>
-                <select v-model="gen.bab" :disabled="disabledAll">
-                  <option value="ALTO">Alto (guerriero)</option>
-                  <option value="MEDIO">Medio (chierico)</option>
-                  <option value="BASSO">Basso (mago)</option>
-                </select>
+                <SearchSelect v-model="gen.bab" :disabled="disabledAll" :sort="false"
+                              :options="[{value:'ALTO',label:'Alto (guerriero)'},{value:'MEDIO',label:'Medio (chierico)'},{value:'BASSO',label:'Basso (mago)'}]"/>
               </label>
               <label class="field">
                 <span class="lbl">Tempra</span>
-                <select v-model="gen.tmp" :disabled="disabledAll">
-                  <option value="BUONO">Buono</option>
-                  <option value="SCARSO">Scarso</option>
-                </select>
+                <SearchSelect v-model="gen.tmp" :disabled="disabledAll" :sort="false"
+                              :options="[{value:'BUONO',label:'Buono'},{value:'SCARSO',label:'Scarso'}]"/>
               </label>
               <label class="field">
                 <span class="lbl">Riflessi</span>
-                <select v-model="gen.rfl" :disabled="disabledAll">
-                  <option value="BUONO">Buono</option>
-                  <option value="SCARSO">Scarso</option>
-                </select>
+                <SearchSelect v-model="gen.rfl" :disabled="disabledAll" :sort="false"
+                              :options="[{value:'BUONO',label:'Buono'},{value:'SCARSO',label:'Scarso'}]"/>
               </label>
               <label class="field">
                 <span class="lbl">Volontà</span>
-                <select v-model="gen.vlt" :disabled="disabledAll">
-                  <option value="BUONO">Buono</option>
-                  <option value="SCARSO">Scarso</option>
-                </select>
+                <SearchSelect v-model="gen.vlt" :disabled="disabledAll" :sort="false"
+                              :options="[{value:'BUONO',label:'Buono'},{value:'SCARSO',label:'Scarso'}]"/>
               </label>
             </div>
             <button type="button" class="btn outline" :disabled="disabledAll" @click="generaTabella">

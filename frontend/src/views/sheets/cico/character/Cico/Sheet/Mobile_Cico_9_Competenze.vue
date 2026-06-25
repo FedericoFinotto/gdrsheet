@@ -5,6 +5,7 @@ import {storeToRefs} from "pinia";
 import {linkItem, searchItems, unlinkItem} from "../../../../../../service/PersonaggioService";
 import Icona from "../../../../../../components/Icona/Icona.vue";
 import {TIPO_ITEM} from "../../../../../../models/entity/ItemDB";
+import SearchSelect from "../../../../../../components/SearchSelect.vue";
 
 const characterStore = useCharacterStore();
 const {cache} = storeToRefs(characterStore);
@@ -115,9 +116,7 @@ async function rimuovi(item: any) {
     <section class="comp-section add-section">
       <div class="section-title">Aggiungi</div>
       <div class="search-row">
-        <select v-model="tipoFiltro" class="tipo-select">
-          <option v-for="t in TIPI" :key="t.value" :value="t.value">{{ t.label }}</option>
-        </select>
+        <SearchSelect v-model="tipoFiltro" class="tipo-select" :options="TIPI" :sort="false"/>
         <input v-model="query" type="text" placeholder="Cerca per nome…" class="search-input"/>
       </div>
 

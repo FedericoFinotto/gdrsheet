@@ -14,6 +14,7 @@ import {createItem, updateItem} from '../../../../../../service/PersonaggioServi
 import {getItemLabel} from '../../../../../../models/entity/ItemLabel'
 import useChildCreate from '../../../../../../function/useChildCreate'
 import HtmlEditor from '../../../../../../components/HtmlEditor.vue'
+import SearchSelect from '../../../../../../components/SearchSelect.vue'
 import LabelsEditor from './Sections/LabelsEditor.vue'
 import ModificatoriEditor from './Sections/ModificatoriEditor.vue'
 import AttacchiEditor from './Sections/AttacchiEditor.vue'
@@ -392,11 +393,8 @@ function onCancel() {
     <!-- visibilità item nel personaggio -->
     <label class="field">
       <span class="lbl">Visibilità</span>
-      <select v-model="form.visibilita" :disabled="disabledAll">
-        <option value="">Tutti</option>
-        <option value="OWNER">Proprietario</option>
-        <option value="MASTER">Master</option>
-      </select>
+      <SearchSelect v-model="form.visibilita" :disabled="disabledAll" :sort="false"
+                    :options="[{value:'',label:'Tutti'},{value:'OWNER',label:'Proprietario'},{value:'MASTER',label:'Master'}]"/>
     </label>
 
     <!-- Attacchi (item ATTACCO figli) -->

@@ -11,6 +11,7 @@ import {getItem, switchItemState, updatePersonaggioInfo} from "../../../../../..
 import usePopup from "../../../../../../function/usePopup";
 import useDiceRoll from "../../../../../../function/useDiceRoll";
 import {testoTaglia} from "../../../../../../function/Utils";
+import SearchSelect from "../../../../../../components/SearchSelect.vue";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore);
@@ -271,10 +272,8 @@ async function salvaInfo() {
 
         <label v-for="f in INFO_FIELDS" :key="f.key" class="info-field">
           <span class="info-label">{{ f.label }}</span>
-          <select v-if="f.type === 'select'" v-model="editInfo[f.key]" class="info-input">
-            <option value="">—</option>
-            <option v-for="t in TAGLIE" :key="t.value" :value="t.value">{{ t.label }}</option>
-          </select>
+          <SearchSelect v-if="f.type === 'select'" v-model="editInfo[f.key]"
+                        :options="[{value:'',label:'—'}, ...TAGLIE]" :sort="false"/>
           <input v-else v-model="editInfo[f.key]" :type="f.type || 'text'" class="info-input"/>
         </label>
 

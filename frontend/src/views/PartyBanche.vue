@@ -4,6 +4,7 @@ import {useRoute, useRouter} from 'vue-router'
 import {apriConto, getBanche, getParty, updateConto} from '../service/PartyService'
 import {Banca, Conto, PartyDetail, Soldi, totaleInMo} from '../models/dto/Party'
 import Transazione from '../components/Transazione.vue'
+import SearchSelect from '../components/SearchSelect.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -210,10 +211,8 @@ async function onApriConto(banca: Banca) {
 
         <!-- apertura nuovo conto -->
         <div v-if="opzioniApriConto(banca).length" class="apri-conto">
-          <select v-model="apriContoSel[banca.personaggioId]">
-            <option value="" disabled selected>Apri un conto per…</option>
-            <option v-for="o in opzioniApriConto(banca)" :key="o.cc" :value="o.cc">{{ o.label }}</option>
-          </select>
+          <SearchSelect v-model="apriContoSel[banca.personaggioId]" placeholder="Apri un conto per…"
+                        :options="opzioniApriConto(banca).map(o => ({value: o.cc, label: o.label}))"/>
           <button
               type="button"
               class="btn primary"

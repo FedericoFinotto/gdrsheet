@@ -4,6 +4,7 @@ import {useRoute, useRouter} from 'vue-router'
 import {getParty, getPartyItems, giveItem} from '../service/PartyService'
 import {formatKg, formatPesoTotale, Page, PartyDetail, PartyItem} from '../models/dto/Party'
 import Mobile_DettaglioItem from './sheets/cico/character/Dettaglio/Mobile_DettaglioItem.vue'
+import SearchSelect from '../components/SearchSelect.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -145,9 +146,7 @@ function personaggioShim(itm: PartyItem) {
           placeholder="Cerca per nome…"
           class="filter-nome"
       />
-      <select v-model="filtroTipo" class="filter-tipo">
-        <option v-for="t in TIPI_FILTRO" :key="t.value" :value="t.value">{{ t.label }}</option>
-      </select>
+      <SearchSelect v-model="filtroTipo" class="filter-tipo" :options="TIPI_FILTRO" :sort="false"/>
     </div>
 
     <!-- paginator -->

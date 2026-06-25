@@ -4,6 +4,7 @@ import TabExpandable from '../../../../../../../components/TabExpandable.vue'
 import {ItemDB, TIPO_ITEM} from '../../../../../../../models/entity/ItemDB'
 import {searchItems} from '../../../../../../../service/PersonaggioService'
 import Icona from '../../../../../../../components/Icona/Icona.vue'
+import SearchSelect from '../../../../../../../components/SearchSelect.vue'
 
 const props = defineProps<{
   disabled: boolean
@@ -96,9 +97,8 @@ const summaryText = computed(() =>
 
         <!-- Ricerca -->
         <div class="search-row">
-          <select v-model="tipoFiltro" :disabled="disabled" class="tipo-select">
-            <option v-for="t in TIPI_DISPONIBILI" :key="t.value" :value="t.value">{{ t.label }}</option>
-          </select>
+          <SearchSelect v-model="tipoFiltro" :disabled="disabled" class="tipo-select"
+                        :options="TIPI_DISPONIBILI" :sort="false"/>
           <input
               v-model="query"
               type="text"

@@ -195,12 +195,28 @@ public class PersonaggioService {
             // Nuovo schema a sezioni (SPELL_<n>): una spellbook per sezione.
             List<SezioneIncantesimi> sezioni = parseSezioniIncantesimi(classe.getClasse());
             if (!sezioni.isEmpty()) {
+                int baseTot = classe.getLivelloTotale() != null ? classe.getLivelloTotale() : 0;
+                int baseEff = classe.getLivelloNonMaledetto() != null ? classe.getLivelloNonMaledetto() : 0;
                 for (SezioneIncantesimi sez : sezioni) {
+                    // sezione di solo avanzamento (liste tutte "+...") non genera spellbook proprio
+                    if (sez.liste().stream().allMatch(l -> l != null && l.startsWith("+"))) continue;
+
+                    // avanzamento da altre classi (liste "+<lista>" di classi da prestigio)
+                    Set<String> listeSez = new HashSet<>(sez.liste());
+                    int extraTot = 0, extraEff = 0;
+                    for (InfoClasseDTO other : allPersonaggioItems.getLivelli().getClassi()) {
+                        if (other.getClasse() == null
+                                || Objects.equals(other.getClasse().getId(), classe.getClasse().getId())) continue;
+                        boolean avanza = tutteLeListe(other.getClasse()).stream()
+                                .anyMatch(ol -> ol != null && ol.startsWith("+") && listeSez.contains(ol.substring(1)));
+                        if (avanza) {
+                            extraTot += other.getLivelloTotale() != null ? other.getLivelloTotale() : 0;
+                            extraEff += other.getLivelloNonMaledetto() != null ? other.getLivelloNonMaledetto() : 0;
+                        }
+                    }
+
                     SpellBookDTO sb = generateSpellBookSezione(
-                            classe.getClasse(),
-                            classe.getLivelloTotale() != null ? classe.getLivelloTotale() : 0,
-                            classe.getLivelloNonMaledetto() != null ? classe.getLivelloNonMaledetto() : 0,
-                            id, sez);
+                            classe.getClasse(), baseTot + extraTot, baseEff + extraEff, id, sez);
                     if (sb != null && !sb.getLivelli().isEmpty()) itemsDTO.getSpellbooks().add(sb);
                 }
                 itemsDTO.getClassi().add(itemMapper.toClasseDTO(classe));
@@ -802,6 +818,16 @@ public class PersonaggioService {
             out.add(new SezioneIncantesimi(listeArr, prog, bonus, slot));
         }
         return out;
+    }
+
+    /** Tutte le liste incantesimi di una classe: dalle sezioni (SPELL_&lt;n&gt;) o, in fallback, dalla SPELL singola. */
+    private List<String> tutteLeListe(Item classe) {
+        List<SezioneIncantesimi> sez = parseSezioniIncantesimi(classe);
+        if (!sez.isEmpty()) {
+            return sez.stream().flatMap(s -> s.liste().stream()).toList();
+        }
+        String legacy = classe.getLabel(Constants.ITEM_LABEL_LISTA_INCANTESIMI);
+        return legacy == null ? List.of() : List.of(legacy);
     }
 
     /**

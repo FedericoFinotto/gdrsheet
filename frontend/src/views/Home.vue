@@ -5,6 +5,7 @@ import {useAuthStore} from '../stores/auth'
 import {getHome} from '../service/AuthService'
 import {Home} from '../models/dto/Auth'
 import {createParty, getMieiMondi, Mondo} from '../service/PartyService'
+import SearchSelect from '../components/SearchSelect.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -115,10 +116,8 @@ function onLogout() {
         </button>
         <div v-if="showCreaParty" class="crea-form">
           <input v-model="nuovoPartyNome" type="text" placeholder="Nome del party"/>
-          <select v-model="nuovoPartyMondo">
-            <option :value="null" disabled>Mondo…</option>
-            <option v-for="m in mondi" :key="m.id" :value="m.id">{{ m.nome }}</option>
-          </select>
+          <SearchSelect v-model="nuovoPartyMondo" placeholder="Mondo…"
+                        :options="mondi.map(m => ({value: m.id, label: m.nome}))"/>
           <button class="btn primary" :disabled="busyParty || !nuovoPartyNome.trim() || !nuovoPartyMondo"
                   @click="onCreaParty">
             {{ busyParty ? 'Creazione…' : 'Crea' }}

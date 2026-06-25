@@ -13,6 +13,7 @@ import {
 } from '../service/PartyService'
 import {formatKg, formatPesoTotale, PartyDetail, PersonaggioSoldi} from '../models/dto/Party'
 import SoldiView from '../components/SoldiView.vue'
+import SearchSelect from '../components/SearchSelect.vue'
 import {listUsers} from '../service/AuthService'
 import {UtenteAdmin} from '../models/dto/Auth'
 
@@ -270,10 +271,8 @@ const GRUPPI = computed(() => [
               </li>
             </ul>
           </div>
-          <select v-model="nuovoRuolo">
-            <option value="GIOCATORE">Giocatore</option>
-            <option value="MASTER">Master</option>
-          </select>
+          <SearchSelect v-model="nuovoRuolo" :sort="false"
+                        :options="[{value:'GIOCATORE',label:'Giocatore'},{value:'MASTER',label:'Master'}]"/>
           <button class="btn primary" :disabled="busyMembro || !nuovoUsername.trim()" @click="onAddMembro">
             {{ busyMembro ? 'Associazione…' : 'Associa utente' }}
           </button>
@@ -306,16 +305,11 @@ const GRUPPI = computed(() => [
         </button>
         <div v-if="showCreaPg" class="crea-form">
           <input v-model="nuovoNome" type="text" placeholder="Nome"/>
-          <select v-model="nuovoTipo">
-            <option v-for="t in tipiPg" :key="t.value" :value="t.value">{{ t.label }}</option>
-          </select>
+          <SearchSelect v-model="nuovoTipo" :options="tipiPg" :sort="false"/>
           <label v-if="nuovoTipo === 'PG'" class="field">
             <span class="muted">Proprietario</span>
-            <select v-model="nuovoProprietario">
-              <option v-for="m in membri" :key="m.utenteId" :value="m.utenteId">
-                {{ m.name || m.username }} (@{{ m.username }})
-              </option>
-            </select>
+            <SearchSelect v-model="nuovoProprietario" placeholder="Proprietario…"
+                          :options="membri.map(m => ({value: m.utenteId, label: `${m.name || m.username} (@${m.username})`}))"/>
           </label>
           <button class="btn primary" :disabled="busyPg || !nuovoNome.trim() || (nuovoTipo === 'PG' && !nuovoProprietario)"
                   @click="onCreaPg">

@@ -4,6 +4,7 @@ import {useRoute, useRouter} from 'vue-router'
 import {ItemDB, TIPO_ITEM, TipoItem} from '../../../../../../models/entity/ItemDB'
 import {CREATABLE_TYPES, editorForType, TIPO_ITEM_LABELS} from './editorRegistry'
 import {useCharacterStore} from '../../../../../../stores/personaggio'
+import SearchSelect from '../../../../../../components/SearchSelect.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,8 +44,7 @@ const blankItem = computed<ItemDB | null>(() => {
 
 const EditorComp = computed(() => editorForType(tipo.value))
 
-function onTipoChange(e: Event) {
-  const v = (e.target as HTMLSelectElement).value
+function onTipoChange(v: string) {
   const params = new URLSearchParams()
   if (route.query.link) params.set('link', '1')   // mantieni il flag "crea e collega"
   if (route.query.compendio) params.set('compendio', '1') // mantieni il flag "mostra nel compendio"
@@ -91,10 +91,9 @@ function onSavedStay() {
     <div class="editor-scroll">
       <label class="field">
         <span class="lbl">Tipo</span>
-        <select :value="tipo ?? ''" @change="onTipoChange">
-          <option value="" disabled>Seleziona un tipo…</option>
-          <option v-for="t in CREATABLE_TYPES" :key="t" :value="t">{{ TIPO_ITEM_LABELS[t] }}</option>
-        </select>
+        <SearchSelect :model-value="tipo ?? ''" placeholder="Seleziona un tipo…"
+                      :options="CREATABLE_TYPES.map(t => ({value: t, label: TIPO_ITEM_LABELS[t]}))"
+                      @update:model-value="onTipoChange($event as string)"/>
       </label>
 
       <component

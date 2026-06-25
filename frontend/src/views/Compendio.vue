@@ -2,6 +2,7 @@
 import {onMounted, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {getCompendio} from '../service/PersonaggioService'
+import SearchSelect from '../components/SearchSelect.vue'
 import {Page} from '../models/dto/Party'
 import {Item} from '../models/dto/Item'
 import {TIPO_ITEM_LABELS} from './sheets/cico/character/Cico/Editor/editorRegistry'
@@ -94,9 +95,7 @@ onMounted(load)
           placeholder="Cerca per nome…"
           class="filter-nome"
       />
-      <select v-model="filtroTipo" class="filter-tipo">
-        <option v-for="t in TIPI_FILTRO" :key="t.value" :value="t.value">{{ t.label }}</option>
-      </select>
+      <SearchSelect v-model="filtroTipo" class="filter-tipo" :options="TIPI_FILTRO" :sort="false"/>
     </div>
 
     <!-- paginator -->

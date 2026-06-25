@@ -4,6 +4,7 @@ import {useRouter} from 'vue-router'
 import {useAuthStore} from '../stores/auth'
 import {createUser, impersonate, listUsers} from '../service/AuthService'
 import {UtenteAdmin} from '../models/dto/Auth'
+import SearchSelect from '../components/SearchSelect.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -11,6 +12,12 @@ const auth = useAuthStore()
 const isAdmin = computed(() => {
   const r = (auth.utente?.ruolo ?? '').toUpperCase()
   return r === 'ADMIN' || r === 'SUPERUSER'
+})
+
+const ruoliOpt = computed(() => {
+  const o = [{value: 'GIOCATORE', label: 'Giocatore'}, {value: 'MASTER', label: 'Master'}]
+  if (isAdmin.value) o.push({value: 'ADMIN', label: 'Admin'})
+  return o
 })
 
 const utenti = ref<UtenteAdmin[]>([])
@@ -84,11 +91,7 @@ async function onImpersona(u: UtenteAdmin) {
       <div class="crea-form">
         <input v-model="nuovoUsername" type="text" placeholder="Username"/>
         <input v-model="nuovoNome" type="text" placeholder="Nome (opzionale)"/>
-        <select v-model="nuovoRuolo">
-          <option value="GIOCATORE">Giocatore</option>
-          <option value="MASTER">Master</option>
-          <option v-if="isAdmin" value="ADMIN">Admin</option>
-        </select>
+        <SearchSelect v-model="nuovoRuolo" :options="ruoliOpt" :sort="false"/>
         <button class="btn primary" :disabled="busyCrea || !nuovoUsername.trim()"
                 @click="onCrea">
           {{ busyCrea ? 'Creazione…' : 'Crea' }}

@@ -7,6 +7,7 @@ import {getStats} from '../../../../../../../service/PersonaggioService'
 import {VARIABILI_FORMULA} from '../../../../../../../function/labelCatalog'
 import InfoHelpPopup from '../../../../../../../components/InfoHelpPopup.vue'
 import usePopup from '../../../../../../../function/usePopup'
+import SearchSelect from '../../../../../../../components/SearchSelect.vue'
 
 const props = defineProps<{
   modelValue: ModificatoreRow[]
@@ -39,6 +40,16 @@ function statLabel(id: string): string {
   return stats.value.find(s => s.id === id)?.label ?? id
 }
 
+const TIPI_OPT = TIPI.map(t => ({value: t, label: t}))
+function statOptions(row: ModificatoreRow) {
+  const base = stats.value.map(s => ({value: s.id, label: s.label}))
+  // mantiene visibile un id non presente nella lista
+  if (row.statId && !stats.value.some(s => s.id === row.statId)) {
+    base.push({value: row.statId, label: row.statId})
+  }
+  return base
+}
+
 function update(idx: number, patch: Partial<ModificatoreRow>) {
   const next = props.modelValue.map((r, i) => i === idx ? {...r, ...patch} : r)
   emit('update:modelValue', next)
@@ -62,26 +73,20 @@ function remove(idx: number) {
     <div v-if="!modelValue.length" class="empty">Nessun modificatore.</div>
 
     <div v-for="(row, i) in modelValue" :key="row.id ?? `new-${i}`" class="mod-row">
-      <select
+      <SearchSelect
           class="stat"
-          :value="row.statId"
+          :model-value="row.statId"
+          :options="statOptions(row)"
           :disabled="disabled"
-          @change="update(i, {statId: ($event.target as HTMLSelectElement).value})"
-      >
-        <option value="" disabled>— Stat —</option>
-        <!-- mantiene visibile un eventuale id non presente nella lista -->
-        <option v-if="row.statId && !stats.some(s => s.id === row.statId)" :value="row.statId">
-          {{ row.statId }}
-        </option>
-        <option v-for="s in stats" :key="s.id" :value="s.id">{{ s.label }}</option>
-      </select>
-      <select
-          :value="row.tipo"
+          placeholder="— Stat —"
+          @update:model-value="update(i, {statId: $event as string})"
+      />
+      <SearchSelect
+          :model-value="row.tipo"
+          :options="TIPI_OPT"
           :disabled="disabled"
-          @change="update(i, {tipo: ($event.target as HTMLSelectElement).value as any})"
-      >
-        <option v-for="t in TIPI" :key="t" :value="t">{{ t }}</option>
-      </select>
+          @update:model-value="update(i, {tipo: $event as any})"
+      />
       <input
           type="text"
           class="val"
