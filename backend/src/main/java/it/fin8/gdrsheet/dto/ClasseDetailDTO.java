@@ -22,6 +22,10 @@ import java.util.List;
 public class ClasseDetailDTO {
     private Integer id;            // null in creazione
     private String nome;
+    private String enName;         // nome originale in inglese (label EN_NAME)
+    private String manuale;        // manuale di provenienza (label MANUALE_SP)
+    private Integer idMondo;       // solo in creazione
+    private Integer idSistema;     // solo in creazione
     private String descrizione;
 
     /**

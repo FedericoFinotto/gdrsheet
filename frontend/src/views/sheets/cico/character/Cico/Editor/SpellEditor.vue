@@ -17,7 +17,9 @@ const L = {
   TS: 'TS_SP',
   RANGE: 'RANGE_SP',
   DURATA: 'DURATA_SP',
-  COMP: 'COMP_SP'
+  COMP: 'COMP_SP',
+  MANUALE: 'MANUALE_SP',
+  EN_NAME: 'EN_NAME'
 } as const
 
 /* ========= Mapping EN -> IT (Scuole/Sottoscuole/Descrittori) ========= */
@@ -86,6 +88,8 @@ type ComponentKey = 'V' | 'S' | 'M' | 'F' | 'DF' | 'XP' | 'X' | 'CORRUPT' | 'COL
 type BoolMap = Record<string, boolean>
 type SpellDraft = {
   nome: string
+  enName: string
+  manuale: string
   descrizione: string
   scuole: BoolMap
   subscuole: BoolMap
@@ -107,7 +111,7 @@ function emptyClassLevels(): Record<string, string> {
 
 function emptyDraft(): SpellDraft {
   return {
-    nome: '', descrizione: '',
+    nome: '', enName: '', manuale: '', descrizione: '',
     scuole: emptyBoolMap(IT_SCHOOLS),
     subscuole: emptyBoolMap(IT_SUBS),
     descrittori: emptyBoolMap(IT_DESCS),
@@ -479,6 +483,8 @@ function parseComponenti(labels?: ItemLabel[], fromItem?: string[]) {
 onMounted(() => {
   Object.assign(form, emptyDraft())
   form.nome = props.item.nome ?? ''
+  form.enName = getLabel(props.item.labels, L.EN_NAME) ?? ''
+  form.manuale = getLabel(props.item.labels, L.MANUALE) ?? ''
   form.descrizione = props.item.descrizione ?? ''
 
   // Tempo / Durata / Range: normalizza in IT (non distruttivo)
@@ -578,7 +584,11 @@ async function onSave() {
       subscuole: subsArr,
       descrittori: descArr,
       classi,
-      labelsPatch: { [L.SCUOLA]: buildScuolaStringIT(scuoleArr, subsArr, descArr) }
+      labelsPatch: {
+        [L.SCUOLA]: buildScuolaStringIT(scuoleArr, subsArr, descArr),
+        [L.EN_NAME]: form.enName?.trim() ?? '',
+        [L.MANUALE]: form.manuale?.trim() ?? ''
+      }
     })
 
     await saveSpell(props.item.id, payload)
@@ -612,6 +622,18 @@ function onCancel() { emit('cancel') }
         <span class="lbl">Tiro Salvezza</span>
         <input v-model.trim="form.ts" type="text" :disabled="disabledAll" placeholder="Es.: Volontà nega (innocuo) …"/>
       </label>
+    </div>
+
+    <div class="row three">
+      <label class="field">
+        <span class="lbl">Nome originale (EN)</span>
+        <input v-model.trim="form.enName" type="text" :disabled="disabledAll" placeholder="Nome originale in inglese"/>
+      </label>
+      <label class="field">
+        <span class="lbl">Manuale</span>
+        <input v-model.trim="form.manuale" type="text" :disabled="disabledAll" placeholder="Manuale di provenienza"/>
+      </label>
+      <div class="field"></div>
     </div>
 
     <div class="row three">

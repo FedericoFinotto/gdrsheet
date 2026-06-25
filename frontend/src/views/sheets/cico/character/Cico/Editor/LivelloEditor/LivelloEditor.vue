@@ -69,7 +69,8 @@ const form = reactive<UpdateLivelloRequest>({
 
 const busy = ref(false)
 const disabledAll = computed(() => !!props.readonly || busy.value)
-const canSave = computed(() => !busy.value && !props.readonly && !!form.classeId)
+const canSave = computed(() =>
+    !busy.value && !props.readonly && !!form.classeId && livelliSelezionati.value.length > 0)
 
 /* Liste base */
 const classi = ref<Classe[]>([])

@@ -246,6 +246,16 @@ public class ItemService {
             }
         }
 
+        // mondo/sistema espliciti dalla richiesta (hanno la precedenza)
+        if (request.getIdMondo() != null) {
+            Mondo mondo = em.find(Mondo.class, request.getIdMondo());
+            if (mondo != null) itm.setMondo(mondo);
+        }
+        if (request.getIdSistema() != null) {
+            Sistema sistema = em.find(Sistema.class, request.getIdSistema());
+            if (sistema != null) itm.setSistema(sistema);
+        }
+
         if (request.getLabels() != null) {
             for (UpdateItemRequest.LabelRowDTO l : request.getLabels()) {
                 addLabelRow(itm, l.getLabel(), l.getValore());

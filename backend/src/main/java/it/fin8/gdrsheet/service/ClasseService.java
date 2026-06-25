@@ -53,6 +53,8 @@ public class ClasseService {
         ClasseDetailDTO dto = new ClasseDetailDTO();
         dto.setId(classe.getId());
         dto.setNome(classe.getNome());
+        dto.setEnName(classe.getLabel(Constants.ITEM_LABEL_EN_NAME));
+        dto.setManuale(classe.getLabel(Constants.ITEM_LABEL_MANUALE));
         dto.setDescrizione(classe.getDescrizione());
 
         String abClasse = classe.getLabel(Constants.ITEM_LABEL_ABILITA_CLASSE);
@@ -120,9 +122,14 @@ public class ClasseService {
             classe = new Item();
             classe.setTipo(TipoItem.CLASSE);
             classe.setLabels(new ArrayList<>());
+            // mondo/sistema solo alla creazione
+            if (dto.getIdMondo() != null) classe.setMondo(em.find(it.fin8.gdrsheet.entity.Mondo.class, dto.getIdMondo()));
+            if (dto.getIdSistema() != null) classe.setSistema(em.find(it.fin8.gdrsheet.entity.Sistema.class, dto.getIdSistema()));
         }
         classe.setNome(nome);
         classe.setDescrizione(dto.getDescrizione());
+        putSingleLabel(classe, Constants.ITEM_LABEL_EN_NAME, dto.getEnName());
+        putSingleLabel(classe, Constants.ITEM_LABEL_MANUALE, dto.getManuale());
 
         String abClasse = dto.getAbilitaClasse() == null || dto.getAbilitaClasse().isEmpty()
                 ? null

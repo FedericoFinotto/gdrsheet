@@ -43,6 +43,8 @@ const showQta = computed(() => TIPI_CON_QTA.includes(props.item.tipo))
 
 const form = reactive<{
   nome: string
+  enName: string
+  manuale: string
   descrizione: string
   campi: Record<string, string>
   labels: LabelRow[]
@@ -53,8 +55,12 @@ const form = reactive<{
   qta: number
   compendio: boolean
   visibilita: string
+  idMondo: number
+  idSistema: number
 }>({
   nome: '',
+  enName: '',
+  manuale: '',
   descrizione: '',
   campi: {},
   labels: [],
@@ -65,6 +71,8 @@ const form = reactive<{
   qta: 1,
   compendio: false,
   visibilita: '',
+  idMondo: 1,
+  idSistema: 1,
 })
 
 const open = reactive({labels: false, modificatori: false, attacchi: false, children: false, forme: false})
@@ -77,6 +85,8 @@ function preload() {
   form.campi = Object.fromEntries(props.campiLabel.map(c => [c.key, '']))
 
   form.qta = 1
+  form.enName = ''
+  form.manuale = ''
   // creando dalla pagina del compendio (?compendio=1) il flag è attivo di default
   form.compendio = props.mode === 'create' && route.query.compendio === '1'
   form.visibilita = ''
@@ -91,6 +101,10 @@ function preload() {
       form.compendio = ['true', '1'].includes(String(val).toLowerCase())
     } else if (key === 'VISIBILITA') {
       form.visibilita = String(val).toUpperCase()
+    } else if (key === 'EN_NAME') {
+      form.enName = val
+    } else if (key === 'MANUALE_SP') {
+      form.manuale = val
     } else if (campoKeys.has(key) && !form.campi[key]) {
       form.campi[key] = val
     } else {
@@ -142,6 +156,8 @@ function snapshotForm() {
 
 function restoreSnapshot(snap: any) {
   form.nome = snap.nome ?? ''
+  form.enName = snap.enName ?? ''
+  form.manuale = snap.manuale ?? ''
   form.descrizione = snap.descrizione ?? ''
   form.campi = {...(snap.campi ?? {})}
   form.labels = snap.labels ?? []
@@ -152,6 +168,8 @@ function restoreSnapshot(snap: any) {
   form.qta = snap.qta ?? 1
   form.compendio = !!snap.compendio
   form.visibilita = snap.visibilita ?? ''
+  form.idMondo = snap.idMondo ?? 1
+  form.idSistema = snap.idSistema ?? 1
 }
 
 // Al mount: se sto tornando da una creazione di figlio (draft pendente e NON sono io
@@ -215,6 +233,9 @@ function buildPayload(): UpdateItemRequest {
   for (const l of form.labels) {
     if (l.label.trim()) labels.push({label: l.label.trim(), valore: l.valore})
   }
+  // nome originale inglese e manuale di provenienza
+  if (form.enName.trim()) labels.push({label: 'EN_NAME', valore: form.enName.trim()})
+  if (form.manuale.trim()) labels.push({label: 'MANUALE_SP', valore: form.manuale.trim()})
   // flag compendio
   if (form.compendio) labels.push({label: 'COMPENDIO', valore: 'true'})
   // visibilità item (vuoto = visibile a tutti)
@@ -224,6 +245,8 @@ function buildPayload(): UpdateItemRequest {
     descrizione: form.descrizione,
     tipo: props.mode === 'create' ? props.item.tipo : undefined,
     idPersonaggio: props.mode === 'create' ? props.idPersonaggio : undefined,
+    idMondo: props.mode === 'create' ? (Number(form.idMondo) || undefined) : undefined,
+    idSistema: props.mode === 'create' ? (Number(form.idSistema) || undefined) : undefined,
     // creazione "al volo" di un figlio: tieni mondo/sistema ma non agganciare al FromCompendio
     skipFromCompendio: isLinkCreate.value ? true : undefined,
     labels,
@@ -321,6 +344,19 @@ function onCancel() {
       </label>
     </div>
 
+    <div class="row two">
+      <label class="field">
+        <span class="lbl">Nome originale (EN)</span>
+        <input v-model.trim="form.enName" type="text" :disabled="disabledAll"
+               placeholder="Nome originale in inglese"/>
+      </label>
+      <label class="field">
+        <span class="lbl">Manuale</span>
+        <input v-model.trim="form.manuale" type="text" :disabled="disabledAll"
+               placeholder="Manuale di provenienza"/>
+      </label>
+    </div>
+
     <!-- campi specifici per tipo -->
     <div v-if="campiLabel.length" class="row two">
       <label v-for="c in campiLabel" :key="c.key" class="field" :class="{ full: c.textarea }">
@@ -334,6 +370,18 @@ function onCancel() {
 
     <!-- slot per estensioni specifiche del tipo -->
     <slot name="specifico" :disabled="disabledAll"/>
+
+    <!-- mondo / sistema (solo in creazione) -->
+    <div v-if="mode === 'create'" class="row two">
+      <label class="field">
+        <span class="lbl">Mondo (id)</span>
+        <input v-model.number="form.idMondo" type="number" min="1" step="1" :disabled="disabledAll"/>
+      </label>
+      <label class="field">
+        <span class="lbl">Sistema (id)</span>
+        <input v-model.number="form.idSistema" type="number" min="1" step="1" :disabled="disabledAll"/>
+      </label>
+    </div>
 
     <!-- flag compendio -->
     <label class="compendio-flag">

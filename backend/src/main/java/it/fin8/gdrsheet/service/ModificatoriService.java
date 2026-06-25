@@ -446,10 +446,13 @@ public class ModificatoriService {
             switch (op) {
                 case '+':
                     var.setValore(String.valueOf(Integer.parseInt(var.getValore()) + operand));
+                    break;
                 case '-':
                     var.setValore(String.valueOf(Integer.parseInt(var.getValore()) - operand));
+                    break;
                 case '=':
                     var.setValore(String.valueOf(operand));
+                    break;
             }
         }
     }

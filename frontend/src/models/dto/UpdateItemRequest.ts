@@ -45,6 +45,8 @@ export interface UpdateItemRequest {
     descrizione?: string;
     tipo?: TipoItem;          // usato solo in creazione
     idPersonaggio?: number;   // solo creazione: aggancia al FromCompendio del personaggio
+    idMondo?: number;         // solo creazione: mondo a cui legare l'item
+    idSistema?: number;       // solo creazione: sistema a cui legare l'item
     skipFromCompendio?: boolean; // creazione "al volo" di un figlio: non agganciare al FromCompendio
     labels?: LabelRow[];      // stato completo delle labels
     modificatori?: ModificatoreRow[]; // stato completo dei modificatori

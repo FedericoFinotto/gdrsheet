@@ -37,6 +37,10 @@ interface AbilitaConcessa {
 
 const form = reactive({
   nome: '',
+  enName: '',
+  manuale: '',
+  idMondo: 1,
+  idSistema: 1,
   descrizione: '',
   abilitaClasse: [] as string[],
   spellList: '',
@@ -79,6 +83,8 @@ onMounted(async () => {
     const res = await api.get(`/item/classe/${props.item.id}`)
     const d = res.data
     form.nome = d.nome ?? ''
+    form.enName = d.enName ?? ''
+    form.manuale = d.manuale ?? ''
     form.descrizione = d.descrizione ?? ''
     const tokensAb: string[] = d.abilitaClasse ?? []
     form.abilitaClasse = tokensAb.map(t => t.replace('!', '').trim()).filter(Boolean)
@@ -243,6 +249,10 @@ async function onSave() {
     const payload = {
       id: props.mode === 'create' ? null : props.item.id,
       nome: form.nome.trim(),
+      enName: form.enName.trim() || null,
+      manuale: form.manuale.trim() || null,
+      idMondo: props.mode === 'create' ? (Number(form.idMondo) || null) : null,
+      idSistema: props.mode === 'create' ? (Number(form.idSistema) || null) : null,
       descrizione: form.descrizione || null,
       abilitaClasse: form.abilitaClasse.map(id => abPersonaggio.value.has(id) ? `${id}!` : id),
       spellList: form.spellList.trim() || null,
@@ -286,6 +296,28 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
         <span class="lbl">Nome</span>
         <input v-model.trim="form.nome" type="text" :disabled="disabledAll" required/>
       </label>
+
+      <div class="rank-grid">
+        <label class="field">
+          <span class="lbl">Nome originale (EN)</span>
+          <input v-model.trim="form.enName" type="text" :disabled="disabledAll" placeholder="Nome originale in inglese"/>
+        </label>
+        <label class="field">
+          <span class="lbl">Manuale</span>
+          <input v-model.trim="form.manuale" type="text" :disabled="disabledAll" placeholder="Manuale di provenienza"/>
+        </label>
+      </div>
+
+      <div v-if="props.mode === 'create'" class="rank-grid">
+        <label class="field">
+          <span class="lbl">Mondo (id)</span>
+          <input v-model.number="form.idMondo" type="number" min="1" step="1" :disabled="disabledAll"/>
+        </label>
+        <label class="field">
+          <span class="lbl">Sistema (id)</span>
+          <input v-model.number="form.idSistema" type="number" min="1" step="1" :disabled="disabledAll"/>
+        </label>
+      </div>
 
       <label class="field">
         <span class="lbl">Descrizione</span>

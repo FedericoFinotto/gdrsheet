@@ -45,6 +45,13 @@ public class UpdateItemRequest {
     private Integer idPersonaggio;
 
     /**
+     * Solo in creazione: mondo e sistema a cui legare l'item. Se assenti si usa
+     * il mondo/sistema del party del personaggio (se presente).
+     */
+    private Integer idMondo;
+    private Integer idSistema;
+
+    /**
      * Solo in creazione: se true, l'item NON viene agganciato al FromCompendio del
      * personaggio (resta comunque del mondo/sistema del party). Usato quando l'item
      * sarà collegato come child di un altro item (creazione "al volo" di un figlio),
