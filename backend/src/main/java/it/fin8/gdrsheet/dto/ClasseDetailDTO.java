@@ -68,6 +68,24 @@ public class ClasseDetailDTO {
 
     private List<AbilitaConcessaDTO> abilitaConcesse;
 
+    /**
+     * Sezioni incantatore: ognuna ha 1..N liste (unite), una progressione (preset o CUSTOM)
+     * e una formula slot bonus. Se valorizzata, sostituisce il vecchio spellList singolo.
+     */
+    private List<SezioneSpellDTO> sezioniIncantesimi;
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class SezioneSpellDTO {
+        private List<String> liste;       // id liste incantesimi
+        private String progressione;      // MAGO/CHIERICO/.../CUSTOM
+        private String bonus;             // formula slot bonus
+        private List<String> slot;        // CUSTOM: tabella slot per livello di classe (una riga "4,2,1,…" per livello)
+    }
+
     @Getter
     @Setter
     @NoArgsConstructor

@@ -43,7 +43,7 @@ async function loadData() {
   loading.value = true;
   error.value = null;
   try {
-    const data: any = await getAllIncantesimiByClasseAndLivello(props.idClasse, props.livello);
+    const data: any = await getAllIncantesimiByClasseAndLivello(props.idClasse, props.livello, props.spellList);
     let arr: any[] = [];
     if (Array.isArray(data)) arr = data;
     else if (Array.isArray(data?.data)) arr = data.data;
@@ -60,7 +60,7 @@ async function loadData() {
   }
 }
 
-watch(() => [props.idClasse, props.livello], () => loadData(), {immediate: true});
+watch(() => [props.idClasse, props.livello, props.spellList], () => loadData(), {immediate: true});
 
 // normalizzazione rows (porta anche alwaysPrep, se presente nella risposta)
 function normalizeSpell(raw: any) {

@@ -192,6 +192,21 @@ public class PersonaggioService {
         }
 
         for (InfoClasseDTO classe : allPersonaggioItems.getLivelli().getClassi()) {
+            // Nuovo schema a sezioni (SPELL_<n>): una spellbook per sezione.
+            List<SezioneIncantesimi> sezioni = parseSezioniIncantesimi(classe.getClasse());
+            if (!sezioni.isEmpty()) {
+                for (SezioneIncantesimi sez : sezioni) {
+                    SpellBookDTO sb = generateSpellBookSezione(
+                            classe.getClasse(),
+                            classe.getLivelloTotale() != null ? classe.getLivelloTotale() : 0,
+                            classe.getLivelloNonMaledetto() != null ? classe.getLivelloNonMaledetto() : 0,
+                            id, sez);
+                    if (sb != null && !sb.getLivelli().isEmpty()) itemsDTO.getSpellbooks().add(sb);
+                }
+                itemsDTO.getClassi().add(itemMapper.toClasseDTO(classe));
+                continue;
+            }
+
             String spellBookId = classe.getClasse().getLabel(Constants.ITEM_LABEL_LISTA_INCANTESIMI);
             if (spellBookId != null) {
                 if (!spellBookId.startsWith("+")) {
@@ -748,6 +763,133 @@ public class PersonaggioService {
         if (piuAltoDisponibile != null) return piuAltoDisponibile;
 
         return avz.stream().min(Comparator.comparingInt(Avanzamento::getLivello)).orElse(null);
+    }
+
+    /**
+     * Sezione incantatore di un item: 1..N liste (sempre unite), una progressione
+     * (preset standard o CUSTOM = slot dagli avanzamenti) e la formula degli slot bonus.
+     */
+    public record SezioneIncantesimi(List<String> liste, String progressione, String bonus, List<String> slot) {}
+
+    /**
+     * Legge le sezioni incantatore "nuove" di un item dalle label indicizzate:
+     * SPELL_&lt;n&gt; (CSV di liste), SPELL_&lt;n&gt;_PROG, SPELL_&lt;n&gt;_BONUS.
+     * Ritorna lista vuota se l'item non usa il nuovo schema (resta il path legacy SPELL singola).
+     */
+    private List<SezioneIncantesimi> parseSezioniIncantesimi(Item item) {
+        if (item.getLabels() == null) return List.of();
+        // indici presenti: label che matchano SPELL_<n> (n numerico), escluse le _PROG/_BONUS/_SLOT...
+        java.util.TreeSet<Integer> indici = new java.util.TreeSet<>();
+        for (ItemLabel l : item.getLabels()) {
+            String k = l.getLabel();
+            if (k == null || !k.startsWith("SPELL_")) continue;
+            String rest = k.substring("SPELL_".length());
+            if (rest.matches("\\d+")) indici.add(Integer.parseInt(rest));
+        }
+        List<SezioneIncantesimi> out = new ArrayList<>();
+        for (Integer n : indici) {
+            String liste = item.getLabel("SPELL_" + n);
+            if (liste == null || liste.isBlank()) continue;
+            List<String> listeArr = Arrays.stream(liste.split(","))
+                    .map(String::trim).filter(s -> !s.isEmpty()).toList();
+            if (listeArr.isEmpty()) continue;
+            String prog = item.getLabel("SPELL_" + n + "_PROG");
+            String bonus = item.getLabel("SPELL_" + n + "_BONUS");
+            String slotRaw = item.getLabel("SPELL_" + n + "_SLOT");
+            List<String> slot = (slotRaw == null || slotRaw.isBlank())
+                    ? List.of()
+                    : Arrays.stream(slotRaw.split(";")).map(String::trim).toList();
+            out.add(new SezioneIncantesimi(listeArr, prog, bonus, slot));
+        }
+        return out;
+    }
+
+    /**
+     * Genera lo spellbook di una singola sezione incantatore. Gli slot provengono
+     * dalla progressione preset (tabella standard) oppure, se CUSTOM/assente, dagli
+     * avanzamenti della classe (come il path legacy). Gli incantesimi sono filtrati
+     * sulle liste della sezione.
+     */
+    private SpellBookDTO generateSpellBookSezione(Item classe, int livelloTotale, int livelloEffettivo,
+                                                  Integer idPersonaggio, SezioneIncantesimi sez) {
+        SpellBookDTO spellBook = new SpellBookDTO();
+        spellBook.setIdClasse(classe.getId());
+        spellBook.setNomeClasse(classe.getNome());
+        spellBook.setSpellList(String.join(",", sez.liste()));
+
+        Item preparedSpell = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_INCANTESIMI_PREPARATI, idPersonaggio);
+        List<SpellBookIncantesimoDTO> incantesimi = (preparedSpell == null || preparedSpell.getChild() == null)
+                ? new ArrayList<>()
+                : preparedSpell.getChild().stream().map(x -> itemMapper.toIncantesimoDTO(classe, x)).toList();
+
+        Set<String> liste = new HashSet<>(sez.liste());
+
+        int[] slots;
+        int[] slotsMax;
+        if (it.fin8.gdrsheet.def.ProgressioneIncantesimi.isPreset(sez.progressione())) {
+            slots = it.fin8.gdrsheet.def.ProgressioneIncantesimi.slotsPerLivello(sez.progressione(), livelloEffettivo);
+            slotsMax = it.fin8.gdrsheet.def.ProgressioneIncantesimi.slotsPerLivello(sez.progressione(), livelloTotale);
+        } else if (sez.slot() != null && !sez.slot().isEmpty()) {
+            // CUSTOM con tabella propria della sezione
+            slots = slotArrayDaSezione(sez, livelloEffettivo);
+            slotsMax = slotArrayDaSezione(sez, livelloTotale);
+        } else {
+            // CUSTOM legacy: slot dagli avanzamenti della classe
+            slots = slotArrayDaAvanzamento(classe, livelloEffettivo);
+            slotsMax = slotArrayDaAvanzamento(classe, livelloTotale);
+        }
+        if (slots.length == 0 || slotsMax.length == 0) return spellBook;
+
+        for (int i = 0; i < slotsMax.length; i++) {
+            int slot = i < slots.length ? slots[i] : 0;
+            if (slot > 0) {
+                SpellBookLivelloDTO liv = new SpellBookLivelloDTO();
+                liv.setLivello(i);
+                liv.setSlot(slot);
+                if (sez.bonus() != null && !sez.bonus().isBlank() && i > 0) {
+                    liv.getBonus().add(sez.bonus());
+                }
+                int fi = i;
+                liv.getIncantesimi().addAll(incantesimi.stream()
+                        .filter(x -> x.getLivello() == fi && liste.contains(x.getSpellList()))
+                        .toList());
+                spellBook.getLivelli().add(liv);
+            }
+        }
+        return spellBook;
+    }
+
+    /** Array slot dalla tabella custom della sezione per il dato livello di classe (1-based). */
+    private int[] slotArrayDaSezione(SezioneIncantesimi sez, int livelloClasse) {
+        int idx = livelloClasse - 1;
+        if (idx < 0 || idx >= sez.slot().size()) return new int[0];
+        String riga = sez.slot().get(idx);
+        if (riga == null || riga.isBlank()) return new int[0];
+        try {
+            String[] parts = riga.split(",");
+            int[] r = new int[parts.length];
+            for (int i = 0; i < parts.length; i++) r[i] = Integer.parseInt(parts[i].trim());
+            return r;
+        } catch (Exception e) {
+            return new int[0];
+        }
+    }
+
+    /** Array slot per livello incantesimo letto dall'avanzamento SP_SLOT della classe al dato livello. */
+    private int[] slotArrayDaAvanzamento(Item classe, int livelloClasse) {
+        Avanzamento av = findAvanzamentoPerLivello(classe, livelloClasse);
+        if (av == null) return new int[0];
+        ItemLabel sp = av.getItemTarget().getLabels().stream()
+                .filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_SPELL_SLOT)).findFirst().orElse(null);
+        if (sp == null || sp.getValore() == null) return new int[0];
+        try {
+            String[] parts = sp.getValore().split(",");
+            int[] r = new int[parts.length];
+            for (int i = 0; i < parts.length; i++) r[i] = Integer.parseInt(parts[i].trim());
+            return r;
+        } catch (Exception e) {
+            return new int[0];
+        }
     }
 
     private SpellBookDTO generateSpellBook(Item classe, Integer lvl, Integer livelloEffettivo, Integer idPersonaggio) {

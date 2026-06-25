@@ -92,9 +92,11 @@ public class ItemController {
             @Parameter(description = "Id Classe", required = true)
             @PathVariable Integer idClasse,
             @Parameter(description = "Livello", required = true)
-            @PathVariable Integer livello
+            @PathVariable Integer livello,
+            @Parameter(description = "Liste incantesimi (CSV) della sezione; in fallback la SPELL della classe")
+            @RequestParam(required = false) String spellList
     ) {
-        List<SpellBookIncantesimoDTO> result = itemService.getListIncantesimiByClasseAndLevel(idClasse, livello);
+        List<SpellBookIncantesimoDTO> result = itemService.getListIncantesimiByClasseAndLevel(idClasse, livello, spellList);
 
         return ResponseEntity.ok(result);
     }

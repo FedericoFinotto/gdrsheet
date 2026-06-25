@@ -7,6 +7,7 @@ import {Item} from '../../../../../../../models/dto/Item'
 import api from '../../../../../../../service/api'
 import {getStats, searchItems} from '../../../../../../../service/PersonaggioService'
 import HtmlEditor from '../../../../../../../components/HtmlEditor.vue'
+import {SPELL_LIST_CODES, spellListLabel} from '../../../../../../../function/spellLists'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
@@ -45,6 +46,8 @@ const form = reactive({
   abilitaClasse: [] as string[],
   spellList: '',
   spellSlotBonus: '',
+  // sezioni incantatore: ognuna 1..N liste (unite) + progressione + formula bonus + slot custom
+  sezioni: [] as Array<{ liste: string[]; progressione: string; bonus: string; slot: string[] }>,
   rank1: '',
   rank: '',
   numLivelli: 20,
@@ -93,6 +96,12 @@ onMounted(async () => {
     )
     form.spellList = d.spellList ?? ''
     form.spellSlotBonus = d.spellSlotBonus ?? ''
+    form.sezioni = (d.sezioniIncantesimi ?? []).map((s: any) => ({
+      liste: Array.isArray(s.liste) ? s.liste : (s.liste ? [s.liste] : []),
+      progressione: s.progressione ?? 'CUSTOM',
+      bonus: s.bonus ?? '',
+      slot: Array.isArray(s.slot) ? s.slot.slice() : [],
+    }))
     form.rank1 = d.rank1 ?? ''
     form.rank = d.rank ?? ''
     form.dv = d.dv ?? ''
@@ -255,8 +264,22 @@ async function onSave() {
       idSistema: props.mode === 'create' ? (Number(form.idSistema) || null) : null,
       descrizione: form.descrizione || null,
       abilitaClasse: form.abilitaClasse.map(id => abPersonaggio.value.has(id) ? `${id}!` : id),
-      spellList: form.spellList.trim() || null,
-      spellSlotBonus: form.spellSlotBonus.trim() || null,
+      spellList: null,
+      spellSlotBonus: null,
+      sezioniIncantesimi: form.sezioni
+          .map(s => {
+            const prog = (s.progressione || 'CUSTOM').trim()
+            const slot = prog === 'CUSTOM'
+                ? s.slot.slice(0, form.numLivelli).map(x => (x ?? '').trim())
+                : []
+            return {
+              liste: (s.liste ?? []).map(x => x.trim()).filter(Boolean),
+              progressione: prog,
+              bonus: s.bonus.trim() || null,
+              slot: slot.some(x => x) ? slot : null,
+            }
+          })
+          .filter(s => s.liste.length > 0),
       rank1: form.rank1.trim() || null,
       rank: form.rank.trim() || null,
       dv: form.dv.trim() || null,
@@ -276,7 +299,43 @@ async function onSave() {
   }
 }
 
-const incantatore = computed(() => form.spellList.trim().length > 0)
+const PROGRESSIONI = ['CUSTOM', 'MAGO', 'STREGONE', 'CHIERICO', 'DRUIDO', 'BARDO', 'RANGER', 'PALADINO']
+
+function addSezione() {
+  form.sezioni.push({liste: [], progressione: 'CUSTOM', bonus: '', slot: []})
+}
+function removeSezione(i: number) {
+  form.sezioni.splice(i, 1)
+}
+function addLista(s: { liste: string[] }, code: string) {
+  if (code && !s.liste.includes(code)) s.liste.push(code)
+}
+function removeLista(s: { liste: string[] }, code: string) {
+  const i = s.liste.indexOf(code)
+  if (i >= 0) s.liste.splice(i, 1)
+}
+// liste non ancora selezionate (per la tendina "aggiungi")
+function listeDisponibili(s: { liste: string[] }): string[] {
+  return SPELL_LIST_CODES.filter(c => !s.liste.includes(c))
+}
+// assicura la riga slot per il livello di classe (1-based)
+function slotDi(s: { slot: string[] }, livello: number): string {
+  return s.slot[livello - 1] ?? ''
+}
+function setSlot(s: { slot: string[] }, livello: number, val: string) {
+  while (s.slot.length < livello) s.slot.push('')
+  s.slot[livello - 1] = val
+}
+
+const incantatore = computed(() => form.sezioni.some(s => s.liste.length > 0))
+// abilità di classe: tutte le stat di tipo AB
+function selezionaTutteAbilita() {
+  form.abilitaClasse = stats.value.filter(s => s.tipo === 'AB').map(s => s.id)
+}
+function deselezionaTutteAbilita() {
+  form.abilitaClasse = []
+  abPersonaggio.value = new Set()
+}
 
 /* sezioni richiudibili */
 const open = reactive({abilita: false, incantesimi: false, tabella: false, concesse: false})
@@ -344,7 +403,11 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
             </label>
           </div>
 
-          <input v-model="filtroAbilita" type="text" placeholder="Filtra abilità…" :disabled="disabledAll"/>
+          <div class="ab-tools">
+            <input v-model="filtroAbilita" type="text" placeholder="Filtra abilità…" :disabled="disabledAll" class="grow"/>
+            <button type="button" class="btn outline sm" :disabled="disabledAll" @click="selezionaTutteAbilita">Tutte</button>
+            <button type="button" class="btn outline sm" :disabled="disabledAll" @click="deselezionaTutteAbilita">Nessuna</button>
+          </div>
           <p class="muted hint-pg">
             <strong>Pg</strong> = abilità personaggio: vale anche nei livelli che non usano questa classe.
           </p>
@@ -364,26 +427,65 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
         </div>
       </section>
 
-      <!-- Incantesimi -->
+      <!-- Incantesimi: sezioni incantatore -->
       <section class="fold">
         <button type="button" class="fold-head" @click="open.incantesimi = !open.incantesimi">
           <span class="fold-title">Incantesimi</span>
-          <span class="fold-summary">{{ incantatore ? form.spellList : 'non incantatore' }}</span>
+          <span class="fold-summary">{{ incantatore ? `${form.sezioni.length} sezioni` : 'non incantatore' }}</span>
           <span class="chev" :class="{ open: open.incantesimi }">▸</span>
         </button>
         <div v-show="open.incantesimi" class="fold-body">
-          <label class="field">
-            <span class="lbl">Lista incantesimi (label SPELL)</span>
-            <input v-model.trim="form.spellList" type="text" placeholder="Es.: SP_DRUID — vuoto = non incantatore"
-                   :disabled="disabledAll"/>
-          </label>
-          <label class="field">
-            <span class="lbl">Formula slot bonus (SP_SLOT_BONUS)</span>
-            <input v-model.trim="form.spellSlotBonus" type="text" placeholder="Es.: 1+(@SAG-#L)/4)"
-                   :disabled="disabledAll"/>
-          </label>
-          <p class="muted">Gli slot per livello (SP_SLOT) si inseriscono nella tabella livelli, formato
-            "4,2,1,0,0,0,0,0,0,0" (slot dal liv. 0 al 9).</p>
+          <p class="muted">
+            Ogni <strong>sezione</strong> ha una o più liste (sempre unite) e una progressione di slot.
+            Per tenere liste separate, crea più sezioni.
+          </p>
+
+          <div v-for="(s, i) in form.sezioni" :key="i" class="sez-card">
+            <div class="sez-head">
+              <span class="sez-title">Sezione {{ i + 1 }}</span>
+              <button type="button" class="btn-del" :disabled="disabledAll" @click="removeSezione(i)" title="Rimuovi">✕</button>
+            </div>
+
+            <div class="field">
+              <span class="lbl">Liste incantesimi (unite in questa sezione)</span>
+              <div v-if="s.liste.length" class="chips">
+                <span v-for="code in s.liste" :key="code" class="chip">
+                  {{ spellListLabel(code) }}
+                  <button type="button" class="chip-x" :disabled="disabledAll" @click="removeLista(s, code)">✕</button>
+                </span>
+              </div>
+              <select :disabled="disabledAll" @change="addLista(s, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value=''">
+                <option value="">+ Aggiungi lista…</option>
+                <option v-for="c in listeDisponibili(s)" :key="c" :value="c">{{ spellListLabel(c) }} ({{ c }})</option>
+              </select>
+            </div>
+
+            <div class="rank-grid">
+              <label class="field">
+                <span class="lbl">Progressione</span>
+                <select v-model="s.progressione" :disabled="disabledAll">
+                  <option v-for="p in PROGRESSIONI" :key="p" :value="p">{{ p }}</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="lbl">Formula slot bonus</span>
+                <input v-model.trim="s.bonus" type="text" placeholder="Es.: 1+(@SAG-#L)/4)" :disabled="disabledAll"/>
+              </label>
+            </div>
+
+            <div v-if="(s.progressione || 'CUSTOM') === 'CUSTOM'" class="field">
+              <span class="lbl">Slot per livello (CUSTOM) — formato "4,2,1,…" dal liv. 0 al 9</span>
+              <div class="slot-list">
+                <div v-for="l in form.numLivelli" :key="l" class="slot-row">
+                  <span class="slot-liv">{{ l }}</span>
+                  <input type="text" :value="slotDi(s, l)" placeholder="4,2,1,0,0,0,0,0,0,0"
+                         :disabled="disabledAll" @input="setSlot(s, l, ($event.target as HTMLInputElement).value)"/>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" class="btn outline" :disabled="disabledAll" @click="addSezione">+ Aggiungi sezione</button>
         </div>
       </section>
 
@@ -455,10 +557,6 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
                 <label><span>TMP</span><input v-model.trim="row.tmp" :disabled="disabledAll"/></label>
                 <label><span>RFL</span><input v-model.trim="row.rfl" :disabled="disabledAll"/></label>
                 <label><span>VLT</span><input v-model.trim="row.vlt" :disabled="disabledAll"/></label>
-                <label v-if="incantatore" class="full">
-                  <span>SP_SLOT</span>
-                  <input v-model.trim="row.spSlot" placeholder="4,2,1,0,0,0,0,0,0,0" :disabled="disabledAll"/>
-                </label>
               </div>
             </div>
           </div>
@@ -519,6 +617,19 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
 
 .rank-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
 @media (max-width: 700px) { .rank-grid { grid-template-columns: 1fr; } }
+
+.sez-card { border: 1px solid #e5e7eb; border-radius: .5rem; padding: .5rem; display: grid; gap: .5rem; margin-bottom: .4rem; background: #fafafa; }
+.sez-head { display: flex; align-items: center; justify-content: space-between; }
+.sez-title { font-weight: 700; font-size: .9rem; }
+.chips { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .3rem; }
+.chip { display: inline-flex; align-items: center; gap: .3rem; background: #eef2ff; color: #3730a3; border-radius: 1rem; padding: .1rem .5rem; font-size: .8rem; font-weight: 600; }
+.chip-x { border: 0; background: transparent; color: #6366f1; cursor: pointer; font-size: .75rem; padding: 0; }
+.slot-list { display: grid; gap: .25rem; max-height: 16rem; overflow-y: auto; }
+.slot-row { display: grid; grid-template-columns: 2rem 1fr; gap: .4rem; align-items: center; }
+.slot-liv { font-weight: 700; font-size: .8rem; color: #3730a3; text-align: center; }
+.ab-tools { display: flex; gap: .4rem; align-items: center; }
+.ab-tools .grow { flex: 1; }
+.btn.sm { padding: .3rem .6rem; font-size: .8rem; }
 
 .ce-head { display: flex; align-items: baseline; gap: .5rem; }
 .ce-head h2 { margin: 0; font-size: 1rem; }

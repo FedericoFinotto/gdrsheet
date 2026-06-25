@@ -83,12 +83,28 @@ public class ItemService {
         setter.accept(v.isEmpty() || v.equals(Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE) ? Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE : Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
     }
 
-    public List<SpellBookIncantesimoDTO> getListIncantesimiByClasseAndLevel(Integer idClasse, Integer livello) {
+    public List<SpellBookIncantesimoDTO> getListIncantesimiByClasseAndLevel(Integer idClasse, Integer livello, String spellList) {
         Item classe = itemRepository.findItemById(idClasse);
-        String spellClasse = utilService.getItemLabel(classe, Constants.ITEM_LABEL_LISTA_INCANTESIMI);
 
-        List<ItemLivelloDTO> incantesimi = itemRepository.findIncantesimiByLabelAndMaxLivello(spellClasse, livello);
-        return incantesimi.stream().map(x -> itemMapper.toIncantesimoDTO(classe, x)).toList();
+        // liste da interrogare: quelle passate (CSV della sezione) o, in fallback, la SPELL della classe
+        List<String> liste;
+        if (spellList != null && !spellList.isBlank()) {
+            liste = java.util.Arrays.stream(spellList.split(","))
+                    .map(String::trim).filter(s -> !s.isEmpty()).distinct().toList();
+        } else {
+            String spellClasse = utilService.getItemLabel(classe, Constants.ITEM_LABEL_LISTA_INCANTESIMI);
+            liste = spellClasse == null ? List.of() : List.of(spellClasse);
+        }
+
+        Map<Integer, SpellBookIncantesimoDTO> byId = new LinkedHashMap<>();
+        for (String lista : liste) {
+            for (ItemLivelloDTO x : itemRepository.findIncantesimiByLabelAndMaxLivello(lista, livello)) {
+                SpellBookIncantesimoDTO dto = itemMapper.toIncantesimoDTO(classe, x);
+                dto.setSpellList(lista); // lista effettiva di provenienza
+                byId.putIfAbsent(dto.getId(), dto);
+            }
+        }
+        return new ArrayList<>(byId.values());
     }
 
     public void updatePreparedForCharacterAndLevel(UpdatePreparedRequest request) {

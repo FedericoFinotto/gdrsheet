@@ -63,6 +63,7 @@ public class ClasseService {
                 : Arrays.stream(abClasse.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList());
         dto.setSpellList(classe.getLabel(Constants.ITEM_LABEL_LISTA_INCANTESIMI));
         dto.setSpellSlotBonus(classe.getLabel(Constants.ITEM_LABEL_SPELL_SLOT_BONUS));
+        dto.setSezioniIncantesimi(buildSezioni(classe));
         dto.setRank1(classe.getLabel(Constants.ITEM_LABEL_RANK_PRIMO));
         dto.setRank(classe.getLabel(Constants.ITEM_LABEL_RANK));
         int numLivelli = parseNumLivelli(classe.getLabel(Constants.ITEM_LABEL_NUM_LIVELLI_CLASSE));
@@ -106,6 +107,45 @@ public class ClasseService {
         return dto;
     }
 
+    /** Costruisce le sezioni incantatore dalle label SPELL_&lt;n&gt; o, in fallback, dalla SPELL singola. */
+    private List<ClasseDetailDTO.SezioneSpellDTO> buildSezioni(Item classe) {
+        List<ClasseDetailDTO.SezioneSpellDTO> out = new ArrayList<>();
+        java.util.TreeSet<Integer> idx = new java.util.TreeSet<>();
+        if (classe.getLabels() != null) {
+            for (ItemLabel l : classe.getLabels()) {
+                String k = l.getLabel();
+                if (k != null && k.startsWith("SPELL_")) {
+                    String rest = k.substring("SPELL_".length());
+                    if (rest.matches("\\d+")) idx.add(Integer.parseInt(rest));
+                }
+            }
+        }
+        for (Integer n : idx) {
+            String liste = classe.getLabel("SPELL_" + n);
+            if (liste == null || liste.isBlank()) continue;
+            ClasseDetailDTO.SezioneSpellDTO s = new ClasseDetailDTO.SezioneSpellDTO();
+            s.setListe(Arrays.stream(liste.split(",")).map(String::trim).filter(x -> !x.isEmpty()).toList());
+            s.setProgressione(classe.getLabel("SPELL_" + n + "_PROG"));
+            s.setBonus(classe.getLabel("SPELL_" + n + "_BONUS"));
+            String slotRaw = classe.getLabel("SPELL_" + n + "_SLOT");
+            s.setSlot(slotRaw == null || slotRaw.isBlank()
+                    ? List.of()
+                    : Arrays.stream(slotRaw.split(";")).map(String::trim).toList());
+            out.add(s);
+        }
+        if (out.isEmpty()) {
+            String legacy = classe.getLabel(Constants.ITEM_LABEL_LISTA_INCANTESIMI);
+            if (legacy != null && !legacy.isBlank()) {
+                ClasseDetailDTO.SezioneSpellDTO s = new ClasseDetailDTO.SezioneSpellDTO();
+                s.setListe(List.of(legacy.trim()));
+                s.setProgressione(it.fin8.gdrsheet.def.ProgressioneIncantesimi.CUSTOM);
+                s.setBonus(classe.getLabel(Constants.ITEM_LABEL_SPELL_SLOT_BONUS));
+                out.add(s);
+            }
+        }
+        return out;
+    }
+
     @Transactional
     public Item saveClasse(ClasseDetailDTO dto) {
         if (dto.getNome() == null || dto.getNome().isBlank())
@@ -136,8 +176,49 @@ public class ClasseService {
                 : dto.getAbilitaClasse().stream().map(String::trim).filter(s -> !s.isEmpty())
                 .collect(Collectors.joining(","));
         putSingleLabel(classe, Constants.ITEM_LABEL_ABILITA_CLASSE, abClasse);
-        putSingleLabel(classe, Constants.ITEM_LABEL_LISTA_INCANTESIMI, dto.getSpellList());
-        putSingleLabel(classe, Constants.ITEM_LABEL_SPELL_SLOT_BONUS, dto.getSpellSlotBonus());
+
+        // --- sezioni incantatore: pulizia label vecchie e riscrittura SPELL_<n> ---
+        if (classe.getLabels() != null) {
+            classe.getLabels().removeIf(l -> {
+                String k = l.getLabel();
+                return k != null && (k.equals(Constants.ITEM_LABEL_LISTA_INCANTESIMI)
+                        || k.equals(Constants.ITEM_LABEL_SPELL_SLOT_BONUS)
+                        || k.matches("SPELL_\\d+(_PROG|_BONUS|_SLOT)?"));
+            });
+        }
+        List<ClasseDetailDTO.SezioneSpellDTO> sezioni = dto.getSezioniIncantesimi();
+        if ((sezioni == null || sezioni.isEmpty()) && dto.getSpellList() != null && !dto.getSpellList().isBlank()) {
+            ClasseDetailDTO.SezioneSpellDTO s = new ClasseDetailDTO.SezioneSpellDTO();
+            s.setListe(List.of(dto.getSpellList().trim()));
+            s.setProgressione(it.fin8.gdrsheet.def.ProgressioneIncantesimi.CUSTOM);
+            s.setBonus(dto.getSpellSlotBonus());
+            sezioni = new ArrayList<>(List.of(s));
+        }
+        String representativeList = null;
+        if (sezioni != null) {
+            int n = 0;
+            for (ClasseDetailDTO.SezioneSpellDTO s : sezioni) {
+                if (s.getListe() == null) continue;
+                List<String> liste = s.getListe().stream().map(String::trim).filter(x -> !x.isEmpty()).toList();
+                if (liste.isEmpty()) continue;
+                putSingleLabel(classe, "SPELL_" + n, String.join(",", liste));
+                putSingleLabel(classe, "SPELL_" + n + "_PROG", s.getProgressione());
+                putSingleLabel(classe, "SPELL_" + n + "_BONUS", s.getBonus());
+                // tabella slot custom della sezione (solo se CUSTOM e valorizzata)
+                if (s.getSlot() != null && !s.getSlot().isEmpty()) {
+                    String slotJoined = s.getSlot().stream()
+                            .map(x -> x == null ? "" : x.trim())
+                            .collect(Collectors.joining(";"));
+                    if (!slotJoined.replace(";", "").isBlank()) {
+                        putSingleLabel(classe, "SPELL_" + n + "_SLOT", slotJoined);
+                    }
+                }
+                if (representativeList == null) representativeList = liste.get(0);
+                n++;
+            }
+        }
+        // SPELL singola legacy: prima lista, per i lettori legacy (mapper/find incantesimi)
+        putSingleLabel(classe, Constants.ITEM_LABEL_LISTA_INCANTESIMI, representativeList);
         putSingleLabel(classe, Constants.ITEM_LABEL_RANK_PRIMO, dto.getRank1());
         putSingleLabel(classe, Constants.ITEM_LABEL_RANK, dto.getRank());
 
@@ -191,7 +272,7 @@ public class ClasseService {
 
                 putSingleLabel(avz, Constants.ITEM_LABEL_SPELL_SLOT, row.getSpSlot());
                 putSingleLabel(avz, Constants.ITEM_LABEL_LISTA_INCANTESIMI,
-                        row.getSpSlot() != null && !row.getSpSlot().isBlank() ? dto.getSpellList() : null);
+                        row.getSpSlot() != null && !row.getSpSlot().isBlank() ? representativeList : null);
                 itemRepository.save(avz);
             }
         }

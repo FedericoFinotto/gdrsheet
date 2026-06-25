@@ -33,8 +33,8 @@ export function getAllPersonaggioItemsDTOByIdPersonaggio(id: number): Promise<Ax
     return api.get(`/personaggi/items/${id}`);
 }
 
-export function getAllIncantesimiByClasseAndLivello(idClasse: number, livello: number): Promise<AxiosResponse<SpellBookIncantesimo>> {
-    return api.get(`/item/incantesimi/${idClasse}/${livello}`);
+export function getAllIncantesimiByClasseAndLivello(idClasse: number, livello: number, spellList?: string): Promise<AxiosResponse<SpellBookIncantesimo>> {
+    return api.get(`/item/incantesimi/${idClasse}/${livello}`, {params: spellList ? {spellList} : undefined});
 }
 
 export function getItem(id: number): Promise<AxiosResponse<ItemDB>> {
