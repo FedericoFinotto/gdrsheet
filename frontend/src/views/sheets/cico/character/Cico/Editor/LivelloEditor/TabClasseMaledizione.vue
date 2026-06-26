@@ -50,6 +50,7 @@ const opzioniClasse = computed(() =>
           value: c.id,
           label: c.nome,
           hint: c.tipo === 'RAZZA' ? 'Razza' : 'Classe',
+          hintColor: c.tipo === 'RAZZA' ? '#15803d' : '#4338ca',
         }))
 )
 </script>

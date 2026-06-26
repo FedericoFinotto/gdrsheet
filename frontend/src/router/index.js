@@ -7,6 +7,7 @@ import PartyBanche from '@/views/PartyBanche.vue';
 import BancaDetail from '@/views/BancaDetail.vue';
 import Compendio from '@/views/Compendio.vue';
 import Users from '@/views/Users.vue';
+import StatsAdmin from '@/views/StatsAdmin.vue';
 import SetPassword from '@/views/SetPassword.vue';
 import Mobile_Cico_0_CharacterSheet from "../views/sheets/cico/character/Cico/Sheet/Mobile_Cico_0_CharacterSheet.vue";
 import ItemEditor from "../views/sheets/cico/character/Cico/Editor/ItemEditor.vue";
@@ -22,6 +23,7 @@ const routes = [
   {path: '/banca/:id', name: 'BancaDetail', component: BancaDetail},
   {path: '/compendio', name: 'Compendio', component: Compendio},
   {path: '/users', name: 'Users', component: Users},
+  {path: '/stats-admin', name: 'StatsAdmin', component: StatsAdmin},
   {path: '/set-password', name: 'SetPassword', component: SetPassword},
   {
     path: '/scheda/:id',

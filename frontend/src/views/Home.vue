@@ -100,6 +100,7 @@ function onLogout() {
       </div>
       <div class="head-actions">
         <button v-if="canManageUsers" class="btn ghost" @click="router.push('/users')">Utenti</button>
+        <button v-if="canManageUsers" class="btn ghost" @click="router.push('/stats-admin')">Statistiche</button>
         <button class="btn ghost" @click="router.push('/set-password')">Password</button>
         <button class="btn ghost" @click="onLogout">Esci</button>
       </div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 
-type Opt = { value: string | number | null; label: string; disabled?: boolean; hint?: string }
+type Opt = { value: string | number | null; label: string; disabled?: boolean; hint?: string; hintColor?: string }
 
 const props = withDefaults(defineProps<{
   modelValue: string | number | null | undefined
@@ -75,7 +75,8 @@ watch(() => props.disabled, d => { if (d) open.value = false })
   <div class="search-select" ref="root" :class="{ disabled }">
     <button type="button" class="ss-control" :disabled="disabled" @click="toggle">
       <span class="ss-value" :class="{ placeholder: !selectedLabel }">{{ selectedLabel || placeholder }}</span>
-      <span v-if="selected?.hint" class="ss-hint">{{ selected.hint }}</span>
+      <span v-if="selected?.hint" class="ss-hint"
+            :style="selected.hintColor ? {background: selected.hintColor, color: '#fff'} : undefined">{{ selected.hint }}</span>
       <span class="ss-caret" :class="{ open }">▾</span>
     </button>
 
@@ -97,7 +98,8 @@ watch(() => props.disabled, d => { if (d) open.value = false })
             class="ss-item"
             :class="{ selected: o.value === modelValue, disabled: o.disabled }"
             @click="scegli(o)"
-        ><span class="ss-item-label">{{ o.label }}</span><span v-if="o.hint" class="ss-hint">{{ o.hint }}</span></li>
+        ><span class="ss-item-label">{{ o.label }}</span><span v-if="o.hint" class="ss-hint"
+              :style="o.hintColor ? {background: o.hintColor, color: '#fff'} : undefined">{{ o.hint }}</span></li>
       </ul>
     </div>
   </div>
