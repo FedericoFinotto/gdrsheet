@@ -32,9 +32,10 @@ interface LivelloClasse {
 
 interface AbilitaConcessa {
   livello: number
-  itemId: number
+  itemId: number | null   // null = oggetto "nuovo" da creare in fase di salvataggio
   nome: string
   tipo?: string
+  nuovo?: boolean
 }
 
 const form = reactive({
@@ -72,7 +73,7 @@ function ensureLivelli(n: number) {
   }
 }
 function clampNumLivelli() {
-  const n = Math.max(1, Math.min(40, Math.floor(Number(form.numLivelli) || 20)))
+  const n = Math.max(1, Math.min(100, Math.floor(Number(form.numLivelli) || 20)))
   form.numLivelli = n
   ensureLivelli(n)
 }
@@ -106,7 +107,7 @@ onMounted(async () => {
     form.rank1 = d.rank1 ?? ''
     form.rank = d.rank ?? ''
     form.dv = d.dv ?? ''
-    form.numLivelli = Math.max(1, Math.min(40, Number(d.numLivelli) || 20))
+    form.numLivelli = Math.max(1, Math.min(100, Number(d.numLivelli) || 20))
     ensureLivelli(form.numLivelli)
     for (const row of (d.livelli ?? [])) {
       const target = form.livelli[row.livello - 1]
@@ -246,6 +247,24 @@ function aggiungiConcessa(itm: Item) {
   queryConcessa.value = ''
 }
 
+// Privilegio "nuovo": creato come PRIVILEGIO al salvataggio della classe
+function aggiungiNuovo() {
+  const nome = queryConcessa.value.trim()
+  if (!nome) return
+  const l = Math.min(20, Math.max(1, Math.floor(Number(livelloConcessa.value) || 1)))
+  form.abilitaConcesse.push({livello: l, itemId: null, nome, tipo: 'PRIVILEGIO', nuovo: true})
+  form.abilitaConcesse.sort((a, b) => a.livello - b.livello || a.nome.localeCompare(b.nome))
+  risultatiConcessa.value = []
+  queryConcessa.value = ''
+}
+
+// mostra l'opzione "NEW" se c'è testo e nessun risultato ha esattamente quel nome
+const mostraNuovo = computed(() => {
+  const q = queryConcessa.value.trim().toLowerCase()
+  if (q.length < 2) return false
+  return !risultatiConcessa.value.some(r => (r.nome ?? '').toLowerCase() === q)
+})
+
 function rimuoviConcessa(i: number) {
   form.abilitaConcesse.splice(i, 1)
 }
@@ -286,7 +305,7 @@ async function onSave() {
       dv: form.dv.trim() || null,
       numLivelli: form.numLivelli,
       livelli: form.livelli.slice(0, form.numLivelli),
-      abilitaConcesse: form.abilitaConcesse.map(a => ({livello: a.livello, itemId: a.itemId})),
+      abilitaConcesse: form.abilitaConcesse.map(a => ({livello: a.livello, itemId: a.itemId, nome: a.nome})),
     }
     await api.post('/item/classe', payload)
     emit('saved')
@@ -330,12 +349,37 @@ function setSlot(s: { slot: string[] }, livello: number, val: string) {
 
 const incantatore = computed(() => form.sezioni.some(s => s.liste.length > 0))
 // abilità di classe: tutte le stat di tipo AB
+function tutteAbIds(): string[] {
+  return stats.value.filter(s => s.tipo === 'AB').map(s => s.id)
+}
 function selezionaTutteAbilita() {
-  form.abilitaClasse = stats.value.filter(s => s.tipo === 'AB').map(s => s.id)
+  form.abilitaClasse = tutteAbIds()
+}
+// seleziona tutte e marca anche PG su tutte (long-press su "Tutte")
+function selezionaTuttePg() {
+  const ids = tutteAbIds()
+  form.abilitaClasse = ids
+  abPersonaggio.value = new Set(ids)
 }
 function deselezionaTutteAbilita() {
   form.abilitaClasse = []
   abPersonaggio.value = new Set()
+}
+
+// long-press sul pulsante "Tutte": click = solo abilità, hold = anche PG
+let lpTimer: any = null
+let lpFired = false
+function lpStart() {
+  if (disabledAll.value) return
+  lpFired = false
+  lpTimer = setTimeout(() => { lpFired = true; selezionaTuttePg() }, 550)
+}
+function lpEnd() {
+  if (lpTimer) { clearTimeout(lpTimer); lpTimer = null }
+}
+function lpClick() {
+  if (lpFired) { lpFired = false; return } // il hold ha già agito
+  selezionaTutteAbilita()
 }
 
 /* sezioni richiudibili */
@@ -406,11 +450,15 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
 
           <div class="ab-tools">
             <input v-model="filtroAbilita" type="text" placeholder="Filtra abilità…" :disabled="disabledAll" class="grow"/>
-            <button type="button" class="btn outline sm" :disabled="disabledAll" @click="selezionaTutteAbilita">Tutte</button>
+            <button type="button" class="btn outline sm" :disabled="disabledAll"
+                    title="Click: tutte. Tieni premuto: tutte + PG"
+                    @click="lpClick"
+                    @mousedown="lpStart" @mouseup="lpEnd" @mouseleave="lpEnd"
+                    @touchstart.passive="lpStart" @touchend="lpEnd" @touchcancel="lpEnd">Tutte</button>
             <button type="button" class="btn outline sm" :disabled="disabledAll" @click="deselezionaTutteAbilita">Nessuna</button>
           </div>
           <p class="muted hint-pg">
-            <strong>Pg</strong> = abilità personaggio: vale anche nei livelli che non usano questa classe.
+            <strong>PG</strong> = abilità personaggio: vale anche nei livelli che non usano questa classe.
           </p>
           <div class="ab-list">
             <div v-for="s in abilitaDisponibili" :key="s.id" class="ab-riga" :class="{ sel: isSelected(s.id) }">
@@ -421,7 +469,7 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
               <button v-if="isSelected(s.id)" type="button" class="ab-pg" :class="{ on: isPersonaggio(s.id) }"
                       :disabled="disabledAll" @click="togglePersonaggio(s.id)"
                       title="Abilità personaggio: vale anche nei livelli di altre classi">
-                Pg
+                PG
               </button>
             </div>
           </div>
@@ -499,7 +547,7 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
           <div class="rank-grid">
             <label class="field">
               <span class="lbl">Livelli classe</span>
-              <input v-model.number="form.numLivelli" type="number" min="1" max="40" :disabled="disabledAll"/>
+              <input v-model.number="form.numLivelli" type="number" min="1" max="100" :disabled="disabledAll"/>
               <span class="muted">Quanti livelli ha la classe (default 20).</span>
             </label>
             <label class="field">
@@ -553,17 +601,17 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
         </div>
       </section>
 
-      <!-- Abilità concesse -->
+      <!-- Privilegi di Classe -->
       <section class="fold">
         <button type="button" class="fold-head" @click="open.concesse = !open.concesse">
-          <span class="fold-title">Abilità concesse</span>
+          <span class="fold-title">Privilegi di Classe</span>
           <span class="fold-summary">{{ form.abilitaConcesse.length }}</span>
           <span class="chev" :class="{ open: open.concesse }">▸</span>
         </button>
         <div v-show="open.concesse" class="fold-body">
-          <div v-for="(a, i) in form.abilitaConcesse" :key="`${a.itemId}-${a.livello}`" class="conc-row">
+          <div v-for="(a, i) in form.abilitaConcesse" :key="`${a.itemId ?? 'new'}-${a.nome}-${a.livello}`" class="conc-row">
             <span class="liv-pill">Liv {{ a.livello }}</span>
-            <span class="nome">{{ a.nome }}</span>
+            <span class="nome"><span v-if="a.nuovo" class="new-chip">NEW</span>{{ a.nome }}</span>
             <button type="button" class="btn-edit" :disabled="disabledAll || !a.itemId"
                     @click="editConcessa(a.itemId!)" title="Modifica">✎</button>
             <button type="button" class="btn-del" :disabled="disabledAll" @click="rimuoviConcessa(i)">✕</button>
@@ -575,14 +623,21 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
               <input v-model.number="livelloConcessa" type="number" min="1" max="20" :disabled="disabledAll"/>
             </label>
             <input class="grow" v-model="queryConcessa" type="text"
-                   placeholder="Cerca abilità da concedere…" :disabled="disabledAll" @input="onQueryConcessa"/>
+                   placeholder="Cerca o scrivi un nuovo privilegio…" :disabled="disabledAll" @input="onQueryConcessa"/>
           </div>
           <div v-if="searching" class="muted">Ricerca…</div>
-          <ul v-else-if="risultatiConcessa.length" class="results">
+          <ul v-else-if="risultatiConcessa.length || mostraNuovo" class="results">
             <li v-for="r in risultatiConcessa" :key="r.id">
               <button type="button" class="result" :disabled="disabledAll" @click="aggiungiConcessa(r)">
                 <span class="nome">{{ r.nome }}</span>
                 <span class="liv-pill">{{ r.tipo }}</span>
+                <span class="plus">+</span>
+              </button>
+            </li>
+            <li v-if="mostraNuovo">
+              <button type="button" class="result" :disabled="disabledAll" @click="aggiungiNuovo">
+                <span class="nome">{{ queryConcessa.trim() }}</span>
+                <span class="new-chip">NEW</span>
                 <span class="plus">+</span>
               </button>
             </li>
@@ -707,6 +762,11 @@ textarea { resize: vertical; }
 .btn-edit:hover { background: #dbeafe; }
 .btn-edit:disabled { opacity: .6; cursor: default; }
 .conc-row .nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.new-chip {
+  display: inline-block; margin-right: .35rem;
+  background: #16a34a; color: #fff; font-size: .65rem; font-weight: 800;
+  border-radius: .35rem; padding: .05rem .35rem; vertical-align: middle;
+}
 .liv-pill {
   font-size: .72rem; padding: .1rem .45rem; border-radius: .5rem;
   background: #f0fdf4; color: #166534; font-weight: 700; white-space: nowrap;

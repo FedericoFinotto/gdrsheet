@@ -282,10 +282,24 @@ public class ClasseService {
             record Chiave(int livello, int itemId) {
             }
             int maxLiv = numLivelli;
-            Set<Chiave> desiderate = dto.getAbilitaConcesse().stream()
-                    .filter(a -> a.getItemId() != null && a.getLivello() >= 1 && a.getLivello() <= maxLiv)
-                    .map(a -> new Chiave(a.getLivello(), a.getItemId()))
-                    .collect(Collectors.toSet());
+            // risolvi gli itemId: gli oggetti "nuovi" (itemId null + nome) vengono creati come PRIVILEGIO
+            Set<Chiave> desiderate = new HashSet<>();
+            for (ClasseDetailDTO.AbilitaConcessaDTO a : dto.getAbilitaConcesse()) {
+                if (a.getLivello() < 1 || a.getLivello() > maxLiv) continue;
+                Integer itemId = a.getItemId();
+                if (itemId == null) {
+                    if (a.getNome() == null || a.getNome().isBlank()) continue;
+                    Item nuovo = new Item();
+                    nuovo.setTipo(TipoItem.PRIVILEGIO);
+                    nuovo.setNome(a.getNome().trim());
+                    nuovo.setLabels(new ArrayList<>());
+                    nuovo.setMondo(classe.getMondo());
+                    nuovo.setSistema(classe.getSistema());
+                    nuovo = itemRepository.save(nuovo);
+                    itemId = nuovo.getId();
+                }
+                desiderate.add(new Chiave(a.getLivello(), itemId));
+            }
 
             Set<Chiave> presenti = new HashSet<>();
             for (Avanzamento av : esistenti) {
@@ -319,7 +333,7 @@ public class ClasseService {
     private int parseNumLivelli(String raw) {
         if (raw == null || raw.isBlank()) return LIVELLI;
         try {
-            return Math.max(1, Math.min(40, Integer.parseInt(raw.trim())));
+            return Math.max(1, Math.min(100, Integer.parseInt(raw.trim())));
         } catch (NumberFormatException e) {
             return LIVELLI;
         }
