@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, ref} from 'vue'
 import {Classe} from '../../../../../../models/dto/Classe'
 import TabExpandable from "../../../../../../../components/TabExpandable.vue";
 import SearchSelect from "../../../../../../../components/SearchSelect.vue";
@@ -35,6 +35,23 @@ const livelliClasseLocal = computed({
   get: () => props.livelliClasse,
   set: v => emit('update:livelliClasse', v)
 })
+
+// filtro Classe / Razza / Tutti
+const filtroTipo = ref<string>('')
+const FILTRO_OPT = [
+  {value: '', label: 'Tutti'},
+  {value: 'CLASSE', label: 'Classe'},
+  {value: 'RAZZA', label: 'Razza'},
+]
+const opzioniClasse = computed(() =>
+    props.classi
+        .filter((c: any) => !filtroTipo.value || c.tipo === filtroTipo.value)
+        .map((c: any) => ({
+          value: c.id,
+          label: c.nome,
+          hint: c.tipo === 'RAZZA' ? 'Razza' : 'Classe',
+        }))
+)
 </script>
 
 <template>
@@ -42,11 +59,15 @@ const livelliClasseLocal = computed({
     <template #summary><span class="wrap">{{ summary }}</span></template>
     <template #content>
       <!-- Classe -->
-      <div class="row">
-        <label class="field full-width">
-          <span class="lbl">Classe <span class="required">*</span></span>
-          <SearchSelect v-model="classeIdLocal" :disabled="disabled" placeholder="— Seleziona una classe —"
-                        :options="classi.map(c => ({value: c.id, label: c.nome}))"/>
+      <div class="row classe-row">
+        <label class="field tipo-filter">
+          <span class="lbl">Tipo</span>
+          <SearchSelect v-model="filtroTipo" :disabled="disabled" :options="FILTRO_OPT" :sort="false"/>
+        </label>
+        <label class="field grow">
+          <span class="lbl">Classe / Razza <span class="required">*</span></span>
+          <SearchSelect v-model="classeIdLocal" :disabled="disabled" placeholder="— Seleziona —"
+                        :options="opzioniClasse"/>
         </label>
       </div>
 
@@ -91,6 +112,10 @@ const livelliClasseLocal = computed({
 .full-width {
   grid-column: 1 / -1;
 }
+
+.classe-row { display: flex; gap: .5rem; align-items: flex-end; }
+.tipo-filter { flex: 0 0 8rem; }
+.classe-row .grow { flex: 1; }
 
 .lbl {
   font-size: .8rem;

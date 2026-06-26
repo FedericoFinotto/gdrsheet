@@ -161,6 +161,13 @@ const avanzamentiClasse = computed<AvEntry[]>(() => {
       .filter(e => e.livello != null) as AvEntry[]
 })
 const livelliDisponibili = computed<number[]>(() => {
+  // numero di livelli effettivi della classe (label LIVELLI_CLASSE)
+  const raw = (classeDetail.value?.labels ?? []).find((l: any) => l.label === 'LIVELLI_CLASSE')?.valore
+  const n = Number(raw)
+  if (Number.isFinite(n) && n > 0) {
+    return Array.from({length: n}, (_, i) => i + 1)
+  }
+  // fallback: ricava dai livelli degli avanzamenti presenti
   const s = new Set<number>()
   avanzamentiClasse.value.forEach(e => s.add(e.livello))
   return Array.from(s).sort((a, b) => a - b)

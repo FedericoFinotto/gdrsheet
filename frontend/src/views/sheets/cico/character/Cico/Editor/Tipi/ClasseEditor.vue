@@ -277,6 +277,7 @@ async function onSave() {
   try {
     const payload = {
       id: props.mode === 'create' ? null : props.item.id,
+      tipo: props.mode === 'create' ? props.item.tipo : undefined,
       nome: form.nome.trim(),
       enName: form.enName.trim() || null,
       manuale: form.manuale.trim() || null,
@@ -389,7 +390,7 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
 <template>
   <form class="classe-editor" @submit.prevent="onSave">
     <header class="ce-head">
-      <h2>Classe</h2>
+      <h2>{{ props.item.tipo === 'RAZZA' ? 'Razza' : 'Classe' }}</h2>
       <span class="muted">{{ props.mode === 'create' ? 'nuova' : `ID #${props.item.id}` }}</span>
     </header>
 

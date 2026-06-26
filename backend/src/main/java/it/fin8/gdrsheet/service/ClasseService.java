@@ -47,11 +47,12 @@ public class ClasseService {
     public ClasseDetailDTO getClasse(Integer id) {
         Item classe = itemRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Classe non trovata"));
-        if (!TipoItem.CLASSE.equals(classe.getTipo()))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'item non è una classe");
+        if (!TipoItem.CLASSE.equals(classe.getTipo()) && !TipoItem.RAZZA.equals(classe.getTipo()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'item non è una classe o razza");
 
         ClasseDetailDTO dto = new ClasseDetailDTO();
         dto.setId(classe.getId());
+        dto.setTipo(classe.getTipo().name());
         dto.setNome(classe.getNome());
         dto.setEnName(classe.getLabel(Constants.ITEM_LABEL_EN_NAME));
         dto.setManuale(classe.getLabel(Constants.ITEM_LABEL_MANUALE));
@@ -156,11 +157,12 @@ public class ClasseService {
         if (dto.getId() != null) {
             classe = itemRepository.findById(dto.getId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Classe non trovata"));
-            if (!TipoItem.CLASSE.equals(classe.getTipo()))
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'item non è una classe");
+            if (!TipoItem.CLASSE.equals(classe.getTipo()) && !TipoItem.RAZZA.equals(classe.getTipo()))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'item non è una classe o razza");
         } else {
             classe = new Item();
-            classe.setTipo(TipoItem.CLASSE);
+            // tipo CLASSE o RAZZA (gestiti con lo stesso editor); default CLASSE
+            classe.setTipo(TipoItem.RAZZA.name().equalsIgnoreCase(dto.getTipo()) ? TipoItem.RAZZA : TipoItem.CLASSE);
             classe.setLabels(new ArrayList<>());
             // mondo/sistema solo alla creazione
             if (dto.getIdMondo() != null) classe.setMondo(em.find(it.fin8.gdrsheet.entity.Mondo.class, dto.getIdMondo()));

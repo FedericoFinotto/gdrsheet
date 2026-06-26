@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 
-type Opt = { value: string | number | null; label: string; disabled?: boolean }
+type Opt = { value: string | number | null; label: string; disabled?: boolean; hint?: string }
 
 const props = withDefaults(defineProps<{
   modelValue: string | number | null | undefined
@@ -32,10 +32,8 @@ const opzioni = computed<Opt[]>(() => {
   return arr
 })
 
-const selectedLabel = computed(() => {
-  const found = opzioni.value.find(o => o.value === props.modelValue)
-  return found ? found.label : ''
-})
+const selected = computed(() => opzioni.value.find(o => o.value === props.modelValue) ?? null)
+const selectedLabel = computed(() => selected.value?.label ?? '')
 
 const open = ref(false)
 const query = ref('')
@@ -77,6 +75,7 @@ watch(() => props.disabled, d => { if (d) open.value = false })
   <div class="search-select" ref="root" :class="{ disabled }">
     <button type="button" class="ss-control" :disabled="disabled" @click="toggle">
       <span class="ss-value" :class="{ placeholder: !selectedLabel }">{{ selectedLabel || placeholder }}</span>
+      <span v-if="selected?.hint" class="ss-hint">{{ selected.hint }}</span>
       <span class="ss-caret" :class="{ open }">▾</span>
     </button>
 
@@ -98,7 +97,7 @@ watch(() => props.disabled, d => { if (d) open.value = false })
             class="ss-item"
             :class="{ selected: o.value === modelValue, disabled: o.disabled }"
             @click="scegli(o)"
-        >{{ o.label }}</li>
+        ><span class="ss-item-label">{{ o.label }}</span><span v-if="o.hint" class="ss-hint">{{ o.hint }}</span></li>
       </ul>
     </div>
   </div>
@@ -113,7 +112,7 @@ watch(() => props.disabled, d => { if (d) open.value = false })
   cursor: pointer; text-align: left; font: inherit; color: inherit;
 }
 .ss-control:disabled { opacity: .6; cursor: default; }
-.ss-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-value { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ss-value.placeholder { opacity: .55; }
 .ss-caret { opacity: .6; transition: transform .15s; flex-shrink: 0; }
 .ss-caret.open { transform: rotate(180deg); }
@@ -128,7 +127,12 @@ watch(() => props.disabled, d => { if (d) open.value = false })
   border: 0; border-bottom: 1px solid #eef2f7; outline: none; font: inherit;
 }
 .ss-list { list-style: none; margin: 0; padding: 0; max-height: 16rem; overflow-y: auto; }
-.ss-item { padding: .45rem .6rem; cursor: pointer; font-size: .9rem; }
+.ss-item { padding: .45rem .6rem; cursor: pointer; font-size: .9rem; display: flex; align-items: center; gap: .4rem; }
+.ss-item-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-hint {
+  flex: 0 0 auto; font-size: .65rem; font-weight: 700; text-transform: uppercase;
+  background: #eef2ff; color: #3730a3; border-radius: .35rem; padding: .05rem .35rem;
+}
 .ss-item:hover { background: #f3f4f6; }
 .ss-item.selected { background: #eef2ff; color: #3730a3; font-weight: 600; }
 .ss-item.disabled { opacity: .5; cursor: default; }

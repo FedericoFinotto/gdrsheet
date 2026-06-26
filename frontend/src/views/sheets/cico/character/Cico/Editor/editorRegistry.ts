@@ -16,7 +16,6 @@ import MunizioneEditor from './Tipi/MunizioneEditor.vue'
 import EquipaggiamentoEditor from './Tipi/EquipaggiamentoEditor.vue'
 import PersonaggioEditor from './Tipi/PersonaggioEditor.vue'
 import ClasseEditor from './Tipi/ClasseEditor.vue'
-import RazzaEditor from './Tipi/RazzaEditor.vue'
 import AttaccoEditor from './Tipi/AttaccoEditor.vue'
 import AltroEditor from './Tipi/AltroEditor.vue'
 import MaledizioneEditor from './Tipi/MaledizioneEditor.vue'
@@ -39,7 +38,7 @@ export const EDITOR_BY_TYPE: Record<TipoItem, Component> = {
     [TIPO_ITEM.EQUIPAGGIAMENTO]: EquipaggiamentoEditor,
     [TIPO_ITEM.PERSONAGGIO]: PersonaggioEditor,
     [TIPO_ITEM.CLASSE]: ClasseEditor,
-    [TIPO_ITEM.RAZZA]: RazzaEditor,
+    [TIPO_ITEM.RAZZA]: ClasseEditor,
     [TIPO_ITEM.ATTACCO]: AttaccoEditor,
     [TIPO_ITEM.ALTRO]: AltroEditor,
     [TIPO_ITEM.LIVELLO]: LivelloEditor,

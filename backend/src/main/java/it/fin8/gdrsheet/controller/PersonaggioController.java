@@ -218,15 +218,17 @@ public class PersonaggioController {
     }
 
     @Operation(
-            summary = "Restituisce le classi associabili a un personaggio",
-            description = "Restituisce le classi associabili a un personaggio"
+            summary = "Restituisce le classi e razze associabili a un personaggio",
+            description = "Restituisce le classi e razze associabili a un personaggio (gestite con lo stesso editor)"
     )
     @GetMapping("/classi-associabili/{id}")
     public ResponseEntity<List<ItemDTO>> getClassiAssociabiliPersonaggio(
             @Parameter(description = "ID Personaggio", required = true)
             @PathVariable Integer id
     ) {
-        List<ItemDTO> result = personaggioService.getItemAssociabili(id, TipoItem.CLASSE).stream().map(itemMapper::toDTO).toList();
+        List<ItemDTO> result = new ArrayList<>();
+        result.addAll(personaggioService.getItemAssociabili(id, TipoItem.CLASSE).stream().map(itemMapper::toDTO).toList());
+        result.addAll(personaggioService.getItemAssociabili(id, TipoItem.RAZZA).stream().map(itemMapper::toDTO).toList());
 
         return ResponseEntity.ok(result);
     }

@@ -21,6 +21,7 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ClasseDetailDTO {
     private Integer id;            // null in creazione
+    private String tipo;           // CLASSE | RAZZA (gestiti con lo stesso editor)
     private String nome;
     private String enName;         // nome originale in inglese (label EN_NAME)
     private String manuale;        // manuale di provenienza (label MANUALE_SP)
