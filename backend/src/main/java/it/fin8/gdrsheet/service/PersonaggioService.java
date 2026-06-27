@@ -1006,9 +1006,14 @@ public class PersonaggioService {
             StatValue sv = new StatValue();
             sv.setPersonaggio(personaggio);
             sv.setStat(stat);
-            sv.setValore(def.getValoreDefault() != null && !def.getValoreDefault().isBlank()
-                    ? def.getValoreDefault().trim()
-                    : "0");
+            String vd = def.getValoreDefault();
+            boolean isFormula = vd != null && !vd.isBlank() && (vd.contains("@") || vd.contains("$"));
+            if (isFormula) {
+                sv.setValore("0");
+                sv.setFormula(vd.trim());
+            } else {
+                sv.setValore(vd != null && !vd.isBlank() ? vd.trim() : "0");
+            }
             sv.setMod(def.getDefaultMod());
             sv.setClasse(false);
             sv.setAddestramento(Boolean.TRUE.equals(def.getAddestramento()));
