@@ -24,7 +24,7 @@ public class ModificatoreDTO {
 
     private TipoModificatore tipo;
 
-    private Boolean permanente;
+    private Boolean sempreAttivo;
 
     private String item;
 

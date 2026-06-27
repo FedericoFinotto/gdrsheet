@@ -35,7 +35,7 @@ public class ModificatoreMapper {
         } catch (Exception e) {
         }
         dto.setNota(entity.getNota());
-        dto.setPermanente(entity.getSempreAttivo());
+        dto.setSempreAttivo(entity.getSempreAttivo());
         dto.setItem(entity.getItem().getNome());
         dto.setItemId(entity.getItem().getId());
         if (TipoItem.LIVELLO.equals(entity.getItem().getTipo())) {

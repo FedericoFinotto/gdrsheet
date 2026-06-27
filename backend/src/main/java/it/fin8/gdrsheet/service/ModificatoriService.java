@@ -75,11 +75,11 @@ public class ModificatoriService {
         int valorePermanente = Optional.of(modificatoriAttivi)
                 .orElse(Collections.emptyList())
                 .stream()
-                .filter(x -> x.getNota() == null && Boolean.TRUE.equals(x.getPermanente()))
+                .filter(x -> x.getNota() == null && Boolean.TRUE.equals(x.getSempreAttivo()))
                 .mapToInt(ModificatoreDTO::getValore)
                 .sum();
 
-        if (modificatoriAttivi.stream().filter(x -> x.getNota() == null && Boolean.TRUE.equals(x.getPermanente())).noneMatch(x -> x.getTipo().equals(TipoModificatore.BASE))) {
+        if (modificatoriAttivi.stream().filter(x -> x.getNota() == null && Boolean.TRUE.equals(x.getSempreAttivo())).noneMatch(x -> x.getTipo().equals(TipoModificatore.BASE))) {
             valorePermanente += valoreBase;
         }
 
@@ -362,7 +362,10 @@ public class ModificatoriService {
         if (!stat.getValore().equals("0")) {
             modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
         }
-        modificatoriAttivi.addAll(new ArrayList<>(modsDto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList()));
+        // modificatori senza nota → sempre attivi (contribuiscono al totale)
+        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList());
+        // modificatori con nota → situazionali (mostrati ma non sommati al totale)
+        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getNota() != null && x.getTipo() == TipoModificatore.VALORE).toList());
 
         if (stat.getMod() != null) {
             ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
