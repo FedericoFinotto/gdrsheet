@@ -159,6 +159,14 @@ public class ItemService {
         // --- aggiorna campi base ---
         if (request.getNome() != null) itm.setNome(request.getNome());
         if (request.getDescrizione() != null) itm.setDescrizione(request.getDescrizione());
+        if (request.getIdMondo() != null) {
+            Mondo mondo = em.find(Mondo.class, request.getIdMondo());
+            if (mondo != null) itm.setMondo(mondo);
+        }
+        if (request.getIdSistema() != null) {
+            Sistema sistema = em.find(Sistema.class, request.getIdSistema());
+            if (sistema != null) itm.setSistema(sistema);
+        }
 
         // --- SVUOTA labels IN PLACE (no setLabels(...)) ---
         if (itm.getLabels() != null) {
@@ -494,6 +502,16 @@ public class ItemService {
 
         if (request.getNome() != null && !request.getNome().trim().isEmpty()) itm.setNome(request.getNome().trim());
         if (request.getDescrizione() != null) itm.setDescrizione(request.getDescrizione());
+
+        // mondo/sistema aggiornabili anche in modifica
+        if (request.getIdMondo() != null) {
+            Mondo mondo = em.find(Mondo.class, request.getIdMondo());
+            if (mondo != null) itm.setMondo(mondo);
+        }
+        if (request.getIdSistema() != null) {
+            Sistema sistema = em.find(Sistema.class, request.getIdSistema());
+            if (sistema != null) itm.setSistema(sistema);
+        }
 
         // labels: stato completo -> svuota in place e ricrea (orphanRemoval)
         if (request.getLabels() != null) {

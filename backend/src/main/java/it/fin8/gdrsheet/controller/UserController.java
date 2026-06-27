@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import it.fin8.gdrsheet.dto.ChangePasswordRequest;
 import it.fin8.gdrsheet.dto.CreateUserRequest;
 import it.fin8.gdrsheet.dto.LoginResponse;
+import it.fin8.gdrsheet.dto.UpdateProfileRequest;
 import it.fin8.gdrsheet.dto.UtenteAdminDTO;
 import it.fin8.gdrsheet.entity.Utente;
 import it.fin8.gdrsheet.service.AuthService;
@@ -27,6 +28,13 @@ public class UserController {
     public UserController(AuthService authService, AuthzService authzService) {
         this.authService = authService;
         this.authzService = authzService;
+    }
+
+    @Operation(summary = "Aggiorna profilo dell'utente loggato (username, name)")
+    @PutMapping("/me")
+    public ResponseEntity<LoginResponse.UtenteDTO> updateProfile(@RequestBody UpdateProfileRequest req,
+                                                                 @AuthenticationPrincipal Utente utente) {
+        return ResponseEntity.ok(authService.updateProfile(utente, req.getUsername(), req.getName()));
     }
 
     @Operation(summary = "Cambia/imposta la password dell'utente loggato")

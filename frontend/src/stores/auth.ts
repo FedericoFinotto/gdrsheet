@@ -39,6 +39,11 @@ export const useAuthStore = defineStore('auth', () => {
         return applySession(res.data)
     }
 
+    function setUtente(u: UtenteAuth) {
+        utente.value = u
+        localStorage.setItem(UTENTE_KEY, JSON.stringify(u))
+    }
+
     function setPasswordDone() {
         mustSetPassword.value = false
         localStorage.setItem(MUST_SET_KEY, '0')
@@ -53,5 +58,5 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.removeItem(MUST_SET_KEY)
     }
 
-    return {token, utente, mustSetPassword, isAuthenticated, login, applySession, setPasswordDone, logout}
+    return {token, utente, mustSetPassword, isAuthenticated, login, applySession, setPasswordDone, setUtente, logout}
 })

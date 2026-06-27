@@ -13,6 +13,7 @@ import Mobile_Cico_0_CharacterSheet from "../views/sheets/cico/character/Cico/Sh
 import ItemEditor from "../views/sheets/cico/character/Cico/Editor/ItemEditor.vue";
 import ItemCreate from "../views/sheets/cico/character/Cico/Editor/ItemCreate.vue";
 import GestisciGradi from "../views/sheets/cico/character/Cico/Editor/GestisciGradi.vue";
+import Account from "@/views/Account.vue";
 
 const routes = [
   {path: '/', component: Home},
@@ -25,6 +26,7 @@ const routes = [
   {path: '/users', name: 'Users', component: Users},
   {path: '/stats-admin', name: 'StatsAdmin', component: StatsAdmin},
   {path: '/set-password', name: 'SetPassword', component: SetPassword},
+  {path: '/account', name: 'Account', component: Account},
   {
     path: '/scheda/:id',
     name: 'Scheda',

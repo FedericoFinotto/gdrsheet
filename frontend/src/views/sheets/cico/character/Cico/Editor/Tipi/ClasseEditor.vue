@@ -9,12 +9,14 @@ import {getStats, searchItems} from '../../../../../../../service/PersonaggioSer
 import HtmlEditor from '../../../../../../../components/HtmlEditor.vue'
 import {SPELL_LIST_CODES, spellListLabel} from '../../../../../../../function/spellLists'
 import SearchSelect from '../../../../../../../components/SearchSelect.vue'
+import {useMondoSistema} from '../../../../../../../function/useMondoSistema'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
 
 const router = useRouter()
 const route = useRoute()
+const {mondoOptions, sistemaOptions, autoMondo, autoSistema} = useMondoSistema()
 
 function editConcessa(itemId: number) {
   const idPg = route.query.personaggio
@@ -42,8 +44,8 @@ const form = reactive({
   nome: '',
   enName: '',
   manuale: '',
-  idMondo: 1,
-  idSistema: 1,
+  idMondo: null as number | null,
+  idSistema: null as number | null,
   descrizione: '',
   abilitaClasse: [] as string[],
   spellList: '',
@@ -59,6 +61,12 @@ const form = reactive({
   })) as LivelloClasse[],
   abilitaConcesse: [] as AbilitaConcessa[],
 })
+
+watch([autoMondo, autoSistema], ([m, s]) => {
+  if (props.mode !== 'create') return
+  if (m !== null && form.idMondo === null) form.idMondo = m
+  if (s !== null && form.idSistema === null) form.idSistema = s
+}, {immediate: true})
 
 const loading = ref(props.mode !== 'create')
 const busy = ref(false)
@@ -90,6 +98,8 @@ onMounted(async () => {
     form.nome = d.nome ?? ''
     form.enName = d.enName ?? ''
     form.manuale = d.manuale ?? ''
+    form.idMondo = d.idMondo ?? null
+    form.idSistema = d.idSistema ?? null
     form.descrizione = d.descrizione ?? ''
     const tokensAb: string[] = d.abilitaClasse ?? []
     form.abilitaClasse = tokensAb.map(t => t.replace('!', '').trim()).filter(Boolean)
@@ -281,8 +291,8 @@ async function onSave() {
       nome: form.nome.trim(),
       enName: form.enName.trim() || null,
       manuale: form.manuale.trim() || null,
-      idMondo: props.mode === 'create' ? (Number(form.idMondo) || null) : null,
-      idSistema: props.mode === 'create' ? (Number(form.idSistema) || null) : null,
+      idMondo: form.idMondo ?? null,
+      idSistema: form.idSistema ?? null,
       descrizione: form.descrizione || null,
       abilitaClasse: form.abilitaClasse.map(id => abPersonaggio.value.has(id) ? `${id}!` : id),
       spellList: null,
@@ -413,14 +423,14 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
         </label>
       </div>
 
-      <div v-if="props.mode === 'create'" class="rank-grid">
+      <div class="rank-grid">
         <label class="field">
-          <span class="lbl">Mondo (id)</span>
-          <input v-model.number="form.idMondo" type="number" min="1" step="1" :disabled="disabledAll"/>
+          <span class="lbl">Mondo</span>
+          <SearchSelect v-model="form.idMondo" :options="mondoOptions" placeholder="— nessuno —" :disabled="disabledAll" :sort="false"/>
         </label>
         <label class="field">
-          <span class="lbl">Sistema (id)</span>
-          <input v-model.number="form.idSistema" type="number" min="1" step="1" :disabled="disabledAll"/>
+          <span class="lbl">Sistema</span>
+          <SearchSelect v-model="form.idSistema" :options="sistemaOptions" placeholder="— nessuno —" :disabled="disabledAll" :sort="false"/>
         </label>
       </div>
 

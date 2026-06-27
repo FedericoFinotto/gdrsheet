@@ -21,6 +21,10 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UpdateSpellRequest {
 
+    /** Mondo e sistema dell'incantesimo (aggiornabili). */
+    private Integer idMondo;
+    private Integer idSistema;
+
     /**
      * Nome incantesimo (IT)
      */

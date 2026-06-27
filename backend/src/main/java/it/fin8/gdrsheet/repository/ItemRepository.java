@@ -62,11 +62,46 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             WHERE i.personaggio IS NULL
               AND (:tipo IS NULL OR i.tipo = :tipo)
               AND (:nome = '' OR lower(i.nome) LIKE lower(concat('%', :nome, '%')))
+              AND (:idMondo IS NULL OR (i.mondo IS NOT NULL AND i.mondo.id = :idMondo))
             ORDER BY i.nome
             """)
     org.springframework.data.domain.Page<Item> findCompendioAll(
             @Param("nome") String nome,
             @Param("tipo") TipoItem tipo,
+            @Param("idMondo") Integer idMondo,
+            org.springframework.data.domain.Pageable pageable
+    );
+
+    /** Compendio con visibilità per mondo/sistema dell'utente. */
+    @Query("""
+            SELECT i FROM Item i
+            WHERE i.personaggio IS NULL
+              AND (:tipo IS NULL OR i.tipo = :tipo)
+              AND (:nome = '' OR lower(i.nome) LIKE lower(concat('%', :nome, '%')))
+              AND (:idMondo IS NULL OR (i.mondo IS NOT NULL AND i.mondo.id = :idMondo))
+              AND (
+                i.tipo IN (it.fin8.gdrsheet.def.TipoItem.INCANTESIMO,
+                           it.fin8.gdrsheet.def.TipoItem.CLASSE,
+                           it.fin8.gdrsheet.def.TipoItem.RAZZA,
+                           it.fin8.gdrsheet.def.TipoItem.LINGUA,
+                           it.fin8.gdrsheet.def.TipoItem.COMP)
+                OR EXISTS (SELECT 1 FROM ItemLabel il
+                           WHERE il.item = i AND il.label = 'COMPENDIO'
+                             AND lower(il.valore) IN ('true', '1'))
+              )
+              AND (
+                (i.mondo IS NOT NULL AND i.mondo.id IN :mondoIds)
+                OR (i.mondo IS NULL AND i.sistema IS NOT NULL AND i.sistema.id IN :sistemaIds)
+                OR (i.mondo IS NULL AND i.sistema IS NULL)
+              )
+            ORDER BY i.nome
+            """)
+    org.springframework.data.domain.Page<Item> findCompendioForUser(
+            @Param("nome") String nome,
+            @Param("tipo") TipoItem tipo,
+            @Param("idMondo") Integer idMondo,
+            @Param("mondoIds") List<Integer> mondoIds,
+            @Param("sistemaIds") List<Integer> sistemaIds,
             org.springframework.data.domain.Pageable pageable
     );
 

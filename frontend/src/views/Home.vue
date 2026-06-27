@@ -51,11 +51,6 @@ const canCreateParty = computed(() => {
   const r = (auth.utente?.ruolo ?? '').toUpperCase()
   return r === 'MASTER' || r === 'ADMIN'
 })
-// master/admin possono gestire gli utenti
-const canManageUsers = computed(() => {
-  const r = (auth.utente?.ruolo ?? '').toUpperCase()
-  return r === 'MASTER' || r === 'ADMIN' || r === 'SUPERUSER'
-})
 
 const personaggiProprietario = computed(() =>
     home.value?.personaggi.filter(p => p.permesso === 'PROPRIETARIO') ?? [])
@@ -75,36 +70,21 @@ onMounted(async () => {
 })
 
 function apriScheda(p: {id: number; tipoPersonaggio?: string | null}) {
-  // le banche hanno una vista dedicata (solo conti correnti)
   if (p.tipoPersonaggio === 'BANCA') {
     router.push(`/banca/${p.id}`)
     return
   }
-  // le navi si aprono direttamente sull'inventario (tab 2)
   const tab = p.tipoPersonaggio === 'NAVE' ? '?tab=2' : ''
   router.push(`/scheda/${p.id}${tab}`)
-}
-
-function onLogout() {
-  auth.logout()
-  router.replace('/login')
 }
 </script>
 
 <template>
   <div class="home">
-    <header class="head">
-      <div class="user">
-        <h1>{{ home?.utente?.name ?? auth.utente?.name ?? '' }}</h1>
-        <span class="muted">@{{ home?.utente?.username ?? auth.utente?.username ?? '' }}</span>
-      </div>
-      <div class="head-actions">
-        <button v-if="canManageUsers" class="btn ghost" @click="router.push('/users')">Utenti</button>
-        <button v-if="canManageUsers" class="btn ghost" @click="router.push('/stats-admin')">Statistiche</button>
-        <button class="btn ghost" @click="router.push('/set-password')">Password</button>
-        <button class="btn ghost" @click="onLogout">Esci</button>
-      </div>
-    </header>
+    <div class="user">
+      <h1>{{ home?.utente?.name ?? auth.utente?.name ?? '' }}</h1>
+      <span class="muted">@{{ home?.utente?.username ?? auth.utente?.username ?? '' }}</span>
+    </div>
 
     <div v-if="loading" class="state">Caricamento…</div>
     <div v-else-if="errorMsg" class="state error">{{ errorMsg }}</div>
@@ -185,7 +165,6 @@ function onLogout() {
   display: grid;
   gap: 1rem;
   align-content: start;
-  /* il layout globale ha overflow:hidden, lo scroll va gestito qui */
   height: 100%;
   min-height: 0;
   overflow-y: auto;
@@ -193,14 +172,6 @@ function onLogout() {
   overscroll-behavior-y: contain;
 }
 
-.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: .75rem;
-}
-
-.head-actions { display: inline-flex; gap: .4rem; flex-wrap: wrap; justify-content: flex-end; }
 .user { display: grid; }
 .user h1 { margin: 0; font-size: 1.25rem; }
 .muted { opacity: .65; font-size: .85rem; }
@@ -282,7 +253,7 @@ function onLogout() {
   border-radius: .6rem;
   background: #fff;
 }
-.crea-form input, .crea-form select {
+.crea-form input {
   padding: .45rem .6rem;
   border: 1px solid #d0d5dd;
   border-radius: .5rem;

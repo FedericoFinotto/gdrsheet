@@ -177,7 +177,7 @@ export function searchItems(q: string, tipo?: string): Promise<AxiosResponse<Ite
 }
 
 export function getCompendio(
-    params: { nome?: string; tipo?: string; page?: number; size?: number } = {}
+    params: { nome?: string; tipo?: string; idMondo?: number | null; page?: number; size?: number } = {}
 ): Promise<AxiosResponse<Page<Item>>> {
     return api.get<Page<Item>>('/item/compendio', {params});
 }

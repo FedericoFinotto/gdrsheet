@@ -18,6 +18,10 @@ export function createUser(username: string, name: string, ruolo: string): Promi
     return api.post<UtenteAdmin>('/users', {username, name, ruolo})
 }
 
+export function updateMe(username: string, name: string): Promise<AxiosResponse<LoginResponse['utente']>> {
+    return api.put('/users/me', {username, name})
+}
+
 export function impersonate(id: number): Promise<AxiosResponse<LoginResponse>> {
     return api.post<LoginResponse>(`/users/${id}/impersonate`, {})
 }

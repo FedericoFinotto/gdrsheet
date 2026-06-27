@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {onMounted, ref, watch} from 'vue'
+import {computed, onMounted, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {getCompendio} from '../service/PersonaggioService'
 import SearchSelect from '../components/SearchSelect.vue'
@@ -7,8 +7,10 @@ import {Page} from '../models/dto/Party'
 import {Item} from '../models/dto/Item'
 import {TIPO_ITEM_LABELS} from './sheets/cico/character/Cico/Editor/editorRegistry'
 import Mobile_DettaglioItem from './sheets/cico/character/Dettaglio/Mobile_DettaglioItem.vue'
+import {useMondoSistema} from '../function/useMondoSistema'
 
 const router = useRouter()
+const {meiMondi, meiMondiOptions} = useMondoSistema()
 
 const pagina = ref<Page<Item> | null>(null)
 const loading = ref(true)
@@ -16,8 +18,11 @@ const errorMsg = ref<string | null>(null)
 
 const filtroNome = ref('')
 const filtroTipo = ref('')
+const filtroMondo = ref<number | null>(null)
 const page = ref(0)
 const PAGE_SIZE = 10
+
+const haMultiMondi = computed(() => meiMondi.value.length > 1)
 
 const TIPI_FILTRO = [
   {value: '', label: 'Tutti i tipi'},
@@ -33,6 +38,7 @@ async function load() {
     const res = await getCompendio({
       nome: filtroNome.value.trim() || undefined,
       tipo: filtroTipo.value || undefined,
+      idMondo: filtroMondo.value ?? undefined,
       page: page.value,
       size: PAGE_SIZE,
     })
@@ -47,7 +53,7 @@ async function load() {
 }
 
 let filtroTimer: any = null
-watch([filtroNome, filtroTipo], () => {
+watch([filtroNome, filtroTipo, filtroMondo], () => {
   if (filtroTimer) clearTimeout(filtroTimer)
   filtroTimer = setTimeout(() => {
     page.value = 0
@@ -96,6 +102,9 @@ onMounted(load)
           class="filter-nome"
       />
       <SearchSelect v-model="filtroTipo" class="filter-tipo" :options="TIPI_FILTRO" :sort="false"/>
+    </div>
+    <div v-if="haMultiMondi" class="filters">
+      <SearchSelect v-model="filtroMondo" :options="meiMondiOptions" :sort="false" class="filter-nome"/>
     </div>
 
     <!-- paginator -->

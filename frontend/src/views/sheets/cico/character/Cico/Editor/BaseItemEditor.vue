@@ -13,6 +13,7 @@ import {
 import {createItem, updateItem} from '../../../../../../service/PersonaggioService'
 import {getItemLabel} from '../../../../../../models/entity/ItemLabel'
 import useChildCreate from '../../../../../../function/useChildCreate'
+import {useMondoSistema} from '../../../../../../function/useMondoSistema'
 import HtmlEditor from '../../../../../../components/HtmlEditor.vue'
 import SearchSelect from '../../../../../../components/SearchSelect.vue'
 import LabelsEditor from './Sections/LabelsEditor.vue'
@@ -72,8 +73,8 @@ const form = reactive<{
   qta: 1,
   compendio: false,
   visibilita: '',
-  idMondo: 1,
-  idSistema: 1,
+  idMondo: null as number | null,
+  idSistema: null as number | null,
 })
 
 const open = reactive({labels: false, modificatori: false, attacchi: false, children: false, forme: false})
@@ -88,6 +89,8 @@ function preload() {
   form.qta = 1
   form.enName = ''
   form.manuale = ''
+  form.idMondo = props.item.mondo?.id ?? null
+  form.idSistema = props.item.sistema?.id ?? null
   // creando dalla pagina del compendio (?compendio=1) il flag è attivo di default
   form.compendio = props.mode === 'create' && route.query.compendio === '1'
   form.visibilita = ''
@@ -146,6 +149,14 @@ function preload() {
 const router = useRouter()
 const route = useRoute()
 const childCreate = useChildCreate()
+const {mondoOptions, sistemaOptions, autoMondo, autoSistema} = useMondoSistema()
+
+// In creazione, auto-seleziona se l'utente ha accesso a un solo mondo/sistema
+watch([autoMondo, autoSistema], ([m, s]) => {
+  if (props.mode !== 'create') return
+  if (m !== null && form.idMondo === null) form.idMondo = m
+  if (s !== null && form.idSistema === null) form.idSistema = s
+}, {immediate: true})
 
 // editor figlio aperto dal flusso "crea e collega": ha ?link=1 nell'URL
 const isLinkCreate = computed(() => props.mode === 'create' && !!route.query.link)
@@ -169,8 +180,8 @@ function restoreSnapshot(snap: any) {
   form.qta = snap.qta ?? 1
   form.compendio = !!snap.compendio
   form.visibilita = snap.visibilita ?? ''
-  form.idMondo = snap.idMondo ?? 1
-  form.idSistema = snap.idSistema ?? 1
+  form.idMondo = snap.idMondo ?? null
+  form.idSistema = snap.idSistema ?? null
 }
 
 // Al mount: se sto tornando da una creazione di figlio (draft pendente e NON sono io
@@ -246,8 +257,8 @@ function buildPayload(): UpdateItemRequest {
     descrizione: form.descrizione,
     tipo: props.mode === 'create' ? props.item.tipo : undefined,
     idPersonaggio: props.mode === 'create' ? props.idPersonaggio : undefined,
-    idMondo: props.mode === 'create' ? (Number(form.idMondo) || undefined) : undefined,
-    idSistema: props.mode === 'create' ? (Number(form.idSistema) || undefined) : undefined,
+    idMondo: form.idMondo ?? undefined,
+    idSistema: form.idSistema ?? undefined,
     // creazione "al volo" di un figlio: tieni mondo/sistema ma non agganciare al FromCompendio
     skipFromCompendio: isLinkCreate.value ? true : undefined,
     labels,
@@ -372,15 +383,15 @@ function onCancel() {
     <!-- slot per estensioni specifiche del tipo -->
     <slot name="specifico" :disabled="disabledAll"/>
 
-    <!-- mondo / sistema (solo in creazione) -->
-    <div v-if="mode === 'create'" class="row two">
+    <!-- mondo / sistema -->
+    <div class="row two">
       <label class="field">
-        <span class="lbl">Mondo (id)</span>
-        <input v-model.number="form.idMondo" type="number" min="1" step="1" :disabled="disabledAll"/>
+        <span class="lbl">Mondo</span>
+        <SearchSelect v-model="form.idMondo" :options="mondoOptions" placeholder="— nessuno —" :disabled="disabledAll" :sort="false"/>
       </label>
       <label class="field">
-        <span class="lbl">Sistema (id)</span>
-        <input v-model.number="form.idSistema" type="number" min="1" step="1" :disabled="disabledAll"/>
+        <span class="lbl">Sistema</span>
+        <SearchSelect v-model="form.idSistema" :options="sistemaOptions" placeholder="— nessuno —" :disabled="disabledAll" :sort="false"/>
       </label>
     </div>
 

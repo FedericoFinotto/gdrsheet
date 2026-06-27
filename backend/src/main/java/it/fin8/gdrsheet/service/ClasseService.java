@@ -70,6 +70,8 @@ public class ClasseService {
         int numLivelli = parseNumLivelli(classe.getLabel(Constants.ITEM_LABEL_NUM_LIVELLI_CLASSE));
         dto.setNumLivelli(numLivelli);
         dto.setDv(classe.getLabel(Constants.ITEM_LABEL_DADI_VITA));
+        dto.setIdMondo(classe.getMondo() != null ? classe.getMondo().getId() : null);
+        dto.setIdSistema(classe.getSistema() != null ? classe.getSistema().getId() : null);
 
         List<Avanzamento> avanzamenti = avanzamentoRepository.findAllByItemSource_Id(id);
 
@@ -164,9 +166,15 @@ public class ClasseService {
             // tipo CLASSE o RAZZA (gestiti con lo stesso editor); default CLASSE
             classe.setTipo(TipoItem.RAZZA.name().equalsIgnoreCase(dto.getTipo()) ? TipoItem.RAZZA : TipoItem.CLASSE);
             classe.setLabels(new ArrayList<>());
-            // mondo/sistema solo alla creazione
-            if (dto.getIdMondo() != null) classe.setMondo(em.find(it.fin8.gdrsheet.entity.Mondo.class, dto.getIdMondo()));
-            if (dto.getIdSistema() != null) classe.setSistema(em.find(it.fin8.gdrsheet.entity.Sistema.class, dto.getIdSistema()));
+        }
+        // mondo/sistema aggiornabili sia in creazione sia in modifica
+        if (dto.getIdMondo() != null) {
+            it.fin8.gdrsheet.entity.Mondo m = em.find(it.fin8.gdrsheet.entity.Mondo.class, dto.getIdMondo());
+            if (m != null) classe.setMondo(m);
+        }
+        if (dto.getIdSistema() != null) {
+            it.fin8.gdrsheet.entity.Sistema s = em.find(it.fin8.gdrsheet.entity.Sistema.class, dto.getIdSistema());
+            if (s != null) classe.setSistema(s);
         }
         classe.setNome(nome);
         classe.setDescrizione(dto.getDescrizione());

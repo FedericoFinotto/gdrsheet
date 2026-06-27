@@ -75,7 +75,7 @@ public class StatController {
     public ResponseEntity<List<MondoDTO>> getMondi(@AuthenticationPrincipal Utente utente) {
         assertMasterOrAdmin(utente);
         List<MondoDTO> result = mondoRepository.findAll().stream()
-                .map(m -> new MondoDTO(m.getId(), m.getDescrizione()))
+                .map(m -> new MondoDTO(m.getId(), m.getDescrizione(), null, null))
                 .toList();
         return ResponseEntity.ok(result);
     }

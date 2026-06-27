@@ -3,6 +3,8 @@ import {ClassLevel} from "./ClassLevel";
 export interface UpdateSpellRequest {
     nome?: string; // @Size(max = 100)
     descrizione?: string;
+    idMondo?: number | null;
+    idSistema?: number | null;
     tempo?: string;
     range?: string;
     durata?: string;

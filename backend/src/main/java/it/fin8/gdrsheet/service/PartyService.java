@@ -251,20 +251,24 @@ public class PartyService {
     public List<MondoDTO> getMieiMondi(Utente utente) {
         if (authzService.isAdmin(utente)) {
             return mondoRepository.findAll().stream()
-                    .map(m -> new MondoDTO(m.getId(), m.getDescrizione()))
-                    .sorted((a, b) -> String.valueOf(a.getNome()).compareToIgnoreCase(String.valueOf(b.getNome())))
+                    .map(m -> new MondoDTO(m.getId(), m.getDescrizione(),
+                            m.getSistema() != null ? m.getSistema().getId() : null,
+                            m.getSistema() != null ? m.getSistema().getDescrizione() : null))
+                    .sorted((a, b) -> a.descrizione().compareToIgnoreCase(b.descrizione()))
                     .toList();
         }
-        Map<Integer, String> mondi = new LinkedHashMap<>();
+        Map<Integer, MondoDTO> mondi = new LinkedHashMap<>();
         for (PermessiParty pp : permessiPartyRepository.findAllByIdUtente_Id(utente.getId())) {
             Party party = pp.getIdParty();
             if (party != null && party.getMondo() != null) {
-                mondi.putIfAbsent(party.getMondo().getId(), party.getMondo().getDescrizione());
+                Mondo m = party.getMondo();
+                mondi.putIfAbsent(m.getId(), new MondoDTO(m.getId(), m.getDescrizione(),
+                        m.getSistema() != null ? m.getSistema().getId() : null,
+                        m.getSistema() != null ? m.getSistema().getDescrizione() : null));
             }
         }
-        return mondi.entrySet().stream()
-                .map(e -> new MondoDTO(e.getKey(), e.getValue()))
-                .sorted((a, b) -> String.valueOf(a.getNome()).compareToIgnoreCase(String.valueOf(b.getNome())))
+        return mondi.values().stream()
+                .sorted((a, b) -> a.descrizione().compareToIgnoreCase(b.descrizione()))
                 .toList();
     }
 
@@ -275,7 +279,7 @@ public class PartyService {
     @Transactional
     public Integer createParty(CreatePartyRequest request, Utente utente) {
         boolean accessibile = getMieiMondi(utente).stream()
-                .anyMatch(m -> Objects.equals(m.getId(), request.getMondoId()));
+                .anyMatch(m -> Objects.equals(m.id(), request.getMondoId()));
         if (!accessibile)
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mondo non disponibile");
 

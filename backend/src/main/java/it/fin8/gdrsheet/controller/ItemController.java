@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.dto.ClasseDetailDTO;
 import it.fin8.gdrsheet.dto.ItemDTO;
+import it.fin8.gdrsheet.dto.MondoDTO;
 import it.fin8.gdrsheet.dto.PageDTO;
 import it.fin8.gdrsheet.dto.SpellBookIncantesimoDTO;
 import it.fin8.gdrsheet.dto.UpdateItemRequest;
@@ -17,9 +18,12 @@ import it.fin8.gdrsheet.entity.Item;
 import it.fin8.gdrsheet.entity.Utente;
 import it.fin8.gdrsheet.mapper.ItemMapper;
 import it.fin8.gdrsheet.repository.ItemRepository;
+import it.fin8.gdrsheet.repository.MondoRepository;
+import it.fin8.gdrsheet.repository.SistemaRepository;
 import it.fin8.gdrsheet.service.AuthzService;
 import it.fin8.gdrsheet.service.ClasseService;
 import it.fin8.gdrsheet.service.ItemService;
+import it.fin8.gdrsheet.service.PartyService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -36,13 +40,19 @@ public class ItemController {
     private final ItemMapper itemMapper;
     private final AuthzService authzService;
     private final ClasseService classeService;
+    private final MondoRepository mondoRepository;
+    private final SistemaRepository sistemaRepository;
+    private final PartyService partyService;
 
-    public ItemController(ItemRepository repo, ItemService itemService, ItemMapper itemMapper, AuthzService authzService, ClasseService classeService) {
+    public ItemController(ItemRepository repo, ItemService itemService, ItemMapper itemMapper, AuthzService authzService, ClasseService classeService, MondoRepository mondoRepository, SistemaRepository sistemaRepository, PartyService partyService) {
         this.repo = repo;
         this.itemService = itemService;
         this.itemMapper = itemMapper;
         this.authzService = authzService;
         this.classeService = classeService;
+        this.mondoRepository = mondoRepository;
+        this.sistemaRepository = sistemaRepository;
+        this.partyService = partyService;
     }
 
     @Operation(
@@ -158,6 +168,26 @@ public class ItemController {
         return ResponseEntity.ok(itemService.updateSpell(id, dto));
     }
 
+    @Operation(summary = "Lista tutti i mondi")
+    @GetMapping("/mondi")
+    public ResponseEntity<List<MondoDTO>> getMondi() {
+        return ResponseEntity.ok(mondoRepository.findAll().stream()
+                .map(m -> new MondoDTO(m.getId(), m.getDescrizione(),
+                        m.getSistema() != null ? m.getSistema().getId() : null,
+                        m.getSistema() != null ? m.getSistema().getDescrizione() : null))
+                .sorted(java.util.Comparator.comparing(MondoDTO::descrizione, String.CASE_INSENSITIVE_ORDER))
+                .toList());
+    }
+
+    @Operation(summary = "Lista tutti i sistemi")
+    @GetMapping("/sistemi")
+    public ResponseEntity<List<MondoDTO>> getSistemi() {
+        return ResponseEntity.ok(sistemaRepository.findAll().stream()
+                .map(s -> new MondoDTO(s.getId(), s.getDescrizione(), null, null))
+                .sorted(java.util.Comparator.comparing(MondoDTO::descrizione, String.CASE_INSENSITIVE_ORDER))
+                .toList());
+    }
+
     @Operation(
             summary = "Cerca item per nome",
             description = "Ricerca per nome (contains, case-insensitive), opzionalmente filtrata per tipo. Max 20 risultati."
@@ -181,15 +211,22 @@ public class ItemController {
     public ResponseEntity<PageDTO<ItemDTO>> getCompendio(
             @RequestParam(required = false) String nome,
             @RequestParam(required = false) TipoItem tipo,
+            @RequestParam(required = false) Integer idMondo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal Utente utente
     ) {
         String nomeQ = nome == null ? "" : nome.trim();
         var pr = org.springframework.data.domain.PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 50)));
-        var p = authzService.isMasterOrAdmin(utente)
-                ? repo.findCompendioAll(nomeQ, tipo, pr)
-                : repo.findCompendio(nomeQ, tipo, pr);
+        org.springframework.data.domain.Page<it.fin8.gdrsheet.entity.Item> p;
+        if (authzService.isMasterOrAdmin(utente)) {
+            p = repo.findCompendioAll(nomeQ, tipo, idMondo, pr);
+        } else {
+            var mieiMondi = partyService.getMieiMondi(utente);
+            var mondoIds = mieiMondi.stream().map(MondoDTO::id).filter(java.util.Objects::nonNull).toList();
+            var sistemaIds = mieiMondi.stream().map(MondoDTO::sistemaId).filter(java.util.Objects::nonNull).distinct().toList();
+            p = repo.findCompendioForUser(nomeQ, tipo, idMondo, mondoIds, sistemaIds, pr);
+        }
         return ResponseEntity.ok(new PageDTO<>(
                 p.getContent().stream().map(itemMapper::toDTO).toList(),
                 p.getNumber(), p.getSize(), p.getTotalElements(), Math.max(1, p.getTotalPages())

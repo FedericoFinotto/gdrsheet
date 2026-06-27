@@ -5,10 +5,13 @@ import {ItemLabel} from "../../../../../../models/entity/ItemLabel";
 import {ItemDB} from "../../../../../../models/entity/ItemDB";
 import {UpdateSpellRequest} from "../../../../../../models/dto/UpdateSpellRequest";
 import HtmlEditor from "../../../../../../components/HtmlEditor.vue";
+import SearchSelect from "../../../../../../components/SearchSelect.vue";
+import {useMondoSistema} from '../../../../../../function/useMondoSistema'
 
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
+const {mondoOptions, sistemaOptions} = useMondoSistema()
 
 /* ========= Labels chiavi ========= */
 const L = {
@@ -91,6 +94,8 @@ type SpellDraft = {
   enName: string
   manuale: string
   descrizione: string
+  idMondo: number | null
+  idSistema: number | null
   scuole: BoolMap
   subscuole: BoolMap
   descrittori: BoolMap
@@ -112,6 +117,7 @@ function emptyClassLevels(): Record<string, string> {
 function emptyDraft(): SpellDraft {
   return {
     nome: '', enName: '', manuale: '', descrizione: '',
+    idMondo: null, idSistema: null,
     scuole: emptyBoolMap(IT_SCHOOLS),
     subscuole: emptyBoolMap(IT_SUBS),
     descrittori: emptyBoolMap(IT_DESCS),
@@ -486,6 +492,8 @@ onMounted(() => {
   form.enName = getLabel(props.item.labels, L.EN_NAME) ?? ''
   form.manuale = getLabel(props.item.labels, L.MANUALE) ?? ''
   form.descrizione = props.item.descrizione ?? ''
+  form.idMondo = props.item.mondo?.id ?? null
+  form.idSistema = props.item.sistema?.id ?? null
 
   // Tempo / Durata / Range: normalizza in IT (non distruttivo)
   const tempoRaw = getLabel(props.item.labels, L.TEMPO) ?? '';
@@ -574,6 +582,8 @@ async function onSave() {
     const payload: UpdateSpellRequest = toRaw({
       nome: form.nome,
       descrizione: form.descrizione,
+      idMondo: form.idMondo ?? null,
+      idSistema: form.idSistema ?? null,
       tempo: form.tempo,
       range: form.range,
       durata: form.durata,
@@ -632,6 +642,18 @@ function onCancel() { emit('cancel') }
       <label class="field">
         <span class="lbl">Manuale</span>
         <input v-model.trim="form.manuale" type="text" :disabled="disabledAll" placeholder="Manuale di provenienza"/>
+      </label>
+      <div class="field"></div>
+    </div>
+
+    <div class="row three">
+      <label class="field">
+        <span class="lbl">Mondo</span>
+        <SearchSelect v-model="form.idMondo" :options="mondoOptions" placeholder="— nessuno —" :disabled="disabledAll" :sort="false"/>
+      </label>
+      <label class="field">
+        <span class="lbl">Sistema</span>
+        <SearchSelect v-model="form.idSistema" :options="sistemaOptions" placeholder="— nessuno —" :disabled="disabledAll" :sort="false"/>
       </label>
       <div class="field"></div>
     </div>

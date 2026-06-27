@@ -120,6 +120,23 @@ public class AuthService {
         return toAdminDTO(u);
     }
 
+    @Transactional
+    public LoginResponse.UtenteDTO updateProfile(Utente utente, String username, String name) {
+        if (utente == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Non autenticato");
+        Utente u = utenteRepository.findById(utente.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utente non trovato"));
+        if (username != null && !username.isBlank()) {
+            String newUsername = username.trim();
+            if (!newUsername.equalsIgnoreCase(u.getUsername()) &&
+                    utenteRepository.findByUsernameIgnoreCase(newUsername).isPresent())
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Username già in uso");
+            u.setUsername(newUsername);
+        }
+        if (name != null && !name.isBlank()) u.setName(name.trim());
+        u = utenteRepository.save(u);
+        return toUtenteDTO(u);
+    }
+
     public List<UtenteAdminDTO> listUsers() {
         return utenteRepository.findAll().stream()
                 .sorted(Comparator.comparing(Utente::getName, String.CASE_INSENSITIVE_ORDER))
