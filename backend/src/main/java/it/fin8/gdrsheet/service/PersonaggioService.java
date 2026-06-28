@@ -71,14 +71,41 @@ public class PersonaggioService {
     /**
      * Flattens iteratively the item hierarchy into a list.
      */
+    private record FlattenEntry(Item item, String incomingScelta) {}
+
+    private static Set<String> sceltaSetFrom(String scelta) {
+        if (scelta == null || scelta.isBlank()) return Set.of();
+        return new HashSet<>(Arrays.asList(scelta.split(",")));
+    }
+
     private List<Item> flattenItems(Collection<Item> rootItems) {
+        return flattenItems(rootItems, null);
+    }
+
+    /**
+     * Traversal DFS degli item del personaggio.
+     * @param fruttiSenzaModOut se non null, viene popolato con gli ID dei FRUTTO la cui scelta
+     *                          non include "MOD" (i loro modificatori non vanno calcolati).
+     */
+    private List<Item> flattenItems(Collection<Item> rootItems, Set<Integer> fruttiSenzaModOut) {
         List<Item> result = new ArrayList<>();
-        Deque<Item> stack = new ArrayDeque<>(rootItems);
+        Deque<FlattenEntry> stack = new ArrayDeque<>();
+        for (Item root : rootItems) stack.push(new FlattenEntry(root, null));
 
         while (!stack.isEmpty()) {
-            Item cur = stack.pop();
+            FlattenEntry entry = stack.pop();
+            Item cur = entry.item();
+            String incomingScelta = entry.incomingScelta();
 
             result.add(cur);
+
+            // Traccia scelta MOD per FRUTTO (null/vuoto/ALL = prendi tutto = includi MOD)
+            if (TipoItem.FRUTTO.equals(cur.getTipo()) && fruttiSenzaModOut != null) {
+                Set<String> sc = sceltaSetFrom(incomingScelta);
+                boolean hasMod = sc.isEmpty() || sc.contains("ALL") || sc.contains("MOD");
+                if (!hasMod) fruttiSenzaModOut.add(cur.getId());
+            }
+
             boolean isDisabled = utilService.parseBooleanFromString(cur.getLabel(Constants.ITEM_LABEL_DISABILITATO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
 
             if (!isDisabled) {
@@ -86,30 +113,52 @@ public class PersonaggioService {
                 List<Item> lingue = findLingue(cur);
 
                 if (cur.getChild() != null) {
-                    for (Collegamento col : cur.getChild().stream().filter(x -> !x.getItemTarget().getTipo().equals(TipoItem.CLASSE)).toList()) {
-                        if (utilService.parseBooleanFromString(col.getLabel(Constants.ITEM_LABEL_DISABILITATO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE)) {
+                    // Per i FRUTTO: filtra le FORME in base alla scelta (null/vuoto/ALL = tutte)
+                    Set<String> sc = TipoItem.FRUTTO.equals(cur.getTipo()) ? sceltaSetFrom(incomingScelta) : null;
+                    // null sc = non siamo in un FRUTTO; empty o ALL = prendi tutto = non filtrare
+                    Set<String> sceltaSet = (sc != null && !sc.isEmpty() && !sc.contains("ALL")) ? sc : null;
+
+                    // Indice 1-based delle FORME (ordinate per id)
+                    List<Collegamento> formaLinks = sceltaSet != null
+                            ? cur.getChild().stream()
+                                .filter(c -> TipoItem.FORMA.equals(c.getItemTarget().getTipo()))
+                                .sorted(Comparator.comparing(c -> c.getItemTarget().getId()))
+                                .toList()
+                            : List.of();
+
+                    for (Collegamento col : cur.getChild().stream()
+                            .filter(x -> !x.getItemTarget().getTipo().equals(TipoItem.CLASSE)).toList()) {
+                        boolean isColDisabled = utilService.parseBooleanFromString(col.getLabel(Constants.ITEM_LABEL_DISABILITATO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
+                        if (isColDisabled) {
                             col.getItemTarget().setLabel(Constants.ITEM_LABEL_DISABILITATO, Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE);
                         }
-                        if (cur.getTipo().equals(TipoItem.LIVELLO)) {
-                            if (!List.of(TipoItem.CLASSE, TipoItem.MALEDIZIONE).contains(col.getItemTarget().getTipo())) {
-                                stack.push(col.getItemTarget());
-                            }
-                        } else {
-                            stack.push(col.getItemTarget());
+
+                        // Se stiamo in un FRUTTO con scelta, salta le FORMA non selezionate
+                        if (sceltaSet != null && TipoItem.FORMA.equals(col.getItemTarget().getTipo())) {
+                            int idx = formaLinks.indexOf(col);
+                            if (idx < 0 || !sceltaSet.contains("FORMA_" + (idx + 1))) continue;
                         }
 
+                        if (cur.getTipo().equals(TipoItem.LIVELLO)) {
+                            if (!List.of(TipoItem.CLASSE, TipoItem.MALEDIZIONE).contains(col.getItemTarget().getTipo())) {
+                                // Passa la scelta se il target è un FRUTTO
+                                String childScelta = TipoItem.FRUTTO.equals(col.getItemTarget().getTipo()) ? col.getScelta() : null;
+                                stack.push(new FlattenEntry(col.getItemTarget(), childScelta));
+                            }
+                        } else {
+                            String childScelta = TipoItem.FRUTTO.equals(col.getItemTarget().getTipo()) ? col.getScelta() : null;
+                            stack.push(new FlattenEntry(col.getItemTarget(), childScelta));
+                        }
                     }
                 }
 
                 if (competenze != null) {
-                    stack.addAll(competenze);
+                    for (Item c : competenze) stack.push(new FlattenEntry(c, null));
                 }
-
                 if (lingue != null) {
-                    stack.addAll(lingue);
+                    for (Item l : lingue) stack.push(new FlattenEntry(l, null));
                 }
             }
-
         }
 
         return result;
@@ -310,7 +359,8 @@ public class PersonaggioService {
                         Stream.of(initialRoots, advanceRoots)
                                 .filter(obj -> true)
                                 .flatMap(Collection::stream)
-                                .toList()
+                                .toList(),
+                        result.getFruttiSenzaMod()
                 )
         );
 
@@ -428,7 +478,9 @@ public class PersonaggioService {
         Personaggio p = personaggioRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Personaggio non trovato"));
 
-        List<Item> allItems = getAllPersonaggioItemsByIdPersonaggio(p.getId()).getItems();
+        AllPersonaggioItems allPersonaggioItemsSheet = getAllPersonaggioItemsByIdPersonaggio(p.getId());
+        List<Item> allItems = allPersonaggioItemsSheet.getItems();
+        Set<Integer> fruttiSenzaModSheet = allPersonaggioItemsSheet.getFruttiSenzaMod();
         List<Item> filteredItems = new ArrayList<>();
         for (Item item : allItems) {
             boolean isDisabled = false;
@@ -458,9 +510,13 @@ public class PersonaggioService {
             }
         }
 
-        // 6) Fetch Modificatori
+        // 6) Fetch Modificatori (escludi i FRUTTO la cui scelta non include MOD)
         List<Integer> itemIds = filteredItems.stream().map(Item::getId).toList();
-        List<Modificatore> allMods = modificatoreRepository.findAllByItemIdIn(itemIds);
+        List<Integer> itemIdsPerMod = fruttiSenzaModSheet.isEmpty()
+                ? itemIds
+                : filteredItems.stream().map(Item::getId)
+                    .filter(iid -> !fruttiSenzaModSheet.contains(iid)).toList();
+        List<Modificatore> allMods = modificatoreRepository.findAllByItemIdIn(itemIdsPerMod);
         List<Modificatore> modificatoriPerLivello = elaboraModificatoriStatLivello(allMods);
         allMods = allMods.stream()
                 .filter(x -> !(x.getItem().getTipo().equals(TipoItem.LIVELLO)

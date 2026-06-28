@@ -39,6 +39,7 @@ export interface ChildRef {
     nome: string;
     tipo: TipoItem;
     qty?: number | null;
+    scelta?: string | null;  // solo per FRUTTO: MOD | FORMA_1 | FORMA_2 | FORMA_3 | FORMA_4
 }
 
 export interface UpdateItemRequest {
@@ -52,5 +53,5 @@ export interface UpdateItemRequest {
     labels?: LabelRow[];      // stato completo delle labels
     modificatori?: ModificatoreRow[]; // stato completo dei modificatori
     attacchi?: AttaccoRow[];  // stato completo degli attacchi figli
-    children?: { id: number; qty?: number | null }[];  // stato completo degli item collegati (non ATTACCO)
+    children?: { id: number; qty?: number | null; scelta?: string | null }[];  // stato completo degli item collegati (non ATTACCO)
 }

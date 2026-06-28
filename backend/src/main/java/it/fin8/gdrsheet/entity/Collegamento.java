@@ -39,6 +39,9 @@ public class Collegamento {
     @Column(name = "qty")
     private Integer qty;
 
+    @Column(name = "scelta", length = 32)
+    private String scelta;
+
     @OneToMany(mappedBy = "collegamento", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties("collegamento")
     private List<CollegamentoLabel> labels = new ArrayList<>();

@@ -291,4 +291,12 @@
         </addColumn>
     </changeSet>
 
+    <changeSet id="120" author="developer">
+        <addColumn tableName="collegamento">
+            <column name="scelta" type="varchar(32)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>

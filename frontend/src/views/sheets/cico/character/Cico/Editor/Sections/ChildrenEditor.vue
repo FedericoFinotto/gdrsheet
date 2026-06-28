@@ -63,8 +63,23 @@ function onQueryInput() {
   debounceTimer = setTimeout(doSearch, 250)
 }
 
+const FRUTTO_SCELTE = [
+  {value: 'ALL',    label: 'Tutti'},
+  {value: 'MOD',    label: 'Modificatori'},
+  {value: 'FORMA_1', label: 'Forma 1'},
+  {value: 'FORMA_2', label: 'Forma 2'},
+  {value: 'FORMA_3', label: 'Forma 3'},
+  {value: 'FORMA_4', label: 'Forma 4'},
+]
+
+// niente selezionato o ALL = prendi tutto
+function isEffectivelyAll(c: ChildRef): boolean {
+  const set = getSceltaSet(c)
+  return set.size === 0 || set.has('ALL')
+}
+
 function add(item: Item) {
-  emit('update:modelValue', [...props.modelValue, {id: item.id, nome: item.nome, tipo: item.tipo, qty: null}])
+  emit('update:modelValue', [...props.modelValue, {id: item.id, nome: item.nome, tipo: item.tipo, qty: null, scelta: null}])
   results.value = results.value.filter(r => r.id !== item.id)
 }
 
@@ -76,6 +91,27 @@ function setQty(idx: number, val: string) {
   emit('update:modelValue', updated)
 }
 
+function getSceltaSet(c: ChildRef): Set<string> {
+  return new Set((c.scelta ?? '').split(',').filter(Boolean))
+}
+
+function toggleScelta(idx: number, val: string) {
+  const c = props.modelValue[idx]
+  const set = getSceltaSet(c)
+  if (val === 'ALL') {
+    // ALL toggling: se era già selezionato lo rimuove (= niente = tutti), altrimenti lo seleziona esclusivo
+    if (set.has('ALL')) set.clear()
+    else { set.clear(); set.add('ALL') }
+  } else {
+    // Selezionare una voce specifica rimuove ALL
+    set.delete('ALL')
+    if (set.has(val)) set.delete(val)
+    else set.add(val)
+  }
+  const scelta = set.size ? [...set].join(',') : null
+  emit('update:modelValue', props.modelValue.map((item, i) => i === idx ? {...item, scelta} : item))
+}
+
 function remove(idx: number) {
   emit('update:modelValue', props.modelValue.filter((_, i) => i !== idx))
 }
@@ -85,10 +121,24 @@ function remove(idx: number) {
   <div class="children-editor">
     <div v-if="!modelValue.length" class="empty">Nessun item collegato.</div>
 
-    <div v-for="(c, i) in modelValue" :key="c.id" class="child-row">
+    <div v-for="(c, i) in modelValue" :key="c.id" class="child-row" :class="{'child-row--frutto': c.tipo === 'FRUTTO'}">
       <span class="nome">{{ c.nome }}</span>
       <span class="pill">{{ c.tipo }}</span>
+      <template v-if="c.tipo === 'FRUTTO'">
+        <div class="scelta-checks">
+          <label v-for="s in FRUTTO_SCELTE" :key="s.value" class="scelta-check">
+            <input
+                type="checkbox"
+                :checked="s.value === 'ALL' ? isEffectivelyAll(c) : getSceltaSet(c).has(s.value)"
+                :disabled="disabled"
+                @change="toggleScelta(i, s.value)"
+            />
+            {{ s.label }}
+          </label>
+        </div>
+      </template>
       <input
+          v-else
           class="qty-input"
           type="number"
           min="1"
@@ -153,7 +203,21 @@ input, select, textarea { min-width: 0; }
   width: 3.5rem; padding: .25rem .35rem; border: 1px solid #d0d5dd; border-radius: .4rem;
   text-align: center; font-size: .8rem;
 }
-.nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.child-row--frutto {
+  grid-template-columns: 1fr auto auto auto;
+  flex-wrap: wrap;
+}
+.scelta-checks {
+  grid-column: 1 / -1;
+  display: flex; flex-wrap: wrap; gap: .3rem .7rem;
+  padding: .2rem 0 .1rem;
+}
+.scelta-check {
+  display: flex; align-items: center; gap: .25rem;
+  font-size: .8rem; cursor: pointer; user-select: none;
+}
+.scelta-check input[type="checkbox"] { width: auto; margin: 0; }
+.nome { white-space: normal; word-break: break-word; }
 .pill {
   font-size: .75rem; padding: .1rem .45rem; border-radius: .5rem;
   background: #eef2ff; color: #3730a3;

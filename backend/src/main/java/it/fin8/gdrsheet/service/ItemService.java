@@ -662,8 +662,9 @@ public class ItemService {
     private void applyChildren(Item itm, List<UpdateItemRequest.ChildRefDTO> children) {
         if (children == null) return;
 
-        Map<Integer, Integer> desiderati = new HashMap<>();
-        for (UpdateItemRequest.ChildRefDTO c : children) desiderati.put(c.getId(), c.getQty());
+        record ChildInfo(Integer qty, String scelta) {}
+        Map<Integer, ChildInfo> desiderati = new HashMap<>();
+        for (UpdateItemRequest.ChildRefDTO c : children) desiderati.put(c.getId(), new ChildInfo(c.getQty(), c.getScelta()));
 
         List<Collegamento> linkAltri = (itm.getChild() != null ? itm.getChild() : List.<Collegamento>of()).stream()
                 .filter(c -> !TipoItem.ATTACCO.equals(c.getItemTarget().getTipo()))
@@ -678,14 +679,17 @@ public class ItemService {
         Map<Integer, Collegamento> giaPresenti = linkAltri.stream()
                 .collect(Collectors.toMap(c -> c.getItemTarget().getId(), c -> c));
 
-        for (Map.Entry<Integer, Integer> entry : desiderati.entrySet()) {
+        for (Map.Entry<Integer, ChildInfo> entry : desiderati.entrySet()) {
             Integer targetId = entry.getKey();
-            Integer qty = entry.getValue();
+            ChildInfo info = entry.getValue();
             if (Objects.equals(targetId, itm.getId())) continue; // no self-link
             if (giaPresenti.containsKey(targetId)) {
                 Collegamento existing = giaPresenti.get(targetId);
-                if (!Objects.equals(existing.getQty(), qty)) {
-                    existing.setQty(qty);
+                boolean changed = !Objects.equals(existing.getQty(), info.qty())
+                        || !Objects.equals(existing.getScelta(), info.scelta());
+                if (changed) {
+                    existing.setQty(info.qty());
+                    existing.setScelta(info.scelta());
                     collegamentoRepository.save(existing);
                 }
             } else {
@@ -694,7 +698,8 @@ public class ItemService {
                 Collegamento link = new Collegamento();
                 link.setItemSource(itm);
                 link.setItemTarget(target);
-                link.setQty(qty);
+                link.setQty(info.qty());
+                link.setScelta(info.scelta());
                 collegamentoRepository.save(link);
             }
         }

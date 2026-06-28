@@ -140,11 +140,11 @@ function preload() {
     tipoDanni: getItemLabel(c.itemTarget, 'TDANNO' as any) ?? '',
   }))
   if (props.separateForme) {
-    form.forme = collegamentiNonAttacco.filter(c => c.itemTarget.tipo === 'FORMA').map(c => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null}))
-    form.children = collegamentiNonAttacco.filter(c => c.itemTarget.tipo !== 'FORMA').map(c => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null}))
+    form.forme = collegamentiNonAttacco.filter(c => c.itemTarget.tipo === 'FORMA').map(c => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null, scelta: c.scelta ?? null}))
+    form.children = collegamentiNonAttacco.filter(c => c.itemTarget.tipo !== 'FORMA').map(c => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null, scelta: c.scelta ?? null}))
   } else {
     form.forme = []
-    form.children = collegamentiNonAttacco.map(c => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null}))
+    form.children = collegamentiNonAttacco.map(c => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null, scelta: c.scelta ?? null}))
   }
 }
 
@@ -270,7 +270,7 @@ function buildPayload(): UpdateItemRequest {
     labels,
     modificatori: form.modificatori.filter(m => m.statId.trim()),
     attacchi: form.attacchi.filter(a => a.nome.trim()),
-    children: [...form.children, ...form.forme].map(c => ({id: c.id, qty: c.qty ?? null})),
+    children: [...form.children, ...form.forme].map(c => ({id: c.id, qty: c.qty ?? null, scelta: c.scelta ?? null})),
   })
 }
 

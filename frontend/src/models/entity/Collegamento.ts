@@ -6,4 +6,5 @@ export interface Collegamento {
     itemSource: ItemDB;
     itemTarget: ItemDB;
     qty?: number | null;
+    scelta?: string | null;
 }
