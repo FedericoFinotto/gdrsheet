@@ -150,6 +150,12 @@ public class PersonaggioController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("stat/update")
+    public ResponseEntity<Void> updateStatValue(@RequestBody UpdateStatValueRequest req) {
+        personaggioService.updateStatValue(req);
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(
             summary = "Soldi del personaggio",
             description = "Totale monete (MR/MA/MO/MP) del personaggio, somma dei modificatori sugli item attivi"

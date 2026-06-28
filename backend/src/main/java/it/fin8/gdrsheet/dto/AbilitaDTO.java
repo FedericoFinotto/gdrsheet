@@ -19,6 +19,12 @@ public class AbilitaDTO {
     private RANK rank;
     private CaratteristicaDTO base;
     private StatValue stat;
+    private Boolean negata;
+    private Boolean sbloccata;
+    /** Campi editabili del record stat_value associato */
+    private String statValore;
+    private String statFormula;
+    private String statModId;
 
     @Getter
     @Setter
@@ -47,10 +53,13 @@ public class AbilitaDTO {
         abilita = new ABILITA(stat.getStat().getId(), stat.getStat().getLabel(), modificatore, modificatori, stat.getAddestramento());
         rank = new RANK(valoreRank, modRank, ranks);
         base = caratteristicaBase;
-
+        statValore = stat.getValore();
+        statFormula = stat.getFormula();
+        statModId = stat.getMod() != null ? stat.getMod().getId() : null;
     }
 
     public Boolean getShow() {
+        if (Boolean.TRUE.equals(negata) || Boolean.TRUE.equals(sbloccata)) return true;
         return !abilita.getAddestramento() || rank.getModificatore() != 0;
     }
 }

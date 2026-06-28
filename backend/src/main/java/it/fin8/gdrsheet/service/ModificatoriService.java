@@ -138,7 +138,8 @@ public class ModificatoriService {
             List<RankDTO> ranksDto,
             List<CaratteristicaDTO> carList
     ) {
-        applicaCalcoli(modsDto, carList);
+        List<ModificatoreDTO> mods = new ArrayList<>(modsDto);
+        applicaCalcoli(mods, carList);
         String modStatId = stat.getMod() != null ? stat.getMod().getId() : null;
         CaratteristicaDTO cBase = null;
         Integer modBase = 0;
@@ -150,7 +151,14 @@ public class ModificatoriService {
                 modBase = cBase.getModificatore();
             }
         }
-        int bonusVal = modsDto.stream()
+        int formulaBase = 0;
+        if (stat.getFormula() != null && !stat.getFormula().isBlank()) {
+            try {
+                formulaBase = Integer.parseInt(calcoloService.calcola(stat.getFormula(), carList));
+                mods.add(new ModificatoreDTO(null, stat.getStat().getId(), formulaBase, stat.getFormula(), null, null, true, "Formula", null, null));
+            } catch (Exception ignored) {}
+        }
+        int bonusVal = mods.stream()
                 .filter(x -> x.getNota() == null)
                 .mapToInt(ModificatoreDTO::getValore)
                 .sum();
@@ -175,9 +183,12 @@ public class ModificatoriService {
 
         int total = modBase + bonusVal + bonusRank;
 
-        return new AbilitaDTO(
-                stat, total, modsDto, valoreRank, bonusRank, ranksDto, cBase
-        );
+        boolean negata = mods.stream().anyMatch(m -> TipoModificatore.NEGA.equals(m.getTipo()));
+        boolean sbloccata = mods.stream().anyMatch(m -> TipoModificatore.SBLOCCA.equals(m.getTipo()));
+        AbilitaDTO dto = new AbilitaDTO(stat, total, mods, valoreRank, bonusRank, ranksDto, cBase);
+        if (negata) dto.setNegata(true);
+        if (sbloccata) dto.setSbloccata(true);
+        return dto;
     }
 
     ClasseArmaturaDTO calcolaClasseArmatura(StatValue stat, List<ModificatoreDTO> modsDto, List<ModificatoreDTO> modsCADto, List<CaratteristicaDTO> carList, List<ItemLabel> taglie) {

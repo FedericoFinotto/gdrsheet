@@ -9,6 +9,8 @@ export interface Abilita {
     rank: RANK;
     base: Caratteristica | null;
     show: boolean;
+    negata?: boolean;
+    sbloccata?: boolean;
 }
 
 export interface ABILITA {

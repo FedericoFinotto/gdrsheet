@@ -594,7 +594,7 @@ public class PersonaggioService {
         dto.getContatoriItem().addAll(itemCounterList);
 
         // 9a) Calcolo Caratteristiche (sequenziale)
-        List<CaratteristicaDTO> carList = stats.stream()
+        List<CaratteristicaDTO> carList = new ArrayList<>(stats.stream()
                 .filter(sv -> TipoStat.CAR.equals(sv.getStat().getTipo()))
                 .map(sv -> modificatoriService.calcolaCaratteristica(
                         sv,
@@ -602,7 +602,9 @@ public class PersonaggioService {
                         itemCounterList,
                         taglia
                 ))
-                .toList();
+                .toList());
+        // Rende LVL disponibile nelle formule delle statistiche
+        carList.add(new CaratteristicaDTO("LVL", "Livello", null, livelloPersonaggio, null, null));
         dto.getCaratteristiche().addAll(carList);
 
         Optional<DadiVitaDTO> dvOpt = stats.stream()
@@ -1066,6 +1068,24 @@ public class PersonaggioService {
         if (s == null) throw new RuntimeException("Stat non trovato");
 
         s.setValore(request.getValore().toString());
+        statValueRepository.save(s);
+    }
+
+    public void updateStatValue(UpdateStatValueRequest request) {
+        Personaggio p = personaggioRepository.findById(request.getIdPersonaggio()).orElse(null);
+        if (p == null) throw new RuntimeException("Personaggio non trovato");
+
+        StatValue s = p.getStats().stream().filter(x -> x.getStat().getId().equals(request.getIdStat())).findFirst().orElse(null);
+        if (s == null) throw new RuntimeException("Stat non trovato");
+
+        if (request.getValore() != null) s.setValore(request.getValore());
+        s.setFormula(request.getFormula() != null && !request.getFormula().isBlank() ? request.getFormula() : null);
+        if (request.getModStatId() != null && !request.getModStatId().isBlank()) {
+            it.fin8.gdrsheet.entity.Stat modStat = statRepository.findById(request.getModStatId()).orElse(null);
+            s.setMod(modStat);
+        } else {
+            s.setMod(null);
+        }
         statValueRepository.save(s);
     }
 

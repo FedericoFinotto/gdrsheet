@@ -98,6 +98,10 @@ export function updateTemporaryModifier(payload: UpdateBaseStatValueRequest) {
     return api.post('/personaggi/stat/update-base', payload);
 }
 
+export function updateStatValue(payload: {idPersonaggio: number; idStat: string; valore: string; formula: string | null; modStatId: string | null}) {
+    return api.post('/personaggi/stat/update', payload);
+}
+
 export function saveSpell(id: number, payload: UpdateSpellRequest): Promise<AxiosResponse<ItemDB>> {
     return api.post(`/item/editspell/${id}`, payload);
 }

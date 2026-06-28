@@ -73,7 +73,7 @@ function rowClass(row: any, rowIndex: number) {
   return [
     'tbl-row',
     rowIndex % 2 === 0 ? 'is-even' : 'is-odd',
-    {'is-expanded': isExpanded(row.id), 'is-disabled': isRowDisabled(row)}
+    {'is-expanded': isExpanded(row.id), 'is-disabled': isRowDisabled(row), 'is-negata': !!row.negata}
   ]
 }
 
@@ -279,6 +279,11 @@ img.row-icon {
 .subtext {
   font-size: 0.7rem;
   color: gray;
+}
+
+.tbl-row.is-negata {
+  color: #991b1b;
+  background: #fff1f2;
 }
 
 .tbl-row.is-disabled {

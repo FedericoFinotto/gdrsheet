@@ -30,8 +30,9 @@ const abilita = computed(() => {
           ? applicaBonusDado(testoModificatore(abilita.abilita.modificatore), risultato.value)
           : testoModificatore(abilita.abilita.modificatore),
       caratteristica: abilita?.base?.id ?? '',
+      negata: abilita.negata ?? false,
       expandedComponent: markRaw(Mobile_DettaglioAbilita),
-      expandedProps: {data: {...abilita}}
+      expandedProps: {data: {...abilita}, idPersonaggio: props.idPersonaggio}
     }
   }).sort((a, b) => a.nome.localeCompare(b.nome));
 })

@@ -14,7 +14,9 @@ public enum TipoModificatore {
     CA_MAGIC("Magico"),
     CA_NATURALE("Naturale"),
     BASE("Base"),
-    FORZATO("Base Forzato");
+    FORZATO("Base Forzato"),
+    NEGA("Nega"),
+    SBLOCCA("Sblocca");
 
     private final String label;
 

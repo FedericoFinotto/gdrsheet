@@ -87,7 +87,9 @@ function remove(idx: number) {
           :disabled="disabled"
           @update:model-value="update(i, {tipo: $event as any})"
       />
+      <span v-if="row.tipo === 'NEGA' || row.tipo === 'SBLOCCA'" class="val val-hidden">—</span>
       <input
+          v-else
           type="text"
           class="val"
           :value="row.valore"
@@ -138,6 +140,7 @@ input, select, textarea { min-width: 0; }
 input[type="text"], select {
   width: 100%; padding: .45rem .55rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff;
 }
+.val-hidden { display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: .9rem; }
 .chk { display: inline-flex; align-items: center; gap: .3rem; font-size: .8rem; }
 .btn-del {
   border: 1px solid #fecaca; background: #fef2f2; color: #991b1b;
