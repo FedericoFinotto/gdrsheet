@@ -4,7 +4,7 @@ import {Stat} from '../models/entity/Stat';
 
 export interface MondoOpt {
     id: number;
-    nome: string;
+    descrizione: string;
 }
 
 export interface StatDefaultRow {

@@ -68,9 +68,10 @@ async function forzaAggiornamento() {
   } catch (e) {
     console.error('Errore aggiornamento app:', e)
   } finally {
-    const url = new URL(window.location.href)
-    url.searchParams.set('_', String(Date.now()))
-    window.location.replace(url.toString())
+    // Naviga alla root con un parametro timestamp: il browser è costretto a
+    // ri-scaricare index.html dal server (cache-busting), e i nuovi bundle
+    // Vite hanno hash diversi quindi vengono scaricati freschi.
+    window.location.replace('/?_=' + Date.now())
   }
 }
 

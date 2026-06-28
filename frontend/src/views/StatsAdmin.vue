@@ -44,7 +44,7 @@ function toggleCard(k: string) {
 }
 const isAperta = (k: string) => aperti.value.has(k)
 
-const mondoOptions = computed(() => mondi.value.map(m => ({value: m.id, label: m.nome})))
+const mondoOptions = computed(() => mondi.value.map(m => ({value: m.id, label: m.descrizione})))
 const statOptions = computed(() =>
     stats.value.map(s => ({value: s.id, label: `${s.label} (${s.id})`, hint: s.tipo})))
 
