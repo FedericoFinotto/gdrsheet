@@ -1061,5 +1061,20 @@ public class ItemService {
         }
     }
 
+    @Transactional
+    public void setUtilizziUsati(Integer itemId, Integer personaggioId, int usati) {
+        ItemLabel label = itemLabelRepository
+                .findByItem_IdAndLabelAndPersonaggio_Id(itemId, Constants.LABEL_UTILIZZI_USATI, personaggioId)
+                .orElseGet(() -> {
+                    ItemLabel nl = new ItemLabel();
+                    nl.setItem(em.getReference(Item.class, itemId));
+                    nl.setPersonaggio(em.getReference(Personaggio.class, personaggioId));
+                    nl.setLabel(Constants.LABEL_UTILIZZI_USATI);
+                    return nl;
+                });
+        label.setValore(String.valueOf(Math.max(0, usati)));
+        itemLabelRepository.save(label);
+    }
+
 }
 

@@ -202,3 +202,7 @@ export function updateSoldi(idPersonaggio: number, soldi: Soldi): Promise<AxiosR
 export function getContiPersonaggio(idPersonaggio: number): Promise<AxiosResponse<Banca[]>> {
     return api.get<Banca[]>(`/personaggi/${idPersonaggio}/conti`);
 }
+
+export function setUtilizziUsati(itemId: number, personaggioId: number, usati: number): Promise<AxiosResponse<void>> {
+    return api.put<void>(`/item/${itemId}/utilizzi/${personaggioId}`, {usati});
+}

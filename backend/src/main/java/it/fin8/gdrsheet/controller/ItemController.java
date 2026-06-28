@@ -391,4 +391,18 @@ public class ItemController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Aggiorna utilizzi di un item per un personaggio")
+    @PutMapping("/{itemId}/utilizzi/{personaggioId}")
+    public ResponseEntity<Void> setUtilizzi(
+            @PathVariable Integer itemId,
+            @PathVariable Integer personaggioId,
+            @RequestBody java.util.Map<String, Integer> body,
+            @AuthenticationPrincipal Utente utente) {
+        authzService.assertCanEditPersonaggio(utente, personaggioId);
+        Integer usati = body.get("usati");
+        if (usati == null) return ResponseEntity.badRequest().build();
+        itemService.setUtilizziUsati(itemId, personaggioId, usati);
+        return ResponseEntity.noContent().build();
+    }
+
 }

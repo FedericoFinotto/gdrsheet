@@ -9,4 +9,7 @@ export interface Item {
     barriera?: boolean;
     barrMax?: number;
     barrCons?: number;
+    utilizziTotale?: number | null;
+    utilizziUsati?: number | null;
+    scollegabile?: boolean;
 }

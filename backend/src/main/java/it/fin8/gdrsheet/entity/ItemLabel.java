@@ -34,4 +34,12 @@ public class ItemLabel implements Serializable {
     @Column(name = "valore", length = Integer.MAX_VALUE)
     private String valore;
 
+    /**
+     * Se popolato, questa label vale solo per quel personaggio.
+     * Se null, è una label globale dell'item (comportamento storico).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_personaggio")
+    private Personaggio personaggio;
+
 }

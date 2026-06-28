@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Where;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -65,6 +66,7 @@ public class Item implements Serializable {
 
     @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties("item")
+    @Where(clause = "id_personaggio IS NULL")
     private List<ItemLabel> labels;
 
     @OneToMany(mappedBy = "itemSource", fetch = FetchType.LAZY)

@@ -90,6 +90,13 @@ const stat = computed(() => {
   }
 });
 
+// conteggio modificatori situazionali (con nota) per il badge
+const notaCount = computed(() => {
+  const mods = stat.value?.modificatori
+  if (!Array.isArray(mods)) return 0
+  return mods.filter(m => m.nota != null && m.nota !== '').length
+})
+
 // modificatore mostrato: se è in corso un tiro globale e la stat è idonea,
 // somma il risultato del d20 al valore.
 const modificatoreVisualizzato = computed(() => {
@@ -105,7 +112,10 @@ const modificatoreVisualizzato = computed(() => {
 <template>
   <div class="stat-box">
     <div class="label">{{ label ?? id }}</div>
-    <div class="modifier" @click="showPopup">{{ modificatoreVisualizzato }}</div>
+    <div class="modifier-wrap" @click="showPopup">
+      <span class="modifier">{{ modificatoreVisualizzato }}</span>
+      <span v-if="notaCount > 0" class="nota-badge" :title="`${notaCount} modificator${notaCount === 1 ? 'e situazionale' : 'i situazionali'}`">{{ notaCount }}</span>
+    </div>
     <div class="base">{{ stat ? (stat.valore ?? '') : '' }}</div>
   </div>
 </template>

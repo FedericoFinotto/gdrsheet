@@ -26,6 +26,10 @@ public class ItemMapper {
     }
 
     public ItemDTO toDTO(Item entity) {
+        return toDTO(entity, null, null);
+    }
+
+    public ItemDTO toDTO(Item entity, Integer utilizziTotale, Integer utilizziUsati) {
         ItemDTO dto = new ItemDTO();
         dto.setId(entity.getId());
         dto.setNome(entity.getNome());
@@ -38,6 +42,14 @@ public class ItemMapper {
             dto.setBarrMax(parseIntOrZero(entity.getLabel(Constants.ITEM_LABEL_BARR_MAX)));
             dto.setBarrCons(parseIntOrZero(entity.getLabel(Constants.ITEM_LABEL_BARR_CONS)));
         }
+
+        // Utilizzi: totale dall'item (globale), usati per-personaggio
+        Integer tot = utilizziTotale != null ? utilizziTotale
+                : parseIntOrNull(entity.getLabel(Constants.LABEL_UTILIZZI));
+        if (tot != null) {
+            dto.setUtilizziTotale(tot);
+            dto.setUtilizziUsati(utilizziUsati != null ? utilizziUsati : 0);
+        }
         return dto;
     }
 
@@ -48,6 +60,11 @@ public class ItemMapper {
         } catch (NumberFormatException e) {
             return 1;
         }
+    }
+
+    private static Integer parseIntOrNull(String s) {
+        if (s == null || s.isBlank()) return null;
+        try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return null; }
     }
 
     private static Integer parseIntOrZero(String s) {

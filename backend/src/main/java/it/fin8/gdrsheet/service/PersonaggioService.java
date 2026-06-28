@@ -126,34 +126,46 @@ public class PersonaggioService {
                     .forEach(c -> scollegabiliIds.add(c.getItemTarget().getId()));
         }
 
+        // Carica utilizzi per-personaggio in bulk (una sola query)
+        List<Integer> allItemIds = allPersonaggioItems.getItems().stream().map(Item::getId).toList();
+        Map<Integer, Integer> utilizziUsatiMap = new HashMap<>();
+        if (!allItemIds.isEmpty()) {
+            for (it.fin8.gdrsheet.entity.ItemLabel ul : itemLabelRepository
+                    .findByLabelAndItem_IdInAndPersonaggio_Id(Constants.LABEL_UTILIZZI_USATI, allItemIds, id)) {
+                try { utilizziUsatiMap.put(ul.getItem().getId(), Integer.parseInt(ul.getValore())); }
+                catch (Exception ignored) {}
+            }
+        }
+
         for (Item itm : allPersonaggioItems.getItems()) {
             // filtro di visibilità (label VISIBILITA): nasconde l'item a chi non è autorizzato
             if (!authzService.canViewVisibilita(utente, personaggio, itm.getLabel(Constants.ITEM_LABEL_VISIBILITA))) {
                 continue;
             }
+            Integer uUsati = utilizziUsatiMap.get(itm.getId());
             if (TipoItem.ABILITA.equals(itm.getTipo())) {
-                itemsDTO.getAbilita().add(itemMapper.toDTO(itm));
+                itemsDTO.getAbilita().add(itemMapper.toDTO(itm, null, uUsati));
             }
             if (TipoItem.TALENTO.equals(itm.getTipo())) {
-                itemsDTO.getTalenti().add(itemMapper.toDTO(itm));
+                itemsDTO.getTalenti().add(itemMapper.toDTO(itm, null, uUsati));
             }
             if (TipoItem.OGGETTO.equals(itm.getTipo())) {
-                itemsDTO.getOggetti().add(itemMapper.toDTO(itm));
+                itemsDTO.getOggetti().add(itemMapper.toDTO(itm, null, uUsati));
             }
             if (TipoItem.CONSUMABILE.equals(itm.getTipo())) {
-                itemsDTO.getConsumabili().add(itemMapper.toDTO(itm));
+                itemsDTO.getConsumabili().add(itemMapper.toDTO(itm, null, uUsati));
             }
             if (TipoItem.ARMA.equals(itm.getTipo())) {
-                itemsDTO.getArmi().add(itemMapper.toDTO(itm));
+                itemsDTO.getArmi().add(itemMapper.toDTO(itm, null, uUsati));
             }
             if (TipoItem.MUNIZIONE.equals(itm.getTipo())) {
-                itemsDTO.getMunizioni().add(itemMapper.toDTO(itm));
+                itemsDTO.getMunizioni().add(itemMapper.toDTO(itm, null, uUsati));
             }
             if (TipoItem.EQUIPAGGIAMENTO.equals(itm.getTipo())) {
-                itemsDTO.getEquipaggiamento().add(itemMapper.toDTO(itm));
+                itemsDTO.getEquipaggiamento().add(itemMapper.toDTO(itm, null, uUsati));
             }
             if (TipoItem.RAZZA.equals(itm.getTipo())) {
-                itemsDTO.getRazze().add(itemMapper.toDTO(itm));
+                itemsDTO.getRazze().add(itemMapper.toDTO(itm, null, uUsati));
             }
             if (TipoItem.ATTACCO.equals(itm.getTipo())) {
                 itemsDTO.getAttacchi().add(itemMapper.toAttaccoDTO(itm));
@@ -162,32 +174,32 @@ public class PersonaggioService {
                 itemsDTO.getLivelli().add(itemMapper.toLivelloDTO(itm));
             }
             if (TipoItem.MALEDIZIONE.equals(itm.getTipo())) {
-                itemsDTO.getMaledizioni().add(itemMapper.toDTO(itm));
+                itemsDTO.getMaledizioni().add(itemMapper.toDTO(itm, null, uUsati));
             }
             if (TipoItem.TRASFORMAZIONE.equals(itm.getTipo())) {
                 itemsDTO.getTrasformazioni().add(itemMapper.toTrasformazioneDTO(itm));
             }
             if (TipoItem.COMP.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm);
+                ItemDTO dto = itemMapper.toDTO(itm, null, uUsati);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getCompetenze().add(dto);
             }
             if (TipoItem.LINGUA.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm);
+                ItemDTO dto = itemMapper.toDTO(itm, null, uUsati);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getLingue().add(dto);
             }
             if (TipoItem.IDOLO.equals(itm.getTipo())) {
-                itemsDTO.getIdoli().add(itemMapper.toDTO(itm));
+                itemsDTO.getIdoli().add(itemMapper.toDTO(itm, null, uUsati));
             }
             if (TipoItem.FRUTTO.equals(itm.getTipo())) {
-                itemsDTO.getFrutti().add(itemMapper.toDTO(itm));
+                itemsDTO.getFrutti().add(itemMapper.toDTO(itm, null, uUsati));
             }
             if (TipoItem.FORMA.equals(itm.getTipo())) {
-                itemsDTO.getForme().add(itemMapper.toDTO(itm));
+                itemsDTO.getForme().add(itemMapper.toDTO(itm, null, uUsati));
             }
             if (TipoItem.PRIVILEGIO.equals(itm.getTipo())) {
-                itemsDTO.getPrivilegi().add(itemMapper.toDTO(itm));
+                itemsDTO.getPrivilegi().add(itemMapper.toDTO(itm, null, uUsati));
             }
         }
 
@@ -444,7 +456,7 @@ public class PersonaggioService {
                     .filter(l -> Constants.ITEM_LABEL_TAGLIA.equals(l.getLabel())
                             && l.getValore() != null && !l.getValore().isBlank())
                     .findFirst()
-                    .ifPresent(l -> taglia.add(new ItemLabel(null, null, Constants.ITEM_LABEL_TAGLIA, l.getValore())));
+                    .ifPresent(l -> taglia.add(new ItemLabel(null, null, Constants.ITEM_LABEL_TAGLIA, l.getValore(), null)));
         }
 
         // 7) Raggruppa Modificatori e Rank in DTO
@@ -745,8 +757,8 @@ public class PersonaggioService {
 
                 if (!incantesimi.isEmpty()) {
                     incantesimi.forEach(itm -> {
-                        itm.getItem().getLabels().add(new ItemLabel(null, null, Constants.ITEM_LABEL_LIVELLO_INCANTESIMO, itm.getLivello()));
-                        itm.getItem().getLabels().add(new ItemLabel(null, null, Constants.ITEM_LABEL_CLASSE_INCANTESIMO, spellDiClasse.getValore()));
+                        itm.getItem().getLabels().add(new ItemLabel(null, null, Constants.ITEM_LABEL_LIVELLO_INCANTESIMO, itm.getLivello(), null));
+                        itm.getItem().getLabels().add(new ItemLabel(null, null, Constants.ITEM_LABEL_CLASSE_INCANTESIMO, spellDiClasse.getValore(), null));
                     });
                     return incantesimi;
                 }

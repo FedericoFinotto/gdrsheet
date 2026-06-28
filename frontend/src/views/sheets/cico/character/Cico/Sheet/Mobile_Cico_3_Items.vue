@@ -5,6 +5,7 @@ import {useCharacterStore} from "../../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import Mobile_DettaglioItem from "../../Dettaglio/Mobile_DettaglioItem.vue";
 import BottoneAggiungiItem from "../../Shared/BottoneAggiungiItem.vue";
+import {setUtilizziUsati} from "../../../../../../service/PersonaggioService";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore)
@@ -46,8 +47,33 @@ const itemsMaledizioni = computed(() => wrap(items.value?.maledizioni));
 
 const badgeQta = (row: any) => row.quantita != null && row.quantita !== 1 ? `x${row.quantita}` : null;
 
+// Colonna utilizzi: visibile solo se l'item ha un totale definito
+function utilizziCol() {
+  return {
+    field: 'utilizziUsati',
+    label: '',
+    type: 'counter' as const,
+    counter: {
+      hide: (row: any) => row.utilizziTotale == null,
+      value: (row: any) => row.utilizziUsati ?? 0,
+      max: (row: any) => row.utilizziTotale ?? null,
+      onSub: (row: any) => {
+        const nuovi = Math.max(0, (row.utilizziUsati ?? 0) - 1)
+        setUtilizziUsati(row.id, props.idPersonaggio, nuovi)
+            .then(() => characterStore.fetchCharacter(props.idPersonaggio, true))
+      },
+      onAdd: (row: any) => {
+        const nuovi = Math.min(row.utilizziTotale, (row.utilizziUsati ?? 0) + 1)
+        setUtilizziUsati(row.id, props.idPersonaggio, nuovi)
+            .then(() => characterStore.fetchCharacter(props.idPersonaggio, true))
+      },
+    }
+  }
+}
+
 const col = (label: string, withBadge = false) => [
   {field: 'nome', label, disabled: (row: any) => row.disabled, ...(withBadge ? {badge: badgeQta} : {})},
+  utilizziCol(),
 ];
 
 const columnsOggetti = col('Oggetti', true);

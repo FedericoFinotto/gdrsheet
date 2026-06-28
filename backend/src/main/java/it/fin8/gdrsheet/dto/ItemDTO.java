@@ -29,4 +29,12 @@ public class ItemDTO {
      * True se l'item è collegato direttamente via FromCompendio (può essere scollegato dall'utente).
      */
     private Boolean scollegabile;
+    /**
+     * Utilizzi massimi (label UTILIZZI sull'item, globale). Null = nessun limite definito.
+     */
+    private Integer utilizziTotale;
+    /**
+     * Utilizzi consumati dal personaggio corrente (label UTILIZZI_USATI per-personaggio).
+     */
+    private Integer utilizziUsati;
 }

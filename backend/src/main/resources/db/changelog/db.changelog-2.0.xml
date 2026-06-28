@@ -265,4 +265,14 @@
         </insert>
     </changeSet>
 
+    <changeSet id="117" author="developer">
+        <addColumn tableName="item_label">
+            <column name="id_personaggio" type="bigint">
+                <constraints nullable="true"
+                             foreignKeyName="fk_item_label_personaggio"
+                             references="personaggio(id)"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>

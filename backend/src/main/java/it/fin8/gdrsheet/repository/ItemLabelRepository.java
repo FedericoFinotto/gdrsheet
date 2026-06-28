@@ -23,6 +23,14 @@ public interface ItemLabelRepository extends JpaRepository<ItemLabel, Integer> {
 
     List<ItemLabel> findByLabelLikeAndItem_IdIn(String label, List<Integer> itemIds);
 
+    // Solo label globali (id_personaggio IS NULL)
+    List<ItemLabel> findByLabelAndItem_IdInAndPersonaggioIsNull(String label, List<Integer> itemIds);
+
+    // Label per-personaggio
+    List<ItemLabel> findByLabelAndItem_IdInAndPersonaggio_Id(String label, List<Integer> itemIds, Integer personaggioId);
+
+    java.util.Optional<ItemLabel> findByItem_IdAndLabelAndPersonaggio_Id(Integer itemId, String label, Integer personaggioId);
+
     /**
      * Triple (itemId, label, valore) per le label richieste su tutti gli item
      * "del personaggio": quelli intestati direttamente e quelli collegati come

@@ -265,12 +265,31 @@ input, select, textarea {
 }
 
 /* Valori compatti */
+.modifier-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    margin-top: 2px;
+    position: relative;
+    cursor: pointer;
+}
 .modifier {
     font-size: 1.0rem;
     font-weight: 800;
     line-height: 1;
     color: var(--text-strong);
-    margin-top: 2px;
+}
+.nota-badge {
+    font-size: .6rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 1px 4px;
+    border-radius: 999px;
+    background: #f59e0b;
+    color: #fff;
+    align-self: flex-start;
+    margin-top: -1px;
 }
 
 .base {

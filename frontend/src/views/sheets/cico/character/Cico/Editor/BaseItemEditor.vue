@@ -71,6 +71,7 @@ const form = reactive<{
   children: [],
   forme: [],
   qta: 1,
+  utilizzi: null as number | null,
   compendio: false,
   visibilita: '',
   idMondo: null as number | null,
@@ -87,6 +88,7 @@ function preload() {
   form.campi = Object.fromEntries(props.campiLabel.map(c => [c.key, '']))
 
   form.qta = 1
+  form.utilizzi = null
   form.enName = ''
   form.manuale = ''
   form.idMondo = props.item.mondo?.id ?? null
@@ -101,6 +103,8 @@ function preload() {
     if (showQta.value && key === 'QTA') {
       const n = Number(val)
       form.qta = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 1
+    } else if (key === 'UTILIZZI') {
+      form.utilizzi = Number.isFinite(Number(val)) ? Number(val) : null
     } else if (key === 'COMPENDIO') {
       form.compendio = ['true', '1'].includes(String(val).toLowerCase())
     } else if (key === 'VISIBILITA') {
@@ -178,6 +182,7 @@ function restoreSnapshot(snap: any) {
   form.children = snap.children ?? []
   form.forme = snap.forme ?? []
   form.qta = snap.qta ?? 1
+  form.utilizzi = snap.utilizzi ?? null
   form.compendio = !!snap.compendio
   form.visibilita = snap.visibilita ?? ''
   form.idMondo = snap.idMondo ?? null
@@ -248,6 +253,9 @@ function buildPayload(): UpdateItemRequest {
   // nome originale inglese e manuale di provenienza
   if (form.enName.trim()) labels.push({label: 'EN_NAME', valore: form.enName.trim()})
   if (form.manuale.trim()) labels.push({label: 'MANUALE_SP', valore: form.manuale.trim()})
+  // utilizzi massimi (globale sull'item)
+  if (form.utilizzi != null && Number.isInteger(form.utilizzi) && form.utilizzi > 0)
+    labels.push({label: 'UTILIZZI', valore: String(form.utilizzi)})
   // flag compendio
   if (form.compendio) labels.push({label: 'COMPENDIO', valore: 'true'})
   // visibilità item (vuoto = visibile a tutti)
@@ -353,6 +361,11 @@ function onCancel() {
           <button type="button" class="qta-btn" :disabled="disabledAll"
                   @click="form.qta = (Number(form.qta) || 0) + 1">+</button>
         </div>
+      </label>
+      <label class="field utilizzi-field">
+        <span class="lbl">Utilizzi max</span>
+        <input v-model.number="form.utilizzi" type="number" min="1" step="1" inputmode="numeric"
+               :disabled="disabledAll"/>
       </label>
     </div>
 
@@ -507,7 +520,7 @@ function onCancel() {
 .field { display: grid; gap: .35rem; margin: 0; }
 .lbl { font-size: .8rem; font-weight: 600; opacity: .85; margin: 0; }
 
-input[type="text"], textarea, select {
+input[type="text"], input[type="number"], textarea, select {
   width: 100%; padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff; margin: 0;
 }
 textarea { resize: vertical; }
@@ -550,6 +563,7 @@ textarea { resize: vertical; }
 .nome-qta { display: grid; grid-template-columns: 1fr auto; gap: .5rem; align-items: end; }
 .field.grow { min-width: 0; }
 .qta-field { width: 9rem; }
+.utilizzi-field { width: 8rem; }
 .qta-stepper { display: grid; grid-template-columns: auto 1fr auto; gap: .25rem; align-items: stretch; }
 .qta-stepper input {
   width: 100%; text-align: center; padding: .5rem .25rem;
