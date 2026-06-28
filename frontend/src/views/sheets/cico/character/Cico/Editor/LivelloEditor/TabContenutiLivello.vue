@@ -90,7 +90,8 @@ function rebuild() {
         descrizione: String(item.itemTarget.nome),
         tipo: 'ITEM',
         livello: lv,
-        raw: item.itemTarget as ItemDB
+        raw: item.itemTarget as ItemDB,
+        qty: item.qty ?? null
       })
     }
 
@@ -186,6 +187,12 @@ function getSelectedGrantRows(): GrantRow[] {
   return all.filter(r => ids.has(r.id))
 }
 
+function setGrantQty(g: GrantRow, val: string) {
+  const n = parseInt(val)
+  g.qty = Number.isFinite(n) && n > 0 ? n : null
+  flushSelectedToParent()
+}
+
 </script>
 
 <template>
@@ -220,17 +227,31 @@ function getSelectedGrantRows(): GrantRow[] {
             </div>
           </div>
           <div class="grant-list">
-            <label class="grant-row" v-for="g in grantsByLevel[lv] ?? []" :key="g.id">
+            <div class="grant-row" v-for="g in grantsByLevel[lv] ?? []" :key="g.id">
+              <label class="grant-check">
+                <input
+                    type="checkbox"
+                    :checked="isSelected(g.id)"
+                    @change="toggleGrant(g.id, ($event.target as HTMLInputElement).checked)"
+                    :disabled="disabled"
+                />
+                <span class="pill blue" v-if="g.tipo === 'ITEM'">ITEM</span>
+                <span class="pill red" v-else>MOD</span>
+                <span class="grant-name">{{ g.descrizione }}</span>
+              </label>
               <input
-                  type="checkbox"
-                  :checked="isSelected(g.id)"
-                  @change="toggleGrant(g.id, ($event.target as HTMLInputElement).checked)"
+                  v-if="g.tipo === 'ITEM'"
+                  class="grant-qty"
+                  type="number"
+                  min="1"
+                  step="1"
+                  :value="g.qty ?? ''"
                   :disabled="disabled"
+                  placeholder="—"
+                  title="Utilizzi concessi"
+                  @change="setGrantQty(g, ($event.target as HTMLInputElement).value)"
               />
-              <span class="pill blue" v-if="g.tipo === 'ITEM'">ITEM</span>
-              <span class="pill red" v-else>MOD</span>
-              <span class="grant-name">{{ g.descrizione }}</span>
-            </label>
+            </div>
             <div v-if="!(grantsByLevel[lv]?.length)" class="muted">
               Nessun contenuto per questo livello.
             </div>
@@ -273,9 +294,19 @@ function getSelectedGrantRows(): GrantRow[] {
 
 .grant-row {
   display: grid;
+  grid-template-columns: 1fr auto;
+  gap: .4rem;
+  align-items: center;
+}
+.grant-check {
+  display: grid;
   grid-template-columns: auto auto 1fr;
   gap: .5rem;
   align-items: center;
+}
+.grant-qty {
+  width: 3.5rem; padding: .2rem .3rem; border: 1px solid #d0d5dd; border-radius: .4rem;
+  text-align: center; font-size: .8rem;
 }
 
 .grant-name {

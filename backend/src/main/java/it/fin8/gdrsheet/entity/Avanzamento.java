@@ -33,4 +33,7 @@ public class Avanzamento implements Serializable {
     @Column(name = "livello", nullable = false)
     private Integer livello;
 
+    @Column(name = "qty")
+    private Integer qty;
+
 }

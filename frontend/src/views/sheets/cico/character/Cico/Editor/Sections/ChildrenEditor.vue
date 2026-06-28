@@ -64,8 +64,16 @@ function onQueryInput() {
 }
 
 function add(item: Item) {
-  emit('update:modelValue', [...props.modelValue, {id: item.id, nome: item.nome, tipo: item.tipo}])
+  emit('update:modelValue', [...props.modelValue, {id: item.id, nome: item.nome, tipo: item.tipo, qty: null}])
   results.value = results.value.filter(r => r.id !== item.id)
+}
+
+function setQty(idx: number, val: string) {
+  const n = parseInt(val)
+  const updated = props.modelValue.map((c, i) =>
+      i === idx ? {...c, qty: Number.isFinite(n) && n > 0 ? n : null} : c
+  )
+  emit('update:modelValue', updated)
 }
 
 function remove(idx: number) {
@@ -80,6 +88,17 @@ function remove(idx: number) {
     <div v-for="(c, i) in modelValue" :key="c.id" class="child-row">
       <span class="nome">{{ c.nome }}</span>
       <span class="pill">{{ c.tipo }}</span>
+      <input
+          class="qty-input"
+          type="number"
+          min="1"
+          step="1"
+          :value="c.qty ?? ''"
+          :disabled="disabled"
+          placeholder="—"
+          title="Utilizzi concessi"
+          @change="setQty(i, ($event.target as HTMLInputElement).value)"
+      />
       <button type="button" class="btn-edit" @click="editChild(c)" title="Modifica">✎</button>
       <button type="button" class="btn-del" :disabled="disabled" @click="remove(i)" title="Scollega">✕</button>
     </div>
@@ -127,8 +146,12 @@ input, select, textarea { min-width: 0; }
 .empty { font-size: .85rem; opacity: .6; }
 
 .child-row {
-  display: grid; grid-template-columns: 1fr auto auto auto; gap: .4rem; align-items: center;
+  display: grid; grid-template-columns: 1fr auto auto auto auto; gap: .4rem; align-items: center;
   padding: .35rem .5rem; border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff;
+}
+.qty-input {
+  width: 3.5rem; padding: .25rem .35rem; border: 1px solid #d0d5dd; border-radius: .4rem;
+  text-align: center; font-size: .8rem;
 }
 .nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pill {

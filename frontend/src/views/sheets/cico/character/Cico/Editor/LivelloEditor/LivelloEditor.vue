@@ -534,7 +534,7 @@ async function onSave() {
           .map(([abilitaId, punti]) => ({abilitaId, punti: Number(punti)})),
       grantsSelezionati: [
         ...Array.from(selectedGrants.value)
-            .map(g => ({id: g.id, tipo: g.tipo, livello: g.livello, descrizione: g.descrizione})),
+            .map(g => ({id: g.id, tipo: g.tipo, livello: g.livello, descrizione: g.descrizione, qty: g.qty ?? null})),
         ...extraItems.value
             .map(i => ({id: `item-${i.id}`, tipo: 'ITEM' as const, livello: 0, descrizione: i.nome}))
       ],

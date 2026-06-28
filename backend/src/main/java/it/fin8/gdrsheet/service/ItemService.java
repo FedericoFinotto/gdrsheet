@@ -37,6 +37,8 @@ public class ItemService {
     @Autowired
     private CollegamentoRepository collegamentoRepository;
     @Autowired
+    private AvanzamentoRepository avanzamentoRepository;
+    @Autowired
     private ModificatoreRepository modificatoreRepository;
     @Autowired
     private PersonaggioService personaggioService;
@@ -289,7 +291,7 @@ public class ItemService {
         Item saved = itemRepository.save(itm);
         applyModificatori(saved, request.getModificatori());
         applyAttacchi(saved, request.getAttacchi());
-        applyChildren(saved, request.getChildItemIds());
+        applyChildren(saved, request.getChildren());
 
         // bootstrap struttura di un frutto appena creato (variabile livello + 3 forme)
         if (TipoItem.FRUTTO.equals(saved.getTipo())) {
@@ -532,7 +534,7 @@ public class ItemService {
 
         applyModificatori(itm, request.getModificatori());
         applyAttacchi(itm, request.getAttacchi());
-        applyChildren(itm, request.getChildItemIds());
+        applyChildren(itm, request.getChildren());
 
         return itemRepository.save(itm);
     }
@@ -657,34 +659,44 @@ public class ItemService {
      * richiesto: crea i collegamenti mancanti, elimina quelli non più presenti
      * (solo il collegamento, mai l'item target). Null = non toccare.
      */
-    private void applyChildren(Item itm, List<Integer> childItemIds) {
-        if (childItemIds == null) return;
+    private void applyChildren(Item itm, List<UpdateItemRequest.ChildRefDTO> children) {
+        if (children == null) return;
 
-        Set<Integer> desiderati = new HashSet<>(childItemIds);
+        Map<Integer, Integer> desiderati = new HashMap<>();
+        for (UpdateItemRequest.ChildRefDTO c : children) desiderati.put(c.getId(), c.getQty());
 
         List<Collegamento> linkAltri = (itm.getChild() != null ? itm.getChild() : List.<Collegamento>of()).stream()
                 .filter(c -> !TipoItem.ATTACCO.equals(c.getItemTarget().getTipo()))
                 .toList();
 
         List<Collegamento> daEliminare = linkAltri.stream()
-                .filter(c -> !desiderati.contains(c.getItemTarget().getId()))
+                .filter(c -> !desiderati.containsKey(c.getItemTarget().getId()))
                 .toList();
         collegamentoRepository.deleteAll(daEliminare);
-        if (itm.getChild() != null) itm.getChild().removeAll(daEliminare); // allinea la collection in memoria
+        if (itm.getChild() != null) itm.getChild().removeAll(daEliminare);
 
-        Set<Integer> giaPresenti = linkAltri.stream()
-                .map(c -> c.getItemTarget().getId())
-                .collect(Collectors.toSet());
+        Map<Integer, Collegamento> giaPresenti = linkAltri.stream()
+                .collect(Collectors.toMap(c -> c.getItemTarget().getId(), c -> c));
 
-        for (Integer targetId : desiderati) {
-            if (giaPresenti.contains(targetId)) continue;
+        for (Map.Entry<Integer, Integer> entry : desiderati.entrySet()) {
+            Integer targetId = entry.getKey();
+            Integer qty = entry.getValue();
             if (Objects.equals(targetId, itm.getId())) continue; // no self-link
-            Item target = itemRepository.findById(targetId)
-                    .orElseThrow(() -> new RuntimeException("Item da collegare non trovato: " + targetId));
-            Collegamento link = new Collegamento();
-            link.setItemSource(itm);
-            link.setItemTarget(target);
-            collegamentoRepository.save(link);
+            if (giaPresenti.containsKey(targetId)) {
+                Collegamento existing = giaPresenti.get(targetId);
+                if (!Objects.equals(existing.getQty(), qty)) {
+                    existing.setQty(qty);
+                    collegamentoRepository.save(existing);
+                }
+            } else {
+                Item target = itemRepository.findById(targetId)
+                        .orElseThrow(() -> new RuntimeException("Item da collegare non trovato: " + targetId));
+                Collegamento link = new Collegamento();
+                link.setItemSource(itm);
+                link.setItemTarget(target);
+                link.setQty(qty);
+                collegamentoRepository.save(link);
+            }
         }
     }
 
@@ -789,7 +801,7 @@ public class ItemService {
         }
 
         // --- contenuti del livello (grants) ---
-        applyGrants(livello, request.getGrantsSelezionati());
+        applyGrants(livello, request.getGrantsSelezionati(), request.getClasseId());
 
         // --- modificatori liberi (aggiunti a mano) ---
         applyModificatoriLiberi(livello, request.getModificatoriLiberi());
@@ -910,16 +922,34 @@ public class ItemService {
      * Null = non toccare. I collegamenti verso CLASSE/RAZZA/MALEDIZIONE e i
      * modificatori BASE/RANK non vengono toccati.
      */
-    private void applyGrants(Item livello, List<UpdateLivelloRequest.GrantSelezionatoDTO> grants) {
+    private void applyGrants(Item livello, List<UpdateLivelloRequest.GrantSelezionatoDTO> grants, Integer classeId) {
         if (grants == null) return;
 
-        Set<Integer> desiredItemIds = new HashSet<>();
+        // Recupera qty definiti nella classe (fonte di verità), (livello, itemTargetId) → qty
+        Map<String, Integer> classeQtyMap = new HashMap<>();
+        if (classeId != null) {
+            for (Avanzamento av : avanzamentoRepository.findAllByItemSource_Id(classeId)) {
+                if (av.getQty() != null && av.getItemTarget() != null) {
+                    classeQtyMap.put(av.getLivello() + "-" + av.getItemTarget().getId(), av.getQty());
+                }
+            }
+        }
+
+        Map<Integer, Integer> desiredItemIds = new HashMap<>(); // itemId -> qty
         Set<Integer> desiredModIds = new HashSet<>();
         for (UpdateLivelloRequest.GrantSelezionatoDTO g : grants) {
             Integer parsed = parseGrantId(g.getId());
             if (parsed == null) continue;
-            if (g.getId().startsWith("item-")) desiredItemIds.add(parsed);
-            else if (g.getId().startsWith("mod-")) desiredModIds.add(parsed);
+            if (g.getId().startsWith("item-")) {
+                Integer qty = g.getQty();
+                // se il frontend non ha mandato qty, recuperalo dalla definizione di classe
+                if (qty == null && g.getLivello() != null) {
+                    qty = classeQtyMap.get(g.getLivello() + "-" + parsed);
+                }
+                desiredItemIds.put(parsed, qty);
+            } else if (g.getId().startsWith("mod-")) {
+                desiredModIds.add(parsed);
+            }
         }
 
         // --- collegamenti (item concessi) ---
@@ -928,22 +958,31 @@ public class ItemService {
 
         List<Collegamento> daEliminare = children.stream()
                 .filter(c -> !tipiEsclusi.contains(c.getItemTarget().getTipo()))
-                .filter(c -> !desiredItemIds.contains(c.getItemTarget().getId()))
+                .filter(c -> !desiredItemIds.containsKey(c.getItemTarget().getId()))
                 .toList();
         collegamentoRepository.deleteAll(daEliminare);
         if (livello.getChild() != null) livello.getChild().removeAll(daEliminare); // allinea la collection in memoria
 
-        Set<Integer> giaPresenti = children.stream()
-                .map(c -> c.getItemTarget().getId())
-                .collect(Collectors.toSet());
-        for (Integer itemId : desiredItemIds) {
-            if (giaPresenti.contains(itemId)) continue;
-            Item target = itemRepository.findById(itemId)
-                    .orElseThrow(() -> new RuntimeException("Item concesso non trovato: " + itemId));
-            Collegamento c = new Collegamento();
-            c.setItemSource(livello);
-            c.setItemTarget(target);
-            collegamentoRepository.save(c);
+        Map<Integer, Collegamento> giaPresenti = children.stream()
+                .collect(Collectors.toMap(c -> c.getItemTarget().getId(), c -> c, (a, b) -> a));
+        for (Map.Entry<Integer, Integer> entry : desiredItemIds.entrySet()) {
+            Integer itemId = entry.getKey();
+            Integer qty = entry.getValue();
+            if (giaPresenti.containsKey(itemId)) {
+                Collegamento existing = giaPresenti.get(itemId);
+                if (!Objects.equals(existing.getQty(), qty)) {
+                    existing.setQty(qty);
+                    collegamentoRepository.save(existing);
+                }
+            } else {
+                Item target = itemRepository.findById(itemId)
+                        .orElseThrow(() -> new RuntimeException("Item concesso non trovato: " + itemId));
+                Collegamento c = new Collegamento();
+                c.setItemSource(livello);
+                c.setItemTarget(target);
+                c.setQty(qty);
+                collegamentoRepository.save(c);
+            }
         }
 
         // --- modificatori concessi (copie sul livello) ---

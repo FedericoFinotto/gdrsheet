@@ -7,4 +7,5 @@ export type GrantRow = {
     tipo: 'ITEM' | 'MOD'
     livello: number
     raw?: ItemDB | Modificatore
+    qty?: number | null
 }

@@ -105,5 +105,7 @@ public class UpdateLivelloRequest {
         private String tipo; // ITEM | MOD
         private Integer livello;
         private String descrizione;
+        /** Numero di utilizzi concessi da questo avanzamento; null = 1. */
+        private Integer qty;
     }
 }

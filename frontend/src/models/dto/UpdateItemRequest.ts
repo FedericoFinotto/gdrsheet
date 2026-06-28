@@ -38,6 +38,7 @@ export interface ChildRef {
     id: number;
     nome: string;
     tipo: TipoItem;
+    qty?: number | null;
 }
 
 export interface UpdateItemRequest {
@@ -51,5 +52,5 @@ export interface UpdateItemRequest {
     labels?: LabelRow[];      // stato completo delle labels
     modificatori?: ModificatoreRow[]; // stato completo dei modificatori
     attacchi?: AttaccoRow[];  // stato completo degli attacchi figli
-    childItemIds?: number[];  // stato completo degli item collegati (non ATTACCO)
+    children?: { id: number; qty?: number | null }[];  // stato completo degli item collegati (non ATTACCO)
 }

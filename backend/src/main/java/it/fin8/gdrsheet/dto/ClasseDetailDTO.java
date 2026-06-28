@@ -111,5 +111,6 @@ public class ClasseDetailDTO {
         private Integer itemId;
         private String nome;       // solo in lettura
         private String tipo;       // solo in lettura
+        private Integer qty;
     }
 }

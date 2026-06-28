@@ -275,4 +275,20 @@
         </addColumn>
     </changeSet>
 
+    <changeSet id="118" author="developer">
+        <addColumn tableName="collegamento">
+            <column name="qty" type="int">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="119" author="developer">
+        <addColumn tableName="avanzamento">
+            <column name="qty" type="int">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>

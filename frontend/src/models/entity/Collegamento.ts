@@ -5,4 +5,5 @@ export interface Collegamento {
     id: number;
     itemSource: ItemDB;
     itemTarget: ItemDB;
+    qty?: number | null;
 }

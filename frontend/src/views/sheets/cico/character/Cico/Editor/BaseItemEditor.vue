@@ -130,23 +130,21 @@ function preload() {
   }))
 
   // child: ATTACCO -> sezione attacchi, FORMA (se separateForme) -> forme, il resto -> item collegati
-  const children = (props.item.child ?? []).map(c => c.itemTarget).filter(Boolean)
-  form.attacchi = children
-      .filter(t => t.tipo === 'ATTACCO')
-      .map(t => ({
-        id: t.id,
-        nome: t.nome,
-        tpc: getItemLabel(t, 'TPC') ?? '',
-        tpd: getItemLabel(t, 'TPD') ?? '',
-        tipoDanni: getItemLabel(t, 'TDANNO' as any) ?? '',
-      }))
-  const nonAttacco = children.filter(t => t.tipo !== 'ATTACCO')
+  const collegamentiNonAttacco = (props.item.child ?? []).filter(c => c.itemTarget?.tipo !== 'ATTACCO')
+  const attacchi = (props.item.child ?? []).filter(c => c.itemTarget?.tipo === 'ATTACCO')
+  form.attacchi = attacchi.map(c => ({
+    id: c.itemTarget.id,
+    nome: c.itemTarget.nome,
+    tpc: getItemLabel(c.itemTarget, 'TPC') ?? '',
+    tpd: getItemLabel(c.itemTarget, 'TPD') ?? '',
+    tipoDanni: getItemLabel(c.itemTarget, 'TDANNO' as any) ?? '',
+  }))
   if (props.separateForme) {
-    form.forme = nonAttacco.filter(t => t.tipo === 'FORMA').map(t => ({id: t.id, nome: t.nome, tipo: t.tipo}))
-    form.children = nonAttacco.filter(t => t.tipo !== 'FORMA').map(t => ({id: t.id, nome: t.nome, tipo: t.tipo}))
+    form.forme = collegamentiNonAttacco.filter(c => c.itemTarget.tipo === 'FORMA').map(c => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null}))
+    form.children = collegamentiNonAttacco.filter(c => c.itemTarget.tipo !== 'FORMA').map(c => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null}))
   } else {
     form.forme = []
-    form.children = nonAttacco.map(t => ({id: t.id, nome: t.nome, tipo: t.tipo}))
+    form.children = collegamentiNonAttacco.map(c => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null}))
   }
 }
 
@@ -272,7 +270,7 @@ function buildPayload(): UpdateItemRequest {
     labels,
     modificatori: form.modificatori.filter(m => m.statId.trim()),
     attacchi: form.attacchi.filter(a => a.nome.trim()),
-    childItemIds: [...form.children, ...form.forme].map(c => c.id),
+    children: [...form.children, ...form.forme].map(c => ({id: c.id, qty: c.qty ?? null})),
   })
 }
 

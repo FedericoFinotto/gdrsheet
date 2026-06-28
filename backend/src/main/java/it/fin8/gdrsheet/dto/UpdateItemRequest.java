@@ -77,9 +77,20 @@ public class UpdateItemRequest {
 
     /**
      * Stato completo degli item collegati come child (esclusi gli ATTACCO,
-     * gestiti da {@link #attacchi}). Id degli item target. Null = non toccare.
+     * gestiti da {@link #attacchi}). Null = non toccare.
      */
-    private List<Integer> childItemIds;
+    private List<ChildRefDTO> children;
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ChildRefDTO {
+        private Integer id;
+        /** Utilizzi concessi da questo collegamento; null = 1. */
+        private Integer qty;
+    }
 
     @Getter
     @Setter

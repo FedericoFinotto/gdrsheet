@@ -36,6 +36,9 @@ public class Collegamento {
     @JsonIgnoreProperties("personaggio")
     private Item itemTarget;
 
+    @Column(name = "qty")
+    private Integer qty;
+
     @OneToMany(mappedBy = "collegamento", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties("collegamento")
     private List<CollegamentoLabel> labels = new ArrayList<>();

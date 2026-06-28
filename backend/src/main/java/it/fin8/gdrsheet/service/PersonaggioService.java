@@ -53,6 +53,9 @@ public class PersonaggioService {
     private CollegamentoRepository collegamentoRepository;
 
     @Autowired
+    private AvanzamentoRepository avanzamentoRepository;
+
+    @Autowired
     @org.springframework.context.annotation.Lazy
     private PartyService partyService;
 
@@ -129,43 +132,63 @@ public class PersonaggioService {
         // Carica utilizzi per-personaggio in bulk (una sola query)
         List<Integer> allItemIds = allPersonaggioItems.getItems().stream().map(Item::getId).toList();
         Map<Integer, Integer> utilizziUsatiMap = new HashMap<>();
+        Map<Integer, Integer> utilizziTotaleMap = new HashMap<>();
         if (!allItemIds.isEmpty()) {
             for (it.fin8.gdrsheet.entity.ItemLabel ul : itemLabelRepository
                     .findByLabelAndItem_IdInAndPersonaggio_Id(Constants.LABEL_UTILIZZI_USATI, allItemIds, id)) {
                 try { utilizziUsatiMap.put(ul.getItem().getId(), Integer.parseInt(ul.getValore())); }
                 catch (Exception ignored) {}
             }
+            // Somma qty da collegamento e avanzamento:
+            // - se almeno uno ha qty esplicito → somma i qty (null conta come 1)
+            // - se tutti null ma connessioni > 1 → conta le occorrenze
+            // - se connessione unica senza qty → non mostrare il contatore
+            for (Object[] row : collegamentoRepository.sumQtyByTargets(allItemIds, allItemIds)) {
+                if (row[1] == null) continue;
+                int targetId = ((Number) row[0]).intValue();
+                int totale = ((Number) row[1]).intValue();
+                if (totale > 0) utilizziTotaleMap.merge(targetId, totale, Integer::sum);
+            }
+            // NB: gli avanzamento (CLASSE→PRIVILEGIO) sono solo template di classe.
+            // Il qty viene copiato sui collegamento (LIVELLO→PRIVILEGIO) dal LivelloEditor.
+            // Contare entrambi produrrebbe un doppio conteggio.
         }
 
+        Set<Integer> itemIdGiaAggiunti = new HashSet<>();
         for (Item itm : allPersonaggioItems.getItems()) {
             // filtro di visibilità (label VISIBILITA): nasconde l'item a chi non è autorizzato
             if (!authzService.canViewVisibilita(utente, personaggio, itm.getLabel(Constants.ITEM_LABEL_VISIBILITA))) {
                 continue;
             }
+            // deduplicazione: se l'item ha utilizzi sommati da più sorgenti, mostrarlo una volta sola
+            if (utilizziTotaleMap.containsKey(itm.getId()) && !itemIdGiaAggiunti.add(itm.getId())) {
+                continue;
+            }
             Integer uUsati = utilizziUsatiMap.get(itm.getId());
+            Integer uTotale = utilizziTotaleMap.get(itm.getId());
             if (TipoItem.ABILITA.equals(itm.getTipo())) {
-                itemsDTO.getAbilita().add(itemMapper.toDTO(itm, null, uUsati));
+                itemsDTO.getAbilita().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.TALENTO.equals(itm.getTipo())) {
-                itemsDTO.getTalenti().add(itemMapper.toDTO(itm, null, uUsati));
+                itemsDTO.getTalenti().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.OGGETTO.equals(itm.getTipo())) {
-                itemsDTO.getOggetti().add(itemMapper.toDTO(itm, null, uUsati));
+                itemsDTO.getOggetti().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.CONSUMABILE.equals(itm.getTipo())) {
-                itemsDTO.getConsumabili().add(itemMapper.toDTO(itm, null, uUsati));
+                itemsDTO.getConsumabili().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.ARMA.equals(itm.getTipo())) {
-                itemsDTO.getArmi().add(itemMapper.toDTO(itm, null, uUsati));
+                itemsDTO.getArmi().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.MUNIZIONE.equals(itm.getTipo())) {
-                itemsDTO.getMunizioni().add(itemMapper.toDTO(itm, null, uUsati));
+                itemsDTO.getMunizioni().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.EQUIPAGGIAMENTO.equals(itm.getTipo())) {
-                itemsDTO.getEquipaggiamento().add(itemMapper.toDTO(itm, null, uUsati));
+                itemsDTO.getEquipaggiamento().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.RAZZA.equals(itm.getTipo())) {
-                itemsDTO.getRazze().add(itemMapper.toDTO(itm, null, uUsati));
+                itemsDTO.getRazze().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.ATTACCO.equals(itm.getTipo())) {
                 itemsDTO.getAttacchi().add(itemMapper.toAttaccoDTO(itm));
@@ -174,32 +197,32 @@ public class PersonaggioService {
                 itemsDTO.getLivelli().add(itemMapper.toLivelloDTO(itm));
             }
             if (TipoItem.MALEDIZIONE.equals(itm.getTipo())) {
-                itemsDTO.getMaledizioni().add(itemMapper.toDTO(itm, null, uUsati));
+                itemsDTO.getMaledizioni().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.TRASFORMAZIONE.equals(itm.getTipo())) {
                 itemsDTO.getTrasformazioni().add(itemMapper.toTrasformazioneDTO(itm));
             }
             if (TipoItem.COMP.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, null, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getCompetenze().add(dto);
             }
             if (TipoItem.LINGUA.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, null, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getLingue().add(dto);
             }
             if (TipoItem.IDOLO.equals(itm.getTipo())) {
-                itemsDTO.getIdoli().add(itemMapper.toDTO(itm, null, uUsati));
+                itemsDTO.getIdoli().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.FRUTTO.equals(itm.getTipo())) {
-                itemsDTO.getFrutti().add(itemMapper.toDTO(itm, null, uUsati));
+                itemsDTO.getFrutti().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.FORMA.equals(itm.getTipo())) {
-                itemsDTO.getForme().add(itemMapper.toDTO(itm, null, uUsati));
+                itemsDTO.getForme().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.PRIVILEGIO.equals(itm.getTipo())) {
-                itemsDTO.getPrivilegi().add(itemMapper.toDTO(itm, null, uUsati));
+                itemsDTO.getPrivilegi().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
         }
 

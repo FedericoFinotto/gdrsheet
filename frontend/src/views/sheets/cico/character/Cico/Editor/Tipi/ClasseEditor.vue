@@ -38,6 +38,7 @@ interface AbilitaConcessa {
   nome: string
   tipo?: string
   nuovo?: boolean
+  qty?: number | null
 }
 
 const form = reactive({
@@ -129,7 +130,7 @@ onMounted(async () => {
       target.spSlot = row.spSlot ?? ''
     }
     form.abilitaConcesse = (d.abilitaConcesse ?? []).map((a: any) => ({
-      livello: a.livello, itemId: a.itemId, nome: a.nome, tipo: a.tipo,
+      livello: a.livello, itemId: a.itemId, nome: a.nome, tipo: a.tipo, qty: a.qty ?? null,
     }))
   } catch (e) {
     errorMsg.value = 'Errore nel caricamento della classe'
@@ -316,7 +317,7 @@ async function onSave() {
       dv: form.dv.trim() || null,
       numLivelli: form.numLivelli,
       livelli: form.livelli.slice(0, form.numLivelli),
-      abilitaConcesse: form.abilitaConcesse.map(a => ({livello: a.livello, itemId: a.itemId, nome: a.nome})),
+      abilitaConcesse: form.abilitaConcesse.map(a => ({livello: a.livello, itemId: a.itemId, nome: a.nome, qty: a.qty ?? null})),
     }
     await api.post('/item/classe', payload)
     emit('saved')
@@ -623,6 +624,17 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
           <div v-for="(a, i) in form.abilitaConcesse" :key="`${a.itemId ?? 'new'}-${a.nome}-${a.livello}`" class="conc-row">
             <span class="liv-pill">Liv {{ a.livello }}</span>
             <span class="nome"><span v-if="a.nuovo" class="new-chip">NEW</span>{{ a.nome }}</span>
+            <input
+                class="qty-input"
+                type="number"
+                min="1"
+                step="1"
+                :value="a.qty ?? ''"
+                :disabled="disabledAll"
+                placeholder="—"
+                title="Utilizzi concessi"
+                @change="a.qty = ($event.target as HTMLInputElement).value ? parseInt(($event.target as HTMLInputElement).value) || null : null"
+            />
             <button type="button" class="btn-edit" :disabled="disabledAll || !a.itemId"
                     @click="editConcessa(a.itemId!)" title="Modifica">✎</button>
             <button type="button" class="btn-del" :disabled="disabledAll" @click="rimuoviConcessa(i)">✕</button>
@@ -763,8 +775,16 @@ textarea { resize: vertical; }
 
 /* abilità concesse */
 .conc-row {
-  display: grid; grid-template-columns: auto 1fr auto auto; gap: .4rem; align-items: center;
+  display: grid; grid-template-columns: auto 1fr auto auto auto; gap: .4rem; align-items: center;
   border: 1px solid #e5e7eb; border-radius: .5rem; padding: .35rem .5rem; background: #fff;
+}
+.conc-row .nome {
+  white-space: normal !important; word-break: break-word; overflow: visible !important;
+  text-overflow: unset !important; font-weight: 600;
+}
+.conc-row .qty-input {
+  width: 2.4rem !important; min-width: 0; padding: .25rem .2rem !important;
+  border: 1px solid #d0d5dd; border-radius: .4rem; text-align: center; font-size: .8rem;
 }
 .btn-edit {
   border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8;

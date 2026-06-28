@@ -84,7 +84,7 @@ public class ClasseService {
             } else {
                 concesse.add(new ClasseDetailDTO.AbilitaConcessaDTO(
                         av.getLivello(), target.getId(), target.getNome(),
-                        target.getTipo() != null ? target.getTipo().name() : null));
+                        target.getTipo() != null ? target.getTipo().name() : null, av.getQty()));
             }
         }
         concesse.sort(Comparator.comparingInt(ClasseDetailDTO.AbilitaConcessaDTO::getLivello)
@@ -289,11 +289,10 @@ public class ClasseService {
 
         // --- abilità concesse (righe avanzamento verso item generici) ---
         if (dto.getAbilitaConcesse() != null) {
-            record Chiave(int livello, int itemId) {
-            }
+            record Chiave(int livello, int itemId) {}
             int maxLiv = numLivelli;
             // risolvi gli itemId: gli oggetti "nuovi" (itemId null + nome) vengono creati come PRIVILEGIO
-            Set<Chiave> desiderate = new HashSet<>();
+            Map<Chiave, Integer> desiderate = new LinkedHashMap<>(); // chiave -> qty
             for (ClasseDetailDTO.AbilitaConcessaDTO a : dto.getAbilitaConcesse()) {
                 if (a.getLivello() < 1 || a.getLivello() > maxLiv) continue;
                 Integer itemId = a.getItemId();
@@ -308,29 +307,39 @@ public class ClasseService {
                     nuovo = itemRepository.save(nuovo);
                     itemId = nuovo.getId();
                 }
-                desiderate.add(new Chiave(a.getLivello(), itemId));
+                desiderate.put(new Chiave(a.getLivello(), itemId), a.getQty());
             }
 
-            Set<Chiave> presenti = new HashSet<>();
+            Map<Chiave, Avanzamento> presenti = new HashMap<>();
             for (Avanzamento av : esistenti) {
                 if (TipoItem.AVANZAMENTO.equals(av.getItemTarget().getTipo())) continue;
                 Chiave k = new Chiave(av.getLivello(), av.getItemTarget().getId());
-                if (!desiderate.contains(k)) {
+                if (!desiderate.containsKey(k)) {
                     avanzamentoRepository.delete(av);
                 } else {
-                    presenti.add(k);
+                    presenti.put(k, av);
                 }
             }
-            for (Chiave k : desiderate) {
-                if (presenti.contains(k)) continue;
-                Item target = itemRepository.findById(k.itemId())
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                                "Item concesso non trovato: " + k.itemId()));
-                Avanzamento link = new Avanzamento();
-                link.setItemSource(classe);
-                link.setItemTarget(target);
-                link.setLivello(k.livello());
-                avanzamentoRepository.save(link);
+            for (Map.Entry<Chiave, Integer> entry : desiderate.entrySet()) {
+                Chiave k = entry.getKey();
+                Integer qty = entry.getValue();
+                if (presenti.containsKey(k)) {
+                    Avanzamento av = presenti.get(k);
+                    if (!Objects.equals(av.getQty(), qty)) {
+                        av.setQty(qty);
+                        avanzamentoRepository.save(av);
+                    }
+                } else {
+                    Item target = itemRepository.findById(k.itemId())
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                    "Item concesso non trovato: " + k.itemId()));
+                    Avanzamento link = new Avanzamento();
+                    link.setItemSource(classe);
+                    link.setItemTarget(target);
+                    link.setLivello(k.livello());
+                    link.setQty(qty);
+                    avanzamentoRepository.save(link);
+                }
             }
         }
 
