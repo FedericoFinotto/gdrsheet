@@ -76,7 +76,8 @@ public class PersonaggioController {
         itemService.ensurePreparedSpell(id);
         personaggioService.ensureStatValues(id);
 
-        ItemsDTO result = personaggioService.getAllPersonaggioItemsDTOByIdPersonaggio(id, utente);
+        DatiPersonaggioDTO dati = personaggioService.getDatiPersonaggio(id);
+        ItemsDTO result = personaggioService.getAllPersonaggioItemsDTOByIdPersonaggio(id, utente, dati.getUtilizziTotaleFormula());
 
         return ResponseEntity.ok(result);
     }

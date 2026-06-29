@@ -662,9 +662,11 @@ public class ItemService {
     private void applyChildren(Item itm, List<UpdateItemRequest.ChildRefDTO> children) {
         if (children == null) return;
 
-        record ChildInfo(Integer qty, String scelta) {}
+        record ChildInfo(Integer qty, String formulaQty, String scelta) {
+        }
         Map<Integer, ChildInfo> desiderati = new HashMap<>();
-        for (UpdateItemRequest.ChildRefDTO c : children) desiderati.put(c.getId(), new ChildInfo(c.getQty(), c.getScelta()));
+        for (UpdateItemRequest.ChildRefDTO c : children)
+            desiderati.put(c.getId(), new ChildInfo(c.getQty(), c.getFormulaQty(), c.getScelta()));
 
         List<Collegamento> linkAltri = (itm.getChild() != null ? itm.getChild() : List.<Collegamento>of()).stream()
                 .filter(c -> !TipoItem.ATTACCO.equals(c.getItemTarget().getTipo()))
@@ -686,9 +688,11 @@ public class ItemService {
             if (giaPresenti.containsKey(targetId)) {
                 Collegamento existing = giaPresenti.get(targetId);
                 boolean changed = !Objects.equals(existing.getQty(), info.qty())
+                        || !Objects.equals(existing.getFormulaQty(), info.formulaQty())
                         || !Objects.equals(existing.getScelta(), info.scelta());
                 if (changed) {
                     existing.setQty(info.qty());
+                    existing.setFormulaQty(info.formulaQty());
                     existing.setScelta(info.scelta());
                     collegamentoRepository.save(existing);
                 }
@@ -699,6 +703,7 @@ public class ItemService {
                 link.setItemSource(itm);
                 link.setItemTarget(target);
                 link.setQty(info.qty());
+                link.setFormulaQty(info.formulaQty());
                 link.setScelta(info.scelta());
                 collegamentoRepository.save(link);
             }
@@ -1106,6 +1111,10 @@ public class ItemService {
     }
 
     @Transactional
+    public void resetUtilizzi(Integer personaggioId) {
+        itemLabelRepository.deleteByLabelAndPersonaggio_Id(Constants.LABEL_UTILIZZI_USATI, personaggioId);
+    }
+
     public void setUtilizziUsati(Integer itemId, Integer personaggioId, int usati) {
         ItemLabel label = itemLabelRepository
                 .findByItem_IdAndLabelAndPersonaggio_Id(itemId, Constants.LABEL_UTILIZZI_USATI, personaggioId)

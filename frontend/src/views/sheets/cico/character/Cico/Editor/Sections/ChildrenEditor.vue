@@ -79,7 +79,7 @@ function isEffectivelyAll(c: ChildRef): boolean {
 }
 
 function add(item: Item) {
-  emit('update:modelValue', [...props.modelValue, {id: item.id, nome: item.nome, tipo: item.tipo, qty: null, scelta: null}])
+  emit('update:modelValue', [...props.modelValue, {id: item.id, nome: item.nome, tipo: item.tipo, qty: null, formulaQty: null, scelta: null}])
   results.value = results.value.filter(r => r.id !== item.id)
 }
 
@@ -89,6 +89,11 @@ function setQty(idx: number, val: string) {
       i === idx ? {...c, qty: Number.isFinite(n) && n > 0 ? n : null} : c
   )
   emit('update:modelValue', updated)
+}
+
+function setFormulaQty(idx: number, val: string) {
+  const trimmed = val.trim() || null
+  emit('update:modelValue', props.modelValue.map((c, i) => i === idx ? {...c, formulaQty: trimmed} : c))
 }
 
 function getSceltaSet(c: ChildRef): Set<string> {
@@ -151,6 +156,19 @@ function remove(idx: number) {
       />
       <button type="button" class="btn-edit" @click="editChild(c)" title="Modifica">✎</button>
       <button type="button" class="btn-del" :disabled="disabled" @click="remove(i)" title="Scollega">✕</button>
+      <!-- Formula utilizzi: occupa tutta la larghezza sotto la riga principale -->
+      <div class="formula-qty-row">
+        <span class="formula-qty-label">Formula utilizzi</span>
+        <input
+            class="formula-qty-input"
+            type="text"
+            :value="c.formulaQty ?? ''"
+            :disabled="disabled"
+            placeholder="es. 2*@LVL (opzionale, sovrascrive qty)"
+            title="Formula per il calcolo degli utilizzi"
+            @input="setFormulaQty(i, ($event.target as HTMLInputElement).value)"
+        />
+      </div>
     </div>
 
     <div class="search-box">
@@ -217,6 +235,19 @@ input, select, textarea { min-width: 0; }
   font-size: .8rem; cursor: pointer; user-select: none;
 }
 .scelta-check input[type="checkbox"] { width: auto; margin: 0; }
+.formula-qty-row {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: .4rem;
+  padding: .15rem 0 .05rem;
+}
+.formula-qty-label {
+  font-size: .75rem; color: #6b7280; white-space: nowrap; flex-shrink: 0;
+}
+.formula-qty-input {
+  flex: 1; padding: .25rem .4rem; border: 1px solid #e5e7eb; border-radius: .35rem;
+  font-size: .78rem; background: #fafafa; color: #374151;
+}
+.formula-qty-input:focus { border-color: #93c5fd; outline: none; background: #fff; }
 .nome { white-space: normal; word-break: break-word; }
 .pill {
   font-size: .75rem; padding: .1rem .45rem; border-radius: .5rem;

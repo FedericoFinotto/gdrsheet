@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import {computed, markRaw} from 'vue';
+import {computed, markRaw, ref} from 'vue';
 import Tabella from "../../../../../../components/Tabella.vue";
 import {useCharacterStore} from "../../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import Mobile_DettaglioItem from "../../Dettaglio/Mobile_DettaglioItem.vue";
 import BottoneAggiungiItem from "../../Shared/BottoneAggiungiItem.vue";
-import {setUtilizziUsati} from "../../../../../../service/PersonaggioService";
+import {resetUtilizzi, setUtilizziUsati} from "../../../../../../service/PersonaggioService";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore)
@@ -22,10 +22,23 @@ function wrap(list: any[] | undefined) {
   return (list ?? [])
       .map(itm => ({
         ...itm,
+        // utilizziTotale === 0 → formula esiste ma dà 0: mostra come disabilitato
+        disabled: itm.disabled || itm.utilizziTotale === 0,
         expandedComponent: markRaw(Mobile_DettaglioItem),
         expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
       }))
       .sort((a, b) => a.nome.localeCompare(b.nome));
+}
+
+const resetting = ref(false)
+async function handleReset() {
+  resetting.value = true
+  try {
+    await resetUtilizzi(props.idPersonaggio)
+    await characterStore.fetchCharacter(props.idPersonaggio, true)
+  } finally {
+    resetting.value = false
+  }
 }
 
 const items = computed(() => cache.value[props.idPersonaggio]?.items)
@@ -54,16 +67,18 @@ function utilizziCol() {
     label: '',
     type: 'counter' as const,
     counter: {
-      hide: (row: any) => row.utilizziTotale == null,
-      value: (row: any) => row.utilizziUsati ?? 0,
+      hide: (row: any) => row.utilizziTotale == null || row.utilizziTotale === 0,
+      value: (row: any) => (row.utilizziTotale ?? 0) - (row.utilizziUsati ?? 0),
       max: (row: any) => row.utilizziTotale ?? null,
       onSub: (row: any) => {
-        const nuovi = Math.max(0, (row.utilizziUsati ?? 0) - 1)
+        // consuma uno: incrementa il contatore degli usati (salvato), riduce il rimanente mostrato
+        const nuovi = Math.min(row.utilizziTotale, (row.utilizziUsati ?? 0) + 1)
         setUtilizziUsati(row.id, props.idPersonaggio, nuovi)
             .then(() => characterStore.fetchCharacter(props.idPersonaggio, true))
       },
       onAdd: (row: any) => {
-        const nuovi = Math.min(row.utilizziTotale, (row.utilizziUsati ?? 0) + 1)
+        // ripristina uno: decrementa il contatore degli usati (salvato), aumenta il rimanente mostrato
+        const nuovi = Math.max(0, (row.utilizziUsati ?? 0) - 1)
         setUtilizziUsati(row.id, props.idPersonaggio, nuovi)
             .then(() => characterStore.fetchCharacter(props.idPersonaggio, true))
       },
@@ -91,7 +106,12 @@ const columnsMaledizioni = col('Maledizioni');
 
 <template>
   <div>
-    <BottoneAggiungiItem :id-personaggio="props.idPersonaggio" label="Aggiungi oggetto"/>
+    <div class="top-bar">
+      <BottoneAggiungiItem :id-personaggio="props.idPersonaggio" label="Aggiungi oggetto"/>
+      <button class="btn-reset" :disabled="resetting" @click="handleReset">
+        {{ resetting ? '…' : 'Azzera utilizzi' }}
+      </button>
+    </div>
     <div class="spazietto"/>
     <Tabella v-if="itemsOggetti.length > 0" :columns="columnsOggetti" :expandable="true" :items="itemsOggetti"/>
     <div class="spazietto"/>
@@ -119,3 +139,26 @@ const columnsMaledizioni = col('Maledizioni');
     <Tabella v-if="itemsMaledizioni.length > 0" :columns="columnsMaledizioni" :expandable="true" :items="itemsMaledizioni"/>
   </div>
 </template>
+
+<style scoped>
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  margin-bottom: .25rem;
+}
+.btn-reset {
+  flex-shrink: 0;
+  padding: .35rem .75rem;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  border-radius: .5rem;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-reset:hover { background: #fee2e2; }
+.btn-reset:disabled { opacity: .5; cursor: default; }
+</style>

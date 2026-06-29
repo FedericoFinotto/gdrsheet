@@ -22,4 +22,9 @@ public interface CollegamentoRepository extends JpaRepository<Collegamento, Inte
            "GROUP BY c.itemTarget.id")
     List<Object[]> sumQtyByTargets(@Param("sourceIds") List<Integer> sourceIds,
                                    @Param("targetIds") List<Integer> targetIds);
+
+    /** Restituisce i collegamenti con formulaQty valorizzata (JOIN FETCH per evitare LazyInit fuori transazione). */
+    @Query("SELECT c FROM Collegamento c JOIN FETCH c.itemSource JOIN FETCH c.itemTarget WHERE c.itemSource.id IN :sourceIds AND c.itemTarget.id IN :targetIds AND c.formulaQty IS NOT NULL")
+    List<Collegamento> findWithFormulaQty(@Param("sourceIds") List<Integer> sourceIds,
+                                          @Param("targetIds") List<Integer> targetIds);
 }

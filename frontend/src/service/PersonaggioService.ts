@@ -210,3 +210,7 @@ export function getContiPersonaggio(idPersonaggio: number): Promise<AxiosRespons
 export function setUtilizziUsati(itemId: number, personaggioId: number, usati: number): Promise<AxiosResponse<void>> {
     return api.put<void>(`/item/${itemId}/utilizzi/${personaggioId}`, {usati});
 }
+
+export function resetUtilizzi(personaggioId: number): Promise<AxiosResponse<void>> {
+    return api.delete<void>(`/item/utilizzi/${personaggioId}`);
+}

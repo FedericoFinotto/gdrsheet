@@ -42,6 +42,9 @@ public class Collegamento {
     @Column(name = "scelta", length = 32)
     private String scelta;
 
+    @Column(name = "formula_qty", length = 64)
+    private String formulaQty;
+
     @OneToMany(mappedBy = "collegamento", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties("collegamento")
     private List<CollegamentoLabel> labels = new ArrayList<>();

@@ -165,7 +165,7 @@ public class PersonaggioService {
     }
 
 
-    public ItemsDTO getAllPersonaggioItemsDTOByIdPersonaggio(Integer id, Utente utente) {
+    public ItemsDTO getAllPersonaggioItemsDTOByIdPersonaggio(Integer id, Utente utente, Map<Integer, Integer> utilizziTotaleFormula) {
         ItemsDTO itemsDTO = new ItemsDTO();
         AllPersonaggioItems allPersonaggioItems = getAllPersonaggioItemsByIdPersonaggio(id);
         Personaggio personaggio = personaggioRepository.findPersonaggioById(id);
@@ -198,8 +198,13 @@ public class PersonaggioService {
                 int totale = ((Number) row[1]).intValue();
                 if (totale > 0) utilizziTotaleMap.merge(targetId, totale, Integer::sum);
             }
+            // utilizziTotale da formulaQty: val > 0 = counter visibile; val <= 0 = item bloccato (utilizziTotale=0)
+            utilizziTotaleFormula.forEach((targetId, val) -> {
+                if (val > 0) utilizziTotaleMap.merge(targetId, val, Integer::sum);
+                else utilizziTotaleMap.putIfAbsent(targetId, 0);
+            });
             // NB: gli avanzamento (CLASSE→PRIVILEGIO) sono solo template di classe.
-            // Il qty viene copiato sui collegamento (LIVELLO→PRIVILEGIO) dal LivelloEditor.
+            // Il qty viene copiato sul collegamento (LIVELLO→PRIVILEGIO) dal LivelloEditor.
             // Contare entrambi produrrebbe un doppio conteggio.
         }
 
@@ -469,6 +474,7 @@ public class PersonaggioService {
         }
     }
 
+
     /**
      * Ottiene i dati del personaggio, includendo items da avanzamenti di classe in base al livello.
      * Unifica i flatten in un solo passaggio per migliorare le prestazioni.
@@ -561,9 +567,7 @@ public class PersonaggioService {
         List<ItemLabel> itemCounters = itemLabelRepository.findByLabelLikeAndItem_IdIn("$V_%", itemIds);
         List<ItemLabel> itemModifiers = itemLabelRepository.findByLabelLikeAndItem_IdIn("$M_%", itemIds);
         List<ContatoreItemDTO> itemCounterList = new ArrayList<>(itemCounters.stream()
-                .map(sv -> modificatoriService.calcolaContatoreItem(
-                        sv, itemModifiers
-                ))
+                .map(sv -> modificatoriService.calcolaContatoreItem(sv, itemModifiers))
                 .toList());
 
         // Espone la quantità (label QTA) come variabile $QTA usabile nei modificatori dell'item:
@@ -592,6 +596,21 @@ public class PersonaggioService {
                 .forEach((k, v) -> itemCounterList.add(new ContatoreItemDTO(k, v)));
 
         dto.getContatoriItem().addAll(itemCounterList);
+
+        // Valuta formulaQty sui collegamenti usando i contatori già calcolati
+        List<Collegamento> conFormula = collegamentoRepository.findWithFormulaQty(itemIds, itemIds);
+        if (!conFormula.isEmpty()) {
+            List<CaratteristicaDTO> counterCarList = itemCounterList.stream()
+                    .map(ContatoreItemDTO::toCaratteristicaDTO)
+                    .collect(Collectors.toList());
+            for (Collegamento c : conFormula) {
+                try {
+                    String formula = c.getFormulaQty().replace("$", "@" + c.getItemSource().getId() + "_");
+                    int val = Integer.parseInt(calcoloService.calcola(formula, counterCarList));
+                    dto.getUtilizziTotaleFormula().merge(c.getItemTarget().getId(), val, Integer::sum);
+                } catch (Exception ignored) {}
+            }
+        }
 
         // 9a) Calcolo Caratteristiche (sequenziale)
         List<CaratteristicaDTO> carList = new ArrayList<>(stats.stream()

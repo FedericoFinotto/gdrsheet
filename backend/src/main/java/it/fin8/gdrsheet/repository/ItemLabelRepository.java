@@ -31,6 +31,8 @@ public interface ItemLabelRepository extends JpaRepository<ItemLabel, Integer> {
 
     java.util.Optional<ItemLabel> findByItem_IdAndLabelAndPersonaggio_Id(Integer itemId, String label, Integer personaggioId);
 
+    void deleteByLabelAndPersonaggio_Id(String label, Integer personaggioId);
+
     /**
      * Triple (itemId, label, valore) per le label richieste su tutti gli item
      * "del personaggio": quelli intestati direttamente e quelli collegati come

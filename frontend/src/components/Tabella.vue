@@ -288,7 +288,6 @@ img.row-icon {
 
 .tbl-row.is-disabled {
   opacity: .45;
-  text-decoration: line-through;
   background: repeating-linear-gradient(
     -45deg,
     transparent,

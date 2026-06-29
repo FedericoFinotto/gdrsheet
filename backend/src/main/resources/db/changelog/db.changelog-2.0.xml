@@ -299,4 +299,12 @@
         </addColumn>
     </changeSet>
 
+    <changeSet id="121" author="developer">
+        <addColumn tableName="collegamento">
+            <column name="formula_qty" type="varchar(64)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>

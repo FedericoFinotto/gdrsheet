@@ -6,10 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Getter
 @AllArgsConstructor
@@ -30,6 +27,9 @@ public class DatiPersonaggioDTO {
     List<ContatoreItemDTO> contatoriItem;
     DadiVitaDTO dadiVita;
 
+    // utilizziTotale calcolati da formulaQty sui collegamenti (itemTargetId → totale)
+    Map<Integer, Integer> utilizziTotaleFormula;
+
     // Info anagrafiche (personaggio_label): LUOGO_NASCITA, DATA_NASCITA, RAZZA, ...
     Map<String, String> info;
     // Peso totale trasportato (kg): peso personaggio + oggetti + monete
@@ -49,6 +49,7 @@ public class DatiPersonaggioDTO {
         contatori = new ArrayList<>();
         attributi = new ArrayList<>();
         contatoriItem = new ArrayList<>();
+        utilizziTotaleFormula = new HashMap<>();
     }
 
     public CaratteristicaDTO getCaratteristica(String id) {

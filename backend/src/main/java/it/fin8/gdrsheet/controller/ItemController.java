@@ -391,6 +391,16 @@ public class ItemController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Azzera tutti gli utilizzi di un personaggio")
+    @DeleteMapping("/utilizzi/{personaggioId}")
+    public ResponseEntity<Void> resetUtilizzi(
+            @PathVariable Integer personaggioId,
+            @AuthenticationPrincipal Utente utente) {
+        authzService.assertCanEditPersonaggio(utente, personaggioId);
+        itemService.resetUtilizzi(personaggioId);
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "Aggiorna utilizzi di un item per un personaggio")
     @PutMapping("/{itemId}/utilizzi/{personaggioId}")
     public ResponseEntity<Void> setUtilizzi(
