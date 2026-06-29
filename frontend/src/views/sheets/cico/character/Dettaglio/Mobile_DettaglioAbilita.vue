@@ -54,10 +54,10 @@ async function saveEdit() {
   }
 }
 
-function modLabel(mod: any): string {
+function modLabel(mod: any): {prefix: string; suffix: string} | string {
   if (mod.tipo === 'NEGA') return 'Nega'
   if (mod.tipo === 'SBLOCCA') return 'Sblocca'
-  if (mod.item === 'Formula') return `Formula [${mod.formula}]: ${mod.valore}`
+  if (mod.item === 'Formula') return {prefix: `Formula [${mod.formula}]: `, suffix: String(mod.valore)}
   return testoModificatore(mod.valore) + (mod.nota ? ` — ${mod.nota}` : '')
 }
 </script>
@@ -79,7 +79,12 @@ function modLabel(mod: any): string {
 
       <div v-if="data.abilita.modificatori?.length">
         <p v-for="(mod, index) in data.abilita.modificatori" :key="index">
-          <strong>{{ mod.item === 'Formula' ? '' : (mod.item || 'Sconosciuto') + ': ' }}</strong>{{ modLabel(mod) }}
+          <template v-if="typeof modLabel(mod) === 'object'">
+            <strong>{{ (modLabel(mod) as any).prefix }}</strong>{{ (modLabel(mod) as any).suffix }}
+          </template>
+          <template v-else>
+            <strong>{{ (mod.item || 'Sconosciuto') + ': ' }}</strong>{{ modLabel(mod) }}
+          </template>
         </p>
       </div>
     </template>
