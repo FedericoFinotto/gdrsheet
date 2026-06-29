@@ -159,12 +159,12 @@ const contenitorInfo = computed(() => {
 
   const capienza = item.capienza ?? 0
   const pesoMassimo = item.peso ?? 0
-  const includiArmi = !!item.includiArmiAbilitate
+  const includiArmi       = !!item.includiArmiAbilitate
+  const includiOggetti    = !!item.includiOggettiAbilitati
+  const includiConsumabili = !!item.includiConsumabiliAbilitati
 
-  // Peso monete (MR/MA/MO/MP, 0.01 kg ciascuna)
-  const carat: any[] = personaggio?.modificatori?.caratteristiche ?? []
-  const getMoneta = (id: string) => carat.find((c: any) => c.id === id)?.valore ?? 0
-  const coinWeight = (getMoneta('MR') + getMoneta('MA') + getMoneta('MO') + getMoneta('MP')) * 0.01
+  // Peso monete: arriva direttamente dal backend come campo dedicato
+  const coinWeight = personaggio?.modificatori?.pesoMonete ?? 0
 
   // Tutti i contenitori ordinati per capienza decrescente
   type ContInfo = {id: number; capienza: number; pesoMassimo: number; includiArmi: boolean}
@@ -179,7 +179,7 @@ const contenitorInfo = computed(() => {
       }))
       .sort((a, b) => b.capienza - a.capienza)
 
-  // Tutti gli item con peso: entrano solo se disabilitati; le armi abilitate solo con flag
+  // Tutti gli item con peso
   const allWithPeso = [
     ...(allItems.oggetti ?? []),
     ...(allItems.consumabili ?? []),
@@ -190,49 +190,46 @@ const contenitorInfo = computed(() => {
     ...(allItems.idoli ?? []),
   ].filter(i => (i.peso ?? 0) > 0)
 
-  const isArma = (i: any) => i.tipo === 'ARMA'
-  // item contenibili = disabled, oppure arma abilitata (gestita separatamente)
-  const containable = allWithPeso.filter(i => !!i.disabled && !isArma(i))
-  const armeAbilitate = allWithPeso.filter(i => isArma(i) && !i.disabled)
+  // item disabilitati → sempre contenibili (indipendentemente dal tipo)
+  const containable      = allWithPeso.filter(i => !!i.disabled)
+  // pool separati per item abilitati, per tipo
+  const armeAbilitate        = allWithPeso.filter(i => !i.disabled && i.tipo === 'ARMA')
+  const oggettiAbilitati     = allWithPeso.filter(i => !i.disabled && i.tipo === 'OGGETTO')
+  const consumabiliAbilitati = allWithPeso.filter(i => !i.disabled && i.tipo === 'CONSUMABILE')
 
   // Distribuzione greedy identica al backend
-  type Slot = {id: number; capienza: number; includiArmi: boolean;
-               items: any[]; armiItems: any[]; filled: number; filledArmi: number}
+  type Slot = {id: number; capienza: number; includiArmi: boolean; includiOggetti: boolean; includiConsumabili: boolean;
+               items: any[]; armiItems: any[]; oggettiItems: any[]; consumabiliItems: any[]; filled: number}
   const slots: Slot[] = contenitori.map(c => ({
-    ...c, items: [], armiItems: [], filled: 0, filledArmi: 0
+    ...c, items: [], armiItems: [], oggettiItems: [], consumabiliItems: [], filled: 0
   }))
 
-  // Distribuisci item contenibili
-  const remainingContainable = [...containable]
-  for (const slot of slots) {
-    const toRemove: any[] = []
-    for (const itm of remainingContainable) {
-      const itemPeso = (itm.peso ?? 0) * (itm.quantita ?? 1)
-      if (slot.filled + itemPeso <= slot.capienza + 1e-9) {
-        slot.filled += itemPeso
-        slot.items.push(itm)
-        toRemove.push(itm)
+  // Helper: distribuisci un pool nei slot che accettano quel tipo
+  function distribuisci(pool: any[], getSlot: (s: Slot) => boolean, pushTo: (s: Slot, i: any) => void) {
+    const rem = [...pool]
+    for (const slot of slots) {
+      if (!getSlot(slot)) continue
+      const toRemove: any[] = []
+      for (const itm of rem) {
+        const itemPeso = (itm.peso ?? 0) * (itm.quantita ?? 1)
+        if (slot.filled + itemPeso <= slot.capienza + 1e-9) {
+          slot.filled += itemPeso
+          pushTo(slot, itm)
+          toRemove.push(itm)
+        }
       }
+      toRemove.forEach(i => rem.splice(rem.indexOf(i), 1))
     }
-    toRemove.forEach(i => remainingContainable.splice(remainingContainable.indexOf(i), 1))
   }
 
-  // Distribuisci armi abilitate nei contenitori con flag
-  const remainingArme = [...armeAbilitate]
-  for (const slot of slots) {
-    if (!slot.includiArmi) continue
-    const space = slot.capienza - slot.filled
-    const toRemove: any[] = []
-    for (const itm of remainingArme) {
-      const itemPeso = (itm.peso ?? 0) * (itm.quantita ?? 1)
-      if (slot.filled + itemPeso <= slot.capienza + 1e-9) {
-        slot.filled += itemPeso
-        slot.armiItems.push(itm)
-        toRemove.push(itm)
-      }
-    }
-    toRemove.forEach(i => remainingArme.splice(remainingArme.indexOf(i), 1))
-  }
+  // 1. item disabilitati → tutti i slot
+  distribuisci(containable,      () => true,              (s, i) => s.items.push(i))
+  // 2. armi abilitate → slot con flag
+  distribuisci(armeAbilitate,    s => s.includiArmi,      (s, i) => s.armiItems.push(i))
+  // 3. oggetti abilitati → slot con flag
+  distribuisci(oggettiAbilitati, s => s.includiOggetti,   (s, i) => s.oggettiItems.push(i))
+  // 4. consumabili abilitati → slot con flag
+  distribuisci(consumabiliAbilitati, s => s.includiConsumabili, (s, i) => s.consumabiliItems.push(i))
 
   // Distribuisci monete negli spazi rimasti
   let remainingCoins = coinWeight
@@ -246,7 +243,8 @@ const contenitorInfo = computed(() => {
   }
 
   const myIdx = slots.findIndex(s => s.id === item.id)
-  if (myIdx === -1) return {items: [], armiItems: [], filled: 0, capienza, pesoMassimo, pesoEffettivo: 0, coinInside: 0}
+  if (myIdx === -1) return {items: [], armiItems: [], oggettiItems: [], consumabiliItems: [],
+                            filled: 0, capienza, pesoMassimo, pesoEffettivo: 0, coinInside: 0}
 
   const mySlot = slots[myIdx]
   const coinInside = slotsCoins[myIdx]
@@ -255,12 +253,16 @@ const contenitorInfo = computed(() => {
   return {
     items: mySlot.items,
     armiItems: mySlot.armiItems,
+    oggettiItems: mySlot.oggettiItems,
+    consumabiliItems: mySlot.consumabiliItems,
     filled: mySlot.filled,
     capienza,
     pesoMassimo,
     pesoEffettivo,
     coinInside,
     includiArmi,
+    includiOggetti,
+    includiConsumabili,
   }
 })
 
@@ -384,8 +386,11 @@ function showInfoItemPopup(itm) {
           <strong>{{ contenitorInfo.pesoEffettivo.toFixed(2) }} kg</strong>
         </span>
       </div>
-      <div v-if="contenitorInfo.items.length || contenitorInfo.armiItems.length || contenitorInfo.coinInside > 0"
+      <div v-if="contenitorInfo.items.length || contenitorInfo.armiItems.length
+                 || contenitorInfo.oggettiItems.length || contenitorInfo.consumabiliItems.length
+                 || contenitorInfo.coinInside > 0"
            class="contenitore-list">
+        <!-- item disabilitati (tutti i tipi) -->
         <div v-for="itm in contenitorInfo.items" :key="itm.id" class="contenitore-item">
           <span class="contenitore-item-nome">{{ itm.nome }}</span>
           <span class="contenitore-item-peso muted">
@@ -393,12 +398,34 @@ function showInfoItemPopup(itm) {
             <template v-if="(itm.quantita ?? 1) > 1">(×{{ itm.quantita }})</template>
           </span>
         </div>
+        <!-- armi abilitate (flag) -->
         <div v-for="itm in contenitorInfo.armiItems" :key="'a'+itm.id" class="contenitore-item arma-row">
-          <span class="contenitore-item-nome">{{ itm.nome }} <span class="muted" style="font-size:.72rem">(equipaggiata)</span></span>
+          <span class="contenitore-item-nome">{{ itm.nome }}
+            <span class="muted" style="font-size:.72rem">(arma equipaggiata)</span>
+          </span>
           <span class="contenitore-item-peso muted">
             {{ ((itm.peso ?? 0) * (itm.quantita ?? 1)).toFixed(2) }} kg
           </span>
         </div>
+        <!-- oggetti abilitati (flag) -->
+        <div v-for="itm in contenitorInfo.oggettiItems" :key="'o'+itm.id" class="contenitore-item oggetto-row">
+          <span class="contenitore-item-nome">{{ itm.nome }}
+            <span class="muted" style="font-size:.72rem">(oggetto equipaggiato)</span>
+          </span>
+          <span class="contenitore-item-peso muted">
+            {{ ((itm.peso ?? 0) * (itm.quantita ?? 1)).toFixed(2) }} kg
+          </span>
+        </div>
+        <!-- consumabili abilitati (flag) -->
+        <div v-for="itm in contenitorInfo.consumabiliItems" :key="'c'+itm.id" class="contenitore-item consumabile-row">
+          <span class="contenitore-item-nome">{{ itm.nome }}
+            <span class="muted" style="font-size:.72rem">(consumabile equipaggiato)</span>
+          </span>
+          <span class="contenitore-item-peso muted">
+            {{ ((itm.peso ?? 0) * (itm.quantita ?? 1)).toFixed(2) }} kg
+          </span>
+        </div>
+        <!-- monete -->
         <div v-if="contenitorInfo.coinInside > 0" class="contenitore-item monete-row">
           <span class="contenitore-item-nome">Monete</span>
           <span class="contenitore-item-peso muted">{{ contenitorInfo.coinInside.toFixed(2) }} kg</span>
@@ -565,7 +592,9 @@ function showInfoItemPopup(itm) {
 .contenitore-item-nome { flex: 1; }
 .contenitore-item-peso { font-size: .75rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .contenitore-empty { padding: .5rem .75rem; font-size: .85rem; }
-.arma-row { background: #fefce8 !important; }
-.monete-row { background: #f0fdf4 !important; }
+.arma-row        { background: #fefce8 !important; }
+.oggetto-row     { background: #eff6ff !important; }
+.consumabile-row { background: #fdf4ff !important; }
+.monete-row      { background: #f0fdf4 !important; }
 .muted { color: var(--color-text-secondary, #6b7280); }
 </style>

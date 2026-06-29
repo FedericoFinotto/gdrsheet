@@ -595,6 +595,8 @@ public class PersonaggioService {
             }
         }
         double pesoTotale = partyService.calcolaPeso(p);
+        double pesoMonete = partyService.calcolaPesoMonete(partyService.calcolaSoldi(p.getId()));
+        dto.setPesoMonete(Math.round(pesoMonete * 100) / 100.0);
         CalcoloService.variabiliPersonaggio(info, pesoTotale)
                 .forEach((k, v) -> itemCounterList.add(new ContatoreItemDTO(k, v)));
 
@@ -731,8 +733,30 @@ public class PersonaggioService {
         modificatoriService.applicaSinergie(dto, carList);
 
         dto.setInfo(info);
-        dto.setPesoTotale(pesoTotale);
-        dto.setTagliaAttuale(modificatoriService.getTaglia(taglia));
+
+        // Taglia: base dal personaggio, attuale con tutti i modificatori
+        int tagliaAttuale = modificatoriService.getTaglia(taglia);
+        int tagliaBase = taglia.stream()
+                .filter(l -> l.getItem() == null && Constants.ITEM_LABEL_TAGLIA.equals(l.getLabel()))
+                .map(l -> { try { return Integer.parseInt(l.getValore()); } catch (Exception e) { return 0; } })
+                .findFirst().orElse(0);
+        dto.setTagliaAttuale(tagliaAttuale);
+        dto.setTagliaBase(tagliaBase);
+
+        // Il moltiplicatore taglia si applica SOLO al peso corporeo del personaggio (label PESO),
+        // non agli item che porta. Il pesoTotale da calcolaPeso include già il peso corporeo.
+        double pesoCorpo = p.getLabels() == null ? 0.0 : p.getLabels().stream()
+                .filter(l -> Constants.LABEL_PESO.equals(l.getLabel()))
+                .mapToDouble(l -> { try { return Double.parseDouble(l.getValore().replace(',', '.')); } catch (Exception e) { return 0; } })
+                .sum();
+        int diffTaglia = tagliaAttuale - tagliaBase;
+        dto.setPesoSenzaTaglia(Math.round(pesoCorpo * 100) / 100.0);
+        if (diffTaglia != 0) {
+            double mult = Math.pow(8, Math.abs(diffTaglia));
+            double pesoCorpoMod = diffTaglia > 0 ? pesoCorpo * mult : pesoCorpo / mult;
+            pesoTotale = pesoTotale - pesoCorpo + pesoCorpoMod;
+        }
+        dto.setPesoTotale(Math.round(pesoTotale * 100) / 100.0);
 
         return dto;
     }

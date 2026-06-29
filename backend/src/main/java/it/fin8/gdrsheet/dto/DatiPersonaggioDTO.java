@@ -32,10 +32,16 @@ public class DatiPersonaggioDTO {
 
     // Info anagrafiche (personaggio_label): LUOGO_NASCITA, DATA_NASCITA, RAZZA, ...
     Map<String, String> info;
-    // Peso totale trasportato (kg): peso personaggio + oggetti + monete
+    // Peso totale trasportato (kg): peso personaggio + oggetti + monete (già moltiplicato per taglia)
     Double pesoTotale;
+    // Peso lordo prima del moltiplicatore taglia
+    Double pesoSenzaTaglia;
     // Taglia attuale (numerica): taglia base + somma ADD_TAGLIA
     Integer tagliaAttuale;
+    // Taglia base del personaggio (label TAGLIA sul personaggio, senza item)
+    Integer tagliaBase;
+    // Peso totale delle monete portate dal personaggio (kg)
+    Double pesoMonete;
 
     public DatiPersonaggioDTO(Personaggio personaggio) {
         id = personaggio.getId();

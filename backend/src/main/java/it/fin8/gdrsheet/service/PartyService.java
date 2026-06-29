@@ -724,11 +724,14 @@ public class PartyService {
      * più il peso delle monete. Item senza peso valgono 0, QTA assente vale 1.
      */
     public double calcolaPeso(Personaggio pg) {
-        // Raccogli PESO, QTA, CAPIENZA, DISABLED e INCLUDI_ARMI_ABILITATE per tutti gli item
+        // Raccogli tutte le label rilevanti per il calcolo del peso
         Map<Integer, Map<String, String>> labelsPerItem = new HashMap<>();
         for (Object[] row : itemLabelRepository.findLabelValuesByPersonaggio(
                 List.of(Constants.LABEL_PESO, Constants.LABEL_QTA, Constants.LABEL_CAPIENZA,
-                        Constants.ITEM_LABEL_DISABILITATO, Constants.LABEL_INCLUDI_ARMI_ABILITATE), pg.getId())) {
+                        Constants.ITEM_LABEL_DISABILITATO,
+                        Constants.LABEL_INCLUDI_ARMI_ABILITATE,
+                        Constants.LABEL_INCLUDI_OGGETTI_ABILITATI,
+                        Constants.LABEL_INCLUDI_CONSUMABILI_ABILITATI), pg.getId())) {
             labelsPerItem.computeIfAbsent((Integer) row[0], k -> new HashMap<>())
                     .put((String) row[1], (String) row[2]);
         }
@@ -739,40 +742,45 @@ public class PartyService {
             tipoPerItem.put((Integer) row[0], (TipoItem) row[1]);
         }
 
-        // ContainerInfo: pesoMassimo, capienza, includiArmiAbilitate
-        record ContainerInfo(double pesoMassimo, double capienza, boolean includiArmi) {}
+        record ContainerInfo(double pesoMassimo, double capienza,
+                             boolean includiArmi, boolean includiOggetti, boolean includiConsumabili) {}
         List<ContainerInfo> containers = new ArrayList<>();
-        double containableWeight = 0; // item disabilitati → entrano nei contenitori
-        double armeAbilitateWeight = 0; // ARMA abilitate → entrano solo se flag
-        double equippedWeight = 0;    // item abilitati non-arma → sempre equipaggiati
+        double containableWeight = 0;      // item disabilitati → entrano sempre
+        double armeAbilitateWeight = 0;    // ARMA abilitate → entrano solo con flag
+        double oggettiAbilitatiWeight = 0; // OGGETTO abilitati → entrano solo con flag
+        double consumabiliAbilitatiWeight = 0; // CONSUMABILE abilitati → entrano solo con flag
+        double equippedWeight = 0;         // tutto il resto abilitato → peso diretto
 
         for (Map.Entry<Integer, Map<String, String>> entry : labelsPerItem.entrySet()) {
             Integer id = entry.getKey();
             Map<String, String> labels = entry.getValue();
             TipoItem tipo = tipoPerItem.get(id);
             String pesoStr = labels.get(Constants.LABEL_PESO);
-            if (pesoStr == null) continue; // nessun peso → non contribuisce
+            if (pesoStr == null) continue;
             double itemPeso = parsePeso(pesoStr) * parseQta(labels.get(Constants.LABEL_QTA));
             boolean isDisabled = Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE
                     .equals(labels.get(Constants.ITEM_LABEL_DISABILITATO));
 
             if (TipoItem.CONTENITORE.equals(tipo)) {
                 double capienza = parsePeso(labels.get(Constants.LABEL_CAPIENZA));
-                boolean includiArmi = "1".equals(labels.get(Constants.LABEL_INCLUDI_ARMI_ABILITATE));
-                containers.add(new ContainerInfo(itemPeso, capienza, includiArmi));
+                boolean inclArmi = "1".equals(labels.get(Constants.LABEL_INCLUDI_ARMI_ABILITATE));
+                boolean inclOgg  = "1".equals(labels.get(Constants.LABEL_INCLUDI_OGGETTI_ABILITATI));
+                boolean inclCons = "1".equals(labels.get(Constants.LABEL_INCLUDI_CONSUMABILI_ABILITATI));
+                containers.add(new ContainerInfo(itemPeso, capienza, inclArmi, inclOgg, inclCons));
             } else if (isDisabled) {
-                // item disabilitato → può stare nel contenitore
                 containableWeight += itemPeso;
             } else if (TipoItem.ARMA.equals(tipo)) {
-                // arma abilitata → entra solo in contenitori con il flag
                 armeAbilitateWeight += itemPeso;
+            } else if (TipoItem.OGGETTO.equals(tipo)) {
+                oggettiAbilitatiWeight += itemPeso;
+            } else if (TipoItem.CONSUMABILE.equals(tipo)) {
+                consumabiliAbilitatiWeight += itemPeso;
             } else {
-                // item abilitato non-arma → sempre equipaggiato (peso diretto)
                 equippedWeight += itemPeso;
             }
         }
 
-        // Peso fisso del personaggio (label PESO sulla riga personaggio)
+        // Peso fisso del personaggio
         if (pg.getLabels() != null) {
             equippedWeight += pg.getLabels().stream()
                     .filter(l -> Constants.LABEL_PESO.equals(l.getLabel()))
@@ -780,36 +788,40 @@ public class PartyService {
                     .sum();
         }
 
-        // Monete: trattate come oggetti disabilitati (entrano nei contenitori)
-        double coinWeight = calcolaPesoMonete(calcolaSoldi(pg.getId()));
-        containableWeight += coinWeight;
+        // Monete: vanno nei contenitori come i disabilitati
+        containableWeight += calcolaPesoMonete(calcolaSoldi(pg.getId()));
 
         // Riempi i contenitori dal più capiente al meno capiente
         containers.sort((a, b) -> Double.compare(b.capienza(), a.capienza()));
-        double remainingContainable = containableWeight;
-        double remainingArme = armeAbilitateWeight;
+        double remContainable = containableWeight;
+        double remArme        = armeAbilitateWeight;
+        double remOggetti     = oggettiAbilitatiWeight;
+        double remConsumabili = consumabiliAbilitatiWeight;
         double containerWeight = 0;
 
         for (ContainerInfo c : containers) {
-            if (c.capienza() <= 0) {
-                containerWeight += c.pesoMassimo();
-                continue;
-            }
+            if (c.capienza() <= 0) { containerWeight += c.pesoMassimo(); continue; }
             double spaceLeft = c.capienza();
-            double fromContainable = Math.min(spaceLeft, remainingContainable);
-            remainingContainable -= fromContainable;
-            spaceLeft -= fromContainable;
+            // 1. item disabilitati
+            double f = Math.min(spaceLeft, remContainable); remContainable -= f; spaceLeft -= f;
+            // 2. armi abilitate (se flag)
             if (c.includiArmi() && spaceLeft > 0) {
-                double fromArme = Math.min(spaceLeft, remainingArme);
-                remainingArme -= fromArme;
-                spaceLeft -= fromArme;
+                f = Math.min(spaceLeft, remArme); remArme -= f; spaceLeft -= f;
+            }
+            // 3. oggetti abilitati (se flag)
+            if (c.includiOggetti() && spaceLeft > 0) {
+                f = Math.min(spaceLeft, remOggetti); remOggetti -= f; spaceLeft -= f;
+            }
+            // 4. consumabili abilitati (se flag)
+            if (c.includiConsumabili() && spaceLeft > 0) {
+                f = Math.min(spaceLeft, remConsumabili); remConsumabili -= f; spaceLeft -= f;
             }
             double filled = c.capienza() - spaceLeft;
             containerWeight += c.pesoMassimo() * (filled / c.capienza());
         }
 
-        // Totale = equipaggiati + peso contenitori + overflow disabilitati + overflow arme
-        double total = equippedWeight + containerWeight + remainingContainable + remainingArme;
+        double total = equippedWeight + containerWeight
+                + remContainable + remArme + remOggetti + remConsumabili;
         return Math.round(total * 100) / 100.0;
     }
 

@@ -61,6 +61,16 @@ const itemsMaledizioni = computed(() => wrap(items.value?.maledizioni));
 
 const badgeQta = (row: any) => row.quantita != null && row.quantita !== 1 ? `x${row.quantita}` : null;
 
+// Chip peso: "X.XX kg" — mostrato solo se l'item ha un PESO
+function pesoChip(row: any): string | null {
+  const p = row.peso
+  if (!p) return null
+  const tot = p * (row.quantita ?? 1)
+  if (tot <= 0) return null
+  const formatted = tot % 1 === 0 ? `${tot}` : tot.toFixed(2)
+  return `${formatted} kg`
+}
+
 // Colonna utilizzi: visibile solo se l'item ha un totale definito
 function utilizziCol() {
   return {
@@ -69,6 +79,7 @@ function utilizziCol() {
     type: 'counter' as const,
     counter: {
       hide: (row: any) => row.utilizziTotale == null || row.utilizziTotale === 0,
+      chip: pesoChip,
       value: (row: any) => (row.utilizziTotale ?? 0) - (row.utilizziUsati ?? 0),
       max: (row: any) => row.utilizziTotale ?? null,
       onSub: (row: any) => {

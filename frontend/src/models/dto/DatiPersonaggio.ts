@@ -20,5 +20,8 @@ export interface DatiPersonaggio {
     dadiVita: DadiVita
     info?: Record<string, string>;
     pesoTotale?: number;
+    pesoSenzaTaglia?: number;
+    pesoMonete?: number;
     tagliaAttuale?: number;
+    tagliaBase?: number;
 }

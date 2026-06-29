@@ -12,6 +12,7 @@ import usePopup from "../../../../../../function/usePopup";
 import useDiceRoll from "../../../../../../function/useDiceRoll";
 import {testoTaglia} from "../../../../../../function/Utils";
 import SearchSelect from "../../../../../../components/SearchSelect.vue";
+import PesoDettaglioPopup from "./PesoDettaglioPopup.vue";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore);
@@ -233,6 +234,16 @@ function toggleInfoOpen() {
 }
 
 const pesoTotale = computed(() => cache.value[props.idPersonaggio]?.modificatori?.pesoTotale)
+
+function openPesoDettaglio() {
+  const pg = cache.value[props.idPersonaggio]
+  if (!pg?.modificatori || !pg?.items) return
+  openPopup(
+    markRaw(PesoDettaglioPopup),
+    {data: {modificatori: pg.modificatori, items: pg.items}},
+    {closable: true, autoClose: 0}
+  )
+}
 const tagliaAttuale = computed(() => {
   const t = cache.value[props.idPersonaggio]?.modificatori?.tagliaAttuale
   return t != null ? testoTaglia(t) : null
@@ -261,7 +272,8 @@ async function salvaInfo() {
       <button type="button" class="info-head" @click="toggleInfoOpen">
         <span class="chev" :class="{open: infoOpen}">▸</span>
         <h2 class="info-nome">{{ cache[idPersonaggio]?.modificatori?.nome ?? "" }}</h2>
-        <span v-if="pesoTotale != null" class="info-peso-badge">{{ pesoTotale }} kg</span>
+        <span v-if="pesoTotale != null" class="info-peso-badge"
+              @click.stop="openPesoDettaglio">{{ pesoTotale }} kg</span>
       </button>
 
       <div v-if="infoOpen" class="info-body">
@@ -461,7 +473,9 @@ async function salvaInfo() {
   border-radius: .4rem;
   background: #ecfccb;
   color: #3f6212;
+  cursor: pointer;
 }
+.info-peso-badge:hover { background: #d9f99d; }
 .info-body {
   border-top: 1px solid #e5e7eb;
   padding: .75rem;

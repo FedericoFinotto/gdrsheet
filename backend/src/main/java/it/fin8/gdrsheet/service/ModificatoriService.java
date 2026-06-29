@@ -557,18 +557,34 @@ public class ModificatoriService {
                     ? null
                     : tagliaPerLivello.lastEntry().getValue();
 
-            // override da item NON di classe (es. oggetto magico)
-            ItemLabel tagliaNonClasse = set.stream()
-                    .filter(x -> x.getItem() != null && x.getItem().getTipo() != TipoItem.CLASSE)
+            // override da item NON di classe, NON trasformazione (es. trait razziale, oggetto magico)
+            ItemLabel tagliaAltro = set.stream()
+                    .filter(x -> x.getItem() != null
+                            && x.getItem().getTipo() != TipoItem.CLASSE
+                            && x.getItem().getTipo() != TipoItem.FRUTTO
+                            && x.getItem().getTipo() != TipoItem.FORMA
+                            && x.getItem().getTipo() != TipoItem.TRASFORMAZIONE)
                     .findFirst()
                     .orElse(null);
 
-            // un item con TAGLIA sostituisce la base
+            // override da FRUTTO / FORMA / TRASFORMAZIONE: priorità massima (sovrascrive tutto)
+            ItemLabel tagliaFrutto = set.stream()
+                    .filter(x -> x.getItem() != null && (
+                            TipoItem.FRUTTO.equals(x.getItem().getTipo())
+                            || TipoItem.FORMA.equals(x.getItem().getTipo())
+                            || TipoItem.TRASFORMAZIONE.equals(x.getItem().getTipo())))
+                    .findFirst()
+                    .orElse(null);
+
+            // un item con TAGLIA sostituisce la base (ordine crescente di priorità)
             if (tagliaDiClasse != null) {
                 effettiva = Integer.parseInt(tagliaDiClasse.getValore());
             }
-            if (tagliaNonClasse != null) {
-                effettiva = Integer.parseInt(tagliaNonClasse.getValore());
+            if (tagliaAltro != null) {
+                effettiva = Integer.parseInt(tagliaAltro.getValore());
+            }
+            if (tagliaFrutto != null) {
+                effettiva = Integer.parseInt(tagliaFrutto.getValore());
             }
 
             // ADD_TAGLIA: incrementi/decrementi sulla taglia effettiva

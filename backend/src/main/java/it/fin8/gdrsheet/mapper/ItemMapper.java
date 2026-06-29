@@ -57,6 +57,10 @@ public class ItemMapper {
         if (capienzaStr != null) dto.setCapienza(parseDouble(capienzaStr));
         if ("1".equals(entity.getLabel(Constants.LABEL_INCLUDI_ARMI_ABILITATE)))
             dto.setIncludiArmiAbilitate(true);
+        if ("1".equals(entity.getLabel(Constants.LABEL_INCLUDI_OGGETTI_ABILITATI)))
+            dto.setIncludiOggettiAbilitati(true);
+        if ("1".equals(entity.getLabel(Constants.LABEL_INCLUDI_CONSUMABILI_ABILITATI)))
+            dto.setIncludiConsumabiliAbilitati(true);
         return dto;
     }
 

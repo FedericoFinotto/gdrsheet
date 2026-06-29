@@ -43,4 +43,8 @@ public class ItemDTO {
     private Double capienza;
     /** Flag su CONTENITORE: include ARMA abilitate nel calcolo del contenuto. */
     private Boolean includiArmiAbilitate;
+    /** Flag su CONTENITORE: include OGGETTO abilitati nel calcolo del contenuto. */
+    private Boolean includiOggettiAbilitati;
+    /** Flag su CONTENITORE: include CONSUMABILE abilitati nel calcolo del contenuto. */
+    private Boolean includiConsumabiliAbilitati;
 }

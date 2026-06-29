@@ -14,6 +14,8 @@ interface CounterDef {
   disableSub?: Fn<boolean>;
   disableAdd?: Fn<boolean>;
   hide?: Fn<boolean>;
+  // chip mostrato quando il counter è nascosto (es. peso dell'item)
+  chip?: Fn<string | null | undefined>;
 }
 
 interface RowIcon {
@@ -195,6 +197,9 @@ function clickIcon(ic: RowIcon, row: any) {
                   </button>
                 </div>
               </template>
+              <template v-else-if="col.counter.chip?.(row)">
+                <span class="peso-chip">{{ col.counter.chip(row) }}</span>
+              </template>
             </div>
           </template>
 
@@ -233,6 +238,18 @@ function clickIcon(ic: RowIcon, row: any) {
 <style scoped>
 .slash {
   opacity: .6;
+}
+.peso-chip {
+  display: inline-block;
+  padding: .1rem .45rem;
+  border-radius: 999px;
+  background: var(--color-surface-2, #f3f4f6);
+  border: 1px solid var(--color-border, #e5e7eb);
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #6b7280);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* allinea a destra tutta la colonna icone */

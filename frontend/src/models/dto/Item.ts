@@ -15,4 +15,6 @@ export interface Item {
     peso?: number | null;
     capienza?: number | null;
     includiArmiAbilitate?: boolean | null;
+    includiOggettiAbilitati?: boolean | null;
+    includiConsumabiliAbilitati?: boolean | null;
 }
