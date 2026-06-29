@@ -50,6 +50,13 @@ public class ItemMapper {
             dto.setUtilizziTotale(tot);
             dto.setUtilizziUsati(utilizziUsati != null ? utilizziUsati : 0);
         }
+        // Peso, capienza e flag armi (solo su CONTENITORE)
+        String pesoStr = entity.getLabel(Constants.LABEL_PESO);
+        if (pesoStr != null) dto.setPeso(parseDouble(pesoStr));
+        String capienzaStr = entity.getLabel(Constants.LABEL_CAPIENZA);
+        if (capienzaStr != null) dto.setCapienza(parseDouble(capienzaStr));
+        if ("1".equals(entity.getLabel(Constants.LABEL_INCLUDI_ARMI_ABILITATE)))
+            dto.setIncludiArmiAbilitate(true);
         return dto;
     }
 
@@ -65,6 +72,11 @@ public class ItemMapper {
     private static Integer parseIntOrNull(String s) {
         if (s == null || s.isBlank()) return null;
         try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return null; }
+    }
+
+    private static Double parseDouble(String s) {
+        if (s == null || s.isBlank()) return null;
+        try { return Double.parseDouble(s.trim().replace(',', '.')); } catch (NumberFormatException e) { return null; }
     }
 
     private static Integer parseIntOrZero(String s) {

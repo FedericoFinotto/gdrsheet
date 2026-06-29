@@ -5,19 +5,8 @@ import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoModificatore;
 import it.fin8.gdrsheet.def.TipoPermessoPersonaggio;
 import it.fin8.gdrsheet.def.TipoRuoloParty;
-import it.fin8.gdrsheet.dto.AddMembroRequest;
-import it.fin8.gdrsheet.dto.BancaDTO;
-import it.fin8.gdrsheet.dto.BancaDetailDTO;
-import it.fin8.gdrsheet.dto.MembroPartyDTO;
-import it.fin8.gdrsheet.dto.CreatePartyRequest;
-import it.fin8.gdrsheet.dto.CreatePersonaggioRequest;
-import it.fin8.gdrsheet.dto.GiveItemRequest;
-import it.fin8.gdrsheet.dto.MondoDTO;
-import it.fin8.gdrsheet.dto.PageDTO;
-import it.fin8.gdrsheet.dto.PartyDetailDTO;
-import it.fin8.gdrsheet.dto.PartyItemDTO;
+import it.fin8.gdrsheet.dto.*;
 import it.fin8.gdrsheet.entity.*;
-import it.fin8.gdrsheet.repository.MondoRepository;
 import it.fin8.gdrsheet.repository.*;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
@@ -735,28 +724,93 @@ public class PartyService {
      * più il peso delle monete. Item senza peso valgono 0, QTA assente vale 1.
      */
     public double calcolaPeso(Personaggio pg) {
-        double peso = 0;
-
+        // Raccogli PESO, QTA, CAPIENZA, DISABLED e INCLUDI_ARMI_ABILITATE per tutti gli item
         Map<Integer, Map<String, String>> labelsPerItem = new HashMap<>();
         for (Object[] row : itemLabelRepository.findLabelValuesByPersonaggio(
-                List.of(Constants.LABEL_PESO, Constants.LABEL_QTA), pg.getId())) {
+                List.of(Constants.LABEL_PESO, Constants.LABEL_QTA, Constants.LABEL_CAPIENZA,
+                        Constants.ITEM_LABEL_DISABILITATO, Constants.LABEL_INCLUDI_ARMI_ABILITATE), pg.getId())) {
             labelsPerItem.computeIfAbsent((Integer) row[0], k -> new HashMap<>())
                     .put((String) row[1], (String) row[2]);
         }
-        for (Map<String, String> labels : labelsPerItem.values()) {
-            peso += parsePeso(labels.get(Constants.LABEL_PESO)) * parseQta(labels.get(Constants.LABEL_QTA));
+
+        // Raccogli il tipo di ogni item
+        Map<Integer, TipoItem> tipoPerItem = new HashMap<>();
+        for (Object[] row : itemRepository.findIdAndTipoByPersonaggioId(pg.getId())) {
+            tipoPerItem.put((Integer) row[0], (TipoItem) row[1]);
         }
 
+        // ContainerInfo: pesoMassimo, capienza, includiArmiAbilitate
+        record ContainerInfo(double pesoMassimo, double capienza, boolean includiArmi) {}
+        List<ContainerInfo> containers = new ArrayList<>();
+        double containableWeight = 0; // item disabilitati → entrano nei contenitori
+        double armeAbilitateWeight = 0; // ARMA abilitate → entrano solo se flag
+        double equippedWeight = 0;    // item abilitati non-arma → sempre equipaggiati
+
+        for (Map.Entry<Integer, Map<String, String>> entry : labelsPerItem.entrySet()) {
+            Integer id = entry.getKey();
+            Map<String, String> labels = entry.getValue();
+            TipoItem tipo = tipoPerItem.get(id);
+            String pesoStr = labels.get(Constants.LABEL_PESO);
+            if (pesoStr == null) continue; // nessun peso → non contribuisce
+            double itemPeso = parsePeso(pesoStr) * parseQta(labels.get(Constants.LABEL_QTA));
+            boolean isDisabled = Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE
+                    .equals(labels.get(Constants.ITEM_LABEL_DISABILITATO));
+
+            if (TipoItem.CONTENITORE.equals(tipo)) {
+                double capienza = parsePeso(labels.get(Constants.LABEL_CAPIENZA));
+                boolean includiArmi = "1".equals(labels.get(Constants.LABEL_INCLUDI_ARMI_ABILITATE));
+                containers.add(new ContainerInfo(itemPeso, capienza, includiArmi));
+            } else if (isDisabled) {
+                // item disabilitato → può stare nel contenitore
+                containableWeight += itemPeso;
+            } else if (TipoItem.ARMA.equals(tipo)) {
+                // arma abilitata → entra solo in contenitori con il flag
+                armeAbilitateWeight += itemPeso;
+            } else {
+                // item abilitato non-arma → sempre equipaggiato (peso diretto)
+                equippedWeight += itemPeso;
+            }
+        }
+
+        // Peso fisso del personaggio (label PESO sulla riga personaggio)
         if (pg.getLabels() != null) {
-            peso += pg.getLabels().stream()
+            equippedWeight += pg.getLabels().stream()
                     .filter(l -> Constants.LABEL_PESO.equals(l.getLabel()))
                     .mapToDouble(l -> parsePeso(l.getValore()))
                     .sum();
         }
 
-        peso += calcolaPesoMonete(calcolaSoldi(pg.getId()));
+        // Monete: trattate come oggetti disabilitati (entrano nei contenitori)
+        double coinWeight = calcolaPesoMonete(calcolaSoldi(pg.getId()));
+        containableWeight += coinWeight;
 
-        return Math.round(peso * 100) / 100.0;
+        // Riempi i contenitori dal più capiente al meno capiente
+        containers.sort((a, b) -> Double.compare(b.capienza(), a.capienza()));
+        double remainingContainable = containableWeight;
+        double remainingArme = armeAbilitateWeight;
+        double containerWeight = 0;
+
+        for (ContainerInfo c : containers) {
+            if (c.capienza() <= 0) {
+                containerWeight += c.pesoMassimo();
+                continue;
+            }
+            double spaceLeft = c.capienza();
+            double fromContainable = Math.min(spaceLeft, remainingContainable);
+            remainingContainable -= fromContainable;
+            spaceLeft -= fromContainable;
+            if (c.includiArmi() && spaceLeft > 0) {
+                double fromArme = Math.min(spaceLeft, remainingArme);
+                remainingArme -= fromArme;
+                spaceLeft -= fromArme;
+            }
+            double filled = c.capienza() - spaceLeft;
+            containerWeight += c.pesoMassimo() * (filled / c.capienza());
+        }
+
+        // Totale = equipaggiati + peso contenitori + overflow disabilitati + overflow arme
+        double total = equippedWeight + containerWeight + remainingContainable + remainingArme;
+        return Math.round(total * 100) / 100.0;
     }
 
     private static int parseQta(String s) {

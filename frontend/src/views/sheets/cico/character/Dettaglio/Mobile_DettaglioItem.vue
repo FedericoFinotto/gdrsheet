@@ -151,6 +151,119 @@ onMounted(async () => {
   }
 });
 
+// Calcola il contenuto del contenitore corrente (solo se tipo=CONTENITORE)
+const contenitorInfo = computed(() => {
+  if (item.tipo !== TIPO_ITEM.CONTENITORE) return null
+  const allItems = personaggio?.items
+  if (!allItems) return null
+
+  const capienza = item.capienza ?? 0
+  const pesoMassimo = item.peso ?? 0
+  const includiArmi = !!item.includiArmiAbilitate
+
+  // Peso monete (MR/MA/MO/MP, 0.01 kg ciascuna)
+  const carat: any[] = personaggio?.modificatori?.caratteristiche ?? []
+  const getMoneta = (id: string) => carat.find((c: any) => c.id === id)?.valore ?? 0
+  const coinWeight = (getMoneta('MR') + getMoneta('MA') + getMoneta('MO') + getMoneta('MP')) * 0.01
+
+  // Tutti i contenitori ordinati per capienza decrescente
+  type ContInfo = {id: number; capienza: number; pesoMassimo: number; includiArmi: boolean}
+  const contenitori: ContInfo[] =
+    [...(allItems.contenitori ?? [])]
+      .filter(c => (c.capienza ?? 0) > 0)
+      .map(c => ({
+        id: c.id,
+        capienza: c.capienza ?? 0,
+        pesoMassimo: c.peso ?? 0,
+        includiArmi: !!c.includiArmiAbilitate
+      }))
+      .sort((a, b) => b.capienza - a.capienza)
+
+  // Tutti gli item con peso: entrano solo se disabilitati; le armi abilitate solo con flag
+  const allWithPeso = [
+    ...(allItems.oggetti ?? []),
+    ...(allItems.consumabili ?? []),
+    ...(allItems.munizioni ?? []),
+    ...(allItems.armi ?? []),
+    ...(allItems.equipaggiamento ?? []),
+    ...(allItems.frutti ?? []),
+    ...(allItems.idoli ?? []),
+  ].filter(i => (i.peso ?? 0) > 0)
+
+  const isArma = (i: any) => i.tipo === 'ARMA'
+  // item contenibili = disabled, oppure arma abilitata (gestita separatamente)
+  const containable = allWithPeso.filter(i => !!i.disabled && !isArma(i))
+  const armeAbilitate = allWithPeso.filter(i => isArma(i) && !i.disabled)
+
+  // Distribuzione greedy identica al backend
+  type Slot = {id: number; capienza: number; includiArmi: boolean;
+               items: any[]; armiItems: any[]; filled: number; filledArmi: number}
+  const slots: Slot[] = contenitori.map(c => ({
+    ...c, items: [], armiItems: [], filled: 0, filledArmi: 0
+  }))
+
+  // Distribuisci item contenibili
+  const remainingContainable = [...containable]
+  for (const slot of slots) {
+    const toRemove: any[] = []
+    for (const itm of remainingContainable) {
+      const itemPeso = (itm.peso ?? 0) * (itm.quantita ?? 1)
+      if (slot.filled + itemPeso <= slot.capienza + 1e-9) {
+        slot.filled += itemPeso
+        slot.items.push(itm)
+        toRemove.push(itm)
+      }
+    }
+    toRemove.forEach(i => remainingContainable.splice(remainingContainable.indexOf(i), 1))
+  }
+
+  // Distribuisci armi abilitate nei contenitori con flag
+  const remainingArme = [...armeAbilitate]
+  for (const slot of slots) {
+    if (!slot.includiArmi) continue
+    const space = slot.capienza - slot.filled
+    const toRemove: any[] = []
+    for (const itm of remainingArme) {
+      const itemPeso = (itm.peso ?? 0) * (itm.quantita ?? 1)
+      if (slot.filled + itemPeso <= slot.capienza + 1e-9) {
+        slot.filled += itemPeso
+        slot.armiItems.push(itm)
+        toRemove.push(itm)
+      }
+    }
+    toRemove.forEach(i => remainingArme.splice(remainingArme.indexOf(i), 1))
+  }
+
+  // Distribuisci monete negli spazi rimasti
+  let remainingCoins = coinWeight
+  const slotsCoins: number[] = slots.map(() => 0)
+  for (let i = 0; i < slots.length; i++) {
+    const space = slots[i].capienza - slots[i].filled
+    const coinIn = Math.min(space, remainingCoins)
+    slotsCoins[i] = coinIn
+    slots[i].filled += coinIn
+    remainingCoins -= coinIn
+  }
+
+  const myIdx = slots.findIndex(s => s.id === item.id)
+  if (myIdx === -1) return {items: [], armiItems: [], filled: 0, capienza, pesoMassimo, pesoEffettivo: 0, coinInside: 0}
+
+  const mySlot = slots[myIdx]
+  const coinInside = slotsCoins[myIdx]
+  const pesoEffettivo = capienza > 0 ? pesoMassimo * Math.min(1, mySlot.filled / capienza) : 0
+
+  return {
+    items: mySlot.items,
+    armiItems: mySlot.armiItems,
+    filled: mySlot.filled,
+    capienza,
+    pesoMassimo,
+    pesoEffettivo,
+    coinInside,
+    includiArmi,
+  }
+})
+
 function showInfoItemPopup(itm) {
   openPopup(
       Mobile_DettaglioItem,
@@ -259,6 +372,39 @@ function showInfoItemPopup(itm) {
           }}:</strong> {{ mostraLabel(key, val).value }}</span>
       </div>
       <div class="spazietto"/>
+    </div>
+
+    <!-- Contenuto del contenitore -->
+    <div v-if="contenitorInfo" class="contenitore-box">
+      <div class="contenitore-header">
+        <span>Contenuto</span>
+        <span class="contenitore-peso">
+          {{ contenitorInfo.filled.toFixed(2) }} / {{ contenitorInfo.capienza }} kg
+          &nbsp;→&nbsp;
+          <strong>{{ contenitorInfo.pesoEffettivo.toFixed(2) }} kg</strong>
+        </span>
+      </div>
+      <div v-if="contenitorInfo.items.length || contenitorInfo.armiItems.length || contenitorInfo.coinInside > 0"
+           class="contenitore-list">
+        <div v-for="itm in contenitorInfo.items" :key="itm.id" class="contenitore-item">
+          <span class="contenitore-item-nome">{{ itm.nome }}</span>
+          <span class="contenitore-item-peso muted">
+            {{ ((itm.peso ?? 0) * (itm.quantita ?? 1)).toFixed(2) }} kg
+            <template v-if="(itm.quantita ?? 1) > 1">(×{{ itm.quantita }})</template>
+          </span>
+        </div>
+        <div v-for="itm in contenitorInfo.armiItems" :key="'a'+itm.id" class="contenitore-item arma-row">
+          <span class="contenitore-item-nome">{{ itm.nome }} <span class="muted" style="font-size:.72rem">(equipaggiata)</span></span>
+          <span class="contenitore-item-peso muted">
+            {{ ((itm.peso ?? 0) * (itm.quantita ?? 1)).toFixed(2) }} kg
+          </span>
+        </div>
+        <div v-if="contenitorInfo.coinInside > 0" class="contenitore-item monete-row">
+          <span class="contenitore-item-nome">Monete</span>
+          <span class="contenitore-item-peso muted">{{ contenitorInfo.coinInside.toFixed(2) }} kg</span>
+        </div>
+      </div>
+      <div v-else class="contenitore-empty muted">Vuoto</div>
     </div>
 
     <!-- Descrizione -->
@@ -387,4 +533,39 @@ function showInfoItemPopup(itm) {
 }
 .barr-actions .btn:disabled { opacity: .5; cursor: default; }
 .barr-actions .btn.danger { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+.contenitore-box {
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: .6rem;
+  overflow: hidden;
+  margin: .5rem 0;
+}
+.contenitore-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  background: var(--color-surface-2, #f3f4f6);
+  padding: .4rem .75rem;
+  font-size: .78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--color-text-secondary, #6b7280);
+}
+.contenitore-peso { font-variant-numeric: tabular-nums; }
+.contenitore-list { padding: .25rem 0; }
+.contenitore-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: .25rem .75rem;
+  font-size: .85rem;
+  gap: .5rem;
+}
+.contenitore-item:nth-child(even) { background: var(--color-surface-1, #fafafa); }
+.contenitore-item-nome { flex: 1; }
+.contenitore-item-peso { font-size: .75rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.contenitore-empty { padding: .5rem .75rem; font-size: .85rem; }
+.arma-row { background: #fefce8 !important; }
+.monete-row { background: #f0fdf4 !important; }
+.muted { color: var(--color-text-secondary, #6b7280); }
 </style>

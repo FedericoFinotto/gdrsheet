@@ -22,6 +22,7 @@ export interface CampoLabel {
     label: string;
     placeholder?: string;
     textarea?: boolean;
+    tipo?: 'text' | 'checkbox'; // default: text
 }
 
 // Attacco figlio (item ATTACCO) gestito inline dall'editor

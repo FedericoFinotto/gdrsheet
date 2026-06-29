@@ -45,6 +45,7 @@ export const TIPO_ITEM = {
     FRUTTO: 'FRUTTO',
     FORMA: 'FORMA',
     PRIVILEGIO: 'PRIVILEGIO',
+    CONTENITORE: 'CONTENITORE',
 } as const;
 export type TipoItem = typeof TIPO_ITEM[keyof typeof TIPO_ITEM];
 

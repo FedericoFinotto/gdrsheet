@@ -37,4 +37,10 @@ public class ItemDTO {
      * Utilizzi consumati dal personaggio corrente (label UTILIZZI_USATI per-personaggio).
      */
     private Integer utilizziUsati;
+    /** Peso unitario in kg (label PESO). Null se non impostato. */
+    private Double peso;
+    /** Peso max contenibile in kg (label CAPIENZA). Solo su CONTENITORE. Null altrimenti. */
+    private Double capienza;
+    /** Flag su CONTENITORE: include ARMA abilitate nel calcolo del contenuto. */
+    private Boolean includiArmiAbilitate;
 }

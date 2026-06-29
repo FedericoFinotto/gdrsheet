@@ -269,6 +269,9 @@ public class PersonaggioService {
             if (TipoItem.IDOLO.equals(itm.getTipo())) {
                 itemsDTO.getIdoli().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
+            if (TipoItem.CONTENITORE.equals(itm.getTipo())) {
+                itemsDTO.getContenitori().add(itemMapper.toDTO(itm, uTotale, uUsati));
+            }
             if (TipoItem.FRUTTO.equals(itm.getTipo())) {
                 itemsDTO.getFrutti().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }

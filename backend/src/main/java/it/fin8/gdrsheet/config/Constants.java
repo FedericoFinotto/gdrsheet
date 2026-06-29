@@ -58,6 +58,8 @@ public final class Constants {
     public static final String ITEM_LABEL_GRUPPO_TRASFORMAZIONE = "GRP_TRASF";
     public static final String LABEL_PESO = "PESO"; // kg, su item_label e personaggio_label
     public static final String LABEL_QTA = "QTA";   // quantità item, moltiplica il peso
+    public static final String LABEL_CAPIENZA = "CAPIENZA"; // peso max contenibile (kg), solo su CONTENITORE
+    public static final String LABEL_INCLUDI_ARMI_ABILITATE = "INCLUDI_ARMI_ABILITATE"; // flag su CONTENITORE: "1" include ARMA abilitate
     public static final String LABEL_UTILIZZI = "UTILIZZI";           // max utilizzi (globale sull'item)
     public static final String LABEL_UTILIZZI_USATI = "UTILIZZI_USATI"; // utilizzi consumati (per-personaggio)
     public static final String LABEL_CC = "CC";     // conto corrente banca: G<idPersonaggio> | P<idParty>

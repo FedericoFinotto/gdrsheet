@@ -12,4 +12,7 @@ export interface Item {
     utilizziTotale?: number | null;
     utilizziUsati?: number | null;
     scollegabile?: boolean;
+    peso?: number | null;
+    capienza?: number | null;
+    includiArmiAbilitate?: boolean | null;
 }

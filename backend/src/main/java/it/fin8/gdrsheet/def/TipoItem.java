@@ -26,7 +26,8 @@ public enum TipoItem {
     IDOLO("Idolo"),
     FRUTTO("Frutto"),
     FORMA("Forma"),
-    PRIVILEGIO("Privilegio di Classe")
+    PRIVILEGIO("Privilegio di Classe"),
+    CONTENITORE("Contenitore")
     ;
 
     private final String label;

@@ -162,4 +162,12 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             @Param("label") String label,
             @Param("ids") List<Integer> ids
     );
+
+    /** Restituisce (id, tipo) per tutti gli item del personaggio (diretti + collegati via FromCompendio). */
+    @Query("""
+            SELECT i.id, i.tipo FROM Item i
+            WHERE i.personaggio.id = :pgId
+            OR i.id IN (SELECT c.itemTarget.id FROM Collegamento c WHERE c.itemSource.personaggio.id = :pgId)
+            """)
+    List<Object[]> findIdAndTipoByPersonaggioId(@Param("pgId") Integer pgId);
 }

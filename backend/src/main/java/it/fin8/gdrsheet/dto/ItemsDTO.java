@@ -31,6 +31,7 @@ public class ItemsDTO {
     private List<ItemDTO> frutti;
     private List<ItemDTO> forme;
     private List<ItemDTO> privilegi;
+    private List<ItemDTO> contenitori;
 
     public ItemsDTO() {
         abilita = new ArrayList<>();
@@ -53,5 +54,6 @@ public class ItemsDTO {
         frutti = new ArrayList<>();
         forme = new ArrayList<>();
         privilegi = new ArrayList<>();
+        contenitori = new ArrayList<>();
     }
 }

@@ -24,8 +24,9 @@ import ChildrenEditor from './Sections/ChildrenEditor.vue'
 const props = withDefaults(defineProps<{
   item: ItemDB
   titolo?: string
-  campiLabel?: CampoLabel[]   // campi specifici per tipo, mappati su ItemLabel
-  suggestedKeys?: string[]    // chiavi suggerite nella sezione labels generiche
+  campiLabel?: CampoLabel[]      // campi specifici per tipo, mappati su ItemLabel
+  campiLabelTitolo?: string      // titolo card per la sezione campiLabel (opzionale)
+  suggestedKeys?: string[]       // chiavi suggerite nella sezione labels generiche
   readonly?: boolean
   mode?: 'edit' | 'create'
   idPersonaggio?: number      // solo create: aggancia l'item al FromCompendio del personaggio
@@ -381,15 +382,49 @@ function onCancel() {
     </div>
 
     <!-- campi specifici per tipo -->
-    <div v-if="campiLabel.length" class="row two">
-      <label v-for="c in campiLabel" :key="c.key" class="field" :class="{ full: c.textarea }">
-        <span class="lbl">{{ c.label }}</span>
-        <textarea v-if="c.textarea" v-model="form.campi[c.key]" rows="3"
-                  :disabled="disabledAll" :placeholder="c.placeholder"/>
-        <input v-else v-model.trim="form.campi[c.key]" type="text"
-               :disabled="disabledAll" :placeholder="c.placeholder"/>
-      </label>
-    </div>
+    <template v-if="campiLabel.length">
+      <div v-if="campiLabelTitolo" class="section-card">
+        <div class="section-card-header">{{ campiLabelTitolo }}</div>
+        <div class="row two">
+          <label v-for="c in campiLabel" :key="c.key" class="field"
+                 :class="{ full: c.textarea, 'field-checkbox': c.tipo === 'checkbox' }">
+            <template v-if="c.tipo === 'checkbox'">
+              <span class="lbl">{{ c.label }}</span>
+              <input type="checkbox"
+                     :checked="form.campi[c.key] === '1'"
+                     :disabled="disabledAll"
+                     @change="(e) => form.campi[c.key] = (e.target as HTMLInputElement).checked ? '1' : ''"/>
+            </template>
+            <template v-else>
+              <span class="lbl">{{ c.label }}</span>
+              <textarea v-if="c.textarea" v-model="form.campi[c.key]" rows="3"
+                        :disabled="disabledAll" :placeholder="c.placeholder"/>
+              <input v-else v-model.trim="form.campi[c.key]" type="text"
+                     :disabled="disabledAll" :placeholder="c.placeholder"/>
+            </template>
+          </label>
+        </div>
+      </div>
+      <div v-else class="row two">
+        <label v-for="c in campiLabel" :key="c.key" class="field"
+               :class="{ full: c.textarea, 'field-checkbox': c.tipo === 'checkbox' }">
+          <template v-if="c.tipo === 'checkbox'">
+            <span class="lbl">{{ c.label }}</span>
+            <input type="checkbox"
+                   :checked="form.campi[c.key] === '1'"
+                   :disabled="disabledAll"
+                   @change="(e) => form.campi[c.key] = (e.target as HTMLInputElement).checked ? '1' : ''"/>
+          </template>
+          <template v-else>
+            <span class="lbl">{{ c.label }}</span>
+            <textarea v-if="c.textarea" v-model="form.campi[c.key]" rows="3"
+                      :disabled="disabledAll" :placeholder="c.placeholder"/>
+            <input v-else v-model.trim="form.campi[c.key]" type="text"
+                   :disabled="disabledAll" :placeholder="c.placeholder"/>
+          </template>
+        </label>
+      </div>
+    </template>
 
     <!-- slot per estensioni specifiche del tipo -->
     <slot name="specifico" :disabled="disabledAll"/>
@@ -572,4 +607,21 @@ textarea { resize: vertical; }
   font-weight: 800; font-size: 1rem; cursor: pointer;
 }
 .qta-btn:disabled { opacity: .5; cursor: default; }
+.field-checkbox { flex-direction: row; align-items: center; gap: .5rem; }
+.field-checkbox input[type="checkbox"] { width: 1.1rem; height: 1.1rem; cursor: pointer; }
+.section-card {
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: .5rem;
+  overflow: hidden;
+}
+.section-card-header {
+  background: var(--color-surface-2, #f3f4f6);
+  padding: .4rem .75rem;
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.section-card .row { padding: .75rem; }
 </style>

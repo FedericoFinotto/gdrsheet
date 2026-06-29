@@ -49,6 +49,7 @@ const itemsArmi = computed(() => wrap(items.value?.armi));
 const itemsEquipaggiamento = computed(() => wrap(items.value?.equipaggiamento));
 const itemsConsumabili = computed(() => wrap(items.value?.consumabili));
 const itemsMunizioni = computed(() => wrap(items.value?.munizioni));
+const itemsContenitori = computed(() => wrap(items.value?.contenitori));
 const itemsFrutti = computed(() => wrap(items.value?.frutti));
 const itemsIdoli = computed(() => wrap(items.value?.idoli));
 
@@ -96,6 +97,7 @@ const columnsArmi = col('Armi', true);
 const columnsEquipaggiamento = col('Equipaggiamento', true);
 const columnsConsumabili = col('Consumabili', true);
 const columnsMunizioni = col('Munizioni', true);
+const columnsContenitori = col('Contenitori', true);
 const columnsFrutti = col('Frutti');
 const columnsIdoli = col('Idoli');
 const columnsAbilitaPassive = col('Abilità Passive');
@@ -122,6 +124,8 @@ const columnsMaledizioni = col('Maledizioni');
     <Tabella v-if="itemsConsumabili.length > 0" :columns="columnsConsumabili" :expandable="true" :items="itemsConsumabili"/>
     <div class="spazietto"/>
     <Tabella v-if="itemsMunizioni.length > 0" :columns="columnsMunizioni" :expandable="true" :items="itemsMunizioni"/>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsContenitori.length > 0" :columns="columnsContenitori" :expandable="true" :items="itemsContenitori"/>
     <div class="spazietto"/>
     <Tabella v-if="itemsFrutti.length > 0" :columns="columnsFrutti" :expandable="true" :items="itemsFrutti"/>
     <div class="spazietto"/>
