@@ -11,26 +11,29 @@ const props = defineProps<{ idPersonaggio: number }>()
 const {closePopup} = usePopup()
 const store = useCharacterStore()
 
-const query  = ref('')
-const tipo   = ref<string>('')
-const items  = ref<Item[]>([])
-const total  = ref(0)
-const page   = ref(0)
+const query   = ref('')
+const tipo    = ref<string>('')
+const items   = ref<Item[]>([])
+const total   = ref(0)
+const page    = ref(0)
 const loading = ref(false)
-const linking = ref<number | null>(null)
+const linking = ref(false)
+
+// Conferma
+const pending = ref<Item | null>(null)
 
 const PAGE_SIZE = 15
 
 const TIPI = [
   {value: '', label: 'Tutti'},
-  {value: TIPO_ITEM.OGGETTO,       label: 'Oggetto'},
-  {value: TIPO_ITEM.ARMA,          label: 'Arma'},
-  {value: TIPO_ITEM.CONSUMABILE,   label: 'Consumabile'},
-  {value: TIPO_ITEM.EQUIPAGGIAMENTO, label: 'Equipaggiamento'},
-  {value: TIPO_ITEM.MUNIZIONI,     label: 'Munizioni'},
-  {value: TIPO_ITEM.CONTENITORE,   label: 'Contenitore'},
-  {value: TIPO_ITEM.FRUTTO,        label: 'Frutto'},
-  {value: TIPO_ITEM.TALENTO,       label: 'Talento'},
+  {value: TIPO_ITEM.OGGETTO,          label: 'Oggetto'},
+  {value: TIPO_ITEM.ARMA,             label: 'Arma'},
+  {value: TIPO_ITEM.CONSUMABILE,      label: 'Consumabile'},
+  {value: TIPO_ITEM.EQUIPAGGIAMENTO,  label: 'Equipaggiamento'},
+  {value: TIPO_ITEM.MUNIZIONI,        label: 'Munizioni'},
+  {value: TIPO_ITEM.CONTENITORE,      label: 'Contenitore'},
+  {value: TIPO_ITEM.FRUTTO,           label: 'Frutto'},
+  {value: TIPO_ITEM.TALENTO,          label: 'Talento'},
 ]
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -48,13 +51,10 @@ function cerca(reset = true) {
         size: PAGE_SIZE,
       })
       const data = res.data
-      if (reset) {
-        items.value = data.content
-      } else {
-        items.value.push(...data.content)
-      }
+      if (reset) { items.value = data.content }
+      else        { items.value.push(...data.content) }
       total.value = data.totalElements
-    } catch (e) {
+    } catch (_) {
       // ignora
     } finally {
       loading.value = false
@@ -69,17 +69,23 @@ async function loadMore() {
   await cerca(false)
 }
 
-async function aggiungi(item: Item) {
-  if (linking.value) return
-  linking.value = item.id
+function seleziona(item: Item) {
+  pending.value = item
+}
+
+function annulla() {
+  pending.value = null
+}
+
+async function conferma() {
+  if (!pending.value || linking.value) return
+  linking.value = true
   try {
-    await linkItem(item.id, props.idPersonaggio)
+    await linkItem(pending.value.id, props.idPersonaggio)
     await store.fetchCharacter(props.idPersonaggio, true)
     closePopup()
-  } catch (e) {
-    // mostra errore inline?
-  } finally {
-    linking.value = null
+  } catch (_) {
+    linking.value = false
   }
 }
 
@@ -113,13 +119,12 @@ const hasMore = () => items.value.length < total.value
         v-for="item in items"
         :key="item.id"
         class="result-row"
-        :class="{'is-linking': linking === item.id}"
-        @click="aggiungi(item)"
+        :class="{'is-selected': pending?.id === item.id}"
+        @click="seleziona(item)"
       >
         <span class="item-nome">{{ item.nome }}</span>
         <span class="item-tipo">{{ item.tipo }}</span>
-        <span v-if="linking === item.id" class="link-spinner">…</span>
-        <span v-else class="link-plus">+</span>
+        <span class="link-plus">+</span>
       </div>
 
       <button
@@ -131,6 +136,19 @@ const hasMore = () => items.value.length < total.value
         {{ loading ? 'Caricamento…' : `Carica altri (${total - items.length} rimasti)` }}
       </button>
     </div>
+
+    <!-- Barra di conferma -->
+    <transition name="slide-up">
+      <div v-if="pending" class="confirm-bar">
+        <span class="confirm-label">Aggiungere <strong>{{ pending.nome }}</strong>?</span>
+        <div class="confirm-actions">
+          <button class="btn-annulla" :disabled="linking" @click="annulla">Annulla</button>
+          <button class="btn-conferma" :disabled="linking" @click="conferma">
+            {{ linking ? '…' : 'Aggiungi' }}
+          </button>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -139,9 +157,11 @@ const hasMore = () => items.value.length < total.value
   display: flex;
   flex-direction: column;
   gap: .6rem;
-  padding: .75rem;
-  width: min(92vw, 420px);
-  max-height: 80vh;
+  /* niente width fissa: il popup-content wrapper gestisce la dimensione */
+  width: 100%;
+  min-width: 260px;
+  max-height: 75dvh;       /* dvh tiene conto della tastiera mobile */
+  box-sizing: border-box;
 }
 .popup-title {
   margin: 0;
@@ -154,6 +174,7 @@ const hasMore = () => items.value.length < total.value
 }
 .search-input {
   flex: 1;
+  min-width: 0;
   padding: .4rem .6rem;
   border: 1px solid var(--color-border, #d1d5db);
   border-radius: .4rem;
@@ -162,19 +183,22 @@ const hasMore = () => items.value.length < total.value
 }
 .search-input:focus { border-color: #2563eb; }
 .tipo-select {
-  padding: .4rem .4rem;
+  flex-shrink: 0;
+  padding: .4rem .3rem;
   border: 1px solid var(--color-border, #d1d5db);
   border-radius: .4rem;
   font-size: .8rem;
   background: #fff;
   cursor: pointer;
+  max-width: 110px;
 }
 .results-wrap {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-height: 120px;
+  min-height: 80px;
+  flex: 1;
 }
 .empty-state {
   padding: 1rem;
@@ -191,13 +215,21 @@ const hasMore = () => items.value.length < total.value
   cursor: pointer;
   background: #fff;
   transition: background .1s;
+  border: 1px solid transparent;
 }
-.result-row:hover { background: #eff6ff; }
-.result-row.is-linking { opacity: .6; pointer-events: none; }
+.result-row:hover     { background: #eff6ff; }
+.result-row.is-selected {
+  background: #eff6ff;
+  border-color: #2563eb;
+}
 .item-nome {
   flex: 1;
   font-size: .875rem;
   font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .item-tipo {
   font-size: .72rem;
@@ -215,13 +247,6 @@ const hasMore = () => items.value.length < total.value
   width: 1.2rem;
   text-align: center;
 }
-.link-spinner {
-  font-size: .875rem;
-  color: #6b7280;
-  flex-shrink: 0;
-  width: 1.2rem;
-  text-align: center;
-}
 .btn-load-more {
   margin-top: .3rem;
   padding: .4rem;
@@ -234,4 +259,55 @@ const hasMore = () => items.value.length < total.value
 }
 .btn-load-more:hover:not(:disabled) { background: #f1f5f9; }
 .btn-load-more:disabled { opacity: .5; cursor: default; }
+
+/* Barra conferma */
+.confirm-bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .55rem .6rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: .4rem;
+  flex-shrink: 0;
+}
+.confirm-label {
+  flex: 1;
+  font-size: .82rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.confirm-actions {
+  display: flex;
+  gap: .35rem;
+  flex-shrink: 0;
+}
+.btn-annulla {
+  padding: .3rem .65rem;
+  border: 1px solid #d1d5db;
+  border-radius: .35rem;
+  background: #fff;
+  color: #374151;
+  font-size: .8rem;
+  cursor: pointer;
+}
+.btn-annulla:hover:not(:disabled) { background: #f9fafb; }
+.btn-conferma {
+  padding: .3rem .75rem;
+  border: none;
+  border-radius: .35rem;
+  background: #2563eb;
+  color: #fff;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-conferma:hover:not(:disabled) { background: #1d4ed8; }
+.btn-conferma:disabled, .btn-annulla:disabled { opacity: .5; cursor: default; }
+
+/* Animazione barra conferma */
+.slide-up-enter-active, .slide-up-leave-active { transition: all .18s ease; }
+.slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(6px); }
 </style>
