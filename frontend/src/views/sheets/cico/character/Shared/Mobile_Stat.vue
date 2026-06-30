@@ -73,13 +73,20 @@ const stat = computed(() => {
     }
     if (attributo) {
       const infinito = attributo.modificatori.filter(x => x.nota === null && (x.formula === '+INF' || x.formula === '+∞'));
+      const perc = attributo.percentuale ?? 0;
       let mod = attributo.modificatore;
-      if (mod === 0) {
-        mod = attributo.modificatori.map(v => v.formula)
-            .join(' + ');
-      }
+
       if (infinito && infinito.length > 0) {
         mod = '+∞';
+      } else if (mod !== 0 && perc !== 0) {
+        mod = `${mod} - ${perc}%`;
+      } else if (mod === 0 && perc !== 0) {
+        mod = `${perc}%`;
+      } else if (mod === 0) {
+        mod = attributo.modificatori
+            .filter(v => v.nota === null)
+            .map(v => v.formula)
+            .join(' + ');
       }
       return {
         ...attributo,

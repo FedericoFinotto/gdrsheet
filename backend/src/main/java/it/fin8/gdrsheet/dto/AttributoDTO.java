@@ -15,5 +15,6 @@ public class AttributoDTO {
     String id;
     String label;
     Integer modificatore;
+    Integer percentuale;
     List<ModificatoreDTO> modificatori;
 }

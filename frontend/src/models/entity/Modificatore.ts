@@ -27,6 +27,7 @@ export const TIPO_MODIFICATORE = {
     FORZATO: 'FORZATO',
     NEGA: 'NEGA',
     SBLOCCA: 'SBLOCCA',
+    PERCENTUALE: 'PERCENTUALE',
 } as const;
 
 export type TipoModificatore = typeof TIPO_MODIFICATORE[keyof typeof TIPO_MODIFICATORE];

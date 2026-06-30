@@ -16,7 +16,8 @@ public enum TipoModificatore {
     BASE("Base"),
     FORZATO("Base Forzato"),
     NEGA("Nega"),
-    SBLOCCA("Sblocca");
+    SBLOCCA("Sblocca"),
+    PERCENTUALE("Percentuale");
 
     private final String label;
 

@@ -405,6 +405,8 @@ public class ModificatoriService {
         modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList());
         // modificatori con nota → situazionali (mostrati ma non sommati al totale)
         modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getNota() != null && x.getTipo() == TipoModificatore.VALORE).toList());
+        // PERCENTUALE: calcolati separatamente, inclusi nella lista per il popup
+        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getTipo() == TipoModificatore.PERCENTUALE).toList());
 
         if (stat.getMod() != null) {
             ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
@@ -412,11 +414,16 @@ public class ModificatoriService {
             modificatoriAttivi.add(baseMod);
         }
 
-        modificatore = modificatoriAttivi.stream().filter(x -> x.getNota() == null).mapToInt(ModificatoreDTO::getValore).sum();
+        modificatore = modificatoriAttivi.stream()
+                .filter(x -> x.getNota() == null && x.getTipo() != TipoModificatore.PERCENTUALE)
+                .mapToInt(ModificatoreDTO::getValore).sum();
+        int percentuale = modsDto.stream()
+                .filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.PERCENTUALE)
+                .mapToInt(ModificatoreDTO::getValore).sum();
 
         return new AttributoDTO(
                 stat.getStat().getId(), stat.getStat().getLabel(),
-                modificatore, modificatoriAttivi
+                modificatore, percentuale == 0 ? null : percentuale, modificatoriAttivi
         );
     }
 

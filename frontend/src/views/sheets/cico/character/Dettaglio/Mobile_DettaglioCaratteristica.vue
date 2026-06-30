@@ -127,18 +127,13 @@ const modificatoreModificatore = (mod) => {
 
 const mappaRiga = (mod) => {
   const STAT_KEYS = new Set(['FOR', 'DES', 'COS', 'INT', 'SAG', 'CAR'])
-  // console.log(mod);
   const base = testoModificatore(mod.valore)
   const formula = mod.formula ? testoFormula(mod.formula) : null;
   const extra = STAT_KEYS.has(String(props.stat.id).toUpperCase())
       ? ` [${modificatoreModificatore(mod)}]`
       : ''
-  const valoreFinale = base === '+0' && extra === '' && formula ? formula : base + extra;
-  // console.log({
-  //   ...mod,
-  //   origine: mod.item ?? 'Sconosciuto',
-  //   valor: valoreFinale,
-  // })
+  let valoreFinale = base === '+0' && extra === '' && formula ? formula : base + extra;
+  if (mod.tipo === 'PERCENTUALE') valoreFinale = valoreFinale + '%';
   return {
     ...mod,
     origine: mod.item ?? 'Sconosciuto',
