@@ -4,7 +4,6 @@ const getBackendBaseUrl = () => {
     const {protocol, hostname} = window.location;
     if(hostname === 'localhost') return 'http://localhost:8080/api';
     return `${protocol}//${hostname}/api`;
-    // return 'https://dnd.federicofin8.it/api'
 };
 
 const api = axios.create({
