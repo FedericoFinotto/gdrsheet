@@ -12,10 +12,16 @@ const api = axios.create({
     timeout: 500000,
 });
 
-// Bearer token su ogni richiesta
+// Bearer token + modalità admin su ogni richiesta
 api.interceptors.request.use(cfg => {
     const token = localStorage.getItem('auth_token');
-    if (token) cfg.headers.Authorization = `Bearer ${token}`;
+    if (token) {
+        cfg.headers.Authorization = `Bearer ${token}`;
+        // Segnala al backend se l'admin ha attivato i privilegi
+        // (default: false → admin trattato come giocatore)
+        const adminMode = localStorage.getItem('auth_admin_mode');
+        cfg.headers['X-Admin-Mode'] = adminMode === '1' ? 'true' : 'false';
+    }
     return cfg;
 });
 
@@ -28,6 +34,8 @@ api.interceptors.response.use(
         if (status === 401 && !isLoginCall) {
             localStorage.removeItem('auth_token');
             localStorage.removeItem('auth_utente');
+            localStorage.removeItem('auth_must_set_password');
+            localStorage.removeItem('auth_admin_mode');
             if (!window.location.pathname.startsWith('/login')) {
                 window.location.href = '/login';
             }

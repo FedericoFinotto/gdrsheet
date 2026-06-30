@@ -46,7 +46,7 @@ function apriMenu() { menuAperto.value = true }
 function chiudiMenu() { menuAperto.value = false; confermaEsci.value = false }
 
 const canManageUsers = computed(() => {
-  const r = (auth.utente?.ruolo ?? '').toUpperCase()
+  const r = auth.effectiveRuolo.toUpperCase()
   return r === 'MASTER' || r === 'ADMIN' || r === 'SUPERUSER'
 })
 
@@ -137,6 +137,26 @@ function naviga(path: string) {
           <button class="menu-item" @click="naviga('/account')">
             <i class="fa-solid fa-user menu-icon"></i> Account
           </button>
+
+          <!-- Toggle modalità admin (solo per utenti con ruolo ADMIN/SUPERUSER) -->
+          <div v-if="auth.isRealAdmin" class="admin-toggle-row">
+            <span class="admin-toggle-label">
+              <i class="fa-solid fa-shield-halved menu-icon"></i>
+              Modalità Admin
+            </span>
+            <button
+              class="toggle-btn"
+              :class="{ active: auth.adminMode }"
+              @click="auth.setAdminMode(!auth.adminMode); window.location.reload()"
+              :title="auth.adminMode ? 'Clicca per disattivare i privilegi admin' : 'Clicca per attivare i privilegi admin'"
+            >
+              <span class="toggle-track">
+                <span class="toggle-thumb"/>
+              </span>
+              <span class="toggle-status">{{ auth.adminMode ? 'ON' : 'OFF' }}</span>
+            </button>
+          </div>
+
           <button v-if="canManageUsers" class="menu-item" @click="naviga('/users')">
             <i class="fa-solid fa-users menu-icon"></i> Gestione Utenti
           </button>
@@ -311,6 +331,67 @@ function naviga(path: string) {
 }
 
 .menu-sep { border: 0; border-top: 1px solid #e5e7eb; margin: .35rem 0; }
+
+/* Admin toggle */
+.admin-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .6rem .9rem;
+  border-radius: .5rem;
+  background: #f8faff;
+  border: 1px solid #dbeafe;
+  margin: .15rem 0;
+}
+.admin-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  font-size: .95rem;
+  color: #1e3a8a;
+  font-weight: 500;
+}
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: .2rem .3rem;
+  border-radius: .35rem;
+}
+.toggle-btn:hover { background: #dbeafe; }
+.toggle-track {
+  width: 2.2rem;
+  height: 1.2rem;
+  background: #d1d5db;
+  border-radius: 999px;
+  position: relative;
+  transition: background .18s;
+  display: block;
+}
+.toggle-btn.active .toggle-track { background: #2563eb; }
+.toggle-thumb {
+  position: absolute;
+  top: .15rem;
+  left: .15rem;
+  width: .9rem;
+  height: .9rem;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform .18s;
+  display: block;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+.toggle-btn.active .toggle-thumb { transform: translateX(1rem); }
+.toggle-status {
+  font-size: .75rem;
+  font-weight: 700;
+  color: #6b7280;
+  min-width: 1.5rem;
+}
+.toggle-btn.active .toggle-status { color: #2563eb; }
 
 .conferma-esci {
   margin-top: .4rem;

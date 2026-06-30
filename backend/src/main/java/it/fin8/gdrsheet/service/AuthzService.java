@@ -8,6 +8,8 @@ import it.fin8.gdrsheet.entity.Utente;
 import it.fin8.gdrsheet.repository.PermessiPartyRepository;
 import it.fin8.gdrsheet.repository.PermessiPersonaggiRepository;
 import it.fin8.gdrsheet.repository.PersonaggioRepository;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -31,6 +33,10 @@ public class AuthzService {
     private final PermessiPersonaggiRepository permessiPersonaggiRepository;
     private final PersonaggioRepository personaggioRepository;
 
+    // Spring inietta un proxy request-scoped: sicuro in un @Service singleton
+    @Autowired
+    private HttpServletRequest request;
+
     public AuthzService(PermessiPartyRepository permessiPartyRepository,
                         PermessiPersonaggiRepository permessiPersonaggiRepository,
                         PersonaggioRepository personaggioRepository) {
@@ -39,10 +45,22 @@ public class AuthzService {
         this.personaggioRepository = personaggioRepository;
     }
 
-    public boolean isAdmin(Utente utente) {
+    /** Ruolo reale dell'utente nel DB, indipendente dalla modalità corrente. */
+    public boolean isRealAdmin(Utente utente) {
         if (utente == null || utente.getRuolo() == null) return false;
         String r = utente.getRuolo().trim().toUpperCase(Locale.ROOT);
         return r.equals("ADMIN") || r.equals("SUPERUSER");
+    }
+
+    /**
+     * Ritorna true solo se l'utente è ADMIN *e* la modalità admin è attiva
+     * (header X-Admin-Mode != "false"). Se l'header è assente o "true" → admin attivo.
+     */
+    public boolean isAdmin(Utente utente) {
+        if (!isRealAdmin(utente)) return false;
+        String header = request.getHeader("X-Admin-Mode");
+        // header assente o qualsiasi valore diverso da "false" → admin attivo
+        return !"false".equalsIgnoreCase(header);
     }
 
     /**
