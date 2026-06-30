@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell(Get-ChildItem -Recurse B:\\\\progetti\\\\dnd\\\\backend\\\\src\\\\main\\\\java -File | ForEach-Object { $_.FullName.Replace\\('B:\\\\progetti\\\\dnd\\\\backend\\\\src\\\\main\\\\java\\\\',''\\) })",
-      "WebSearch",
-      "WebFetch(domain:freefrontend.com)"
-    ]
-  }
-}
