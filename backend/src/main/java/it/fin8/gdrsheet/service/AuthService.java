@@ -180,30 +180,21 @@ public class AuthService {
     }
 
     public HomeDTO getHome(Utente utente) {
-        // ADMIN/SUPERUSER: vede tutti i party e tutti i personaggi
+        // Party: l'admin vede tutti; gli altri solo quelli a cui sono associati
+        List<HomeDTO.PartyHomeDTO> parties;
         if (authzService.isAdmin(utente)) {
-            List<HomeDTO.PartyHomeDTO> parties = partyRepository.findAll().stream()
+            parties = partyRepository.findAll().stream()
                     .map(p -> new HomeDTO.PartyHomeDTO(p.getId(), p.getNome(), "MASTER"))
                     .sorted(Comparator.comparing(HomeDTO.PartyHomeDTO::getNome, String.CASE_INSENSITIVE_ORDER))
                     .toList();
-            List<HomeDTO.PersonaggioHomeDTO> personaggi = personaggioRepository.findAll().stream()
-                    .map(pg -> new HomeDTO.PersonaggioHomeDTO(
-                            pg.getId(),
-                            pg.getNome(),
-                            TipoPermessoPersonaggio.PROPRIETARIO.name(),
-                            pg.getParty() != null ? pg.getParty().getId() : null,
-                            pg.getParty() != null ? pg.getParty().getNome() : null,
-                            PartyService.tipoPersonaggio(pg)))
-                    .sorted(Comparator.comparing(HomeDTO.PersonaggioHomeDTO::getNome, String.CASE_INSENSITIVE_ORDER))
+        } else {
+            parties = permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
+                    .map(this::toPartyDTO)
+                    .sorted(Comparator.comparing(HomeDTO.PartyHomeDTO::getNome, String.CASE_INSENSITIVE_ORDER))
                     .toList();
-            return new HomeDTO(toUtenteDTO(utente), parties, personaggi);
         }
 
-        List<HomeDTO.PartyHomeDTO> parties = permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
-                .map(this::toPartyDTO)
-                .sorted(Comparator.comparing(HomeDTO.PartyHomeDTO::getNome, String.CASE_INSENSITIVE_ORDER))
-                .toList();
-
+        // Personaggi: sempre e solo quelli direttamente associati all'utente
         List<HomeDTO.PersonaggioHomeDTO> personaggi = permessiPersonaggiRepository.findAllByIdUtente_Id(utente.getId()).stream()
                 .map(this::toPersonaggioDTO)
                 .sorted(Comparator.comparing(HomeDTO.PersonaggioHomeDTO::getNome, String.CASE_INSENSITIVE_ORDER))
