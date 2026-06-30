@@ -48,22 +48,23 @@ public class CalcoloService {
     };
     private static final Function[] FUNZIONI = {FN_ECCESSO, FN_DIFETTO, FN_TRONCATO};
 
-    public String calcola(String formula, List<CaratteristicaDTO> caratteristiche) {
+    /**
+     * Metodo base: sostituisce nella formula le chiavi della mappa (es. "@CAR", "$1983_QTA")
+     * con i rispettivi valori, poi valuta l'espressione numerica risultante.
+     * Le chiavi più lunghe vengono sostituite prima per evitare match parziali
+     * (es. "@PESO_TOTALE" prima di "@PESO").
+     */
+    public String calcola(String formula, Map<String, String> valori) {
         if (formula == null || formula.isBlank()) return "0";
 
-        // 1. Sostituisci @XXX con i modificatori numerici
+        // 1. Sostituisci le variabili (chiavi più lunghe prima)
         String replaced = formula;
-        Matcher m = PATTERN_PLACEH.matcher(replaced);
-        while (m.find()) {
-            String ph = m.group();        // esempio: @FOR
-            String id = ph.substring(1); // esempio: FOR
-            int mod = caratteristiche.stream()
-                    .filter(c -> id.equalsIgnoreCase(c.getId()))
-                    .map(c -> c.getModificatore() != null ? c.getModificatore() : 0)
-                    .findFirst()
-                    .orElse(0);
-            // confine di parola finale: @PESO non deve intaccare @PESO_TOTALE
-            replaced = replaced.replaceAll(Pattern.quote(ph) + "\\b", Matcher.quoteReplacement(String.valueOf(mod)));
+        List<Map.Entry<String, String>> entries = new ArrayList<>(valori.entrySet());
+        entries.sort((a, b) -> b.getKey().length() - a.getKey().length());
+        for (Map.Entry<String, String> e : entries) {
+            if (e.getValue() != null) {
+                replaced = replaced.replace(e.getKey(), e.getValue());
+            }
         }
 
         // 2. Estrai e salva la parte col dado (es: 1d8)
@@ -71,7 +72,7 @@ public class CalcoloService {
         String dicePart = "";
         if (diceMatcher.find()) {
             dicePart = diceMatcher.group();
-            replaced = replaced.replace(dicePart, ""); // rimuove TUTTE le occorrenze di quel dado
+            replaced = replaced.replace(dicePart, "");
         }
 
         // 3. Pulizia formula numerica (rimuove spazi)
@@ -83,7 +84,7 @@ public class CalcoloService {
                 double eval = new ExpressionBuilder(numericExpr)
                         .functions(FUNZIONI)
                         .build().evaluate();
-                result = (long) Math.floor(eval); // arrotonda sempre per difetto
+                result = (long) Math.floor(eval);
             } catch (Exception e) {
             }
         }
@@ -94,6 +95,21 @@ public class CalcoloService {
         } else {
             return String.valueOf(result);
         }
+    }
+
+    /**
+     * Wrapper: converte la lista di CaratteristicaDTO in mappa chiave→valore
+     * (chiave = "@" + id, valore = modificatore come stringa) e chiama il metodo base.
+     */
+    public String calcola(String formula, List<CaratteristicaDTO> caratteristiche) {
+        if (formula == null || formula.isBlank()) return "0";
+        Map<String, String> valori = new LinkedHashMap<>();
+        for (CaratteristicaDTO c : caratteristiche) {
+            if (c.getId() != null) {
+                valori.put("@" + c.getId(), String.valueOf(c.getModificatore() != null ? c.getModificatore() : 0));
+            }
+        }
+        return calcola(formula, valori);
     }
 
 

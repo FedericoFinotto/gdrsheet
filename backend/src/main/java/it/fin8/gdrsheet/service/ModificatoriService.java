@@ -322,7 +322,22 @@ public class ModificatoriService {
                                          List<Item> livelloItems,
                                          List<ContatoreItemDTO> contatoriItem) {
         espandiIdInFormule(modsDto);
-        applicaCalcoli(modsDto, carList);
+        Map<String, String> valori = new HashMap<>();
+        valori.putAll(contatoriItem.stream()
+                .collect(Collectors.toMap(
+                        x -> "$".concat(x.getId()),
+                        x -> x.getValore().toString(),
+                        (a, b) -> a
+                )));
+        valori.putAll(carList.stream()
+                .collect(Collectors.toMap(
+                        x -> "@".concat(x.getId()),
+                        x -> x.getModificatore().toString(),
+                        (a, b) -> a
+                )));
+
+
+        applicaCalcoli(modsDto, valori);
         try {
             Integer.parseInt(stat.getValore());
         } catch (Exception e) {
@@ -351,7 +366,7 @@ public class ModificatoriService {
 
         if (stat.getFormula() != null) {
             String formula = stat.getFormula().replaceAll("@DV", String.valueOf(dadiVita.getTotale()));
-            int formulaEvaluated = Integer.parseInt(calcoloService.calcola(formula, carList));
+            int formulaEvaluated = Integer.parseInt(calcoloService.calcola(formula, valori));
             modificatoriAttivi.add(new ModificatoreDTO(null, null, formulaEvaluated, formula, null, null, true, "BASE", null, null));
         }
 
@@ -686,6 +701,21 @@ public class ModificatoriService {
             if (m.getFormula() == null || !m.getFormula().contains("$") || m.getItemId() == null) continue;
             m.setFormula(m.getFormula().replaceAll("\\$(?!\\d+_)", "\\$" + m.getItemId() + "_"));
         }
+    }
+
+    /**
+     * Overload diretto: accetta una mappa chiave→valore già pronta (es. "@CAR"→"7", "$1983_QTA"→"14").
+     */
+    private void applicaCalcoli(List<ModificatoreDTO> modsDto, Map<String, String> valori) {
+        modsDto.forEach(x -> {
+            try {
+                if (x.getValore() == null) {
+                    x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), valori)));
+                }
+            } catch (Exception e) {
+                x.setValore(0);
+            }
+        });
     }
 
     private void applicaCalcoli(List<ModificatoreDTO> modsDto, List<CaratteristicaDTO> carList) {
