@@ -319,13 +319,26 @@ public class ModificatoriService {
                                          List<ModificatoreDTO> modsDto,
                                          List<CaratteristicaDTO> carList,
                                          DadiVitaDTO dadiVita,
-                                         List<Item> livelloItems) {
+                                         List<Item> livelloItems,
+                                         List<ContatoreItemDTO> contatoriItem) {
+        espandiIdInFormule(modsDto);
         applicaCalcoli(modsDto, carList);
         try {
             Integer.parseInt(stat.getValore());
         } catch (Exception e) {
             stat.setValore("0");
         }
+
+//        for (ModificatoreDTO modificatoreDTO : modificatoriAttivi) {
+//            if (modificatoreDTO.getFormula() != null && (modificatoreDTO.getFormula().contains("$") || modificatoreDTO.getFormula().indexOf('@') >= 0)) {
+//                try {
+//                    modificatoreDTO.setFormula(calcoloService.calcola(modificatoreDTO.itemIdInFormula(), contatoriItem.stream().map(ContatoreItemDTO::toCaratteristicaDTO).toList()));
+//                    modificatoreDTO.setValore(Integer.parseInt(modificatoreDTO.getFormula()));
+//                } catch (Exception e) {
+//                    modificatoriAttivi.remove(modificatoreDTO);
+//                }
+//            }
+//        }
 
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(modsDto.stream().toList());
 
@@ -396,9 +409,25 @@ public class ModificatoriService {
             StatValue stat,
             List<ModificatoreDTO> modsDto,
             List<CaratteristicaDTO> carList,
-            List<Item> livelloItems
+            List<Item> livelloItems,
+            List<ContatoreItemDTO> contatoriItem
     ) {
         applicaCalcoli(modsDto, carList);
+
+        // Risolve formule con variabili ($QTA, @...) usando i contatori item, come calcolaCaratteristica
+        List<CaratteristicaDTO> contatoriCar = contatoriItem.stream()
+                .map(ContatoreItemDTO::toCaratteristicaDTO).toList();
+        for (ModificatoreDTO m : modsDto) {
+            if (m.getFormula() != null && (m.getFormula().contains("$") || m.getFormula().indexOf('@') >= 0)) {
+                try {
+                    String resolved = calcoloService.calcola(m.itemIdInFormula(), contatoriCar);
+                    m.setFormula(resolved);
+                    m.setValore(Integer.parseInt(resolved));
+                } catch (Exception ignored) {
+                    m.setValore(0);
+                }
+            }
+        }
 
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
         List<ModificatoreDTO> modPF = new ArrayList<>();
@@ -645,6 +674,18 @@ public class ModificatoriService {
             baseMod -= 5;
         }
         return attacks;
+    }
+
+    /**
+     * Normalizza le formule della lista: espande i riferimenti $VAR (senza ID esplicito)
+     * in $&lt;itemId&gt;_VAR, lasciando invariati i riferimenti già qualificati come $123_VAR.
+     * Esempio: "$1111_QTA+$QTA+@CAR*3" con itemId=456 → "$1111_QTA+$456_QTA+@CAR*3"
+     */
+    void espandiIdInFormule(List<ModificatoreDTO> mods) {
+        for (ModificatoreDTO m : mods) {
+            if (m.getFormula() == null || !m.getFormula().contains("$") || m.getItemId() == null) continue;
+            m.setFormula(m.getFormula().replaceAll("\\$(?!\\d+_)", "\\$" + m.getItemId() + "_"));
+        }
     }
 
     private void applicaCalcoli(List<ModificatoreDTO> modsDto, List<CaratteristicaDTO> carList) {

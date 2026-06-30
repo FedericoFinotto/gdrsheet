@@ -33,6 +33,9 @@ public class ModificatoreDTO {
     private TipoItem tipoItem;
 
     public String itemIdInFormula() {
-        return formula.replace("$", "@" + itemId + "_");
+        // $<numericId>_VAR → @<numericId>_VAR (riferimento esplicito a un altro item, mantieni l'ID)
+        String result = formula.replaceAll("\\$(\\d+)_", "@$1_");
+        // $VAR → @<itemCorrente>_VAR (variabile dell'item stesso)
+        return result.replace("$", "@" + itemId + "_");
     }
 }

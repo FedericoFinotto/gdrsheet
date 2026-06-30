@@ -6,9 +6,20 @@ import {storeToRefs} from "pinia";
 import Mobile_DettaglioItem from "../../Dettaglio/Mobile_DettaglioItem.vue";
 import BottoneAggiungiItem from "../../Shared/BottoneAggiungiItem.vue";
 import {resetUtilizzi, setUtilizziUsati} from "../../../../../../service/PersonaggioService";
+import usePopup from "../../../../../../function/usePopup";
+import AggiungiDalCompendioPopup from "./AggiungiDalCompendioPopup.vue";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore)
+const {openPopup} = usePopup()
+
+function apriCompendio() {
+  openPopup(
+    markRaw(AggiungiDalCompendioPopup),
+    {idPersonaggio: props.idPersonaggio},
+    {closable: true}
+  )
+}
 
 const props = defineProps({
   idPersonaggio: {
@@ -121,6 +132,9 @@ const columnsMaledizioni = col('Maledizioni');
   <div>
     <div class="top-bar">
       <BottoneAggiungiItem :id-personaggio="props.idPersonaggio" label="Aggiungi oggetto"/>
+      <button class="btn-compendio" type="button" @click="apriCompendio">
+        &#128218; Compendio
+      </button>
       <button class="btn-reset" :disabled="resetting" @click="handleReset">
         {{ resetting ? '…' : 'Azzera utilizzi' }}
       </button>
@@ -163,6 +177,18 @@ const columnsMaledizioni = col('Maledizioni');
   gap: .5rem;
   margin-bottom: .25rem;
 }
+.btn-compendio {
+  flex-shrink: 0;
+  padding: .35rem .75rem;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: .5rem;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-compendio:hover { background: #dbeafe; }
 .btn-reset {
   flex-shrink: 0;
   padding: .35rem .75rem;
