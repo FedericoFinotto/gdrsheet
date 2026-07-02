@@ -54,6 +54,7 @@ export const EDITOR_BY_TYPE: Record<TipoItem, Component> = {
     [TIPO_ITEM.FORMA]: FormaEditor,
     [TIPO_ITEM.PRIVILEGIO]: PrivilegioEditor,
     [TIPO_ITEM.CONTENITORE]: ContenitoreEditor,
+    [TIPO_ITEM.PATTO]: OggettoEditor,
 }
 
 // Fallback per eventuali tipi non mappati
@@ -90,6 +91,7 @@ export const TIPO_ITEM_LABELS: Record<TipoItem, string> = {
     [TIPO_ITEM.FORMA]: 'Forma',
     [TIPO_ITEM.PRIVILEGIO]: 'Privilegio di Classe',
     [TIPO_ITEM.CONTENITORE]: 'Contenitore',
+    [TIPO_ITEM.PATTO]: 'Patto',
 }
 
 // Tipi creabili dalla pagina di creazione.

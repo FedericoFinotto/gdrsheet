@@ -17,7 +17,9 @@ public enum TipoModificatore {
     FORZATO("Base Forzato"),
     NEGA("Nega"),
     SBLOCCA("Sblocca"),
-    PERCENTUALE("Percentuale");
+    PERCENTUALE("Percentuale"),
+    MOLTIPLICA("Moltiplica"),
+    DIVIDI("Dividi");
 
     private final String label;
 

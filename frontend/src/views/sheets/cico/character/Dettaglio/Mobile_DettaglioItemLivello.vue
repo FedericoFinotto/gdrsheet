@@ -5,7 +5,8 @@ import {
   buildMappaModificatoriAvanzamenti,
   mostraLabel,
   testoFormula,
-  testoModificatore
+  testoModificatore,
+  testoModificatoreConTipo
 } from "../../../../../function/Utils";
 import {getItem} from "../../../../../service/PersonaggioService";
 import {ItemDB, TIPO_ITEM} from "../../../../../models/entity/ItemDB";
@@ -152,7 +153,7 @@ function showInfoItemPopup(itm) {
       <strong>Modificatori:</strong><br>
       <span v-for="mod in itemDetail.modificatori" :key="mod.id">
         <strong>{{ mod.stat.label }}:</strong>
-        {{ testoModificatore(mod.valore) }}
+        {{ testoModificatoreConTipo(mod.valore, mod.tipo) }}
         <span v-if="mod.nota">- {{ mod.nota }}</span><br>
       </span>
       <div class="spazietto"/>

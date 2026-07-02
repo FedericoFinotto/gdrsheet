@@ -53,6 +53,18 @@ public class ModificatoriService {
         int valoreBase = (modsDto.stream().filter(x -> x.getTipoItem().equals(TipoItem.LIVELLO)).mapToInt(ModificatoreDTO::getValore).sum());
 
         modificatoriAttivi.addAll(modsDto.stream().filter(m -> TipoModificatore.VALORE.equals(m.getTipo())).toList());
+        // MOD: vale metà di VALORE → muta il DTO a ×2 così popup e somma mostrano il valore effettivo
+        List<ModificatoreDTO> modDtos = modsDto.stream().filter(m -> TipoModificatore.MOD.equals(m.getTipo())).toList();
+        if (!modDtos.isEmpty()) modDtos.forEach(m -> {
+            if (m.getValore() != null)
+                m.setValore(m.getValore() * 2);
+            if (m.getFormula() != null && !m.getFormula().isBlank()) {
+                m.setFormula(m.getFormula().concat("*2"));
+            }
+        });
+        modificatoriAttivi.addAll(modDtos);
+        // MOLTIPLICA / DIVIDI: post-processing, inclusi nel popup
+        modificatoriAttivi.addAll(modsDto.stream().filter(m -> TipoModificatore.MOLTIPLICA.equals(m.getTipo()) || TipoModificatore.DIVIDI.equals(m.getTipo())).toList());
 
         for (ModificatoreDTO modificatoreDTO : modificatoriAttivi) {
             if (modificatoreDTO.getFormula() != null && (modificatoreDTO.getFormula().contains("$") || modificatoreDTO.getFormula().indexOf('@') >= 0)) {
@@ -68,14 +80,49 @@ public class ModificatoriService {
         int valore = Optional.of(modificatoriAttivi)
                 .orElse(Collections.emptyList())
                 .stream()
-                .filter(x -> x.getNota() == null)
+                .filter(x -> x.getNota() == null
+                        && !TipoModificatore.MOLTIPLICA.equals(x.getTipo())
+                        && !TipoModificatore.DIVIDI.equals(x.getTipo()))
                 .mapToInt(ModificatoreDTO::getValore)
                 .sum();
+
+        // MOLTIPLICA/DIVIDI operano sul modificatore ((valore-10)/2), non sul valore grezzo
+        int runningMod = (valore - 10) / 2;
+
+        List<ModificatoreDTO> moltiplicatoriDto = modificatoriAttivi.stream()
+                .filter(x -> x.getNota() == null && TipoModificatore.MOLTIPLICA.equals(x.getTipo()) && x.getValore() != null)
+                .sorted(Comparator.comparingInt(ModificatoreDTO::getValore))
+                .toList();
+        for (ModificatoreDTO mDto : moltiplicatoriDto) {
+            int m = mDto.getValore();
+            mDto.setFormula(String.valueOf(m));  // moltiplicatore originale per il display (×N)
+            mDto.setValore(runningMod * (m - 1) * 2);
+            runningMod *= m;
+        }
+
+        List<ModificatoreDTO> divisoriDto = modificatoriAttivi.stream()
+                .filter(x -> x.getNota() == null && TipoModificatore.DIVIDI.equals(x.getTipo()) && x.getValore() != null && x.getValore() != 0)
+                .sorted(Comparator.comparingInt(ModificatoreDTO::getValore))
+                .toList();
+        for (ModificatoreDTO dDto : divisoriDto) {
+            int d = dDto.getValore();
+            int nuovoMod = runningMod / d;
+            dDto.setFormula(String.valueOf(d));  // divisore originale per il display (/N)
+            dDto.setValore((nuovoMod - runningMod) * 2);
+            runningMod = nuovoMod;
+        }
+
+        // riconverti in valore se ci sono stati MOLTIPLICA/DIVIDI
+        if (!moltiplicatoriDto.isEmpty() || !divisoriDto.isEmpty()) {
+            valore = runningMod * 2 + 10;
+        }
 
         int valorePermanente = Optional.of(modificatoriAttivi)
                 .orElse(Collections.emptyList())
                 .stream()
-                .filter(x -> x.getNota() == null && Boolean.TRUE.equals(x.getSempreAttivo()))
+                .filter(x -> x.getNota() == null && Boolean.TRUE.equals(x.getSempreAttivo())
+                        && !TipoModificatore.MOLTIPLICA.equals(x.getTipo())
+                        && !TipoModificatore.DIVIDI.equals(x.getTipo()))
                 .mapToInt(ModificatoreDTO::getValore)
                 .sum();
 
@@ -401,12 +448,15 @@ public class ModificatoriService {
         if (!stat.getValore().equals("0")) {
             modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
         }
-        // modificatori senza nota → sempre attivi (contribuiscono al totale)
+        // VALORE: sempre attivi (senza nota) e situazionali (con nota)
         modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList());
-        // modificatori con nota → situazionali (mostrati ma non sommati al totale)
         modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getNota() != null && x.getTipo() == TipoModificatore.VALORE).toList());
-        // PERCENTUALE: calcolati separatamente, inclusi nella lista per il popup
+        // MOD: vale metà di VALORE — inclusi nel popup, contribuiscono ×2 al totale
+        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getTipo() == TipoModificatore.MOD).toList());
+        // PERCENTUALE: calcolato separatamente, incluso nel popup
         modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getTipo() == TipoModificatore.PERCENTUALE).toList());
+        // MOLTIPLICA / DIVIDI: post-processing, inclusi nel popup
+        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getTipo() == TipoModificatore.MOLTIPLICA || x.getTipo() == TipoModificatore.DIVIDI).toList());
 
         if (stat.getMod() != null) {
             ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
@@ -414,9 +464,33 @@ public class ModificatoriService {
             modificatoriAttivi.add(baseMod);
         }
 
+        // Somma base: VALORE normale, MOD raddoppiato; esclusi PERCENTUALE, MOLTIPLICA, DIVIDI
         modificatore = modificatoriAttivi.stream()
-                .filter(x -> x.getNota() == null && x.getTipo() != TipoModificatore.PERCENTUALE)
-                .mapToInt(ModificatoreDTO::getValore).sum();
+                .filter(x -> x.getNota() == null
+                        && x.getTipo() != TipoModificatore.PERCENTUALE
+                        && x.getTipo() != TipoModificatore.MOLTIPLICA
+                        && x.getTipo() != TipoModificatore.DIVIDI)
+                .mapToInt(m -> TipoModificatore.MOD.equals(m.getTipo()) ? m.getValore() * 2 : m.getValore())
+                .sum();
+
+        // MOLTIPLICA: applica in ordine crescente di valore
+        List<Integer> moltiplicatori = modsDto.stream()
+                .filter(x -> x.getNota() == null && TipoModificatore.MOLTIPLICA.equals(x.getTipo()))
+                .map(ModificatoreDTO::getValore)
+                .filter(Objects::nonNull)
+                .sorted()
+                .toList();
+        for (int m : moltiplicatori) modificatore *= m;
+
+        // DIVIDI: applica in ordine crescente di valore (ignora divisione per 0)
+        List<Integer> divisori = modsDto.stream()
+                .filter(x -> x.getNota() == null && TipoModificatore.DIVIDI.equals(x.getTipo()))
+                .map(ModificatoreDTO::getValore)
+                .filter(Objects::nonNull)
+                .sorted()
+                .toList();
+        for (int d : divisori) if (d != 0) modificatore /= d;
+
         int percentuale = modsDto.stream()
                 .filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.PERCENTUALE)
                 .mapToInt(ModificatoreDTO::getValore).sum();

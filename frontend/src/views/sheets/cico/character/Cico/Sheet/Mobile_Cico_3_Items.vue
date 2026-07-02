@@ -64,8 +64,14 @@ const itemsContenitori = computed(() => wrap(items.value?.contenitori));
 const itemsFrutti = computed(() => wrap(items.value?.frutti));
 const itemsIdoli = computed(() => wrap(items.value?.idoli));
 
-// Capacità (ex pagina Talenti)
-const itemsAbilitaPassive = computed(() => wrap(items.value?.abilita));
+// Abilità attive = hanno utilizziTotale visibile (> 0); passive = tutto il resto
+const itemsAbilita = computed(() =>
+    wrap((items.value?.abilita ?? []).filter(i => (i.utilizziTotale ?? 0) > 0))
+)
+const itemsAbilitaPassive = computed(() =>
+    wrap((items.value?.abilita ?? []).filter(i => !((i.utilizziTotale ?? 0) > 0)))
+);
+const itemsAltro = computed(() => wrap(items.value?.altro));
 const itemsTalenti = computed(() => wrap(items.value?.talenti));
 const itemsPrivilegi = computed(() => wrap(items.value?.privilegi));
 const itemsMaledizioni = computed(() => wrap(items.value?.maledizioni));
@@ -120,8 +126,10 @@ const columnsEquipaggiamento = col('Equipaggiamento', true);
 const columnsConsumabili = col('Consumabili', true);
 const columnsMunizioni = col('Munizioni', true);
 const columnsContenitori = col('Contenitori', true);
+const columnsAltro = col('Altro', true);
 const columnsFrutti = col('Frutti');
 const columnsIdoli = col('Idoli');
+const columnsAbilita = col('Abilità');
 const columnsAbilitaPassive = col('Abilità Passive');
 const columnsTalenti = col('Talenti');
 const columnsPrivilegi = col('Privilegi di Classe');
@@ -152,12 +160,16 @@ const columnsMaledizioni = col('Maledizioni');
     <div class="spazietto"/>
     <Tabella v-if="itemsContenitori.length > 0" :columns="columnsContenitori" :expandable="true" :items="itemsContenitori"/>
     <div class="spazietto"/>
+    <Tabella v-if="itemsAltro.length > 0" :columns="columnsAltro" :expandable="true" :items="itemsAltro"/>
+    <div class="spazietto"/>
     <Tabella v-if="itemsFrutti.length > 0" :columns="columnsFrutti" :expandable="true" :items="itemsFrutti"/>
     <div class="spazietto"/>
     <Tabella v-if="itemsIdoli.length > 0" :columns="columnsIdoli" :expandable="true" :items="itemsIdoli"/>
 
     <div class="spazietto"/>
     <BottoneAggiungiItem :id-personaggio="props.idPersonaggio" tipo="TALENTO" label="Aggiungi talento"/>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsAbilita.length > 0" :columns="columnsAbilita" :expandable="true" :items="itemsAbilita"/>
     <div class="spazietto"/>
     <Tabella v-if="itemsAbilitaPassive.length > 0" :columns="columnsAbilitaPassive" :expandable="true" :items="itemsAbilitaPassive"/>
     <div class="spazietto"/>

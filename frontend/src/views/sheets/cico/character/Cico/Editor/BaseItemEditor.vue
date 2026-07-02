@@ -88,7 +88,8 @@ function preload() {
   const campoKeys = new Set(props.campiLabel.map(c => c.key))
   form.campi = Object.fromEntries(props.campiLabel.map(c => [c.key, '']))
 
-  form.qta = 1
+  // QTA: preferisce quantita già calcolata (da inventario personaggio), poi labels globali (compendio)
+  form.qta = (showQta.value && props.item.quantita != null) ? props.item.quantita : 1
   form.utilizzi = null
   form.enName = ''
   form.manuale = ''
@@ -102,8 +103,11 @@ function preload() {
     const key = l.label ?? ''
     const val = l.valore ?? ''
     if (showQta.value && key === 'QTA') {
-      const n = Number(val)
-      form.qta = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 1
+      // Labels globali: usate solo se quantita non è già stata impostata dall'inventario
+      if (props.item.quantita == null) {
+        const n = Number(val)
+        form.qta = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 1
+      }
     } else if (key === 'UTILIZZI') {
       form.utilizzi = Number.isFinite(Number(val)) ? Number(val) : null
     } else if (key === 'COMPENDIO') {

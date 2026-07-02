@@ -278,7 +278,7 @@ public class ItemController {
                                            @AuthenticationPrincipal Utente utente) {
         if (idPersonaggio != null)
             authzService.assertCanEditPersonaggio(utente, idPersonaggio);
-        return ResponseEntity.ok(itemService.updateItem(id, dto));
+        return ResponseEntity.ok(itemService.updateItem(id, dto, idPersonaggio));
     }
 
     @Operation(

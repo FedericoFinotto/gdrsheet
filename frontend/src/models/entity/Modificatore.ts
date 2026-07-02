@@ -28,6 +28,8 @@ export const TIPO_MODIFICATORE = {
     NEGA: 'NEGA',
     SBLOCCA: 'SBLOCCA',
     PERCENTUALE: 'PERCENTUALE',
+    MOLTIPLICA: 'MOLTIPLICA',
+    DIVIDI: 'DIVIDI',
 } as const;
 
 export type TipoModificatore = typeof TIPO_MODIFICATORE[keyof typeof TIPO_MODIFICATORE];

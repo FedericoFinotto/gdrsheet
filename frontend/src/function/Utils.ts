@@ -7,6 +7,12 @@ import {DatiPersonaggio} from "../models/dto/DatiPersonaggio";
 
 const REGEX_DICE = /^\d+d\d+(?:[+-]\d+)?$/i;
 
+export function testoModificatoreConTipo(mod: number | string, tipo?: string): string {
+    if (tipo === 'MOLTIPLICA') return `×${mod}`;
+    if (tipo === 'DIVIDI') return `/${mod}`;
+    return testoModificatore(mod);
+}
+
 export function testoModificatore(mod: number | string): string {
     const str = typeof mod === 'number' ? String(mod) : mod;
 

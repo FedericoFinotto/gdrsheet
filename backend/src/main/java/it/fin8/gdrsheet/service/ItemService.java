@@ -238,6 +238,20 @@ public class ItemService {
         item.getLabels().add(nl); // orphanRemoval + cascade ALL farà il resto
     }
 
+    private void saveQtaPerPersonaggio(Integer itemId, Integer personaggioId, String valore) {
+        ItemLabel ql = itemLabelRepository
+                .findByItem_IdAndLabelAndPersonaggio_Id(itemId, Constants.LABEL_QTA, personaggioId)
+                .orElseGet(() -> {
+                    ItemLabel nl = new ItemLabel();
+                    nl.setItem(em.getReference(Item.class, itemId));
+                    nl.setPersonaggio(em.getReference(Personaggio.class, personaggioId));
+                    nl.setLabel(Constants.LABEL_QTA);
+                    return nl;
+                });
+        ql.setValore(valore != null && !valore.trim().isEmpty() ? valore.trim() : "1");
+        itemLabelRepository.save(ql);
+    }
+
     /* =====================================================================
      * Creazione / aggiornamento generico item
      * ===================================================================== */
@@ -500,6 +514,11 @@ public class ItemService {
 
     @Transactional
     public Item updateItem(Integer id, UpdateItemRequest request) {
+        return updateItem(id, request, null);
+    }
+
+    @Transactional
+    public Item updateItem(Integer id, UpdateItemRequest request, Integer idPersonaggio) {
         Item itm = itemRepository.findById(id).orElseThrow(() -> new RuntimeException("Item non trovato"));
 
         if (request.getNome() != null && !request.getNome().trim().isEmpty()) itm.setNome(request.getNome().trim());
@@ -515,7 +534,8 @@ public class ItemService {
             if (sistema != null) itm.setSistema(sistema);
         }
 
-        // labels: stato completo -> svuota in place e ricrea (orphanRemoval)
+        // labels: stato completo -> svuota in place e ricrea (orphanRemoval).
+        // QTA con idPersonaggio viene salvata come label per-personaggio (non globale).
         if (request.getLabels() != null) {
             if (itm.getLabels() != null) {
                 Iterator<ItemLabel> it = itm.getLabels().iterator();
@@ -528,7 +548,11 @@ public class ItemService {
                 itm.setLabels(new ArrayList<>());
             }
             for (UpdateItemRequest.LabelRowDTO l : request.getLabels()) {
-                addLabelRow(itm, l.getLabel(), l.getValore());
+                if (Constants.LABEL_QTA.equals(l.getLabel()) && idPersonaggio != null) {
+                    saveQtaPerPersonaggio(id, idPersonaggio, l.getValore());
+                } else {
+                    addLabelRow(itm, l.getLabel(), l.getValore());
+                }
             }
         }
 

@@ -27,4 +27,5 @@ export interface Items {
     forme: Item[];
     privilegi: Item[];
     contenitori: Item[];
+    altro: Item[];
 }

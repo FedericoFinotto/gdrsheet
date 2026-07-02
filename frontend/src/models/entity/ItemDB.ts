@@ -18,6 +18,7 @@ export interface ItemDB {
     modificatori: Modificatore[];
     labels: ItemLabel[];
     avanzamento: Avanzamento[];
+    quantita?: number;
 }
 
 // Tipo item (tipo_item)
@@ -46,6 +47,7 @@ export const TIPO_ITEM = {
     FORMA: 'FORMA',
     PRIVILEGIO: 'PRIVILEGIO',
     CONTENITORE: 'CONTENITORE',
+    PATTO: 'PATTO',
 } as const;
 export type TipoItem = typeof TIPO_ITEM[keyof typeof TIPO_ITEM];
 

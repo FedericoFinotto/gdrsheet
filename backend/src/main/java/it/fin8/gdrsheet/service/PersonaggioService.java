@@ -110,7 +110,7 @@ public class PersonaggioService {
 
             if (!isDisabled) {
                 List<Item> competenze = findCompetenze(cur);
-                List<Item> lingue = findLingue(cur);
+//                List<Item> lingue = findLingue(cur);
 
                 if (cur.getChild() != null) {
                     // Per i FRUTTO: filtra le FORME in base alla scelta (null/vuoto/ALL = tutte)
@@ -155,9 +155,9 @@ public class PersonaggioService {
                 if (competenze != null) {
                     for (Item c : competenze) stack.push(new FlattenEntry(c, null));
                 }
-                if (lingue != null) {
-                    for (Item l : lingue) stack.push(new FlattenEntry(l, null));
-                }
+//                if (lingue != null) {
+//                    for (Item l : lingue) stack.push(new FlattenEntry(l, null));
+//                }
             }
         }
 
@@ -208,10 +208,26 @@ public class PersonaggioService {
             // Contare entrambi produrrebbe un doppio conteggio.
         }
 
+        // QTA per-personaggio: sovrascrive la QTA globale dell'item per questo personaggio
+        Map<Integer, Integer> qtaPersoMap = new HashMap<>();
+        if (!allItemIds.isEmpty()) {
+            for (ItemLabel ql : itemLabelRepository.findByLabelAndItem_IdInAndPersonaggio_Id(
+                    Constants.LABEL_QTA, allItemIds, id)) {
+                Integer v = parseIntOrNull(ql.getValore());
+                if (ql.getItem() != null && v != null) qtaPersoMap.put(ql.getItem().getId(), v);
+            }
+        }
+
         Set<Integer> itemIdGiaAggiunti = new HashSet<>();
         for (Item itm : allPersonaggioItems.getItems()) {
             // filtro di visibilità (label VISIBILITA): nasconde l'item a chi non è autorizzato
             if (!authzService.canViewVisibilita(utente, personaggio, itm.getLabel(Constants.ITEM_LABEL_VISIBILITA))) {
+                continue;
+            }
+            // Item strutturali interni: visibili solo agli admin
+            if (!authzService.isAdmin(utente) &&
+                    (Constants.ITEM_FROM_COMPENDIO.equals(itm.getNome()) ||
+                     Constants.ITEM_INCANTESIMI_PREPARATI.equals(itm.getNome()))) {
                 continue;
             }
             // deduplicazione: se l'item ha utilizzi sommati da più sorgenti, mostrarlo una volta sola
@@ -227,19 +243,29 @@ public class PersonaggioService {
                 itemsDTO.getTalenti().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.OGGETTO.equals(itm.getTipo())) {
-                itemsDTO.getOggetti().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                itemsDTO.getOggetti().add(dto);
             }
             if (TipoItem.CONSUMABILE.equals(itm.getTipo())) {
-                itemsDTO.getConsumabili().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                itemsDTO.getConsumabili().add(dto);
             }
             if (TipoItem.ARMA.equals(itm.getTipo())) {
-                itemsDTO.getArmi().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                itemsDTO.getArmi().add(dto);
             }
             if (TipoItem.MUNIZIONE.equals(itm.getTipo())) {
-                itemsDTO.getMunizioni().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                itemsDTO.getMunizioni().add(dto);
             }
             if (TipoItem.EQUIPAGGIAMENTO.equals(itm.getTipo())) {
-                itemsDTO.getEquipaggiamento().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                itemsDTO.getEquipaggiamento().add(dto);
             }
             if (TipoItem.RAZZA.equals(itm.getTipo())) {
                 itemsDTO.getRazze().add(itemMapper.toDTO(itm, uTotale, uUsati));
@@ -270,7 +296,9 @@ public class PersonaggioService {
                 itemsDTO.getIdoli().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.CONTENITORE.equals(itm.getTipo())) {
-                itemsDTO.getContenitori().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                itemsDTO.getContenitori().add(dto);
             }
             if (TipoItem.FRUTTO.equals(itm.getTipo())) {
                 itemsDTO.getFrutti().add(itemMapper.toDTO(itm, uTotale, uUsati));
@@ -280,6 +308,16 @@ public class PersonaggioService {
             }
             if (TipoItem.PRIVILEGIO.equals(itm.getTipo())) {
                 itemsDTO.getPrivilegi().add(itemMapper.toDTO(itm, uTotale, uUsati));
+            }
+            if (TipoItem.ALTRO.equals(itm.getTipo())) {
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                itemsDTO.getAltro().add(dto);
+            }
+            if (TipoItem.PATTO.equals(itm.getTipo())) {
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                itemsDTO.getOggetti().add(dto);
             }
         }
 
@@ -573,12 +611,19 @@ public class PersonaggioService {
                 .map(sv -> modificatoriService.calcolaContatoreItem(sv, itemModifiers))
                 .toList());
 
-        // Espone la quantità (label QTA) come variabile $QTA usabile nei modificatori dell'item:
-        // in una formula "$QTA" diventa "@<itemId>_QTA" e viene risolto qui sotto.
+        // Espone la quantità (label QTA) come variabile $QTA usabile nei modificatori dell'item.
+        // Priorità: QTA per-personaggio > QTA globale dell'item.
         Map<Integer, Integer> qtaByItem = new HashMap<>();
-        for (ItemLabel q : itemLabelRepository.findByLabelAndItem_IdIn(Constants.LABEL_QTA, itemIds)) {
+        for (ItemLabel q : itemLabelRepository.findByLabelAndItem_IdInAndPersonaggio_Id(Constants.LABEL_QTA, itemIds, id)) {
             Integer v = parseIntOrNull(q.getValore());
             if (q.getItem() != null && v != null) qtaByItem.put(q.getItem().getId(), v);
+        }
+        List<Integer> itemIdsSenzaQta = itemIds.stream().filter(iid -> !qtaByItem.containsKey(iid)).toList();
+        if (!itemIdsSenzaQta.isEmpty()) {
+            for (ItemLabel q : itemLabelRepository.findByLabelAndItem_IdInAndPersonaggioIsNull(Constants.LABEL_QTA, itemIdsSenzaQta)) {
+                Integer v = parseIntOrNull(q.getValore());
+                if (q.getItem() != null && v != null) qtaByItem.put(q.getItem().getId(), v);
+            }
         }
         for (Integer iid : itemIds) {
             itemCounterList.add(new ContatoreItemDTO(iid + "_QTA", qtaByItem.getOrDefault(iid, 1)));
