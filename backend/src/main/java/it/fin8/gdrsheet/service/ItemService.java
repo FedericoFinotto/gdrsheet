@@ -917,6 +917,7 @@ public class ItemService {
         Map<String, String> rimanenti = new HashMap<>(desiderati);
 
         boolean isRank = TipoModificatore.RANK.equals(tipo);
+        boolean isBase = TipoModificatore.BASE.equals(tipo);
 
         for (Modificatore m : esistenti) {
             String statId = m.getStat().getId();
@@ -930,7 +931,7 @@ public class ItemService {
                     m.setValore(nuovoValore);
                     changed = true;
                 }
-                if (isRank && !Boolean.TRUE.equals(m.getSempreAttivo())) {
+                if ((isRank || isBase) && !Boolean.TRUE.equals(m.getSempreAttivo())) {
                     m.setSempreAttivo(true);
                     changed = true;
                 }
@@ -944,7 +945,7 @@ public class ItemService {
             m.setStat(findStat(e.getKey()));
             m.setTipo(tipo);
             m.setValore(e.getValue());
-            if (isRank) m.setSempreAttivo(true);
+            if (isRank || isBase) m.setSempreAttivo(true);
             modificatoreRepository.save(m);
         }
     }
