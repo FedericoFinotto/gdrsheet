@@ -12,6 +12,8 @@ import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -601,6 +603,29 @@ public class ItemService {
             byId.putIfAbsent(src.getId(), src);
         }
         return byId.values().stream().map(itemMapper::toDTO).toList();
+    }
+
+    public List<NotiziaDTO> getNotizieAttive() {
+        LocalDateTime ora = LocalDateTime.now();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+        return itemRepository.findAllNotizie().stream()
+                .filter(n -> "1".equals(n.getLabel(Constants.LABEL_NOTIZIA_ABILITATA)))
+                .filter(n -> {
+                    String inizio = n.getLabel(Constants.LABEL_NOTIZIA_DATA_INIZIO);
+                    String fine = n.getLabel(Constants.LABEL_NOTIZIA_DATA_FINE);
+                    try {
+                        if (inizio != null && !inizio.isBlank() && ora.isBefore(LocalDateTime.parse(inizio, fmt))) return false;
+                        if (fine != null && !fine.isBlank() && ora.isAfter(LocalDateTime.parse(fine, fmt))) return false;
+                    } catch (Exception ignored) {}
+                    return true;
+                })
+                .map(n -> new NotiziaDTO(
+                        n.getId(),
+                        n.getNome(),
+                        n.getDescrizione(),
+                        n.getLabel(Constants.LABEL_NOTIZIA_DATA_INIZIO),
+                        n.getLabel(Constants.LABEL_NOTIZIA_DATA_FINE)))
+                .toList();
     }
 
     public List<Item> searchItems(String query, TipoItem tipo) {

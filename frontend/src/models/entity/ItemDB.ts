@@ -48,6 +48,7 @@ export const TIPO_ITEM = {
     PRIVILEGIO: 'PRIVILEGIO',
     CONTENITORE: 'CONTENITORE',
     PATTO: 'PATTO',
+    NOTIZIA: 'NOTIZIA',
 } as const;
 export type TipoItem = typeof TIPO_ITEM[keyof typeof TIPO_ITEM];
 

@@ -91,9 +91,16 @@ public final class Constants {
     public static final String ITEM_VISIBILITA_OWNER = "OWNER";        // solo proprietario + master + admin
     public static final String ITEM_VISIBILITA_MASTER = "MASTER";      // solo master + admin
 
+    public static final String LABEL_MILESTONE = "MILESTONE";
+    public static final String LABEL_MILESTONE_TO = "MILESTONE_TO";
+    public static final String LABEL_NOTIZIA_DATA_INIZIO = "DATA_INIZIO";
+    public static final String LABEL_NOTIZIA_DATA_FINE = "DATA_FINE";
+    public static final String LABEL_NOTIZIA_ABILITATA = "ABILITATA";
+
     // Info anagrafiche del personaggio (personaggio_label)
     public static final List<String> PERSONAGGIO_INFO_LABELS = List.of(
             "LUOGO_NASCITA", "DATA_NASCITA", "RAZZA", "SESSO", "PELLE", "ETA",
-            "ALTEZZA", "PESO", "CAPELLI", "OCCHI", "ALLINEAMENTO", "TAGLIA");
+            "ALTEZZA", "PESO", "CAPELLI", "OCCHI", "ALLINEAMENTO", "TAGLIA",
+            "MILESTONE", "MILESTONE_TO");
 }
 

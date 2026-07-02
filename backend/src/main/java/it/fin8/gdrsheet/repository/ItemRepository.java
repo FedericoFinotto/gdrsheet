@@ -17,6 +17,14 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
 
     Item findItemById(Integer id);
 
+    @Query("""
+            SELECT i FROM Item i
+            LEFT JOIN FETCH i.labels
+            WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.NOTIZIA
+              AND i.personaggio IS NULL
+            """)
+    List<Item> findAllNotizie();
+
     @Query("SELECT i FROM Item i WHERE i.id IN :ids")
     List<Item> findItemsByIds(@Param("ids") List<Integer> ids);
 

@@ -72,6 +72,7 @@ const itemsAbilitaPassive = computed(() =>
     wrap((items.value?.abilita ?? []).filter(i => !((i.utilizziTotale ?? 0) > 0)))
 );
 const itemsAltro = computed(() => wrap(items.value?.altro));
+const itemsNotizie = computed(() => wrap(items.value?.notizie));
 const itemsTalenti = computed(() => wrap(items.value?.talenti));
 const itemsPrivilegi = computed(() => wrap(items.value?.privilegi));
 const itemsMaledizioni = computed(() => wrap(items.value?.maledizioni));
@@ -127,6 +128,7 @@ const columnsConsumabili = col('Consumabili', true);
 const columnsMunizioni = col('Munizioni', true);
 const columnsContenitori = col('Contenitori', true);
 const columnsAltro = col('Altro', true);
+const columnsNotizie = col('Notizie');
 const columnsFrutti = col('Frutti');
 const columnsIdoli = col('Idoli');
 const columnsAbilita = col('Abilità');
@@ -161,6 +163,8 @@ const columnsMaledizioni = col('Maledizioni');
     <Tabella v-if="itemsContenitori.length > 0" :columns="columnsContenitori" :expandable="true" :items="itemsContenitori"/>
     <div class="spazietto"/>
     <Tabella v-if="itemsAltro.length > 0" :columns="columnsAltro" :expandable="true" :items="itemsAltro"/>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsNotizie.length > 0" :columns="columnsNotizie" :expandable="true" :items="itemsNotizie"/>
     <div class="spazietto"/>
     <Tabella v-if="itemsFrutti.length > 0" :columns="columnsFrutti" :expandable="true" :items="itemsFrutti"/>
     <div class="spazietto"/>

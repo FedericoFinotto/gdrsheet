@@ -193,6 +193,8 @@ const INFO_FIELDS: { key: string; label: string; type?: string }[] = [
   {key: 'OCCHI', label: 'Occhi'},
   {key: 'ALLINEAMENTO', label: 'Allineamento'},
   {key: 'TAGLIA', label: 'Taglia (base)', type: 'select'},
+  {key: 'MILESTONE', label: 'Milestone attuali', type: 'number'},
+  {key: 'MILESTONE_TO', label: 'Milestone al prossimo livello', type: 'number'},
 ]
 
 const TAGLIE: { value: string; label: string }[] = [
@@ -234,6 +236,8 @@ function toggleInfoOpen() {
 }
 
 const pesoTotale = computed(() => cache.value[props.idPersonaggio]?.modificatori?.pesoTotale)
+const milestone = computed(() => cache.value[props.idPersonaggio]?.modificatori?.info?.MILESTONE)
+const milestoneTo = computed(() => cache.value[props.idPersonaggio]?.modificatori?.info?.MILESTONE_TO)
 
 function openPesoDettaglio() {
   const pg = cache.value[props.idPersonaggio]
@@ -274,6 +278,9 @@ async function salvaInfo() {
         <h2 class="info-nome">{{ cache[idPersonaggio]?.modificatori?.nome ?? "" }}</h2>
         <span v-if="pesoTotale != null" class="info-peso-badge"
               @click.stop="openPesoDettaglio">{{ pesoTotale }} kg</span>
+        <span v-if="milestone != null || milestoneTo != null" class="info-milestone-badge">
+          {{ milestone ?? '?' }} / {{ milestoneTo ?? '?' }}
+        </span>
       </button>
 
       <div v-if="infoOpen" class="info-body">
@@ -476,6 +483,15 @@ async function salvaInfo() {
   cursor: pointer;
 }
 .info-peso-badge:hover { background: #d9f99d; }
+.info-milestone-badge {
+  font-size: .75rem;
+  font-weight: 600;
+  padding: .15rem .5rem;
+  border-radius: .4rem;
+  background: #dbeafe;
+  color: #1e40af;
+  white-space: nowrap;
+}
 .info-body {
   border-top: 1px solid #e5e7eb;
   padding: .75rem;

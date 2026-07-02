@@ -319,6 +319,9 @@ public class PersonaggioService {
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
                 itemsDTO.getOggetti().add(dto);
             }
+            if (TipoItem.NOTIZIA.equals(itm.getTipo())) {
+                itemsDTO.getNotizie().add(itemMapper.toDTO(itm, uTotale, uUsati));
+            }
         }
 
         for (InfoClasseDTO classe : allPersonaggioItems.getLivelli().getClassi()) {
@@ -765,7 +768,8 @@ public class PersonaggioService {
                             .map(sv -> modificatoriService.calcolaAttributo(
                                     sv,
                                     modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
-                                    carList
+                                    carList,
+                                    itemCounterList
                             ))
                             .toList()
             ).get();

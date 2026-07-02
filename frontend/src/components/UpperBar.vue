@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import {computed, defineAsyncComponent, ref} from 'vue'
+import {computed, defineAsyncComponent, onMounted, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import Icona from "./Icona/Icona.vue";
 import DiceD20Overlay from "./DiceD20Overlay.vue";
 import usePopup from "../function/usePopup";
 import useDiceRoll from "../function/useDiceRoll";
 import {useAuthStore} from '../stores/auth'
+import {getNotizieAttive, type NotiziaDTO} from '../service/NotizieService'
+import NotiziePopup from './NotiziePopup.vue'
 
 const DiceRollerPopup = defineAsyncComponent(() => import('./DiceRollerPopup.vue'))
 const DiceForcePopup = defineAsyncComponent(() => import('./DiceForcePopup.vue'))
@@ -84,6 +86,26 @@ function naviga(path: string) {
   chiudiMenu()
   router.push(path)
 }
+
+// Notizie
+const notizie = ref<NotiziaDTO[]>([])
+const notizieAperte = ref(false)
+
+async function caricaNotizie() {
+  if (!localStorage.getItem('auth_token')) return
+  try {
+    const res = await getNotizieAttive()
+    notizie.value = res.data
+  } catch {
+    notizie.value = []
+  }
+}
+
+onMounted(caricaNotizie)
+
+function apriNotizie() {
+  notizieAperte.value = true
+}
 </script>
 
 <template>
@@ -117,13 +139,22 @@ function naviga(path: string) {
       <slot/>
     </div>
 
-    <!-- destra: hamburger -->
+    <!-- destra: campanella notizie + hamburger -->
     <div class="bar-right">
+      <button v-if="notizie.length > 0" class="bell-btn" title="Notizie" @click="apriNotizie">
+        <i class="fa-solid fa-bell"></i>
+        <span class="bell-badge">{{ notizie.length }}</span>
+      </button>
       <Icona name="HAMBURGER" title="Menu" @click="apriMenu"/>
     </div>
   </header>
 
   <DiceD20Overlay/>
+
+  <!-- popup notizie -->
+  <Teleport to="body">
+    <NotiziePopup v-if="notizieAperte" :notizie="notizie" @close="notizieAperte = false"/>
+  </Teleport>
 
   <!-- menu slide-in -->
   <Teleport to="body">
@@ -212,7 +243,39 @@ function naviga(path: string) {
 .bar-right {
   display: inline-flex;
   align-items: center;
+  gap: .5rem;
   flex-shrink: 0;
+}
+
+.bell-btn {
+  position: relative;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: #374151;
+  padding: .25rem .35rem;
+  border-radius: .4rem;
+  line-height: 1;
+}
+.bell-btn:hover { background: #f3f4f6; }
+
+.bell-badge {
+  position: absolute;
+  top: -.1rem;
+  right: -.1rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  background: #dc2626;
+  color: #fff;
+  font-size: .6rem;
+  font-weight: 700;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 .2rem;
+  line-height: 1;
 }
 
 .d20-trigger {

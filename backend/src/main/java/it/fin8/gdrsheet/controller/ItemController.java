@@ -6,6 +6,7 @@ import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.dto.ClasseDetailDTO;
 import it.fin8.gdrsheet.dto.ItemDTO;
 import it.fin8.gdrsheet.dto.MondoDTO;
+import it.fin8.gdrsheet.dto.NotiziaDTO;
 import it.fin8.gdrsheet.dto.PageDTO;
 import it.fin8.gdrsheet.dto.SpellBookIncantesimoDTO;
 import it.fin8.gdrsheet.dto.UpdateItemRequest;
@@ -259,11 +260,21 @@ public class ItemController {
             summary = "Crea un nuovo item",
             description = "Crea un nuovo item generico con labels e modificatori"
     )
+    @GetMapping("/notizie")
+    public ResponseEntity<List<NotiziaDTO>> getNotizieAttive() {
+        return ResponseEntity.ok(itemService.getNotizieAttive());
+    }
+
     @PostMapping("/create")
     public ResponseEntity<Item> createItem(@Valid @RequestBody UpdateItemRequest dto,
                                            @AuthenticationPrincipal Utente utente) {
         if (dto.getIdPersonaggio() != null)
             authzService.assertCanEditPersonaggio(utente, dto.getIdPersonaggio());
+        if (TipoItem.NOTIZIA.equals(dto.getTipo())) {
+            String r = utente.getRuolo() == null ? "" : utente.getRuolo().toUpperCase();
+            if (!r.equals("MASTER") && !r.equals("ADMIN") && !r.equals("SUPERUSER"))
+                return ResponseEntity.status(403).build();
+        }
         return ResponseEntity.ok(itemService.createItem(dto));
     }
 

@@ -439,10 +439,27 @@ public class ModificatoriService {
     AttributoDTO calcolaAttributo(
             StatValue stat,
             List<ModificatoreDTO> modsDto,
-            List<CaratteristicaDTO> carList
+            List<CaratteristicaDTO> carList,
+            List<ContatoreItemDTO> contatoriItem
     ) {
+        espandiIdInFormule(modsDto);
+        Map<String, String> valori = new HashMap<>();
+        valori.putAll(contatoriItem.stream()
+                .collect(Collectors.toMap(
+                        x -> "$".concat(x.getId()),
+                        x -> x.getValore().toString(),
+                        (a, b) -> a
+                )));
+        valori.putAll(carList.stream()
+                .collect(Collectors.toMap(
+                        x -> "@".concat(x.getId()),
+                        x -> x.getModificatore().toString(),
+                        (a, b) -> a
+                )));
+
+
+        applicaCalcoli(modsDto, valori);
         int modificatore = 0;
-        applicaCalcoli(modsDto, carList);
 
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
         if (!stat.getValore().equals("0")) {

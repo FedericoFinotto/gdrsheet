@@ -4,11 +4,22 @@ import {useRoute, useRouter} from 'vue-router'
 import {ItemDB, TIPO_ITEM, TipoItem} from '../../../../../../models/entity/ItemDB'
 import {CREATABLE_TYPES, editorForType, TIPO_ITEM_LABELS} from './editorRegistry'
 import {useCharacterStore} from '../../../../../../stores/personaggio'
+import {useAuthStore} from '../../../../../../stores/auth'
 import SearchSelect from '../../../../../../components/SearchSelect.vue'
 
 const route = useRoute()
 const router = useRouter()
 const characterStore = useCharacterStore()
+const auth = useAuthStore()
+
+const canCreateNotizia = computed(() => {
+  const r = auth.effectiveRuolo.toUpperCase()
+  return r === 'MASTER' || r === 'ADMIN' || r === 'SUPERUSER'
+})
+
+const creatableTypes = computed(() =>
+    CREATABLE_TYPES.filter(t => t !== TIPO_ITEM.NOTIZIA || canCreateNotizia.value)
+)
 
 // se presente, il nuovo item viene agganciato al FromCompendio del personaggio
 const idPersonaggio = computed<number | undefined>(() => {
@@ -92,7 +103,7 @@ function onSavedStay() {
       <label class="field">
         <span class="lbl">Tipo</span>
         <SearchSelect :model-value="tipo ?? ''" placeholder="Seleziona un tipo…"
-                      :options="CREATABLE_TYPES.map(t => ({value: t, label: TIPO_ITEM_LABELS[t]}))"
+                      :options="creatableTypes.map(t => ({value: t, label: TIPO_ITEM_LABELS[t]}))"
                       @update:model-value="onTipoChange($event as string)"/>
       </label>
 

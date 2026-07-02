@@ -28,4 +28,5 @@ export interface Items {
     privilegi: Item[];
     contenitori: Item[];
     altro: Item[];
+    notizie: Item[];
 }

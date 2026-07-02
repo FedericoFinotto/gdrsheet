@@ -31,6 +31,7 @@ const props = withDefaults(defineProps<{
   mode?: 'edit' | 'create'
   idPersonaggio?: number      // solo create: aggancia l'item al FromCompendio del personaggio
   separateForme?: boolean     // separa i child FORMA in una sezione dedicata
+  minimal?: boolean           // nasconde sezioni avanzate (EN name, manuale, utilizzi, compendio, folds)
 }>(), {
   titolo: 'Item',
   campiLabel: () => [],
@@ -365,14 +366,14 @@ function onCancel() {
                   @click="form.qta = (Number(form.qta) || 0) + 1">+</button>
         </div>
       </label>
-      <label class="field utilizzi-field">
+      <label v-if="!minimal" class="field utilizzi-field">
         <span class="lbl">Utilizzi max</span>
         <input v-model.number="form.utilizzi" type="number" min="1" step="1" inputmode="numeric"
                :disabled="disabledAll"/>
       </label>
     </div>
 
-    <div class="row two">
+    <div v-if="!minimal" class="row two">
       <label class="field">
         <span class="lbl">Nome originale (EN)</span>
         <input v-model.trim="form.enName" type="text" :disabled="disabledAll"
@@ -384,6 +385,12 @@ function onCancel() {
                placeholder="Manuale di provenienza"/>
       </label>
     </div>
+
+    <!-- descrizione anticipata in modalità minimal -->
+    <label v-if="minimal" class="field">
+      <span class="lbl">Descrizione</span>
+      <HtmlEditor v-model="form.descrizione" :rows="10" :disabled="disabledAll"/>
+    </label>
 
     <!-- campi specifici per tipo -->
     <template v-if="campiLabel.length">
@@ -403,7 +410,8 @@ function onCancel() {
               <span class="lbl">{{ c.label }}</span>
               <textarea v-if="c.textarea" v-model="form.campi[c.key]" rows="3"
                         :disabled="disabledAll" :placeholder="c.placeholder"/>
-              <input v-else v-model.trim="form.campi[c.key]" type="text"
+              <input v-else v-model="form.campi[c.key]"
+                     :type="c.tipo === 'datetime-local' ? 'datetime-local' : 'text'"
                      :disabled="disabledAll" :placeholder="c.placeholder"/>
             </template>
           </label>
@@ -433,33 +441,31 @@ function onCancel() {
     <!-- slot per estensioni specifiche del tipo -->
     <slot name="specifico" :disabled="disabledAll"/>
 
-    <!-- mondo / sistema -->
-    <div class="row two">
-      <label class="field">
-        <span class="lbl">Mondo</span>
-        <SearchSelect v-model="form.idMondo" :options="mondoOptions" placeholder="— nessuno —" :disabled="disabledAll" :sort="false"/>
+    <!-- mondo / sistema + visibilità: in non-minimal restano qui, in minimal vanno in fondo -->
+    <template v-if="!minimal">
+      <div class="row two">
+        <label class="field">
+          <span class="lbl">Mondo</span>
+          <SearchSelect v-model="form.idMondo" :options="mondoOptions" placeholder="— nessuno —" :disabled="disabledAll" :sort="false"/>
+        </label>
+        <label class="field">
+          <span class="lbl">Sistema</span>
+          <SearchSelect v-model="form.idSistema" :options="sistemaOptions" placeholder="— nessuno —" :disabled="disabledAll" :sort="false"/>
+        </label>
+      </div>
+      <label class="compendio-flag">
+        <input type="checkbox" v-model="form.compendio" :disabled="disabledAll"/>
+        <span>Visibile nel compendio</span>
       </label>
       <label class="field">
-        <span class="lbl">Sistema</span>
-        <SearchSelect v-model="form.idSistema" :options="sistemaOptions" placeholder="— nessuno —" :disabled="disabledAll" :sort="false"/>
+        <span class="lbl">Visibilità</span>
+        <SearchSelect v-model="form.visibilita" :disabled="disabledAll" :sort="false"
+                      :options="[{value:'',label:'Tutti'},{value:'OWNER',label:'Proprietario'},{value:'MASTER',label:'Master'}]"/>
       </label>
-    </div>
-
-    <!-- flag compendio -->
-    <label class="compendio-flag">
-      <input type="checkbox" v-model="form.compendio" :disabled="disabledAll"/>
-      <span>Visibile nel compendio</span>
-    </label>
-
-    <!-- visibilità item nel personaggio -->
-    <label class="field">
-      <span class="lbl">Visibilità</span>
-      <SearchSelect v-model="form.visibilita" :disabled="disabledAll" :sort="false"
-                    :options="[{value:'',label:'Tutti'},{value:'OWNER',label:'Proprietario'},{value:'MASTER',label:'Master'}]"/>
-    </label>
+    </template>
 
     <!-- Attacchi (item ATTACCO figli) -->
-    <section class="fold">
+    <section v-if="!minimal" class="fold">
       <button type="button" class="fold-head" @click="open.attacchi = !open.attacchi"
               :aria-expanded="open.attacchi ? 'true' : 'false'">
         <span class="fold-title">Attacchi</span>
@@ -486,7 +492,7 @@ function onCancel() {
     </section>
 
     <!-- Item collegati (child) -->
-    <section class="fold">
+    <section v-if="!minimal" class="fold">
       <button type="button" class="fold-head" @click="open.children = !open.children"
               :aria-expanded="open.children ? 'true' : 'false'">
         <span class="fold-title">Item collegati</span>
@@ -501,7 +507,7 @@ function onCancel() {
     </section>
 
     <!-- Labels generiche -->
-    <section class="fold">
+    <section v-if="!minimal" class="fold">
       <button type="button" class="fold-head" @click="open.labels = !open.labels"
               :aria-expanded="open.labels ? 'true' : 'false'">
         <span class="fold-title">Labels</span>
@@ -514,7 +520,7 @@ function onCancel() {
     </section>
 
     <!-- Modificatori -->
-    <section class="fold">
+    <section v-if="!minimal" class="fold">
       <button type="button" class="fold-head" @click="open.modificatori = !open.modificatori"
               :aria-expanded="open.modificatori ? 'true' : 'false'">
         <span class="fold-title">Modificatori</span>
@@ -526,10 +532,29 @@ function onCancel() {
       </div>
     </section>
 
-    <label class="field">
+    <label v-if="!minimal" class="field">
       <span class="lbl">Descrizione</span>
       <HtmlEditor v-model="form.descrizione" :rows="10" :disabled="disabledAll"/>
     </label>
+
+    <!-- in minimal: mondo/sistema e visibilità in fondo -->
+    <template v-if="minimal">
+      <div class="row two">
+        <label class="field">
+          <span class="lbl">Mondo</span>
+          <SearchSelect v-model="form.idMondo" :options="mondoOptions" placeholder="— nessuno —" :disabled="disabledAll" :sort="false"/>
+        </label>
+        <label class="field">
+          <span class="lbl">Sistema</span>
+          <SearchSelect v-model="form.idSistema" :options="sistemaOptions" placeholder="— nessuno —" :disabled="disabledAll" :sort="false"/>
+        </label>
+      </div>
+      <label class="field">
+        <span class="lbl">Visibilità</span>
+        <SearchSelect v-model="form.visibilita" :disabled="disabledAll" :sort="false"
+                      :options="[{value:'',label:'Tutti'},{value:'OWNER',label:'Proprietario'},{value:'MASTER',label:'Master'}]"/>
+      </label>
+    </template>
 
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
@@ -557,7 +582,7 @@ function onCancel() {
 .field { display: grid; gap: .35rem; margin: 0; }
 .lbl { font-size: .8rem; font-weight: 600; opacity: .85; margin: 0; }
 
-input[type="text"], input[type="number"], textarea, select {
+input[type="text"], input[type="number"], input[type="datetime-local"], textarea, select {
   width: 100%; padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff; margin: 0;
 }
 textarea { resize: vertical; }

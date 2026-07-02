@@ -22,7 +22,7 @@ export interface CampoLabel {
     label: string;
     placeholder?: string;
     textarea?: boolean;
-    tipo?: 'text' | 'checkbox'; // default: text
+    tipo?: 'text' | 'checkbox' | 'datetime-local'; // default: text
 }
 
 // Attacco figlio (item ATTACCO) gestito inline dall'editor
