@@ -707,6 +707,14 @@ public class PersonaggioService {
             ).get();
             dto.getTiriSalvezza().addAll(tsList);
 
+            // CAMBIA_CARATTERISTICA globale: modificatori sulla stat fittizia "tutte le abilità".
+            // Sono DTO condivisi tra i calcoli paralleli: fisso valore=0 qui (single-thread) così
+            // applicaCalcoli non li muta concorrentemente (l'override usa la formula, non il valore).
+            List<ModificatoreDTO> cambiaAbilitaGlobali = modsDtoByStat
+                    .getOrDefault(Constants.STAT_TUTTE_ABILITA, Collections.emptyList()).stream()
+                    .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()))
+                    .toList();
+            cambiaAbilitaGlobali.forEach(m -> { if (m.getValore() == null) m.setValore(0); });
             List<AbilitaDTO> abList = pool.submit(() ->
                     stats.stream()
                             .filter(sv -> TipoStat.AB.equals(sv.getStat().getTipo()))
@@ -714,7 +722,8 @@ public class PersonaggioService {
                                     sv,
                                     modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
                                     ranksDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
-                                    carList
+                                    carList,
+                                    cambiaAbilitaGlobali
                             ))
                             .toList()
             ).get();

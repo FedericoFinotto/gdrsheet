@@ -57,6 +57,10 @@ async function saveEdit() {
 function modLabel(mod: any): {prefix: string; suffix: string} | string {
   if (mod.tipo === 'NEGA') return 'Nega'
   if (mod.tipo === 'SBLOCCA') return 'Sblocca'
+  if (mod.tipo === 'CAMBIA_CARATTERISTICA') {
+    const target = stats.value.find(s => s.id === mod.formula)?.label ?? mod.formula
+    return `Caratteristica → ${target}`
+  }
   if (mod.item === 'Formula') return {prefix: `Formula [${mod.formula}]: `, suffix: String(mod.valore)}
   return testoModificatore(mod.valore) + (mod.nota ? ` — ${mod.nota}` : '')
 }

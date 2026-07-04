@@ -8,6 +8,9 @@ public final class Constants {
 
     public static final List<String> listOfUniqueByClassStats = List.of("BAB", "TMP", "VLT", "RFL");
 
+    // Stat fittizia: un CAMBIA_CARATTERISTICA su questa stat cambia la caratteristica base di TUTTE le abilità
+    public static final String STAT_TUTTE_ABILITA = "ABTUTTE";
+
     public static final String TIPO_ITEM_ABILITA = "ABILITA";
     public static final String TIPO_ITEM_TALENTO = "TALENTO";
     public static final String TIPO_ITEM_OGGETTO = "OGGETTO";

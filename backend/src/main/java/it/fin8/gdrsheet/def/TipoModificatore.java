@@ -19,7 +19,8 @@ public enum TipoModificatore {
     SBLOCCA("Sblocca"),
     PERCENTUALE("Percentuale"),
     MOLTIPLICA("Moltiplica"),
-    DIVIDI("Dividi");
+    DIVIDI("Dividi"),
+    CAMBIA_CARATTERISTICA("Cambia Caratteristica");
 
     private final String label;
 

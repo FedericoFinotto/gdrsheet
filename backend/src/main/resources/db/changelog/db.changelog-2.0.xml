@@ -307,4 +307,18 @@
         </addColumn>
     </changeSet>
 
+    <changeSet id="122" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM stats WHERE id = 'ABTUTTE'
+            </sqlCheck>
+        </preConditions>
+        <comment>stat fittizia "Tutte le abilità": bersaglio di un CAMBIA_CARATTERISTICA globale</comment>
+        <insert tableName="stats">
+            <column name="id" value="ABTUTTE"/>
+            <column name="tipo" value="AB"/>
+            <column name="label" value="Tutte le abilità"/>
+        </insert>
+    </changeSet>
+
 </databaseChangeLog>

@@ -187,16 +187,41 @@ public class ModificatoriService {
             StatValue stat,
             List<ModificatoreDTO> modsDto,
             List<RankDTO> ranksDto,
-            List<CaratteristicaDTO> carList
+            List<CaratteristicaDTO> carList,
+            List<ModificatoreDTO> cambiaGlobali
     ) {
         List<ModificatoreDTO> mods = new ArrayList<>(modsDto);
+        // CAMBIA_CARATTERISTICA globale ("tutte le abilità"): unito ai mods così viene preservato
+        // anche nelle ricomputazioni (es. sinergie) ed è visibile nel popup dell'abilità.
+        if (cambiaGlobali != null) {
+            for (ModificatoreDTO g : cambiaGlobali) {
+                if (mods.stream().noneMatch(m -> Objects.equals(m.getId(), g.getId()))) mods.add(g);
+            }
+        }
         applicaCalcoli(mods, carList);
+
+        // CAMBIA_CARATTERISTICA: sostituisce la caratteristica base dell'abilità.
+        // La formula del modificatore contiene l'id della caratteristica bersaglio (es. "DES").
+        // Priorità all'override specifico dell'abilità, poi a quello globale.
         String modStatId = stat.getMod() != null ? stat.getMod().getId() : null;
+        String abId = stat.getStat().getId();
+        String cambiaSpecifico = mods.stream()
+                .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()) && abId.equals(m.getStatId()))
+                .map(ModificatoreDTO::getFormula).filter(s -> s != null && !s.isBlank())
+                .reduce((a, b) -> b).orElse(null);
+        String cambiaGlobale = mods.stream()
+                .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()) && Constants.STAT_TUTTE_ABILITA.equals(m.getStatId()))
+                .map(ModificatoreDTO::getFormula).filter(s -> s != null && !s.isBlank())
+                .reduce((a, b) -> b).orElse(null);
+        String cambia = cambiaSpecifico != null ? cambiaSpecifico : cambiaGlobale;
+        if (cambia != null) modStatId = cambia;
+
         CaratteristicaDTO cBase = null;
         Integer modBase = 0;
         if (modStatId != null) {
+            String finalModStatId = modStatId;
             cBase = carList.stream()
-                    .filter(c -> modStatId.equals(c.getId()))
+                    .filter(c -> finalModStatId.equals(c.getId()))
                     .findFirst().orElse(null);
             if (cBase != null) {
                 modBase = cBase.getModificatore();
@@ -210,7 +235,7 @@ public class ModificatoriService {
             } catch (Exception ignored) {}
         }
         int bonusVal = mods.stream()
-                .filter(x -> x.getNota() == null)
+                .filter(x -> x.getNota() == null && !TipoModificatore.CAMBIA_CARATTERISTICA.equals(x.getTipo()))
                 .mapToInt(ModificatoreDTO::getValore)
                 .sum();
         int bonusRank = ranksDto.stream()
@@ -973,12 +998,14 @@ public class ModificatoriService {
 
                     ab.getAbilita().getModificatori().add(mod);
 
-                    // Calcola la nuova abilità e sostituiscila nella lista
+                    // Calcola la nuova abilità e sostituiscila nella lista.
+                    // Il CAMBIA_CARATTERISTICA globale è già nei modificatori dell'abilità: emptyList.
                     AbilitaDTO nuovaAbilita = calcolaAbilita(
                             ab.getStat(),
                             ab.getAbilita().getModificatori(),
                             ab.getRank().getRanks(),
-                            cars
+                            cars,
+                            Collections.emptyList()
                     );
 
                     abilitaList.set(i, nuovaAbilita);
