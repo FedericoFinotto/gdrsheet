@@ -129,6 +129,12 @@ public class PersonaggioService {
                     for (Collegamento col : cur.getChild().stream()
                             .filter(x -> !x.getItemTarget().getTipo().equals(TipoItem.CLASSE)).toList()) {
                         boolean isColDisabled = utilService.parseBooleanFromString(col.getLabel(Constants.ITEM_LABEL_DISABILITATO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
+                        boolean isColNascosto = utilService.parseBooleanFromString(col.getLabel(Constants.ITEM_LABEL_NASCOSTO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
+                        // Collegamento NASCOSTO: non visibile da fuori, saltalo del tutto (nascondere implica disabilitare).
+                        // Per le FORMA resta comunque nell'indice formaLinks, così FORMA_N delle altre non slitta.
+                        if (isColNascosto) {
+                            continue;
+                        }
                         if (isColDisabled) {
                             col.getItemTarget().setLabel(Constants.ITEM_LABEL_DISABILITATO, Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE);
                         }

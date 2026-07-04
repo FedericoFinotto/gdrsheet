@@ -361,13 +361,15 @@ async function salvaInfo() {
           <button type="button" class="frutto-head" @click="toggleFruttoOpen(frutto.id)">
             <span class="chev" :class="{open: openFrutti.has(frutto.id)}">▸</span>
             <span class="frutto-nome" :class="{dimmed: frutto.disabled}">{{ frutto.nome }}</span>
-            <!-- chiuso: mostra gli elementi attivi (trasf + forme) come pillole compatte -->
+            <!-- chiuso: mostra gli elementi attivi (trasf + forme) come pillole compatte, allineate a destra (forma per ultima) -->
             <template v-if="!openFrutti.has(frutto.id)">
-              <span
-                  v-for="t in [...trasf, ...forme].filter(t => !t.disabled)" :key="t.id"
-                  class="pill-attiva"
-              >{{ strippaPrefisso(t.nome) }}</span>
-              <span v-if="[...trasf, ...forme].every(t => t.disabled)" class="pill-nessuna">—</span>
+              <span class="pill-group">
+                <span
+                    v-for="t in [...trasf, ...forme].filter(t => !t.disabled)" :key="t.id"
+                    class="pill-attiva"
+                >{{ strippaPrefisso(t.nome) }}</span>
+                <span v-if="[...trasf, ...forme].every(t => t.disabled)" class="pill-nessuna">—</span>
+              </span>
             </template>
           </button>
 
@@ -594,6 +596,16 @@ async function salvaInfo() {
   overflow-wrap: anywhere;
 }
 .pill-nessuna { font-size: .8rem; opacity: .45; }
+
+/* pillole attive spinte a destra (l'ultima = la forma) */
+.pill-group {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: .35rem;
+}
 
 /* Body */
 .frutto-body { border-top: 1px solid #e5e7eb; }

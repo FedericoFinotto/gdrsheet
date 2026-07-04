@@ -145,12 +145,14 @@ function preload() {
     tpd: getItemLabel(c.itemTarget, 'TPD') ?? '',
     tipoDanni: getItemLabel(c.itemTarget, 'TDANNO' as any) ?? '',
   }))
+  const isColNascosto = (c: any) => (c.labels ?? []).some((l: any) => l.label === 'HIDDEN' && l.valore === '1')
+  const toChildRef = (c: any) => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null, nascosto: isColNascosto(c)})
   if (props.separateForme) {
-    form.forme = collegamentiNonAttacco.filter(c => c.itemTarget.tipo === 'FORMA').map(c => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null}))
-    form.children = collegamentiNonAttacco.filter(c => c.itemTarget.tipo !== 'FORMA').map(c => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null}))
+    form.forme = collegamentiNonAttacco.filter(c => c.itemTarget.tipo === 'FORMA').map(toChildRef)
+    form.children = collegamentiNonAttacco.filter(c => c.itemTarget.tipo !== 'FORMA').map(toChildRef)
   } else {
     form.forme = []
-    form.children = collegamentiNonAttacco.map(c => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null}))
+    form.children = collegamentiNonAttacco.map(toChildRef)
   }
 }
 
@@ -276,7 +278,7 @@ function buildPayload(): UpdateItemRequest {
     labels,
     modificatori: form.modificatori.filter(m => m.statId.trim()),
     attacchi: form.attacchi.filter(a => a.nome.trim()),
-    children: [...form.children, ...form.forme].map(c => ({id: c.id, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null})),
+    children: [...form.children, ...form.forme].map(c => ({id: c.id, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null, nascosto: c.nascosto ?? false})),
   })
 }
 

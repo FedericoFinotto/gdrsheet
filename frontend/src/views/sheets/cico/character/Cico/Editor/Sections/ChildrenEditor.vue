@@ -96,6 +96,10 @@ function setFormulaQty(idx: number, val: string) {
   emit('update:modelValue', props.modelValue.map((c, i) => i === idx ? {...c, formulaQty: trimmed} : c))
 }
 
+function setNascosto(idx: number, val: boolean) {
+  emit('update:modelValue', props.modelValue.map((c, i) => i === idx ? {...c, nascosto: val} : c))
+}
+
 function getSceltaSet(c: ChildRef): Set<string> {
   return new Set((c.scelta ?? '').split(',').filter(Boolean))
 }
@@ -126,7 +130,7 @@ function remove(idx: number) {
   <div class="children-editor">
     <div v-if="!modelValue.length" class="empty">Nessun item collegato.</div>
 
-    <div v-for="(c, i) in modelValue" :key="c.id" class="child-row" :class="{'child-row--frutto': c.tipo === 'FRUTTO'}">
+    <div v-for="(c, i) in modelValue" :key="c.id" class="child-row" :class="{'child-row--frutto': c.tipo === 'FRUTTO', 'child-row--disabled': c.nascosto}">
       <span class="nome">{{ c.nome }}</span>
       <span class="pill">{{ c.tipo }}</span>
       <template v-if="c.tipo === 'FRUTTO'">
@@ -169,6 +173,16 @@ function remove(idx: number) {
             @input="setFormulaQty(i, ($event.target as HTMLInputElement).value)"
         />
       </div>
+      <!-- Nascondi (es. FORMA): non visibile da fuori, implica disabilitare -->
+      <label v-if="c.tipo === 'FORMA'" class="disable-row">
+        <input
+            type="checkbox"
+            :checked="!!c.nascosto"
+            :disabled="disabled"
+            @change="setNascosto(i, ($event.target as HTMLInputElement).checked)"
+        />
+        <span>Nascondi (non visibile da fuori)</span>
+      </label>
     </div>
 
     <div class="search-box">
@@ -248,6 +262,13 @@ input, select, textarea { min-width: 0; }
   font-size: .78rem; background: #fafafa; color: #374151;
 }
 .formula-qty-input:focus { border-color: #93c5fd; outline: none; background: #fff; }
+.disable-row {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: .4rem;
+  font-size: .78rem; color: #6b7280; cursor: pointer; user-select: none;
+}
+.disable-row input[type="checkbox"] { width: auto; margin: 0; }
+.child-row--disabled { opacity: .6; background: #f9fafb; }
 .nome { white-space: normal; word-break: break-word; }
 .pill {
   font-size: .75rem; padding: .1rem .45rem; border-radius: .5rem;

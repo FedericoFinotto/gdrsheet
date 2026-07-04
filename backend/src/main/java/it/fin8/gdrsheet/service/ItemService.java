@@ -341,11 +341,17 @@ public class ItemService {
      * (es. aggiunte a mano in fase di creazione).
      */
     private void bootstrapFrutto(Item frutto) {
-        // variabile di livello sul frutto (solo se non già presente)
+        boolean changed = false;
+        // variabili sul frutto (solo se non già presenti)
         if (frutto.getLabel(Constants.ITEM_LABEL_FRUTTO_LVL) == null) {
             addLabelRow(frutto, Constants.ITEM_LABEL_FRUTTO_LVL, "0");
-            itemRepository.save(frutto);
+            changed = true;
         }
+        if (frutto.getLabel(Constants.ITEM_LABEL_FRUTTO_MOLT) == null) {
+            addLabelRow(frutto, Constants.ITEM_LABEL_FRUTTO_MOLT, "0");
+            changed = true;
+        }
+        if (changed) itemRepository.save(frutto);
 
         // se ci sono già forme collegate (es. aggiunte a mano), non ricreare la struttura
         // di default; uso il repository perché i collegamenti appena salvati da applyChildren
@@ -354,7 +360,7 @@ public class ItemService {
                 .anyMatch(c -> TipoItem.FORMA.equals(c.getItemTarget().getTipo()));
         if (haForme) return;
 
-        for (int n = 1; n <= 3; n++) {
+        for (int n = 1; n <= 4; n++) {
             Item forma = new Item();
             forma.setNome("Forma " + n);
             forma.setTipo(TipoItem.FORMA);
@@ -362,6 +368,7 @@ public class ItemService {
             forma.setSistema(frutto.getSistema());
             forma.setLabels(new ArrayList<>());
             addLabelRow(forma, Constants.ITEM_LABEL_FORMA_MOD_LVL, "=" + n);
+            addLabelRow(forma, Constants.ITEM_LABEL_FORMA_MOD_MOLT, "=" + moltiplicatoreForma(n));
             Item savedForma = itemRepository.save(forma);
 
             Collegamento link = new Collegamento();
@@ -369,6 +376,11 @@ public class ItemService {
             link.setItemTarget(savedForma);
             collegamentoRepository.save(link);
         }
+    }
+
+    /** Moltiplicatore di default per la forma n-esima: 1, 2, 3, 9. */
+    private static int moltiplicatoreForma(int n) {
+        return n >= 4 ? 9 : n;
     }
 
     /**
@@ -711,11 +723,11 @@ public class ItemService {
     private void applyChildren(Item itm, List<UpdateItemRequest.ChildRefDTO> children) {
         if (children == null) return;
 
-        record ChildInfo(Integer qty, String formulaQty, String scelta) {
+        record ChildInfo(Integer qty, String formulaQty, String scelta, boolean nascosto) {
         }
         Map<Integer, ChildInfo> desiderati = new HashMap<>();
         for (UpdateItemRequest.ChildRefDTO c : children)
-            desiderati.put(c.getId(), new ChildInfo(c.getQty(), c.getFormulaQty(), c.getScelta()));
+            desiderati.put(c.getId(), new ChildInfo(c.getQty(), c.getFormulaQty(), c.getScelta(), Boolean.TRUE.equals(c.getNascosto())));
 
         List<Collegamento> linkAltri = (itm.getChild() != null ? itm.getChild() : List.<Collegamento>of()).stream()
                 .filter(c -> !TipoItem.ATTACCO.equals(c.getItemTarget().getTipo()))
@@ -736,13 +748,16 @@ public class ItemService {
             if (Objects.equals(targetId, itm.getId())) continue; // no self-link
             if (giaPresenti.containsKey(targetId)) {
                 Collegamento existing = giaPresenti.get(targetId);
+                boolean existingNascosto = Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE.equals(existing.getLabel(Constants.ITEM_LABEL_NASCOSTO));
                 boolean changed = !Objects.equals(existing.getQty(), info.qty())
                         || !Objects.equals(existing.getFormulaQty(), info.formulaQty())
-                        || !Objects.equals(existing.getScelta(), info.scelta());
+                        || !Objects.equals(existing.getScelta(), info.scelta())
+                        || existingNascosto != info.nascosto();
                 if (changed) {
                     existing.setQty(info.qty());
                     existing.setFormulaQty(info.formulaQty());
                     existing.setScelta(info.scelta());
+                    existing.setLabel(Constants.ITEM_LABEL_NASCOSTO, info.nascosto() ? Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE : null);
                     collegamentoRepository.save(existing);
                 }
             } else {
@@ -754,6 +769,7 @@ public class ItemService {
                 link.setQty(info.qty());
                 link.setFormulaQty(info.formulaQty());
                 link.setScelta(info.scelta());
+                if (info.nascosto()) link.setLabel(Constants.ITEM_LABEL_NASCOSTO, Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE);
                 collegamentoRepository.save(link);
             }
         }

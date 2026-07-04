@@ -36,6 +36,8 @@ public final class Constants {
     public static final String ITEM_LABEL_DISABILITATO = "DISABLED";
     public static final String ITEM_LABEL_DISABILITATO_VALORE_TRUE = "1";
     public static final String ITEM_LABEL_DISABILITATO_VALORE_FALSE = "0";
+    // NASCOSTO: label distinta da DISABLED. Nascondere implica anche disabilitare, ma è separata.
+    public static final String ITEM_LABEL_NASCOSTO = "HIDDEN";
     public static final String ITEM_LABEL_LISTA_INCANTESIMI = "SPELL";
     public static final String ITEM_LABEL_COMPONENTE = "COMP_SP";
     public static final String ITEM_LABEL_SCUOLA_SP = "SCUOLA_SP"; // scuola/sottoscuole/descrittori incantesimo
@@ -73,8 +75,10 @@ public final class Constants {
     public static final String ITEM_TIPO_BARRIERA = "BARRIERA";
     public static final String ITEM_LABEL_BARR_MAX = "BARR_MAX";   // hp massimi della barriera
     public static final String ITEM_LABEL_BARR_CONS = "BARR_CONS"; // hp consumati della barriera
-    public static final String ITEM_LABEL_FRUTTO_LVL = "$V_LVL";       // variabile livello del frutto
-    public static final String ITEM_LABEL_FORMA_MOD_LVL = "$M_P_LVL";  // forma: imposta il livello del frutto padre
+    public static final String ITEM_LABEL_FRUTTO_LVL = "$V_FORMA";       // variabile "forma" del frutto (ex LVL)
+    public static final String ITEM_LABEL_FORMA_MOD_LVL = "$M_P_FORMA";  // forma: imposta la variabile FORMA del frutto padre
+    public static final String ITEM_LABEL_FRUTTO_MOLT = "$V_MOLTIPLICATORE";      // variabile moltiplicatore del frutto
+    public static final String ITEM_LABEL_FORMA_MOD_MOLT = "$M_P_MOLTIPLICATORE"; // forma: imposta il moltiplicatore del frutto padre
     public static final String ITEM_LABEL_ADD_CLASSE_PREFIX = "ADD_CLASSE_"; // ADD_CLASSE_<n> = +1 livello (valore = idClasse)
     public static final String ITEM_LABEL_ADD_CLASSE_VALUE_SUFFIX = "_VALUE";
     public static final String LABEL_CC_GIOCATORE_PREFIX = "G";

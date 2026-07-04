@@ -94,6 +94,8 @@ public class UpdateItemRequest {
         private String formulaQty;
         /** Cosa si prende da un FRUTTO: MOD, FORMA_1, FORMA_2, FORMA_3, FORMA_4. Null per altri tipi. */
         private String scelta;
+        /** Se true il collegamento è nascosto (es. una FORMA): non visibile da fuori. Nascondere implica disabilitare. */
+        private Boolean nascosto;
     }
 
     @Getter
