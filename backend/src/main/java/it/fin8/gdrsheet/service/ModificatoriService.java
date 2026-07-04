@@ -49,7 +49,11 @@ public class ModificatoriService {
             if (differenzaTaglia != 0)
                 modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), 4 * differenzaTaglia, null, null, TipoModificatore.VALORE, false, "Taglia", null, null));
         }
-        if (!modsDto.isEmpty()) modificatoriAttivi.add(prendiMaxDTO(modsDto, TipoModificatore.BASE));
+        if (!modsDto.isEmpty()) {
+            // Se non c'è un modificatore BASE (valori base non ancora impostati) la caratteristica parte da 0
+            ModificatoreDTO baseDto = prendiMaxDTO(modsDto, TipoModificatore.BASE);
+            if (baseDto != null) modificatoriAttivi.add(baseDto);
+        }
         int valoreBase = (modsDto.stream().filter(x -> x.getTipoItem().equals(TipoItem.LIVELLO)).mapToInt(ModificatoreDTO::getValore).sum());
 
         modificatoriAttivi.addAll(modsDto.stream().filter(m -> TipoModificatore.VALORE.equals(m.getTipo())).toList());

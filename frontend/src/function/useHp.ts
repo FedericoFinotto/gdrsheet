@@ -122,9 +122,30 @@ export function useHp(idPersonaggio: number) {
         pfStat.value.valore = clamp(-hpMax.value, curDamage - dmg, 0)
       }
     } else if (amount > 0) {
+      let heal = amount
+
+      // 1) vita reale (annulla i danni verso 0)
       const curDamage = pfStat.value.valore ?? 0
       const curable = -curDamage
-      if (curable > 0) pfStat.value.valore = curDamage + Math.min(amount, curable)
+      if (curable > 0) {
+        const cut = Math.min(heal, curable)
+        pfStat.value.valore = curDamage + cut
+        heal -= cut
+      }
+
+      // 2) barriere: ripristina in ordine inverso di consumo (le ultime consumate per prime)
+      if (heal > 0) {
+        const barr = talentiBarriera()
+        for (let i = barr.length - 1; i >= 0 && heal > 0; i--) {
+          const t = barr[i]
+          const cons = Number(t.barrCons) || 0
+          if (cons <= 0) continue
+          const cut = Math.min(heal, cons)
+          t.barrCons = cons - cut
+          syncBarriera(t.id, t.barrCons)
+          heal -= cut
+        }
+      }
     }
     debouncedHp()
   }
@@ -143,7 +164,7 @@ export function useHp(idPersonaggio: number) {
   }
 
   function getTalento(id: number): any | undefined {
-    return (cache.value[idPersonaggio]?.items?.talenti ?? []).find((t: any) => t.id === id)
+    return itemsConBarriera().find((t: any) => t.id === id)
   }
 
   /** delta>0 ripristina la barriera, delta<0 la consuma. */
