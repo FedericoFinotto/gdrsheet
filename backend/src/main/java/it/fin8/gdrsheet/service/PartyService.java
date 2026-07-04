@@ -39,6 +39,7 @@ public class PartyService {
     private final MondoRepository mondoRepository;
     private final UtenteRepository utenteRepository;
     private final AuthzService authzService;
+    private final GruppoRepository gruppoRepository;
     private final EntityManager em;
 
     public PartyService(PermessiPartyRepository permessiPartyRepository,
@@ -53,6 +54,7 @@ public class PartyService {
                         MondoRepository mondoRepository,
                         UtenteRepository utenteRepository,
                         AuthzService authzService,
+                        GruppoRepository gruppoRepository,
                         EntityManager em) {
         this.permessiPartyRepository = permessiPartyRepository;
         this.permessiPersonaggiRepository = permessiPersonaggiRepository;
@@ -66,6 +68,7 @@ public class PartyService {
         this.mondoRepository = mondoRepository;
         this.utenteRepository = utenteRepository;
         this.authzService = authzService;
+        this.gruppoRepository = gruppoRepository;
         this.em = em;
     }
 
@@ -114,26 +117,55 @@ public class PartyService {
             somma.add(soldi);
             // il peso conta solo le monete trasportate (personali)
             pesoMonete += calcolaPesoMonete(personali);
-            double peso = calcolaPeso(pg);
+            // Peso effettivo dalla cache (personaggio_label PESO_EFFETTIVO, scritta all'apertura scheda).
+            // Se il personaggio non è mai stato aperto la label manca: peso 0 (non verrà mostrato).
+            double peso = 0;
+            String pesoEffRaw = personaggioLabel(pg, Constants.LABEL_PESO_EFFETTIVO);
+            if (pesoEffRaw != null) {
+                try { peso = Double.parseDouble(pesoEffRaw.trim().replace(',', '.')); }
+                catch (NumberFormatException ignored) {}
+            }
             pesoTotale += peso;
+            String gruppoRaw = personaggioLabel(pg, Constants.LABEL_GRUPPO);
+            Integer gruppoId = null;
+            try { if (gruppoRaw != null) gruppoId = Integer.parseInt(gruppoRaw.trim()); } catch (NumberFormatException ignored) {}
+            boolean capogruppo = "1".equals(personaggioLabel(pg, Constants.LABEL_CAPOGRUPPO));
+            // Livello atteso (label) e numero di livelli effettivi (item LIVELLO, escluso il livello 0)
+            Integer livello = null;
+            String livelloRaw = personaggioLabel(pg, Constants.LABEL_LIVELLO);
+            try { if (livelloRaw != null) livello = Integer.parseInt(livelloRaw.trim()); } catch (NumberFormatException ignored) {}
+            int numLivelli = pg.getItems() == null ? 0 : (int) pg.getItems().stream()
+                    .filter(i -> TipoItem.LIVELLO.equals(i.getTipo()))
+                    .filter(i -> !Boolean.TRUE.equals(i.isDisabled()))   // i livelli disabilitati non contano
+                    .filter(i -> !"0".equals(i.getLabel(Constants.ITEM_LIVELLO_LVL)))
+                    .count();
             personaggi.add(new PartyDetailDTO.PersonaggioSoldiDTO(
                     pg.getId(),
                     pg.getNome(),
                     soldi,
                     tipoPg,
                     posseduti.contains(pg.getId()),
-                    peso
+                    peso,
+                    gruppoId,
+                    capogruppo,
+                    livello,
+                    numLivelli
             ));
         }
 
         // conto banca intestato al party
         somma.add(calcolaSoldiConto(Constants.LABEL_CC_PARTY_PREFIX + partyId));
 
+        List<PartyDetailDTO.GruppoInfoDTO> gruppi = gruppoRepository.findAllByParty_IdOrderByNomeAsc(partyId).stream()
+                .map(g -> new PartyDetailDTO.GruppoInfoDTO(g.getId(), g.getNome()))
+                .toList();
+
         return new PartyDetailDTO(
                 party.getId(),
                 party.getNome(),
                 ruoloUtente,
                 personaggi,
+                gruppi,
                 somma,
                 Math.round(pesoTotale * 100) / 100.0,
                 Math.round(pesoMonete * 100) / 100.0
@@ -411,6 +443,7 @@ public class PartyService {
             case "NPC" -> "NPC";
             case "BANCA" -> Constants.TIPO_PERSONAGGIO_BANCA;
             case "STELLA" -> "STELLA";
+            case "BASE" -> "BASE";
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tipo personaggio non valido: " + tipo);
         };
     }
@@ -851,6 +884,117 @@ public class PartyService {
                 .filter(v -> v != null && !v.isBlank())
                 .findFirst()
                 .orElse(null);
+    }
+
+    /* =====================================================================
+     * Gruppi di personaggi
+     * ===================================================================== */
+
+    /** Valore di una personaggio_label, o null se assente. */
+    private static String personaggioLabel(Personaggio pg, String key) {
+        if (pg.getLabels() == null) return null;
+        return pg.getLabels().stream()
+                .filter(l -> key.equals(l.getLabel()))
+                .map(PersonaggioLabel::getValore)
+                .filter(v -> v != null && !v.isBlank())
+                .findFirst()
+                .orElse(null);
+    }
+
+    /** Imposta/rimuove (value=null) una personaggio_label. Da salvare con save(pg). */
+    private static void setPersonaggioLabel(Personaggio pg, String key, String value) {
+        if (pg.getLabels() == null) pg.setLabels(new ArrayList<>());
+        pg.getLabels().removeIf(l -> key.equals(l.getLabel()));
+        if (value != null) {
+            PersonaggioLabel l = new PersonaggioLabel();
+            l.setPersonaggio(pg);
+            l.setLabel(key);
+            l.setValore(value);
+            pg.getLabels().add(l);
+        }
+    }
+
+    public List<GruppoDTO> getGruppi(Integer partyId, Utente utente) {
+        verificaMembership(partyId, utente);
+        List<Personaggio> membri = personaggioRepository.findAllByParty_IdOrderByNomeAsc(partyId);
+        return gruppoRepository.findAllByParty_IdOrderByNomeAsc(partyId).stream()
+                .map(g -> {
+                    List<Integer> membriIds = new ArrayList<>();
+                    Integer capo = null;
+                    for (Personaggio pg : membri) {
+                        if (String.valueOf(g.getId()).equals(personaggioLabel(pg, Constants.LABEL_GRUPPO))) {
+                            membriIds.add(pg.getId());
+                            if ("1".equals(personaggioLabel(pg, Constants.LABEL_CAPOGRUPPO))) capo = pg.getId();
+                        }
+                    }
+                    return new GruppoDTO(g.getId(), g.getNome(), membriIds, capo);
+                })
+                .toList();
+    }
+
+    @Transactional
+    public GruppoDTO createGruppo(Integer partyId, String nome, Utente utente) {
+        Party party = partyRepository.findById(partyId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Party non trovato"));
+        verificaMembership(partyId, utente);
+        if (nome == null || nome.isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nome gruppo obbligatorio");
+        Gruppo g = new Gruppo();
+        g.setParty(party);
+        g.setNome(nome.trim());
+        Gruppo saved = gruppoRepository.save(g);
+        return new GruppoDTO(saved.getId(), saved.getNome(), new ArrayList<>(), null);
+    }
+
+    /** Aggiorna nome, membri e capogruppo di un gruppo (stato completo). */
+    @Transactional
+    public GruppoDTO saveGruppo(Integer gruppoId, SaveGruppoRequest req, Utente utente) {
+        Gruppo g = gruppoRepository.findById(gruppoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gruppo non trovato"));
+        Integer partyId = g.getParty().getId();
+        verificaMembership(partyId, utente);
+
+        if (req.getNome() != null && !req.getNome().isBlank()) {
+            g.setNome(req.getNome().trim());
+            gruppoRepository.save(g);
+        }
+
+        Set<Integer> desiderati = new HashSet<>(req.getMembriIds() != null ? req.getMembriIds() : List.of());
+        // le banche non si assegnano ai gruppi
+        Integer capo = req.getCapogruppoId();
+
+        for (Personaggio pg : personaggioRepository.findAllByParty_IdOrderByNomeAsc(partyId)) {
+            boolean isBanca = Constants.TIPO_PERSONAGGIO_BANCA.equals(tipoPersonaggio(pg));
+            boolean inQuestoGruppo = String.valueOf(gruppoId).equals(personaggioLabel(pg, Constants.LABEL_GRUPPO));
+            boolean deveStare = !isBanca && desiderati.contains(pg.getId());
+            if (deveStare) {
+                setPersonaggioLabel(pg, Constants.LABEL_GRUPPO, String.valueOf(gruppoId));
+                setPersonaggioLabel(pg, Constants.LABEL_CAPOGRUPPO, pg.getId().equals(capo) ? "1" : null);
+                personaggioRepository.save(pg);
+            } else if (inQuestoGruppo) {
+                setPersonaggioLabel(pg, Constants.LABEL_GRUPPO, null);
+                setPersonaggioLabel(pg, Constants.LABEL_CAPOGRUPPO, null);
+                personaggioRepository.save(pg);
+            }
+        }
+        return new GruppoDTO(g.getId(), g.getNome(), new ArrayList<>(desiderati), capo);
+    }
+
+    @Transactional
+    public void deleteGruppo(Integer gruppoId, Utente utente) {
+        Gruppo g = gruppoRepository.findById(gruppoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gruppo non trovato"));
+        Integer partyId = g.getParty().getId();
+        verificaMembership(partyId, utente);
+        // pulisci le label di appartenenza dei membri
+        for (Personaggio pg : personaggioRepository.findAllByParty_IdOrderByNomeAsc(partyId)) {
+            if (String.valueOf(gruppoId).equals(personaggioLabel(pg, Constants.LABEL_GRUPPO))) {
+                setPersonaggioLabel(pg, Constants.LABEL_GRUPPO, null);
+                setPersonaggioLabel(pg, Constants.LABEL_CAPOGRUPPO, null);
+                personaggioRepository.save(pg);
+            }
+        }
+        gruppoRepository.delete(g);
     }
 
     /**

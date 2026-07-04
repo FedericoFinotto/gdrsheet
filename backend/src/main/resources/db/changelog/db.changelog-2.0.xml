@@ -321,4 +321,26 @@
         </insert>
     </changeSet>
 
+    <changeSet id="123" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="gruppo"/>
+            </not>
+        </preConditions>
+        <comment>gruppo di personaggi in un party (appartenenza via personaggio_label GRUPPO)</comment>
+        <createTable tableName="gruppo">
+            <column name="id" type="integer" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="party_id" type="integer">
+                <constraints nullable="false"
+                             foreignKeyName="fk_gruppo_party"
+                             references="party(id)"/>
+            </column>
+            <column name="nome" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
 </databaseChangeLog>

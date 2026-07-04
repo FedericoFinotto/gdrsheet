@@ -14,6 +14,7 @@ import ItemEditor from "../views/sheets/cico/character/Cico/Editor/ItemEditor.vu
 import ItemCreate from "../views/sheets/cico/character/Cico/Editor/ItemCreate.vue";
 import GestisciGradi from "../views/sheets/cico/character/Cico/Editor/GestisciGradi.vue";
 import Account from "@/views/Account.vue";
+import GestisciGruppi from "@/views/GestisciGruppi.vue";
 
 const routes = [
   {path: '/', component: Home},
@@ -21,6 +22,7 @@ const routes = [
   {path: '/party/:id', name: 'Party', component: Party},
   {path: '/party/:id/items', name: 'PartyItems', component: PartyItems},
   {path: '/party/:id/banche', name: 'PartyBanche', component: PartyBanche},
+  {path: '/party/:id/gruppi', name: 'GestisciGruppi', component: GestisciGruppi},
   {path: '/banca/:id', name: 'BancaDetail', component: BancaDetail},
   {path: '/compendio', name: 'Compendio', component: Compendio},
   {path: '/users', name: 'Users', component: Users},

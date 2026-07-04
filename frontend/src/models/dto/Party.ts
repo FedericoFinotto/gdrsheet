@@ -11,9 +11,18 @@ export interface PersonaggioSoldi {
     id: number;
     nome: string;
     soldi: Soldi;
-    tipoPersonaggio?: 'NAVE' | 'STELLA' | string | null;
+    tipoPersonaggio?: 'NAVE' | 'STELLA' | 'BASE' | string | null;
     proprietario: boolean;
     peso: number; // kg trasportati
+    gruppoId?: number | null;   // gruppo di appartenenza
+    capogruppo?: boolean;       // è il capogruppo del suo gruppo
+    livello?: number | null;    // livello atteso (label LIVELLO, indicativo)
+    numLivelli?: number;        // n. livelli effettivi (escluso livello 0)
+}
+
+export interface GruppoInfo {
+    id: number;
+    nome: string;
 }
 
 export interface PartyDetail {
@@ -21,6 +30,7 @@ export interface PartyDetail {
     nome: string;
     ruolo: 'MASTER' | 'GIOCATORE';
     personaggi: PersonaggioSoldi[];
+    gruppi: GruppoInfo[];
     somma: Soldi;
     pesoTotale: number; // kg
     pesoMonete: number; // kg, già incluso nel totale

@@ -824,7 +824,25 @@ public class PersonaggioService {
         }
         dto.setPesoTotale(Math.round(pesoTotale * 100) / 100.0);
 
+        // Cache del peso effettivo come personaggio_label: la lista party lo legge senza ricalcolare.
+        // Riscritto a ogni ricalcolo (ogni apertura della scheda).
+        setPersonaggioLabelValue(p, Constants.LABEL_PESO_EFFETTIVO, String.valueOf(dto.getPesoTotale()));
+        try { personaggioRepository.save(p); } catch (Exception ignored) {}
+
         return dto;
+    }
+
+    /** Imposta/rimuove (value=null) una personaggio_label. Da salvare con save(p). */
+    private static void setPersonaggioLabelValue(Personaggio p, String key, String value) {
+        if (p.getLabels() == null) p.setLabels(new ArrayList<>());
+        p.getLabels().removeIf(l -> key.equals(l.getLabel()));
+        if (value != null) {
+            PersonaggioLabel l = new PersonaggioLabel();
+            l.setPersonaggio(p);
+            l.setLabel(key);
+            l.setValore(value);
+            p.getLabels().add(l);
+        }
     }
 
     /**

@@ -140,9 +140,10 @@ function onSavedStay() {
   top: 0;
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: .75rem;
+  gap: .5rem .75rem;
   padding: .75rem 1rem;
   background: inherit;
   border-bottom: 1px solid #e5e7eb;
@@ -151,9 +152,11 @@ function onSavedStay() {
 .head h1 {
   margin: 0;
   font-size: 1.1rem;
+  flex-shrink: 0;
 }
 
-.meta { display: inline-flex; gap: .5rem; align-items: center; }
+.meta { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; justify-content: flex-end; margin-left: auto; }
+.meta > * { flex-shrink: 0; }
 
 .pill {
   font-size: .8rem;

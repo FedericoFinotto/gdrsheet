@@ -7,6 +7,8 @@ import it.fin8.gdrsheet.dto.BancaDetailDTO;
 import it.fin8.gdrsheet.dto.CreatePartyRequest;
 import it.fin8.gdrsheet.dto.CreatePersonaggioRequest;
 import it.fin8.gdrsheet.dto.GiveItemRequest;
+import it.fin8.gdrsheet.dto.GruppoDTO;
+import it.fin8.gdrsheet.dto.SaveGruppoRequest;
 import it.fin8.gdrsheet.dto.AddMembroRequest;
 import it.fin8.gdrsheet.dto.MembroPartyDTO;
 import it.fin8.gdrsheet.dto.MondoDTO;
@@ -203,6 +205,45 @@ public class PartyController {
             @AuthenticationPrincipal Utente utente
     ) {
         partyService.giveItem(request, utente);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Gruppi del party", description = "Gruppi con membri e capogruppo. Accessibile ai membri del party.")
+    @GetMapping("/{id}/gruppi")
+    public ResponseEntity<List<GruppoDTO>> getGruppi(
+            @PathVariable Integer id,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(partyService.getGruppi(id, utente));
+    }
+
+    @Operation(summary = "Crea un gruppo", description = "Solo il master del party")
+    @PostMapping("/{id}/gruppo")
+    public ResponseEntity<GruppoDTO> createGruppo(
+            @PathVariable Integer id,
+            @RequestBody SaveGruppoRequest request,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(partyService.createGruppo(id, request.getNome(), utente));
+    }
+
+    @Operation(summary = "Aggiorna un gruppo", description = "Nome, membri e capogruppo (stato completo). Solo il master del party.")
+    @PutMapping("/gruppo/{gruppoId}")
+    public ResponseEntity<GruppoDTO> saveGruppo(
+            @PathVariable Integer gruppoId,
+            @RequestBody SaveGruppoRequest request,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(partyService.saveGruppo(gruppoId, request, utente));
+    }
+
+    @Operation(summary = "Elimina un gruppo", description = "Rimuove il gruppo e l'appartenenza dei membri. Solo il master del party.")
+    @DeleteMapping("/gruppo/{gruppoId}")
+    public ResponseEntity<Void> deleteGruppo(
+            @PathVariable Integer gruppoId,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        partyService.deleteGruppo(gruppoId, utente);
         return ResponseEntity.noContent().build();
     }
 }

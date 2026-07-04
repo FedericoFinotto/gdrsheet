@@ -6,6 +6,31 @@ export function getParty(id: number): Promise<AxiosResponse<PartyDetail>> {
     return api.get<PartyDetail>(`/party/${id}`)
 }
 
+export interface GruppoDTO {
+    id: number;
+    nome: string;
+    membriIds: number[];
+    capogruppoId: number | null;
+}
+
+export function getGruppi(partyId: number): Promise<AxiosResponse<GruppoDTO[]>> {
+    return api.get<GruppoDTO[]>(`/party/${partyId}/gruppi`)
+}
+
+export function createGruppo(partyId: number, nome: string): Promise<AxiosResponse<GruppoDTO>> {
+    return api.post<GruppoDTO>(`/party/${partyId}/gruppo`, {nome})
+}
+
+export function saveGruppo(
+    gruppoId: number, nome: string, membriIds: number[], capogruppoId: number | null
+): Promise<AxiosResponse<GruppoDTO>> {
+    return api.put<GruppoDTO>(`/party/gruppo/${gruppoId}`, {nome, membriIds, capogruppoId})
+}
+
+export function deleteGruppo(gruppoId: number): Promise<AxiosResponse<void>> {
+    return api.delete<void>(`/party/gruppo/${gruppoId}`)
+}
+
 export function getPartyItems(
     id: number,
     params: { nome?: string; tipo?: string; page?: number; size?: number } = {}
@@ -52,6 +77,7 @@ export const TIPI_PERSONAGGIO = [
     {value: 'BARCA', label: 'Barca'},
     {value: 'BANCA', label: 'Banca'},
     {value: 'STELLA', label: 'Stella'},
+    {value: 'BASE', label: 'Base'},
 ] as const
 
 export function createPersonaggio(

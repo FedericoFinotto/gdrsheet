@@ -11,6 +11,10 @@ public final class Constants {
     // Stat fittizia: un CAMBIA_CARATTERISTICA su questa stat cambia la caratteristica base di TUTTE le abilità
     public static final String STAT_TUTTE_ABILITA = "ABTUTTE";
 
+    // Gruppi di personaggi in un party (personaggio_label)
+    public static final String LABEL_GRUPPO = "GRUPPO";          // valore = id del gruppo
+    public static final String LABEL_CAPOGRUPPO = "CAPOGRUPPO";  // "1" = capogruppo del suo gruppo
+
     public static final String TIPO_ITEM_ABILITA = "ABILITA";
     public static final String TIPO_ITEM_TALENTO = "TALENTO";
     public static final String TIPO_ITEM_OGGETTO = "OGGETTO";
@@ -104,10 +108,17 @@ public final class Constants {
     public static final String LABEL_NOTIZIA_DATA_FINE = "DATA_FINE";
     public static final String LABEL_NOTIZIA_ABILITATA = "ABILITATA";
 
+    // Livello "atteso" del personaggio: solo indicativo, non influenza i calcoli
+    public static final String LABEL_LIVELLO = "LIVELLO";
+
+    // Peso effettivo (kg) calcolato all'apertura della scheda e messo in cache come personaggio_label,
+    // letto dalla lista party senza rifare il calcolo. Non modificabile a mano.
+    public static final String LABEL_PESO_EFFETTIVO = "PESO_EFFETTIVO";
+
     // Info anagrafiche del personaggio (personaggio_label)
     public static final List<String> PERSONAGGIO_INFO_LABELS = List.of(
             "LUOGO_NASCITA", "DATA_NASCITA", "RAZZA", "SESSO", "PELLE", "ETA",
             "ALTEZZA", "PESO", "CAPELLI", "OCCHI", "ALLINEAMENTO", "TAGLIA",
-            "MILESTONE", "MILESTONE_TO");
+            "MILESTONE", "MILESTONE_TO", "LIVELLO");
 }
 

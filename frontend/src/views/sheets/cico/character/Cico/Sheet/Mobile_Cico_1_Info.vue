@@ -163,6 +163,16 @@ function strippaPrefisso(nome: string): string {
   return nome.replace(/^\w+:\s*/, '')
 }
 
+// classe colore del chip di una forma in base al suo numero (ultimo numero nel nome)
+function formaColorClass(nome: string): string {
+  const nums = String(nome).match(/\d+/g)
+  const n = nums ? parseInt(nums[nums.length - 1]) : 0
+  return n === 1 ? 'pill-forma-1'
+      : n === 2 ? 'pill-forma-2'
+          : n === 3 ? 'pill-forma-3'
+              : 'pill-forma-altro'
+}
+
 // ── Apertura/chiusura card frutto ──
 const openFrutti = ref<Set<number>>(new Set())
 function toggleFruttoOpen(id: number) {
@@ -195,6 +205,7 @@ const INFO_FIELDS: { key: string; label: string; type?: string }[] = [
   {key: 'TAGLIA', label: 'Taglia (base)', type: 'select'},
   {key: 'MILESTONE', label: 'Milestone attuali', type: 'number'},
   {key: 'MILESTONE_TO', label: 'Milestone al prossimo livello', type: 'number'},
+  {key: 'LIVELLO', label: 'Livello (atteso)', type: 'number'},
 ]
 
 const TAGLIE: { value: string; label: string }[] = [
@@ -365,9 +376,13 @@ async function salvaInfo() {
             <template v-if="!openFrutti.has(frutto.id)">
               <span class="pill-group">
                 <span
-                    v-for="t in [...trasf, ...forme].filter(t => !t.disabled)" :key="t.id"
-                    class="pill-attiva"
+                    v-for="t in trasf.filter(x => !x.disabled)" :key="'t' + t.id"
+                    class="pill-attiva pill-trasf"
                 >{{ strippaPrefisso(t.nome) }}</span>
+                <span
+                    v-for="f in forme.filter(x => !x.disabled)" :key="'f' + f.id"
+                    class="pill-attiva" :class="formaColorClass(f.nome)"
+                >{{ strippaPrefisso(f.nome) }}</span>
                 <span v-if="[...trasf, ...forme].every(t => t.disabled)" class="pill-nessuna">—</span>
               </span>
             </template>
@@ -424,11 +439,13 @@ async function salvaInfo() {
           <span class="chev" :class="{open: openGruppi.has(String(gruppo))}">▸</span>
           <span class="frutto-nome">Trasformazioni {{ gruppo }}</span>
           <template v-if="!openGruppi.has(String(gruppo))">
-            <span
-                v-for="t in trasf.filter(x => !x.disabled)" :key="t.id"
-                class="pill-attiva"
-            >{{ strippaPrefisso(t.nome) }}</span>
-            <span v-if="trasf.every(x => x.disabled)" class="pill-nessuna">—</span>
+            <span class="pill-group">
+              <span
+                  v-for="t in trasf.filter(x => !x.disabled)" :key="t.id"
+                  class="pill-attiva pill-trasf"
+              >{{ strippaPrefisso(t.nome) }}</span>
+              <span v-if="trasf.every(x => x.disabled)" class="pill-nessuna">—</span>
+            </span>
           </template>
         </button>
 
@@ -595,6 +612,12 @@ async function salvaInfo() {
   white-space: normal;
   overflow-wrap: anywhere;
 }
+/* Colori chip: forme per numero (pastello), trasformazioni grigio chiaro */
+.pill-attiva.pill-forma-1 { background: #dcfce7; color: #166534; }   /* verdina */
+.pill-attiva.pill-forma-2 { background: #dbeafe; color: #1e40af; }   /* azzurrina */
+.pill-attiva.pill-forma-3 { background: #fef9c3; color: #854d0e; }   /* giallina */
+.pill-attiva.pill-forma-altro { background: #ede9fe; color: #5b21b6; } /* forma 4+ */
+.pill-attiva.pill-trasf { background: #f3f4f6; color: #4b5563; }     /* grigetto chiaro */
 .pill-nessuna { font-size: .8rem; opacity: .45; }
 
 /* pillole attive spinte a destra (l'ultima = la forma) */

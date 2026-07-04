@@ -20,6 +20,8 @@ public class PartyDetailDTO {
     private String nome;
     private String ruolo; // ruolo dell'utente corrente nel party: MASTER | GIOCATORE
     private List<PersonaggioSoldiDTO> personaggi;
+    /** Gruppi del party (id + nome), per costruire gli accordion. */
+    private List<GruppoInfoDTO> gruppi;
     private SoldiDTO somma;
     /**
      * Somma dei pesi (kg) di tutti i membri.
@@ -73,5 +75,22 @@ public class PartyDetailDTO {
          * personaggio più la sua eventuale personaggio_label PESO.
          */
         private double peso;
+        /** Id del gruppo di appartenenza (personaggio_label GRUPPO); null = nessun gruppo. */
+        private Integer gruppoId;
+        /** True se è il capogruppo del suo gruppo. */
+        private boolean capogruppo;
+        /** Livello atteso indicato dalla personaggio_label LIVELLO (solo indicativo); null se assente. */
+        private Integer livello;
+        /** Numero di livelli effettivi associati (item LIVELLO, escluso l'eventuale livello 0). */
+        private int numLivelli;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class GruppoInfoDTO {
+        private Integer id;
+        private String nome;
     }
 }

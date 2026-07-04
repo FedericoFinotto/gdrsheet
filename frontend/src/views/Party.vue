@@ -57,6 +57,12 @@ async function caricaParty() {
   const id = Number(route.params.id)
   const res = await getParty(id)
   party.value = res.data
+  // apri di default solo i gruppi con capogruppo di mia proprietà
+  const gruppiMiei = (party.value.gruppi ?? [])
+      .filter(g => (party.value?.personaggi ?? [])
+          .some(p => p.gruppoId === g.id && p.capogruppo && p.proprietario))
+      .map(g => g.id)
+  aperti.value = new Set(gruppiMiei)
 }
 
 async function onCreaPg() {
@@ -192,32 +198,58 @@ function apriScheda(p: PersonaggioSoldi) {
   router.push(`/scheda/${p.id}${tab}`)
 }
 
-// gruppi: Party (senza TIPO_PERSONAGGIO, proprietari in cima), Barche (NAVE), Stella (STELLA)
-const membriParty = computed<PersonaggioSoldi[]>(() =>
+// I tuoi personaggi (di cui sei proprietario): sempre in cima, come accesso rapido
+const mieiPersonaggi = computed<PersonaggioSoldi[]>(() =>
     (party.value?.personaggi ?? [])
-        .filter(p => !p.tipoPersonaggio)
+        .filter(p => p.proprietario)
         .slice()
-        .sort((a, b) => {
-          if (a.proprietario !== b.proprietario) return a.proprietario ? -1 : 1
-          return a.nome.localeCompare(b.nome)
-        }))
-const membriBarche = computed<PersonaggioSoldi[]>(() =>
-    (party.value?.personaggi ?? []).filter(p => p.tipoPersonaggio === 'NAVE'))
-const membriStella = computed<PersonaggioSoldi[]>(() =>
-    (party.value?.personaggi ?? []).filter(p => p.tipoPersonaggio === 'STELLA'))
+        .sort((a, b) => a.nome.localeCompare(b.nome)))
+
+// ordine dentro un gruppo: capogruppo → base → barche → altri PG → stella
+function ordinaGruppo(membri: PersonaggioSoldi[]): PersonaggioSoldi[] {
+  const rank = (p: PersonaggioSoldi) => {
+    if (p.capogruppo) return 0
+    if (p.tipoPersonaggio === 'BASE') return 1
+    if (p.tipoPersonaggio === 'NAVE') return 2
+    if (p.tipoPersonaggio === 'STELLA') return 4
+    return 3 // PG, NPC e altri "personaggi veri e propri"
+  }
+  return [...membri].sort((a, b) => rank(a) - rank(b) || a.nome.localeCompare(b.nome))
+}
+
+// accordion per gruppo (banche escluse dai gruppi).
+// I gruppi con capogruppo di mia proprietà vengono mostrati per primi.
+const gruppiConMembri = computed(() =>
+    (party.value?.gruppi ?? []).map(g => {
+      const membri = ordinaGruppo((party.value?.personaggi ?? []).filter(p => p.gruppoId === g.id))
+      const capoMio = membri.some(m => m.capogruppo && m.proprietario)
+      return {id: g.id, nome: g.nome, membri, capoMio}
+    })
+        .filter(g => g.membri.length > 0)
+        .sort((a, b) => (a.capoMio === b.capoMio ? 0 : a.capoMio ? -1 : 1)))
+
+// personaggi (non banca) non assegnati a nessun gruppo
+const senzaGruppo = computed<PersonaggioSoldi[]>(() =>
+    (party.value?.personaggi ?? [])
+        .filter(p => !p.gruppoId && p.tipoPersonaggio !== 'BANCA')
+        .sort((a, b) => a.nome.localeCompare(b.nome)))
+
 const membriBanche = computed<PersonaggioSoldi[]>(() =>
     (party.value?.personaggi ?? []).filter(p => p.tipoPersonaggio === 'BANCA'))
-const membriAltri = computed<PersonaggioSoldi[]>(() =>
-    (party.value?.personaggi ?? []).filter(p =>
-        p.tipoPersonaggio && !['NAVE', 'STELLA', 'BANCA'].includes(p.tipoPersonaggio)))
 
-const GRUPPI = computed(() => [
-  {titolo: 'Party', membri: membriParty.value},
-  {titolo: 'Barche', membri: membriBarche.value},
-  {titolo: 'Stella', membri: membriStella.value},
-  {titolo: 'Banche', membri: membriBanche.value},
-  {titolo: 'Altro', membri: membriAltri.value},
-].filter(g => g.membri.length > 0))
+// stato apertura accordion gruppi: default chiusi, tranne quelli col capo di mia proprietà
+const aperti = ref<Set<number>>(new Set())
+function toggleGruppo(id: number) {
+  if (aperti.value.has(id)) aperti.value.delete(id)
+  else aperti.value.add(id)
+}
+function capogruppoNome(membri: PersonaggioSoldi[]): string | null {
+  return membri.find(m => m.capogruppo)?.nome ?? null
+}
+// il livello atteso (label) non corrisponde ai livelli effettivi (escluso il livello 0)
+function livelloMismatch(p: PersonaggioSoldi): boolean {
+  return p.livello != null && p.livello !== (p.numLivelli ?? 0)
+}
 </script>
 
 <template>
@@ -232,6 +264,7 @@ const GRUPPI = computed(() => [
       </div>
       <button v-if="party" class="btn" @click="router.push(`/party/${party.id}/items`)">Item</button>
       <button v-if="party" class="btn" @click="router.push(`/party/${party.id}/banche`)">Banche</button>
+      <button v-if="party" class="btn" @click="router.push(`/party/${party.id}/gruppi`)">Gestisci gruppi</button>
       <button v-if="isMaster" class="btn" @click="apriGestione">Gestione</button>
     </header>
 
@@ -318,22 +351,84 @@ const GRUPPI = computed(() => [
         </div>
       </section>
 
-      <!-- Membri raggruppati -->
-      <section v-for="g in GRUPPI" :key="g.titolo" class="block">
-        <h2>{{ g.titolo }}</h2>
+      <!-- I tuoi personaggi -->
+      <section v-if="mieiPersonaggi.length" class="block">
+        <h2>I tuoi personaggi</h2>
         <ul class="cards">
+          <li v-for="p in mieiPersonaggi" :key="p.id">
+            <button class="card clickable" @click="apriScheda(p)">
+              <span class="nome">{{ p.nome }} <span class="pill mio">Tuo</span></span>
+              <span v-if="p.livello != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
+                Lv {{ p.livello }}
+                <span v-if="livelloMismatch(p)" class="warn-tri" :title="`Livello atteso ${p.livello}, livelli effettivi ${p.numLivelli}`">⚠</span>
+              </span>
+              <span v-if="p.peso > 0" class="pill peso">{{ formatKg(p.peso) }}</span>
+            </button>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Gruppi (accordion) -->
+      <section v-for="g in gruppiConMembri" :key="g.id" class="block gruppo-block">
+        <button class="gruppo-head" @click="toggleGruppo(g.id)">
+          <span class="chev" :class="{open: aperti.has(g.id)}">▸</span>
+          <span class="gruppo-nome">{{ g.nome }}</span>
+          <span v-if="capogruppoNome(g.membri)" class="pill capo">★ {{ capogruppoNome(g.membri) }}</span>
+          <span class="conteggio">{{ g.membri.length }}</span>
+        </button>
+        <ul v-if="aperti.has(g.id)" class="cards">
           <li v-for="p in g.membri" :key="p.id">
+            <button class="card clickable" @click="apriScheda(p)">
+              <span class="nome">
+                <span v-if="p.capogruppo" class="capo-star" title="Capogruppo">★</span>
+                {{ p.nome }}
+                <span v-if="p.proprietario" class="pill mio">Tuo</span>
+              </span>
+              <span class="card-chips">
+                <span v-if="p.livello != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
+                  Lv {{ p.livello }}
+                  <span v-if="livelloMismatch(p)" class="warn-tri" :title="`Livello atteso ${p.livello}, livelli effettivi ${p.numLivelli}`">⚠</span>
+                </span>
+                <span v-if="p.peso > 0" class="pill peso">{{ formatKg(p.peso) }}</span>
+              </span>
+            </button>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Senza gruppo -->
+      <section v-if="senzaGruppo.length" class="block">
+        <h2>Senza gruppo</h2>
+        <ul class="cards">
+          <li v-for="p in senzaGruppo" :key="p.id">
             <button class="card clickable" @click="apriScheda(p)">
               <span class="nome">
                 {{ p.nome }}
                 <span v-if="p.proprietario" class="pill mio">Tuo</span>
               </span>
+              <span v-if="p.livello != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
+                Lv {{ p.livello }}
+                <span v-if="livelloMismatch(p)" class="warn-tri" :title="`Livello atteso ${p.livello}, livelli effettivi ${p.numLivelli}`">⚠</span>
+              </span>
               <span v-if="p.peso > 0" class="pill peso">{{ formatKg(p.peso) }}</span>
+            </button>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Banche -->
+      <section v-if="membriBanche.length" class="block">
+        <h2>Banche</h2>
+        <ul class="cards">
+          <li v-for="p in membriBanche" :key="p.id">
+            <button class="card clickable" @click="apriScheda(p)">
+              <span class="nome">{{ p.nome }}</span>
               <SoldiView :soldi="p.soldi" compatto/>
             </button>
           </li>
         </ul>
       </section>
+
       <div v-if="!party.personaggi.length" class="state">Nessun personaggio nel party.</div>
     </template>
   </div>
@@ -363,12 +458,14 @@ const GRUPPI = computed(() => [
   gap: .5rem;
 }
 
+.head .btn { flex-shrink: 0; }
+
 .title {
   display: flex;
   align-items: center;
   gap: .5rem;
-  min-width: 0;
-  flex: 1;
+  min-width: 6rem;
+  flex: 1 1 6rem;
 }
 
 .title h1 { margin: 0; font-size: 1.25rem; }
@@ -424,6 +521,45 @@ const GRUPPI = computed(() => [
 .pill.giocatore { background: #dbeafe; color: #1e40af; }
 .pill.mio { background: #dcfce7; color: #166534; margin-left: .35rem; }
 .pill.peso { background: #f3f4f6; color: #374151; }
+.pill.capo { background: #fef3c7; color: #92400e; }
+.card-chips {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  flex-shrink: 0;
+}
+.pill.livello { background: #eef2ff; color: #3730a3; font-weight: 700; white-space: nowrap; }
+.pill.livello.warn { background: #fef3c7; color: #92400e; }
+.warn-tri { margin-left: .15rem; color: #d97706; }
+
+/* accordion gruppo */
+.gruppo-block { gap: .35rem; }
+.gruppo-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem .6rem;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: .5rem;
+  cursor: pointer;
+  text-align: left;
+}
+.gruppo-head:hover { background: #eceef1; }
+.gruppo-nome { font-weight: 700; font-size: 1rem; }
+.gruppo-head .chev { font-size: .75rem; opacity: .6; transition: transform .15s; }
+.gruppo-head .chev.open { transform: rotate(90deg); }
+/* il chip del capogruppo (e il conteggio) allineati a destra dell'header */
+.gruppo-head .pill.capo { margin-left: auto; }
+.gruppo-head .conteggio {
+  margin-left: auto;
+  font-size: .75rem; font-weight: 700; color: #6b7280;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 999px;
+  min-width: 1.4rem; text-align: center; padding: 0 .35rem;
+}
+.capo-star { color: #d97706; margin-right: .2rem; }
 
 .peso-row {
   justify-content: space-between;
