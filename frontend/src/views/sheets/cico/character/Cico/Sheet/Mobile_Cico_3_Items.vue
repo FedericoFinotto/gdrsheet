@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import {computed, markRaw, ref} from 'vue';
+import {computed, markRaw, ref, watch} from 'vue';
 import Tabella from "../../../../../../components/Tabella.vue";
 import {useCharacterStore} from "../../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import Mobile_DettaglioItem from "../../Dettaglio/Mobile_DettaglioItem.vue";
 import BottoneAggiungiItem from "../../Shared/BottoneAggiungiItem.vue";
 import {resetUtilizzi, setUtilizziUsati} from "../../../../../../service/PersonaggioService";
+import {ItemSearchResult, searchPersonaggioItems} from "../../../../../../service/PartyService";
 import usePopup from "../../../../../../function/usePopup";
 import AggiungiDalCompendioPopup from "./AggiungiDalCompendioPopup.vue";
 
@@ -51,6 +52,41 @@ async function handleReset() {
     resetting.value = false
   }
 }
+
+// ── Ricerca profonda tra tutti gli item del personaggio (nome, label, note) ──
+const ricerca = ref('')
+const risultati = ref<ItemSearchResult[]>([])
+const cercando = ref(false)
+const inRicerca = computed(() => ricerca.value.trim().length >= 2)
+let ricercaTimer: any = null
+watch(ricerca, () => {
+  if (ricercaTimer) clearTimeout(ricercaTimer)
+  const q = ricerca.value.trim()
+  if (q.length < 2) { risultati.value = []; return }
+  ricercaTimer = setTimeout(async () => {
+    cercando.value = true
+    try {
+      risultati.value = (await searchPersonaggioItems(props.idPersonaggio, q)).data
+    } catch (e) {
+      console.error('Errore ricerca item:', e)
+      risultati.value = []
+    } finally {
+      cercando.value = false
+    }
+  }, 350)
+})
+const risultatiWrapped = computed(() => risultati.value.map(r => ({
+  id: r.id,
+  nome: r.nome,
+  tipo: r.tipo,
+  matchLabel: r.match,
+  disabled: r.disabled,
+  expandedComponent: markRaw(Mobile_DettaglioItem),
+  expandedProps: {data: {item: {id: r.id, nome: r.nome, tipo: r.tipo, disabled: r.disabled}, personaggio: cache.value[props.idPersonaggio]}},
+})))
+const columnsRicerca = [
+  {field: 'nome', label: 'Risultati', subfield: 'matchLabel', badge: (row: any) => row.tipo, disabled: (row: any) => row.disabled},
+]
 
 const items = computed(() => cache.value[props.idPersonaggio]?.items)
 
@@ -149,6 +185,22 @@ const columnsMaledizioni = col('Maledizioni');
         {{ resetting ? '…' : 'Azzera utilizzi' }}
       </button>
     </div>
+
+    <!-- ricerca profonda (nome, label, note) su qualsiasi tipo di item del personaggio -->
+    <div class="spazietto"/>
+    <input class="ricerca-input" v-model="ricerca" type="text"
+           placeholder="🔎 Cerca ovunque (privilegi, razza, abilità, label, note…)"/>
+
+    <!-- risultati ricerca -->
+    <template v-if="inRicerca">
+      <div class="spazietto"/>
+      <div v-if="cercando" class="stato-ricerca">Ricerca…</div>
+      <Tabella v-else-if="risultatiWrapped.length" :columns="columnsRicerca" :expandable="true" :items="risultatiWrapped"/>
+      <div v-else class="stato-ricerca">Nessun item trovato.</div>
+    </template>
+
+    <!-- inventario normale -->
+    <template v-else>
     <div class="spazietto"/>
     <Tabella v-if="itemsOggetti.length > 0" :columns="columnsOggetti" :expandable="true" :items="itemsOggetti"/>
     <div class="spazietto"/>
@@ -182,6 +234,7 @@ const columnsMaledizioni = col('Maledizioni');
     <Tabella v-if="itemsPrivilegi.length > 0" :columns="columnsPrivilegi" :expandable="true" :items="itemsPrivilegi"/>
     <div class="spazietto"/>
     <Tabella v-if="itemsMaledizioni.length > 0" :columns="columnsMaledizioni" :expandable="true" :items="itemsMaledizioni"/>
+    </template>
   </div>
 </template>
 
@@ -193,6 +246,17 @@ const columnsMaledizioni = col('Maledizioni');
   gap: .5rem;
   margin-bottom: .25rem;
 }
+.ricerca-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: .5rem .7rem;
+  border: 1px solid #bfdbfe;
+  border-radius: .5rem;
+  background: #f8fbff;
+  font-size: .9rem;
+}
+.ricerca-input:focus { outline: none; border-color: #60a5fa; background: #fff; }
+.stato-ricerca { padding: .6rem; color: #6b7280; font-size: .9rem; }
 .btn-compendio {
   flex-shrink: 0;
   padding: .35rem .75rem;

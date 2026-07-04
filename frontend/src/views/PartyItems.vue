@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import {onMounted, ref, watch} from 'vue'
+import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import {getParty, getPartyItems, giveItem} from '../service/PartyService'
+import {getParty, getPartyItems, giveItem, ItemSearchResult, searchPartyItems} from '../service/PartyService'
 import {formatKg, formatPesoTotale, Page, PartyDetail, PartyItem} from '../models/dto/Party'
 import Mobile_DettaglioItem from './sheets/cico/character/Dettaglio/Mobile_DettaglioItem.vue'
 import SearchSelect from '../components/SearchSelect.vue'
@@ -34,6 +34,36 @@ const TIPI_FILTRO = [
 const expandedId = ref<number | null>(null)   // riga espansa (dettaglio)
 const givingId = ref<number | null>(null)     // riga con pannello "give" aperto
 const busyGive = ref(false)
+
+// ricerca globale profonda (tutti i tipi, label, note)
+const ricercaGlobale = ref('')
+const risultatiGlobali = ref<ItemSearchResult[]>([])
+const cercando = ref(false)
+const globalExpandedKey = ref<string | null>(null)
+const inRicercaGlobale = computed(() => ricercaGlobale.value.trim().length >= 2)
+let ricercaTimer: any = null
+watch(ricercaGlobale, () => {
+  if (ricercaTimer) clearTimeout(ricercaTimer)
+  const q = ricercaGlobale.value.trim()
+  if (q.length < 2) { risultatiGlobali.value = []; return }
+  ricercaTimer = setTimeout(async () => {
+    cercando.value = true
+    try {
+      risultatiGlobali.value = (await searchPartyItems(partyId, q)).data
+    } catch (e) {
+      console.error('Errore ricerca globale:', e)
+      risultatiGlobali.value = []
+    } finally {
+      cercando.value = false
+    }
+  }, 350)
+})
+function toggleGlobalExpand(key: string) {
+  globalExpandedKey.value = globalExpandedKey.value === key ? null : key
+}
+function shimDaRisultato(r: ItemSearchResult) {
+  return {modificatori: {id: r.personaggioId}, items: {trasformazioni: [], idoli: []}}
+}
 
 async function load() {
   loading.value = true
@@ -138,8 +168,17 @@ function personaggioShim(itm: PartyItem) {
       <span v-if="party" class="tot-peso">{{ formatPesoTotale(party.pesoTotale) }}</span>
     </header>
 
-    <!-- filtri -->
-    <div class="filters">
+    <!-- ricerca globale profonda -->
+    <div class="global-search">
+      <input
+          type="text"
+          v-model="ricercaGlobale"
+          placeholder="🔎 Cerca ovunque (tutti i tipi, label, note)…"
+      />
+    </div>
+
+    <!-- filtri inventario (nascosti durante la ricerca globale) -->
+    <div v-if="!inRicercaGlobale" class="filters">
       <input
           type="text"
           v-model="filtroNome"
@@ -149,17 +188,41 @@ function personaggioShim(itm: PartyItem) {
       <SearchSelect v-model="filtroTipo" class="filter-tipo" :options="TIPI_FILTRO" :sort="false"/>
     </div>
 
+    <!-- risultati ricerca globale -->
+    <template v-if="inRicercaGlobale">
+      <div v-if="cercando" class="state">Ricerca…</div>
+      <ul v-else-if="risultatiGlobali.length" class="rows">
+        <li v-for="r in risultatiGlobali" :key="`${r.personaggioId}-${r.id}`" class="row-wrap">
+          <div class="row" :class="{ disabled: r.disabled }">
+            <button class="row-main global" @click="toggleGlobalExpand(`${r.personaggioId}-${r.id}`)">
+              <span class="nome">{{ r.nome }}</span>
+              <span class="pill tipo">{{ r.tipo }}</span>
+              <span class="pill owner">{{ r.personaggioNome }}</span>
+              <span class="match">{{ r.match }}</span>
+            </button>
+          </div>
+          <div v-if="globalExpandedKey === `${r.personaggioId}-${r.id}`" class="detail">
+            <Mobile_DettaglioItem
+                :key="`gdet-${r.id}-${r.personaggioId}`"
+                :data="{item: {id: r.id, nome: r.nome, tipo: r.tipo, disabled: r.disabled}, personaggio: shimDaRisultato(r)}"
+            />
+          </div>
+        </li>
+      </ul>
+      <div v-else class="state">Nessun item trovato.</div>
+    </template>
+
     <!-- paginator -->
-    <div v-if="pagina && pagina.totalPages > 1" class="paginator">
+    <div v-if="!inRicercaGlobale && pagina && pagina.totalPages > 1" class="paginator">
       <button class="btn" :disabled="page <= 0 || loading" @click="vaiPagina(page - 1)">‹</button>
       <span class="page-info">Pagina {{ page + 1 }} di {{ pagina.totalPages }} ({{ pagina.totalElements }} item)</span>
       <button class="btn" :disabled="page >= pagina.totalPages - 1 || loading" @click="vaiPagina(page + 1)">›</button>
     </div>
 
-    <div v-if="loading" class="state">Caricamento…</div>
-    <div v-else-if="errorMsg" class="state error">{{ errorMsg }}</div>
+    <div v-if="!inRicercaGlobale && loading" class="state">Caricamento…</div>
+    <div v-else-if="!inRicercaGlobale && errorMsg" class="state error">{{ errorMsg }}</div>
 
-    <template v-else-if="pagina">
+    <template v-else-if="!inRicercaGlobale && pagina">
       <ul class="rows">
         <li v-for="itm in pagina.content" :key="itm.id" class="row-wrap">
           <div class="row" :class="{ disabled: itm.disabled }">
@@ -270,9 +333,10 @@ function personaggioShim(itm: PartyItem) {
 
 .nome {
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .peso {
@@ -289,6 +353,27 @@ function personaggioShim(itm: PartyItem) {
 }
 .pill.owner { background: #eef2ff; color: #3730a3; white-space: nowrap; }
 .pill.qta { background: #f0fdf4; color: #166534; margin-left: .3rem; font-weight: 700; }
+
+.global-search input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: .55rem .7rem;
+  border: 1px solid #bfdbfe;
+  border-radius: .6rem;
+  background: #f8fbff;
+  font-size: .95rem;
+}
+.global-search input:focus { outline: none; border-color: #60a5fa; background: #fff; }
+
+.row-main.global {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .4rem;
+}
+.row-main.global .nome { flex: 1 1 100%; }
+.pill.tipo { background: #eef2ff; color: #3730a3; white-space: nowrap; }
+.match { font-size: .72rem; color: #9ca3af; font-style: italic; margin-left: auto; }
 
 .filters {
   display: grid;

@@ -15,8 +15,10 @@ import it.fin8.gdrsheet.dto.MondoDTO;
 import it.fin8.gdrsheet.dto.PageDTO;
 import it.fin8.gdrsheet.dto.PartyDetailDTO;
 import it.fin8.gdrsheet.dto.PartyItemDTO;
+import it.fin8.gdrsheet.dto.ItemSearchResultDTO;
 import it.fin8.gdrsheet.entity.Utente;
 import it.fin8.gdrsheet.service.PartyService;
+import it.fin8.gdrsheet.service.PersonaggioService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,9 +31,11 @@ import java.util.List;
 public class PartyController {
 
     private final PartyService partyService;
+    private final PersonaggioService personaggioService;
 
-    public PartyController(PartyService partyService) {
+    public PartyController(PartyService partyService, PersonaggioService personaggioService) {
         this.partyService = partyService;
+        this.personaggioService = personaggioService;
     }
 
     @Operation(
@@ -206,6 +210,21 @@ public class PartyController {
     ) {
         partyService.giveItem(request, utente);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Ricerca profonda tra gli item del party",
+            description = "Cerca in tutti gli item di tutti i personaggi del party (qualsiasi tipo), " +
+                    "sul nome, sul valore delle label e sulle note dei modificatori."
+    )
+    @GetMapping("/{id}/search-items")
+    public ResponseEntity<List<ItemSearchResultDTO>> searchItemsParty(
+            @PathVariable Integer id,
+            @RequestParam String q,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        partyService.assertMembroParty(id, utente); // verifica appartenenza al party
+        return ResponseEntity.ok(personaggioService.searchItemsParty(id, q));
     }
 
     @Operation(summary = "Gruppi del party", description = "Gruppi con membri e capogruppo. Accessibile ai membri del party.")

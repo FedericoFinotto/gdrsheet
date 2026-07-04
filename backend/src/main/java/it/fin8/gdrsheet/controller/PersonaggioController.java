@@ -83,6 +83,19 @@ public class PersonaggioController {
     }
 
     @Operation(
+            summary = "Ricerca profonda tra gli item del personaggio",
+            description = "Cerca in qualsiasi tipo di item (privilegi, razza, abilità, talenti, competenze, oggetti…), " +
+                    "sul nome, sul valore delle label e sulle note dei modificatori."
+    )
+    @GetMapping("/{id}/search-items")
+    public ResponseEntity<List<ItemSearchResultDTO>> searchItemsPersonaggio(
+            @PathVariable Integer id,
+            @RequestParam String q
+    ) {
+        return ResponseEntity.ok(personaggioService.searchItemsPersonaggio(id, q));
+    }
+
+    @Operation(
             summary = "Modificatori Personaggio",
             description = "Restituisce i dati base di un personaggio (nome, razza, classe, livello e riferimenti a utente, mondo, sistema)."
     )

@@ -6,6 +6,24 @@ export function getParty(id: number): Promise<AxiosResponse<PartyDetail>> {
     return api.get<PartyDetail>(`/party/${id}`)
 }
 
+export interface ItemSearchResult {
+    id: number;
+    nome: string;
+    tipo: string;
+    personaggioId: number;
+    personaggioNome: string;
+    match: string;        // "nome" | "label <KEY>" | "nota"
+    disabled: boolean;
+}
+
+export function searchPartyItems(partyId: number, q: string): Promise<AxiosResponse<ItemSearchResult[]>> {
+    return api.get<ItemSearchResult[]>(`/party/${partyId}/search-items`, {params: {q}})
+}
+
+export function searchPersonaggioItems(idPersonaggio: number, q: string): Promise<AxiosResponse<ItemSearchResult[]>> {
+    return api.get<ItemSearchResult[]>(`/personaggi/${idPersonaggio}/search-items`, {params: {q}})
+}
+
 export interface GruppoDTO {
     id: number;
     nome: string;

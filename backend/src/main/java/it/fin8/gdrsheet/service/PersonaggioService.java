@@ -395,6 +395,62 @@ public class PersonaggioService {
         return itemsDTO;
     }
 
+    /**
+     * Ricerca "profonda" tra TUTTI gli item di un personaggio (qualsiasi tipo: privilegi,
+     * razza, abilità, talenti, competenze, oggetti…). Il match avviene su nome, sul valore
+     * di una qualsiasi label o sulla nota di un qualsiasi modificatore.
+     */
+    public List<ItemSearchResultDTO> searchItemsPersonaggio(Integer idPersonaggio, String q) {
+        if (q == null || q.trim().isEmpty()) return List.of();
+        String needle = q.trim().toLowerCase();
+        Personaggio pg = personaggioRepository.findPersonaggioById(idPersonaggio);
+        String pgNome = pg != null ? pg.getNome() : null;
+
+        List<Item> items = getAllPersonaggioItemsByIdPersonaggio(idPersonaggio).getItems();
+        Map<Integer, Item> unici = new LinkedHashMap<>();
+        for (Item it : items) if (it.getId() != null) unici.putIfAbsent(it.getId(), it);
+
+        List<ItemSearchResultDTO> out = new ArrayList<>();
+        for (Item it : unici.values()) {
+            String match = matchItem(it, needle);
+            if (match != null) {
+                out.add(new ItemSearchResultDTO(
+                        it.getId(), it.getNome(),
+                        it.getTipo() != null ? it.getTipo().name() : null,
+                        idPersonaggio, pgNome, match,
+                        Boolean.TRUE.equals(it.isDisabled())));
+            }
+        }
+        return out;
+    }
+
+    /** Ricerca profonda su tutti i personaggi di un party. */
+    public List<ItemSearchResultDTO> searchItemsParty(Integer partyId, String q) {
+        if (q == null || q.trim().isEmpty()) return List.of();
+        List<ItemSearchResultDTO> out = new ArrayList<>();
+        for (Personaggio pg : personaggioRepository.findAllByParty_IdOrderByNomeAsc(partyId)) {
+            out.addAll(searchItemsPersonaggio(pg.getId(), q));
+        }
+        return out;
+    }
+
+    private static String matchItem(Item it, String needle) {
+        if (it.getNome() != null && it.getNome().toLowerCase().contains(needle)) return "nome";
+        if (it.getLabels() != null) {
+            for (ItemLabel l : it.getLabels()) {
+                if (l.getValore() != null && l.getValore().toLowerCase().contains(needle))
+                    return "label " + l.getLabel();
+            }
+        }
+        if (it.getModificatori() != null) {
+            for (Modificatore m : it.getModificatori()) {
+                if (m.getNota() != null && m.getNota().toLowerCase().contains(needle))
+                    return "nota";
+            }
+        }
+        return null;
+    }
+
     public AllPersonaggioItems getAllPersonaggioItemsByIdPersonaggio(Integer idPersonaggio) {
         AllPersonaggioItems result = new AllPersonaggioItems();
 

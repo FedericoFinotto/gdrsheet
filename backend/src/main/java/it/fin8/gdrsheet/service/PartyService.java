@@ -453,6 +453,11 @@ public class PartyService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Non fai parte di questo party");
     }
 
+    /** Verifica pubblica di appartenenza al party (403 se non membro). */
+    public void assertMembroParty(Integer partyId, Utente utente) {
+        verificaMembership(partyId, utente);
+    }
+
     /* =====================================================================
      * Banche (personaggi TIPO_PERSONAGGIO=BANCA, conti = item con label CC)
      * ===================================================================== */
