@@ -373,8 +373,10 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
         <button class="gruppo-head" @click="toggleGruppo(g.id)">
           <span class="chev" :class="{open: aperti.has(g.id)}">▸</span>
           <span class="gruppo-nome">{{ g.nome }}</span>
-          <span v-if="capogruppoNome(g.membri)" class="pill capo">★ {{ capogruppoNome(g.membri) }}</span>
-          <span class="conteggio">{{ g.membri.length }}</span>
+          <span class="gruppo-head-right">
+            <span v-if="capogruppoNome(g.membri)" class="pill capo">★ {{ capogruppoNome(g.membri) }}</span>
+            <span class="conteggio">{{ g.membri.length }}</span>
+          </span>
         </button>
         <ul v-if="aperti.has(g.id)" class="cards">
           <li v-for="p in g.membri" :key="p.id">
@@ -551,10 +553,15 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
 .gruppo-nome { font-weight: 700; font-size: 1rem; }
 .gruppo-head .chev { font-size: .75rem; opacity: .6; transition: transform .15s; }
 .gruppo-head .chev.open { transform: rotate(90deg); }
-/* il chip del capogruppo (e il conteggio) allineati a destra dell'header */
-.gruppo-head .pill.capo { margin-left: auto; }
-.gruppo-head .conteggio {
+/* capogruppo + conteggio raggruppati e allineati a destra dell'header (capo prima del conteggio) */
+.gruppo-head-right {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  flex-shrink: 0;
+}
+.gruppo-head .conteggio {
   font-size: .75rem; font-weight: 700; color: #6b7280;
   background: #fff; border: 1px solid #e5e7eb; border-radius: 999px;
   min-width: 1.4rem; text-align: center; padding: 0 .35rem;

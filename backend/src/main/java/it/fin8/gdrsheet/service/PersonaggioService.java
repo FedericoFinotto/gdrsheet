@@ -26,6 +26,12 @@ public class PersonaggioService {
     private PersonaggioRepository personaggioRepository;
 
     @Autowired
+    private PersonaggioLabelRepository personaggioLabelRepository;
+
+    @Autowired
+    private jakarta.persistence.EntityManagerFactory entityManagerFactory;
+
+    @Autowired
     private ItemRepository itemRepository;
 
     @Autowired
@@ -823,25 +829,48 @@ public class PersonaggioService {
             pesoTotale = pesoTotale - pesoCorpo + pesoCorpoMod;
         }
         dto.setPesoTotale(Math.round(pesoTotale * 100) / 100.0);
-
-        // Cache del peso effettivo come personaggio_label: la lista party lo legge senza ricalcolare.
-        // Riscritto a ogni ricalcolo (ogni apertura della scheda).
-        setPersonaggioLabelValue(p, Constants.LABEL_PESO_EFFETTIVO, String.valueOf(dto.getPesoTotale()));
-        try { personaggioRepository.save(p); } catch (Exception ignored) {}
+        // Cache del peso effettivo in una personaggio_label, letta dalla lista party senza ricalcolare.
+        // IMPORTANTE: si scrive in un EntityManager SEPARATO. Usare un repository @Transactional qui
+        // farebbe il flush del contesto OSIV corrente, persistendo le mutazioni transitorie che
+        // flattenItems applica agli item managed (setLabel(DISABLED,...)) e disabilitando in modo
+        // permanente item che dovrebbero restare attivi.
+        cachePesoEffettivo(p.getId(), String.valueOf(dto.getPesoTotale()));
 
         return dto;
     }
 
     /** Imposta/rimuove (value=null) una personaggio_label. Da salvare con save(p). */
-    private static void setPersonaggioLabelValue(Personaggio p, String key, String value) {
-        if (p.getLabels() == null) p.setLabels(new ArrayList<>());
-        p.getLabels().removeIf(l -> key.equals(l.getLabel()));
-        if (value != null) {
-            PersonaggioLabel l = new PersonaggioLabel();
-            l.setPersonaggio(p);
-            l.setLabel(key);
-            l.setValore(value);
-            p.getLabels().add(l);
+    /**
+     * Scrive/aggiorna la personaggio_label PESO_EFFETTIVO in un EntityManager DEDICATO e isolato,
+     * con la sua transazione. Così il commit fa flush SOLO di questo contesto (vuoto), senza toccare
+     * il contesto OSIV della richiesta corrente — dove flattenItems ha lasciato mutazioni transitorie
+     * sugli item managed che NON devono essere persistite.
+     */
+    private void cachePesoEffettivo(Integer personaggioId, String valore) {
+        jakarta.persistence.EntityManager em2 = entityManagerFactory.createEntityManager();
+        jakarta.persistence.EntityTransaction tx = em2.getTransaction();
+        try {
+            tx.begin();
+            int updated = em2.createQuery(
+                            "UPDATE PersonaggioLabel l SET l.valore = :v WHERE l.personaggio.id = :pid AND l.label = :k")
+                    .setParameter("v", valore)
+                    .setParameter("pid", personaggioId)
+                    .setParameter("k", Constants.LABEL_PESO_EFFETTIVO)
+                    .executeUpdate();
+            if (updated == 0) {
+                PersonaggioLabel l = new PersonaggioLabel();
+                l.setPersonaggio(em2.getReference(Personaggio.class, personaggioId));
+                l.setLabel(Constants.LABEL_PESO_EFFETTIVO);
+                l.setValore(valore);
+                em2.persist(l);
+            }
+            tx.commit();
+        } catch (Exception e) {
+            if (tx.isActive()) {
+                try { tx.rollback(); } catch (Exception ignored) {}
+            }
+        } finally {
+            em2.close();
         }
     }
 
@@ -862,20 +891,40 @@ public class PersonaggioService {
         if (p.getLabels() == null) {
             p.setLabels(new ArrayList<>());
         }
-        // rimuove le sole label anagrafiche gestite, lascia intatte le altre (PESO escluso: gestito qui)
-        p.getLabels().removeIf(l -> Constants.PERSONAGGIO_INFO_LABELS.contains(l.getLabel()));
 
+        // Valori desiderati (non vuoti) per le sole label anagrafiche gestite.
+        Map<String, String> desiderate = new HashMap<>();
         if (info != null) {
             for (String key : Constants.PERSONAGGIO_INFO_LABELS) {
                 String val = info.get(key);
-                if (val != null && !val.isBlank()) {
-                    PersonaggioLabel l = new PersonaggioLabel();
-                    l.setPersonaggio(p);
-                    l.setLabel(key);
-                    l.setValore(val.trim());
-                    p.getLabels().add(l);
-                }
+                if (val != null && !val.isBlank()) desiderate.put(key, val.trim());
             }
+        }
+
+        // Aggiorna IN PLACE le label esistenti (niente remove+insert della stessa chiave,
+        // che con il vincolo unico (id_personaggio, label) causerebbe una violazione perché
+        // Hibernate esegue gli INSERT prima dei DELETE). Rimuove solo quelle svuotate.
+        Set<String> gestite = new HashSet<>(Constants.PERSONAGGIO_INFO_LABELS);
+        Set<String> giaPresenti = new HashSet<>();
+        for (Iterator<PersonaggioLabel> it = p.getLabels().iterator(); it.hasNext(); ) {
+            PersonaggioLabel l = it.next();
+            if (!gestite.contains(l.getLabel())) continue;
+            String nuovo = desiderate.get(l.getLabel());
+            if (nuovo == null) {
+                it.remove(); // valore cancellato → elimina (orphanRemoval)
+            } else {
+                l.setValore(nuovo); // aggiorna in place
+                giaPresenti.add(l.getLabel());
+            }
+        }
+        // Inserisce solo le chiavi non ancora presenti
+        for (Map.Entry<String, String> e : desiderate.entrySet()) {
+            if (giaPresenti.contains(e.getKey())) continue;
+            PersonaggioLabel l = new PersonaggioLabel();
+            l.setPersonaggio(p);
+            l.setLabel(e.getKey());
+            l.setValore(e.getValue());
+            p.getLabels().add(l);
         }
 
         personaggioRepository.save(p);

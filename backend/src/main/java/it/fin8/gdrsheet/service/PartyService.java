@@ -901,16 +901,34 @@ public class PartyService {
                 .orElse(null);
     }
 
-    /** Imposta/rimuove (value=null) una personaggio_label. Da salvare con save(pg). */
+    /**
+     * Imposta/rimuove (value=null) una personaggio_label AGGIORNANDO IN PLACE quella esistente.
+     * Non fa remove+insert della stessa chiave: con il vincolo unico (id_personaggio, label)
+     * Hibernate eseguirebbe l'INSERT prima del DELETE, violando il constraint.
+     * Da salvare con save(pg).
+     */
     private static void setPersonaggioLabel(Personaggio pg, String key, String value) {
         if (pg.getLabels() == null) pg.setLabels(new ArrayList<>());
-        pg.getLabels().removeIf(l -> key.equals(l.getLabel()));
+        PersonaggioLabel existing = null;
+        for (Iterator<PersonaggioLabel> it = pg.getLabels().iterator(); it.hasNext(); ) {
+            PersonaggioLabel l = it.next();
+            if (!key.equals(l.getLabel())) continue;
+            if (existing == null && value != null) {
+                existing = l; // riusa la prima, aggiornata in place
+            } else {
+                it.remove(); // duplicati (o tutte, se value==null) → elimina
+            }
+        }
         if (value != null) {
-            PersonaggioLabel l = new PersonaggioLabel();
-            l.setPersonaggio(pg);
-            l.setLabel(key);
-            l.setValore(value);
-            pg.getLabels().add(l);
+            if (existing != null) {
+                existing.setValore(value);
+            } else {
+                PersonaggioLabel l = new PersonaggioLabel();
+                l.setPersonaggio(pg);
+                l.setLabel(key);
+                l.setValore(value);
+                pg.getLabels().add(l);
+            }
         }
     }
 
