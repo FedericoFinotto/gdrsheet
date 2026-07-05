@@ -10,6 +10,8 @@ public final class Constants {
 
     // Stat fittizia: un CAMBIA_CARATTERISTICA su questa stat cambia la caratteristica base di TUTTE le abilità
     public static final String STAT_TUTTE_ABILITA = "ABTUTTE";
+    // Stat fittizia: un CAMBIA_CARATTERISTICA su questa stat cambia la caratteristica base di TUTTI i tiri salvezza
+    public static final String STAT_TUTTI_TS = "TSTUTTI";
 
     // Gruppi di personaggi in un party (personaggio_label)
     public static final String LABEL_GRUPPO = "GRUPPO";          // valore = id del gruppo

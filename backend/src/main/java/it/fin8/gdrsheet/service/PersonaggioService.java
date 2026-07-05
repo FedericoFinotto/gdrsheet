@@ -785,6 +785,13 @@ public class PersonaggioService {
         // 9b) Calcolo parallelo di Tiri Salvezza e Abilità
         ForkJoinPool pool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
         try {
+            // CAMBIA_CARATTERISTICA globale sui tiri salvezza (stat fittizia "tutti i TS").
+            // DTO condivisi tra i calcoli paralleli: fisso valore=0 qui così applicaCalcoli non li muta concorrentemente.
+            List<ModificatoreDTO> cambiaTsGlobali = modsDtoByStat
+                    .getOrDefault(Constants.STAT_TUTTI_TS, Collections.emptyList()).stream()
+                    .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()))
+                    .toList();
+            cambiaTsGlobali.forEach(m -> { if (m.getValore() == null) m.setValore(0); });
             List<TiroSalvezzaDTO> tsList = pool.submit(() ->
                     stats.stream()
                             .filter(sv -> TipoStat.TS.equals(sv.getStat().getTipo()))
@@ -792,7 +799,8 @@ public class PersonaggioService {
                                     sv,
                                     modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
                                     itemCounterList,
-                                    carList
+                                    carList,
+                                    cambiaTsGlobali
                             ))
                             .toList()
             ).get();

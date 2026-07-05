@@ -148,12 +148,42 @@ public class ModificatoriService {
             StatValue stat,
             List<ModificatoreDTO> modsDto,
             List<ContatoreItemDTO> contatoriItem,
-            List<CaratteristicaDTO> carList
+            List<CaratteristicaDTO> carList,
+            List<ModificatoreDTO> cambiaGlobali
     ) {
-        applicaCalcoli(modsDto, carList);
+        List<ModificatoreDTO> mods = new ArrayList<>(modsDto);
+        // CAMBIA_CARATTERISTICA globale ("tutti i tiri salvezza"): unito ai mods, visibile nel popup
+        if (cambiaGlobali != null) {
+            for (ModificatoreDTO g : cambiaGlobali) {
+                if (mods.stream().noneMatch(m -> Objects.equals(m.getId(), g.getId()))) mods.add(g);
+            }
+        }
+        applicaCalcoli(mods, carList);
+
+        // CAMBIA_CARATTERISTICA: sostituisce la caratteristica base del TS (specifico su questo TS o globale)
+        String modStatId = stat.getMod() != null ? stat.getMod().getId() : null;
+        String tsId = stat.getStat().getId();
+        String cambiaSpecifico = mods.stream()
+                .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()) && tsId.equals(m.getStatId()))
+                .map(ModificatoreDTO::getFormula).filter(s -> s != null && !s.isBlank())
+                .reduce((a, b) -> b).orElse(null);
+        String cambiaGlobale = mods.stream()
+                .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()) && Constants.STAT_TUTTI_TS.equals(m.getStatId()))
+                .map(ModificatoreDTO::getFormula).filter(s -> s != null && !s.isBlank())
+                .reduce((a, b) -> b).orElse(null);
+        String cambia = cambiaSpecifico != null ? cambiaSpecifico : cambiaGlobale;
+        if (cambia != null) modStatId = cambia;
+
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
-        addModificatoreFromCaratteristica(modificatoriAttivi, stat, carList);
-        modificatoriAttivi.addAll(modsDto);
+        // Caratteristica base (con eventuale override CAMBIA_CARATTERISTICA)
+        if (modStatId != null) {
+            String finalBase = modStatId;
+            carList.stream().filter(c -> finalBase.equals(c.getId())).findFirst()
+                    .ifPresent(c -> modificatoriAttivi.add(new ModificatoreDTO(
+                            null, stat.getStat().getId(), c.getModificatore(), null, null,
+                            TipoModificatore.VALORE, true, c.getLabel(), null, null)));
+        }
+        modificatoriAttivi.addAll(mods);
 
         if (!stat.getValore().equals("0")) {
             modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
@@ -171,7 +201,7 @@ public class ModificatoriService {
         }
 
         int modificatore = modificatoriAttivi.stream()
-                .filter(x -> x.getNota() == null)
+                .filter(x -> x.getNota() == null && !TipoModificatore.CAMBIA_CARATTERISTICA.equals(x.getTipo()))
                 .mapToInt(ModificatoreDTO::getValore)
                 .sum();
 

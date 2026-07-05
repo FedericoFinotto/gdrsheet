@@ -321,6 +321,20 @@
         </insert>
     </changeSet>
 
+    <changeSet id="124" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM stats WHERE id = 'TSTUTTI'
+            </sqlCheck>
+        </preConditions>
+        <comment>stat fittizia "Tutti i tiri salvezza": bersaglio di un CAMBIA_CARATTERISTICA globale sui TS</comment>
+        <insert tableName="stats">
+            <column name="id" value="TSTUTTI"/>
+            <column name="tipo" value="TS"/>
+            <column name="label" value="Tutti i tiri salvezza"/>
+        </insert>
+    </changeSet>
+
     <changeSet id="123" author="developer">
         <preConditions onFail="MARK_RAN">
             <not>

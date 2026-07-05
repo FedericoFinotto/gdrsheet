@@ -136,6 +136,7 @@ const mappaRiga = (mod) => {
   if (mod.tipo === 'PERCENTUALE') valoreFinale = valoreFinale + '%';
   if (mod.tipo === 'MOLTIPLICA' && mod.formula) valoreFinale = `×${mod.formula} ${valoreFinale}`;
   if (mod.tipo === 'DIVIDI' && mod.formula) valoreFinale = `/${mod.formula} ${valoreFinale}`;
+  if (mod.tipo === 'CAMBIA_CARATTERISTICA') valoreFinale = `Caratteristica → ${mod.formula ?? ''}`;
   return {
     ...mod,
     origine: mod.item ?? 'Sconosciuto',
