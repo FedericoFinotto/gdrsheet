@@ -378,6 +378,11 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
             <span class="conteggio">{{ g.membri.length }}</span>
           </span>
         </button>
+        <div v-if="aperti.has(g.id)" class="gruppo-azioni">
+          <button class="btn-livella" @click="router.push(`/party/${party.id}/gruppo/${g.id}/milestone`)">
+            ⬆ Livella gruppo
+          </button>
+        </div>
         <ul v-if="aperti.has(g.id)" class="cards">
           <li v-for="p in g.membri" :key="p.id">
             <button class="card clickable" @click="apriScheda(p)">
@@ -567,6 +572,13 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
   min-width: 1.4rem; text-align: center; padding: 0 .35rem;
 }
 .capo-star { color: #d97706; margin-right: .2rem; }
+
+.gruppo-azioni { display: flex; justify-content: flex-end; margin: .1rem 0; }
+.btn-livella {
+  border: 1px solid #bbf7d0; background: #f0fdf4; color: #166534;
+  border-radius: .5rem; padding: .35rem .7rem; font-size: .8rem; font-weight: 600; cursor: pointer;
+}
+.btn-livella:hover { background: #dcfce7; }
 
 .peso-row {
   justify-content: space-between;

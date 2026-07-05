@@ -16,6 +16,8 @@ import it.fin8.gdrsheet.dto.PageDTO;
 import it.fin8.gdrsheet.dto.PartyDetailDTO;
 import it.fin8.gdrsheet.dto.PartyItemDTO;
 import it.fin8.gdrsheet.dto.ItemSearchResultDTO;
+import it.fin8.gdrsheet.dto.MilestonePersonaggioDTO;
+import it.fin8.gdrsheet.dto.ApplyMilestoneRequest;
 import it.fin8.gdrsheet.entity.Utente;
 import it.fin8.gdrsheet.service.PartyService;
 import it.fin8.gdrsheet.service.PersonaggioService;
@@ -264,5 +266,27 @@ public class PartyController {
     ) {
         partyService.deleteGruppo(gruppoId, utente);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Personaggi livellabili di un gruppo",
+            description = "PG e STELLA del gruppo con milestone attuali, livello e saghe per il prossimo livello.")
+    @GetMapping("/gruppo/{gruppoId}/milestone")
+    public ResponseEntity<List<MilestonePersonaggioDTO>> getMilestoneGruppo(
+            @PathVariable Integer gruppoId,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(partyService.getMilestoneGruppo(gruppoId, utente));
+    }
+
+    @Operation(summary = "Livella un gruppo",
+            description = "Aggiunge milestone ai personaggi selezionati, applicando i passaggi di livello.")
+    @PostMapping("/gruppo/{gruppoId}/milestone")
+    public ResponseEntity<List<MilestonePersonaggioDTO>> applyMilestoneGruppo(
+            @PathVariable Integer gruppoId,
+            @RequestBody ApplyMilestoneRequest request,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        int quantita = request.getQuantita() != null ? request.getQuantita() : 1;
+        return ResponseEntity.ok(partyService.applyMilestoneGruppo(gruppoId, request.getPersonaggioIds(), quantita, utente));
     }
 }

@@ -49,6 +49,35 @@ export function deleteGruppo(gruppoId: number): Promise<AxiosResponse<void>> {
     return api.delete<void>(`/party/gruppo/${gruppoId}`)
 }
 
+export interface MilestonePersonaggio {
+    id: number;
+    nome: string;
+    tipoPersonaggio?: string | null;
+    milestone: number;
+    livello: number;
+    saghe: number;
+}
+
+export function getMilestoneGruppo(gruppoId: number): Promise<AxiosResponse<MilestonePersonaggio[]>> {
+    return api.get<MilestonePersonaggio[]>(`/party/gruppo/${gruppoId}/milestone`)
+}
+
+export function applyMilestoneGruppo(gruppoId: number, personaggioIds: number[], quantita: number): Promise<AxiosResponse<MilestonePersonaggio[]>> {
+    return api.post<MilestonePersonaggio[]>(`/party/gruppo/${gruppoId}/milestone`, {personaggioIds, quantita})
+}
+
+// Saghe necessarie per salire di livello, in base al livello attuale (deve combaciare col backend).
+export function saghePerLivello(livello: number): number {
+    if (livello <= 10) return 1
+    if (livello <= 13) return 3
+    if (livello <= 16) return 4
+    if (livello <= 18) return 5
+    if (livello <= 20) return 6
+    if (livello <= 25) return 7
+    if (livello <= 30) return 8
+    return 8 + Math.ceil((livello - 30) / 5)
+}
+
 export function getPartyItems(
     id: number,
     params: { nome?: string; tipo?: string; page?: number; size?: number } = {}

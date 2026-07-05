@@ -204,7 +204,6 @@ const INFO_FIELDS: { key: string; label: string; type?: string }[] = [
   {key: 'ALLINEAMENTO', label: 'Allineamento'},
   {key: 'TAGLIA', label: 'Taglia (base)', type: 'select'},
   {key: 'MILESTONE', label: 'Milestone attuali', type: 'number'},
-  {key: 'MILESTONE_TO', label: 'Milestone al prossimo livello', type: 'number'},
   {key: 'LIVELLO', label: 'Livello (atteso)', type: 'number'},
 ]
 

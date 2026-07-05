@@ -434,6 +434,21 @@ public class PersonaggioService {
         return out;
     }
 
+    /**
+     * Saghe (milestone) necessarie per salire di livello, in base al livello attuale.
+     * ≤10:1, 11-13:3, 14-16:4, 17-18:5, 19-20:6, 21-25:7, 26-30:8; poi +1 ogni 5 livelli.
+     */
+    public static int saghePerLivello(int livello) {
+        if (livello <= 10) return 1;
+        if (livello <= 13) return 3;
+        if (livello <= 16) return 4;
+        if (livello <= 18) return 5;
+        if (livello <= 20) return 6;
+        if (livello <= 25) return 7;
+        if (livello <= 30) return 8;
+        return 8 + (int) Math.ceil((livello - 30) / 5.0);
+    }
+
     private static String matchItem(Item it, String needle) {
         if (it.getNome() != null && it.getNome().toLowerCase().contains(needle)) return "nome";
         if (it.getLabels() != null) {
@@ -710,6 +725,14 @@ public class PersonaggioService {
                 }
             }
         }
+        // MILESTONE_TO (saghe per salire di livello) è CALCOLATA dal livello (label LIVELLO),
+        // non impostata a mano: sovrascrive l'eventuale valore salvato.
+        int livAtteso = 1;
+        try {
+            String lv = info.get(Constants.LABEL_LIVELLO);
+            if (lv != null && !lv.isBlank()) livAtteso = Integer.parseInt(lv.trim());
+        } catch (NumberFormatException ignored) {}
+        info.put(Constants.LABEL_MILESTONE_TO, String.valueOf(saghePerLivello(livAtteso)));
         double pesoTotale = partyService.calcolaPeso(p);
         double pesoMonete = partyService.calcolaPesoMonete(partyService.calcolaSoldi(p.getId()));
         dto.setPesoMonete(Math.round(pesoMonete * 100) / 100.0);

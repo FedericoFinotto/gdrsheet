@@ -15,6 +15,7 @@ import ItemCreate from "../views/sheets/cico/character/Cico/Editor/ItemCreate.vu
 import GestisciGradi from "../views/sheets/cico/character/Cico/Editor/GestisciGradi.vue";
 import Account from "@/views/Account.vue";
 import GestisciGruppi from "@/views/GestisciGruppi.vue";
+import MilestoneGruppo from "@/views/MilestoneGruppo.vue";
 
 const routes = [
   {path: '/', component: Home},
@@ -23,6 +24,7 @@ const routes = [
   {path: '/party/:id/items', name: 'PartyItems', component: PartyItems},
   {path: '/party/:id/banche', name: 'PartyBanche', component: PartyBanche},
   {path: '/party/:id/gruppi', name: 'GestisciGruppi', component: GestisciGruppi},
+  {path: '/party/:id/gruppo/:gruppoId/milestone', name: 'MilestoneGruppo', component: MilestoneGruppo},
   {path: '/banca/:id', name: 'BancaDetail', component: BancaDetail},
   {path: '/compendio', name: 'Compendio', component: Compendio},
   {path: '/users', name: 'Users', component: Users},

@@ -1020,6 +1020,68 @@ public class PartyService {
         gruppoRepository.delete(g);
     }
 
+    /* =====================================================================
+     * Livellazione di gruppo (milestone)
+     * ===================================================================== */
+
+    // Affetti dalla livellazione: personaggi normali (PG, senza tipo) e STELLA. Esclusi NAVE, BANCA, BASE.
+    private static boolean isMilestoneAffectable(String tipo) {
+        return tipo == null || "STELLA".equals(tipo);
+    }
+
+    private static int parseIntOr(String s, int def) {
+        try { return s == null || s.isBlank() ? def : Integer.parseInt(s.trim()); }
+        catch (NumberFormatException e) { return def; }
+    }
+
+    /** Personaggi del gruppo livellabili (PG + STELLA) con il loro stato milestone. */
+    public List<MilestonePersonaggioDTO> getMilestoneGruppo(Integer gruppoId, Utente utente) {
+        Gruppo g = gruppoRepository.findById(gruppoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gruppo non trovato"));
+        verificaMembership(g.getParty().getId(), utente);
+        List<MilestonePersonaggioDTO> out = new ArrayList<>();
+        for (Personaggio pg : personaggioRepository.findAllByParty_IdOrderByNomeAsc(g.getParty().getId())) {
+            if (!String.valueOf(gruppoId).equals(personaggioLabel(pg, Constants.LABEL_GRUPPO))) continue;
+            String tipo = tipoPersonaggio(pg);
+            if (!isMilestoneAffectable(tipo)) continue;
+            int milestone = parseIntOr(personaggioLabel(pg, Constants.LABEL_MILESTONE), 0);
+            int livello = parseIntOr(personaggioLabel(pg, Constants.LABEL_LIVELLO), 1);
+            out.add(new MilestonePersonaggioDTO(pg.getId(), pg.getNome(), tipo,
+                    milestone, livello, PersonaggioService.saghePerLivello(livello)));
+        }
+        return out;
+    }
+
+    /** Aggiunge {@code quantita} milestone ai personaggi selezionati, applicando i passaggi di livello. */
+    @Transactional
+    public List<MilestonePersonaggioDTO> applyMilestoneGruppo(Integer gruppoId, List<Integer> personaggioIds, int quantita, Utente utente) {
+        Gruppo g = gruppoRepository.findById(gruppoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gruppo non trovato"));
+        verificaMembership(g.getParty().getId(), utente);
+        Set<Integer> selezionati = new HashSet<>(personaggioIds != null ? personaggioIds : List.of());
+        int add = Math.max(0, quantita);
+
+        List<MilestonePersonaggioDTO> out = new ArrayList<>();
+        for (Personaggio pg : personaggioRepository.findAllByParty_IdOrderByNomeAsc(g.getParty().getId())) {
+            if (!String.valueOf(gruppoId).equals(personaggioLabel(pg, Constants.LABEL_GRUPPO))) continue;
+            String tipo = tipoPersonaggio(pg);
+            if (!isMilestoneAffectable(tipo) || !selezionati.contains(pg.getId())) continue;
+
+            int milestone = parseIntOr(personaggioLabel(pg, Constants.LABEL_MILESTONE), 0) + add;
+            int livello = parseIntOr(personaggioLabel(pg, Constants.LABEL_LIVELLO), 1);
+            while (milestone >= PersonaggioService.saghePerLivello(livello)) {
+                milestone -= PersonaggioService.saghePerLivello(livello);
+                livello += 1;
+            }
+            setPersonaggioLabel(pg, Constants.LABEL_MILESTONE, String.valueOf(milestone));
+            setPersonaggioLabel(pg, Constants.LABEL_LIVELLO, String.valueOf(livello));
+            personaggioRepository.save(pg);
+            out.add(new MilestonePersonaggioDTO(pg.getId(), pg.getNome(), tipo,
+                    milestone, livello, PersonaggioService.saghePerLivello(livello)));
+        }
+        return out;
+    }
+
     /**
      * Soldi personali: modificatori sulle stat moneta degli item del
      * personaggio, esclusi i conti banca (label CC), ignorando gli item
