@@ -329,7 +329,7 @@ public class PersonaggioService {
             if (TipoItem.PATTO.equals(itm.getTipo())) {
                 ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
-                itemsDTO.getOggetti().add(dto);
+                itemsDTO.getPatti().add(dto);
             }
             if (TipoItem.NOTIZIA.equals(itm.getTipo())) {
                 itemsDTO.getNotizie().add(itemMapper.toDTO(itm, uTotale, uUsati));

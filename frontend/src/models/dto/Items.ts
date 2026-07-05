@@ -29,4 +29,5 @@ export interface Items {
     contenitori: Item[];
     altro: Item[];
     notizie: Item[];
+    patti: Item[];
 }
