@@ -909,90 +909,83 @@ public class ModificatoriService {
         }
     }
 
-    public List<AbilitaClasseDTO> getAbilitaClasse(Integer idPersonaggio, Integer livello, Integer idClasse) {
+    /**
+     * Classi uniche derivate dai livelli attivi (non disabilitati) del personaggio.
+     * È la parte costosa di {@link #getAbilitaClasse(Integer, Integer, Integer)} (accede al DB):
+     * dato che non dipende dal livello richiesto (il filtro per livello è disattivato, quindi il
+     * risultato è identico per ogni livello dello stesso personaggio), va calcolata UNA SOLA VOLTA
+     * per personaggio e riusata per ciascun livello, invece di essere rifatta identica ad ogni
+     * iterazione. Il fetch delle classi è in batch (un'unica query IN) invece di N query singole.
+     */
+    public List<Item> getClassiUnicheDaLivelli(Integer idPersonaggio) {
         Personaggio personaggio = personaggioRepository.findById(idPersonaggio)
                 .orElseThrow(() -> new RuntimeException("Personaggio non trovato"));
 
-        // Tutti i livelli attivi fino a "livello"
         List<Item> livelli = personaggio.getItems().stream()
                 .filter(x -> x.getTipo().equals(TipoItem.LIVELLO))
-//                .filter(x -> {
-//                    String lv = x.getLabel(Constants.ITEM_LIVELLO_LVL);
-//                    try {
-//                        return lv != null && Integer.parseInt(lv) <= livello;
-//                    } catch (NumberFormatException e) {
-//                        return false;
-//                    }
-//                })
                 .filter(x -> {
                     String dis = x.getLabel(Constants.ITEM_LABEL_DISABILITATO);
                     return dis == null || Objects.equals(dis, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
                 })
                 .toList();
+        if (livelli.isEmpty()) return List.of();
 
-        List<AbilitaClasseDTO> abilitaClasse = new ArrayList<>();
-        List<Item> classiUniche;
+        List<Integer> classeIds = livelli.stream()
+                .map(x -> x.getLabel(Constants.ITEM_LABEL_CLASSE))
+                .filter(Objects::nonNull)
+                .distinct()
+                .map(Integer::parseInt)
+                .toList();
+        if (classeIds.isEmpty()) return List.of();
 
-        if (!livelli.isEmpty()) {
-            // 1) prendi le CLASSI una sola volta (deduplicate per id)
-            classiUniche = livelli.stream()
-                            .filter(Objects::nonNull)
-                    .map(x -> x.getLabel(Constants.ITEM_LABEL_CLASSE))
-                    .filter(Objects::nonNull)          // livelli senza classe (label assente)
-                    .distinct()
-                    .map(x -> itemRepository.findById(Integer.parseInt(x)))
-                    .filter(Optional::isPresent)
-                    .map(Optional::get)
-                    .toList();
-//                            .flatMap(lv -> Optional.ofNullable(lv.getChild()).stream().flatMap(List::stream))
-//                            .map(Collegamento::getItemTarget)
-//                            .filter(it -> it.getTipo() == TipoItem.CLASSE)
-//                            .collect(Collectors.collectingAndThen(
-//                                    Collectors.toCollection(() -> new java.util.TreeSet<>(Comparator.comparing(Item::getId))),
-//                                    ArrayList::new
-//                            ));
+        Map<Integer, Item> perId = itemRepository.findItemsByIds(classeIds).stream()
+                .collect(Collectors.toMap(Item::getId, x -> x, (a, b) -> a));
+        // preserva l'ordine originale (prima occorrenza nei livelli), scartando eventuali id mancanti
+        return classeIds.stream().map(perId::get).filter(Objects::nonNull).toList();
+    }
 
-//            if (classiUniche.stream().noneMatch(x -> x.getId().equals(idClasse))) {
-//                classiUniche.add(itemRepository.findById(idClasse)
-//                        .orElseThrow(() -> new RuntimeException("Classe non trovata")));
-//            }
+    /**
+     * Indice abilità-di-classe per {@code idClasse}, a partire dalle classi già calcolate da
+     * {@link #getClassiUnicheDaLivelli(Integer)}. Economico (nessun accesso al DB): può essere
+     * richiamato per ogni livello del personaggio riusando lo stesso {@code classiUniche}.
+     */
+    public List<AbilitaClasseDTO> getAbilitaClasse(List<Item> classiUniche, Integer idClasse) {
+        Map<String, AbilitaClasseDTO> index = new LinkedHashMap<>();
+        for (Item cl : classiUniche) {
+            String abClasse = cl.getLabel(Constants.ITEM_LABEL_ABILITA_CLASSE);
+            if (abClasse == null || abClasse.isBlank()) continue;
 
-            // 2) indice abilità -> DTO aggregato
-            Map<String, AbilitaClasseDTO> index = new LinkedHashMap<>();
+            Arrays.stream(abClasse.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .forEach(tok -> {
+                        boolean all = tok.contains("!");
+                        boolean classeRichiesta = cl.getId().equals(idClasse);
+                        String idAb = tok.replace("!", "").trim();
 
-            for (Item cl : classiUniche) {
-                String abClasse = cl.getLabel(Constants.ITEM_LABEL_ABILITA_CLASSE);
-                if (abClasse == null || abClasse.isBlank()) continue;
+                        AbilitaClasseDTO dto = index.computeIfAbsent(
+                                idAb,
+                                k -> new AbilitaClasseDTO(new ArrayList<>(), k, false, false)
+                        );
 
-                Arrays.stream(abClasse.split(","))
-                        .map(String::trim)
-                        .filter(s -> !s.isEmpty())
-                        .forEach(tok -> {
-                            boolean all = tok.contains("!");
-                            boolean classeRichiesta = cl.getId().equals(idClasse);
-                            String idAb = tok.replace("!", "").trim();
+                        // aggiungi classe se non già presente
+                        List<IdNomeDTO> cls = dto.getClasse();
+                        boolean presente = cls.stream().anyMatch(c -> Objects.equals(c.getId(), cl.getId()));
+                        if (!presente) {
+                            cls.add(new IdNomeDTO(cl.getId(), cl.getNome()));
+                        }
 
-                            AbilitaClasseDTO dto = index.computeIfAbsent(
-                                    idAb,
-                                    k -> new AbilitaClasseDTO(new ArrayList<>(), k, false, false)
-                            );
-
-                            // aggiungi classe se non già presente
-                            List<IdNomeDTO> cls = dto.getClasse();
-                            boolean presente = cls.stream().anyMatch(c -> Objects.equals(c.getId(), cl.getId()));
-                            if (!presente) {
-                                cls.add(new IdNomeDTO(cl.getId(), cl.getNome()));
-                            }
-
-                            if (all) dto.setAll(true);
-                            if (classeRichiesta) dto.setDiClasse(true);
-                        });
-            }
-
-            abilitaClasse.addAll(index.values());
+                        if (all) dto.setAll(true);
+                        if (classeRichiesta) dto.setDiClasse(true);
+                    });
         }
+        return new ArrayList<>(index.values());
+    }
 
-        return abilitaClasse;
+    /** Firma storica: calcola le classiUniche e delega. Da preferire {@link #getAbilitaClasse(List, Integer)}
+     *  quando si itera su più livelli dello stesso personaggio (vedi {@link #getClassiUnicheDaLivelli(Integer)}). */
+    public List<AbilitaClasseDTO> getAbilitaClasse(Integer idPersonaggio, Integer livello, Integer idClasse) {
+        return getAbilitaClasse(getClassiUnicheDaLivelli(idPersonaggio), idClasse);
     }
 
     public void applicaSinergie(DatiPersonaggioDTO dp, List<CaratteristicaDTO> cars) {

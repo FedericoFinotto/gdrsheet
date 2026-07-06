@@ -76,8 +76,11 @@ public class PersonaggioController {
         itemService.ensurePreparedSpell(id);
         personaggioService.ensureStatValues(id);
 
-        DatiPersonaggioDTO dati = personaggioService.getDatiPersonaggio(id);
-        ItemsDTO result = personaggioService.getAllPersonaggioItemsDTOByIdPersonaggio(id, utente, dati.getUtilizziTotaleFormula());
+        // Flatten (traversata del grafo item) calcolato UNA SOLA VOLTA e condiviso tra i due
+        // calcoli sottostanti, che prima lo rifacevano ciascuno per conto proprio.
+        AllPersonaggioItems allPersonaggioItems = personaggioService.getAllPersonaggioItemsByIdPersonaggio(id);
+        DatiPersonaggioDTO dati = personaggioService.getDatiPersonaggio(id, allPersonaggioItems);
+        ItemsDTO result = personaggioService.getAllPersonaggioItemsDTOByIdPersonaggio(id, utente, dati.getUtilizziTotaleFormula(), allPersonaggioItems);
 
         return ResponseEntity.ok(result);
     }

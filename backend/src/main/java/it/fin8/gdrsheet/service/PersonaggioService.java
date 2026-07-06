@@ -178,8 +178,16 @@ public class PersonaggioService {
 
 
     public ItemsDTO getAllPersonaggioItemsDTOByIdPersonaggio(Integer id, Utente utente, Map<Integer, Integer> utilizziTotaleFormula) {
+        return getAllPersonaggioItemsDTOByIdPersonaggio(id, utente, utilizziTotaleFormula, getAllPersonaggioItemsByIdPersonaggio(id));
+    }
+
+    /**
+     * Overload che accetta il flatten (AllPersonaggioItems) già calcolato dal chiamante,
+     * per evitare di ripeterlo quando è già disponibile (es. endpoint /items, che lo
+     * calcola una volta sola e lo condivide con getDatiPersonaggio).
+     */
+    public ItemsDTO getAllPersonaggioItemsDTOByIdPersonaggio(Integer id, Utente utente, Map<Integer, Integer> utilizziTotaleFormula, AllPersonaggioItems allPersonaggioItems) {
         ItemsDTO itemsDTO = new ItemsDTO();
-        AllPersonaggioItems allPersonaggioItems = getAllPersonaggioItemsByIdPersonaggio(id);
         Personaggio personaggio = personaggioRepository.findPersonaggioById(id);
 
         // Calcola gli id degli item collegati direttamente via FromCompendio (scollegabili)
@@ -607,11 +615,19 @@ public class PersonaggioService {
      * Unifica i flatten in un solo passaggio per migliorare le prestazioni.
      */
     public DatiPersonaggioDTO getDatiPersonaggio(Integer id) {
+        return getDatiPersonaggio(id, getAllPersonaggioItemsByIdPersonaggio(id));
+    }
+
+    /**
+     * Overload che accetta il flatten (AllPersonaggioItems) già calcolato dal chiamante,
+     * per evitare di ripeterlo quando è già disponibile (es. endpoint /items, che lo
+     * calcola una volta sola e lo condivide con getAllPersonaggioItemsDTOByIdPersonaggio).
+     */
+    public DatiPersonaggioDTO getDatiPersonaggio(Integer id, AllPersonaggioItems allPersonaggioItemsSheet) {
         // 1) Carica Personaggio base
         Personaggio p = personaggioRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Personaggio non trovato"));
 
-        AllPersonaggioItems allPersonaggioItemsSheet = getAllPersonaggioItemsByIdPersonaggio(p.getId());
         List<Item> allItems = allPersonaggioItemsSheet.getItems();
         Set<Integer> fruttiSenzaModSheet = allPersonaggioItemsSheet.getFruttiSenzaMod();
         List<Item> filteredItems = new ArrayList<>();
@@ -630,13 +646,17 @@ public class PersonaggioService {
         List<Item> livelloItems = filteredItems.stream().filter(x -> x.getTipo().equals(TipoItem.LIVELLO)).toList();
         Integer livelloPersonaggio = livelloItems.size() - 1;
         Map<String, List<AbilitaClasseDTO>> abilitaClassePerLivello = new HashMap<>();
+        // Le classi uniche (con relativo accesso al DB) sono identiche per ogni livello dello stesso
+        // personaggio: calcolate UNA SOLA VOLTA invece di essere rifatte ad ogni iterazione.
+        List<Item> classiUnicheDaLivelli = livelloItems.isEmpty()
+                ? List.of()
+                : modificatoriService.getClassiUnicheDaLivelli(id);
         for (Item livello : livelloItems) {
             try {
                 abilitaClassePerLivello.put(
                         livello.getLabel(Constants.ITEM_LIVELLO_LVL),
                         modificatoriService.getAbilitaClasse(
-                                livello.getPersonaggio().getId(),
-                                Integer.parseInt(livello.getLabel(Constants.ITEM_LIVELLO_LVL)),
+                                classiUnicheDaLivelli,
                                 Integer.parseInt(livello.getLabel(Constants.ITEM_LABEL_CLASSE)))
                 );
             } catch (Exception ignored) {
@@ -671,12 +691,26 @@ public class PersonaggioService {
                     .ifPresent(l -> taglia.add(new ItemLabel(null, null, Constants.ITEM_LABEL_TAGLIA, l.getValore(), null)));
         }
 
+        // Cache id-classe -> Item per i modificatori dei LIVELLO (evita una query findById
+        // per OGNI modificatore di tipo LIVELLO nel mapper: ne possono esserci molti).
+        Map<Integer, Item> classiCacheModificatori = livelloItems.isEmpty()
+                ? Map.of()
+                : itemRepository.findItemsByIds(
+                        livelloItems.stream()
+                                .map(x -> x.getLabel(Constants.ITEM_LABEL_CLASSE))
+                                .filter(Objects::nonNull)
+                                .map(PersonaggioService::parseIntOrNull)
+                                .filter(Objects::nonNull)
+                                .distinct()
+                                .toList()
+                ).stream().collect(Collectors.toMap(Item::getId, x -> x, (a, b) -> a));
+
         // 7) Raggruppa Modificatori e Rank in DTO
         Map<String, List<ModificatoreDTO>> modsDtoByStat = allMods.stream()
                 .filter(m -> !TipoModificatore.RANK.equals(m.getTipo()))
                 .collect(Collectors.groupingBy(
                         m -> m.getStat().getId(),
-                        Collectors.mapping(modificatoreMapper::toDTO, Collectors.toList())
+                        Collectors.mapping(m -> modificatoreMapper.toDTO(m, classiCacheModificatori), Collectors.toList())
                 ));
         Map<String, List<RankDTO>> ranksDtoByStat = allMods.stream()
                 .filter(m -> TipoModificatore.RANK.equals(m.getTipo()))

@@ -26,6 +26,17 @@ public class ModificatoreMapper {
     ItemRepository itemRepository;
 
     public ModificatoreDTO toDTO(Modificatore entity) {
+        return toDTO(entity, null);
+    }
+
+    /**
+     * Overload che accetta una cache (id classe → Item) precaricata in batch dal chiamante,
+     * per evitare una query {@code findById} per OGNI modificatore di tipo LIVELLO (i livelli
+     * possono avere molti modificatori: caratteristiche base, ranghi, bonus vari). Se la cache
+     * è null o non contiene l'id richiesto, ripiega sulla query singola: comportamento identico
+     * all'originale, solo più lento in quel caso.
+     */
+    public ModificatoreDTO toDTO(Modificatore entity, Map<Integer, Item> classiCache) {
         ModificatoreDTO dto = new ModificatoreDTO();
         dto.setId(entity.getId());
         dto.setTipo(entity.getTipo());
@@ -40,7 +51,9 @@ public class ModificatoreMapper {
         dto.setItemId(entity.getItem().getId());
         if (TipoItem.LIVELLO.equals(entity.getItem().getTipo())) {
             try {
-                Item classe = itemRepository.findById(Integer.parseInt(entity.getItem().getLabel(Constants.ITEM_LABEL_CLASSE))).orElse(null);
+                Integer classeId = Integer.parseInt(entity.getItem().getLabel(Constants.ITEM_LABEL_CLASSE));
+                Item classe = classiCache != null ? classiCache.get(classeId) : null;
+                if (classe == null) classe = itemRepository.findById(classeId).orElse(null);
                 String livello = entity.getItem().getLabel(Constants.ITEM_LIVELLO_LVL_CLASSE);
                 assert classe != null;
                 dto.setItem(classe.getNome() + " " + livello);
