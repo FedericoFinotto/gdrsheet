@@ -61,6 +61,8 @@ public class ItemMapper {
             dto.setIncludiOggettiAbilitati(true);
         if ("1".equals(entity.getLabel(Constants.LABEL_INCLUDI_CONSUMABILI_ABILITATI)))
             dto.setIncludiConsumabiliAbilitati(true);
+        if ("1".equals(entity.getLabel(Constants.LABEL_INCLUDI_TUTTI_ABILITATI)))
+            dto.setIncludiTuttiAbilitati(true);
         return dto;
     }
 

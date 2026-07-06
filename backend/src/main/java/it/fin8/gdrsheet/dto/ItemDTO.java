@@ -47,4 +47,7 @@ public class ItemDTO {
     private Boolean includiOggettiAbilitati;
     /** Flag su CONTENITORE: include CONSUMABILE abilitati nel calcolo del contenuto. */
     private Boolean includiConsumabiliAbilitati;
+    /** Flag su CONTENITORE ("Tutto quello che pesa"): include qualsiasi item non disabilitato con
+     *  peso, di qualunque tipo (implica gli altri INCLUDI_*). */
+    private Boolean includiTuttiAbilitati;
 }

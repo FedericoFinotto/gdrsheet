@@ -47,10 +47,10 @@ const pesoTotale    = computed(() => mod.value?.pesoTotale ?? 0)
 
 // ---- Algoritmo greedy (identico al backend) ----
 type ContItem = { id: number; nome: string; peso: number; capienza: number;
-                  includiArmi: boolean; includiOggetti: boolean; includiConsumabili: boolean }
+                  includiArmi: boolean; includiOggetti: boolean; includiConsumabili: boolean; includiTutti: boolean }
 type FlatItem = { id: number; nome: string; peso: number; tipo: string; disabled: boolean }
 type Slot = ContItem & { items: FlatItem[]; armiItems: FlatItem[]; oggettiItems: FlatItem[];
-                          consumabiliItems: FlatItem[]; filled: number }
+                          consumabiliItems: FlatItem[]; altroItems: FlatItem[]; filled: number }
 
 const breakdown = computed(() => {
   const allItems = items.value
@@ -66,6 +66,7 @@ const breakdown = computed(() => {
       includiArmi: !!c.includiArmiAbilitate,
       includiOggetti: !!c.includiOggettiAbilitati,
       includiConsumabili: !!c.includiConsumabiliAbilitati,
+      includiTutti: !!c.includiTuttiAbilitati,
     }))
     .sort((a, b) => b.capienza - a.capienza)
 
@@ -84,6 +85,7 @@ const breakdown = computed(() => {
     ...withPeso(allItems.equipaggiamento, 'EQUIPAGGIAMENTO'),
     ...withPeso(allItems.frutti, 'FRUTTO'),
     ...withPeso(allItems.idoli, 'IDOLO'),
+    ...withPeso(allItems.patti, 'PATTO'),
   ]
 
   const disabled      = all.filter(i => i.disabled)
@@ -92,7 +94,7 @@ const breakdown = computed(() => {
   const consumabiliAb = all.filter(i => !i.disabled && i.tipo === 'CONSUMABILE')
   const altriAbilitati = all.filter(i => !i.disabled && i.tipo !== 'ARMA' && i.tipo !== 'OGGETTO' && i.tipo !== 'CONSUMABILE')
 
-  const slots: Slot[] = contenitori.map(c => ({...c, items: [], armiItems: [], oggettiItems: [], consumabiliItems: [], filled: 0}))
+  const slots: Slot[] = contenitori.map(c => ({...c, items: [], armiItems: [], oggettiItems: [], consumabiliItems: [], altroItems: [], filled: 0}))
 
   function distribuisci(pool: FlatItem[], accept: (s: Slot) => boolean, push: (s: Slot, i: FlatItem) => void) {
     const rem = [...pool]
@@ -112,9 +114,10 @@ const breakdown = computed(() => {
   }
 
   const overDisabled      = distribuisci(disabled,      () => true,            (s, i) => s.items.push(i))
-  const overArme          = distribuisci(armeAb,        s => s.includiArmi,    (s, i) => s.armiItems.push(i))
-  const overOggetti       = distribuisci(oggettiAb,     s => s.includiOggetti, (s, i) => s.oggettiItems.push(i))
-  const overConsumabili   = distribuisci(consumabiliAb, s => s.includiConsumabili, (s, i) => s.consumabiliItems.push(i))
+  const overArme          = distribuisci(armeAb,        s => s.includiArmi || s.includiTutti,    (s, i) => s.armiItems.push(i))
+  const overOggetti       = distribuisci(oggettiAb,     s => s.includiOggetti || s.includiTutti, (s, i) => s.oggettiItems.push(i))
+  const overConsumabili   = distribuisci(consumabiliAb, s => s.includiConsumabili || s.includiTutti, (s, i) => s.consumabiliItems.push(i))
+  const overAltri         = distribuisci(altriAbilitati, s => s.includiTutti, (s, i) => s.altroItems.push(i))
 
   // Distribuzione monete negli spazi rimasti
   let remCoins = coinWeight.value
@@ -132,7 +135,7 @@ const breakdown = computed(() => {
     ...overArme.map(i => ({nome: i.nome, peso: i.peso, label: 'arma equipaggiata'})),
     ...overOggetti.map(i => ({nome: i.nome, peso: i.peso, label: 'oggetto equipaggiato'})),
     ...overConsumabili.map(i => ({nome: i.nome, peso: i.peso, label: 'consumabile equipaggiato'})),
-    ...altriAbilitati.map(i => ({nome: i.nome, peso: i.peso})),
+    ...overAltri.map(i => ({nome: i.nome, peso: i.peso})),
   ]
 
   return {slots, slotCoins, overflow, remCoins, overflowTotal: overflow.reduce((s, i) => s + i.peso, 0)}
@@ -202,13 +205,17 @@ function pesoEffettivo(slot: Slot) {
           <span>{{ itm.nome }} <span class="tag">consumabile eq.</span></span>
           <span class="val muted">{{ fmt(itm.peso) }} kg</span>
         </div>
+        <div v-for="itm in slot.altroItems" :key="'x'+itm.id" class="row-child chip-altro">
+          <span>{{ itm.nome }}</span>
+          <span class="val muted">{{ fmt(itm.peso) }} kg</span>
+        </div>
         <div v-if="breakdown.slotCoins[i] > 0.001" class="row-child chip-monete">
           <span>Monete</span>
           <span class="val muted">{{ fmt(breakdown.slotCoins[i]) }} kg</span>
         </div>
         <div v-if="slot.items.length === 0 && slot.armiItems.length === 0
                    && slot.oggettiItems.length === 0 && slot.consumabiliItems.length === 0
-                   && breakdown.slotCoins[i] === 0" class="row-child muted">
+                   && slot.altroItems.length === 0 && breakdown.slotCoins[i] === 0" class="row-child muted">
           (vuoto)
         </div>
       </div>
@@ -336,6 +343,7 @@ function pesoEffettivo(slot: Slot) {
 .chip-arma    { background: #fefce8; }
 .chip-oggetto { background: #eff6ff; }
 .chip-consumabile { background: #fdf4ff; }
+.chip-altro   { background: #f3f4f6; }
 .chip-monete  { background: #f0fdf4; }
 .chip-monete-row { color: #15803d; font-weight: 500; }
 </style>

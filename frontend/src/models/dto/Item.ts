@@ -17,4 +17,5 @@ export interface Item {
     includiArmiAbilitate?: boolean | null;
     includiOggettiAbilitati?: boolean | null;
     includiConsumabiliAbilitati?: boolean | null;
+    includiTuttiAbilitati?: boolean | null;
 }

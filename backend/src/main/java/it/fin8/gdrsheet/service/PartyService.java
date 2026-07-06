@@ -769,7 +769,8 @@ public class PartyService {
                         Constants.ITEM_LABEL_DISABILITATO,
                         Constants.LABEL_INCLUDI_ARMI_ABILITATE,
                         Constants.LABEL_INCLUDI_OGGETTI_ABILITATI,
-                        Constants.LABEL_INCLUDI_CONSUMABILI_ABILITATI), pg.getId())) {
+                        Constants.LABEL_INCLUDI_CONSUMABILI_ABILITATI,
+                        Constants.LABEL_INCLUDI_TUTTI_ABILITATI), pg.getId())) {
             labelsPerItem.computeIfAbsent((Integer) row[0], k -> new HashMap<>())
                     .put((String) row[1], (String) row[2]);
         }
@@ -781,13 +782,18 @@ public class PartyService {
         }
 
         record ContainerInfo(double pesoMassimo, double capienza,
-                             boolean includiArmi, boolean includiOggetti, boolean includiConsumabili) {}
+                             boolean includiArmi, boolean includiOggetti, boolean includiConsumabili, boolean includiTutti) {}
         List<ContainerInfo> containers = new ArrayList<>();
         double containableWeight = 0;      // item disabilitati → entrano sempre
-        double armeAbilitateWeight = 0;    // ARMA abilitate → entrano solo con flag
-        double oggettiAbilitatiWeight = 0; // OGGETTO abilitati → entrano solo con flag
-        double consumabiliAbilitatiWeight = 0; // CONSUMABILE abilitati → entrano solo con flag
-        double equippedWeight = 0;         // tutto il resto abilitato → peso diretto
+        double armeAbilitateWeight = 0;    // ARMA abilitate → entrano solo con flag (o "tutti")
+        double oggettiAbilitatiWeight = 0; // OGGETTO abilitati → entrano solo con flag (o "tutti")
+        double consumabiliAbilitatiWeight = 0; // CONSUMABILE abilitati → entrano solo con flag (o "tutti")
+        // Qualsiasi altro tipo NON disabilitato con peso (MUNIZIONE, EQUIPAGGIAMENTO, FRUTTO, IDOLO, PATTO…):
+        // entra solo con "tutti" ("Tutto quello che pesa"). Per FRUTTO/IDOLO/PATTO "disabilitato" non
+        // rappresenta "indossato/riposto" ma un altro stato di gioco: qui non si distingue "equipaggiato"
+        // in senso stretto, semplicemente qualsiasi cosa pesi viene considerata "tenuta lì".
+        double altroAbilitatoWeight = 0;
+        double equippedWeight = 0;         // peso fisso del personaggio (personaggio_label PESO)
 
         for (Map.Entry<Integer, Map<String, String>> entry : labelsPerItem.entrySet()) {
             Integer id = entry.getKey();
@@ -804,7 +810,8 @@ public class PartyService {
                 boolean inclArmi = "1".equals(labels.get(Constants.LABEL_INCLUDI_ARMI_ABILITATE));
                 boolean inclOgg  = "1".equals(labels.get(Constants.LABEL_INCLUDI_OGGETTI_ABILITATI));
                 boolean inclCons = "1".equals(labels.get(Constants.LABEL_INCLUDI_CONSUMABILI_ABILITATI));
-                containers.add(new ContainerInfo(itemPeso, capienza, inclArmi, inclOgg, inclCons));
+                boolean inclTutti = "1".equals(labels.get(Constants.LABEL_INCLUDI_TUTTI_ABILITATI));
+                containers.add(new ContainerInfo(itemPeso, capienza, inclArmi, inclOgg, inclCons, inclTutti));
             } else if (isDisabled) {
                 containableWeight += itemPeso;
             } else if (TipoItem.ARMA.equals(tipo)) {
@@ -814,7 +821,7 @@ public class PartyService {
             } else if (TipoItem.CONSUMABILE.equals(tipo)) {
                 consumabiliAbilitatiWeight += itemPeso;
             } else {
-                equippedWeight += itemPeso;
+                altroAbilitatoWeight += itemPeso;
             }
         }
 
@@ -835,6 +842,7 @@ public class PartyService {
         double remArme        = armeAbilitateWeight;
         double remOggetti     = oggettiAbilitatiWeight;
         double remConsumabili = consumabiliAbilitatiWeight;
+        double remAltro       = altroAbilitatoWeight;
         double containerWeight = 0;
 
         for (ContainerInfo c : containers) {
@@ -842,24 +850,28 @@ public class PartyService {
             double spaceLeft = c.capienza();
             // 1. item disabilitati
             double f = Math.min(spaceLeft, remContainable); remContainable -= f; spaceLeft -= f;
-            // 2. armi abilitate (se flag)
-            if (c.includiArmi() && spaceLeft > 0) {
+            // 2. armi abilitate (se flag armi, o "tutti")
+            if ((c.includiArmi() || c.includiTutti()) && spaceLeft > 0) {
                 f = Math.min(spaceLeft, remArme); remArme -= f; spaceLeft -= f;
             }
-            // 3. oggetti abilitati (se flag)
-            if (c.includiOggetti() && spaceLeft > 0) {
+            // 3. oggetti abilitati (se flag oggetti, o "tutti")
+            if ((c.includiOggetti() || c.includiTutti()) && spaceLeft > 0) {
                 f = Math.min(spaceLeft, remOggetti); remOggetti -= f; spaceLeft -= f;
             }
-            // 4. consumabili abilitati (se flag)
-            if (c.includiConsumabili() && spaceLeft > 0) {
+            // 4. consumabili abilitati (se flag consumabili, o "tutti")
+            if ((c.includiConsumabili() || c.includiTutti()) && spaceLeft > 0) {
                 f = Math.min(spaceLeft, remConsumabili); remConsumabili -= f; spaceLeft -= f;
+            }
+            // 5. qualsiasi altro tipo abilitato con peso (solo con "tutti": munizioni, equipaggiamento, frutti, idoli, patti…)
+            if (c.includiTutti() && spaceLeft > 0) {
+                f = Math.min(spaceLeft, remAltro); remAltro -= f; spaceLeft -= f;
             }
             double filled = c.capienza() - spaceLeft;
             containerWeight += c.pesoMassimo() * (filled / c.capienza());
         }
 
         double total = equippedWeight + containerWeight
-                + remContainable + remArme + remOggetti + remConsumabili;
+                + remContainable + remArme + remOggetti + remConsumabili + remAltro;
         return Math.round(total * 100) / 100.0;
     }
 

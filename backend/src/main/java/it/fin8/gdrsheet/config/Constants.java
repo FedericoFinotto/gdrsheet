@@ -73,6 +73,11 @@ public final class Constants {
     public static final String LABEL_INCLUDI_ARMI_ABILITATE        = "INCLUDI_ARMI_ABILITATE";        // flag su CONTENITORE: "1" include ARMA abilitate
     public static final String LABEL_INCLUDI_OGGETTI_ABILITATI    = "INCLUDI_OGGETTI_ABILITATI";    // flag su CONTENITORE: "1" include OGGETTO abilitati
     public static final String LABEL_INCLUDI_CONSUMABILI_ABILITATI = "INCLUDI_CONSUMABILI_ABILITATI"; // flag su CONTENITORE: "1" include CONSUMABILE abilitati
+    // flag su CONTENITORE ("Tutto quello che pesa"): "1" include QUALSIASI item non disabilitato con peso,
+    // di qualunque tipo (anche FRUTTO/IDOLO/PATTO: per questi il flag "disabilitato" non rappresenta
+    // "indossato/riposto" ma un altro stato di gioco, quindi non si distingue "equipaggiato" in senso
+    // stretto — semplicemente qualsiasi cosa pesi viene considerata "tenuta lì"). Implica gli altri INCLUDI_*.
+    public static final String LABEL_INCLUDI_TUTTI_ABILITATI = "INCLUDI_TUTTI_ABILITATI";
     public static final String LABEL_UTILIZZI = "UTILIZZI";           // max utilizzi (globale sull'item)
     public static final String LABEL_UTILIZZI_USATI = "UTILIZZI_USATI"; // utilizzi consumati (per-personaggio)
     public static final String LABEL_CC = "CC";     // conto corrente banca: G<idPersonaggio> | P<idParty>

@@ -12,6 +12,7 @@ const CAMPI: CampoLabel[] = [
   {key: 'INCLUDI_ARMI_ABILITATE',       label: 'Includi armi equipaggiate',    tipo: 'checkbox'},
   {key: 'INCLUDI_OGGETTI_ABILITATI',    label: 'Includi oggetti equipaggiati', tipo: 'checkbox'},
   {key: 'INCLUDI_CONSUMABILI_ABILITATI',label: 'Includi consumabili equipaggiati', tipo: 'checkbox'},
+  {key: 'INCLUDI_TUTTI_ABILITATI',      label: 'Tutto quello che pesa', tipo: 'checkbox'},
 ]
 </script>
 

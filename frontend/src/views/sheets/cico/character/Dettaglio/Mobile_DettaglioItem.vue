@@ -163,12 +163,13 @@ const contenitorInfo = computed(() => {
   const includiArmi       = !!item.includiArmiAbilitate
   const includiOggetti    = !!item.includiOggettiAbilitati
   const includiConsumabili = !!item.includiConsumabiliAbilitati
+  const includiTutti      = !!item.includiTuttiAbilitati
 
   // Peso monete: arriva direttamente dal backend come campo dedicato
   const coinWeight = personaggio?.modificatori?.pesoMonete ?? 0
 
   // Tutti i contenitori ordinati per capienza decrescente
-  type ContInfo = {id: number; capienza: number; pesoMassimo: number; includiArmi: boolean}
+  type ContInfo = {id: number; capienza: number; pesoMassimo: number; includiArmi: boolean; includiOggetti: boolean; includiConsumabili: boolean; includiTutti: boolean}
   const contenitori: ContInfo[] =
     [...(allItems.contenitori ?? [])]
       .filter(c => (c.capienza ?? 0) > 0)
@@ -176,7 +177,10 @@ const contenitorInfo = computed(() => {
         id: c.id,
         capienza: c.capienza ?? 0,
         pesoMassimo: c.peso ?? 0,
-        includiArmi: !!c.includiArmiAbilitate
+        includiArmi: !!c.includiArmiAbilitate,
+        includiOggetti: !!c.includiOggettiAbilitati,
+        includiConsumabili: !!c.includiConsumabiliAbilitati,
+        includiTutti: !!c.includiTuttiAbilitati,
       }))
       .sort((a, b) => b.capienza - a.capienza)
 
@@ -189,6 +193,7 @@ const contenitorInfo = computed(() => {
     ...(allItems.equipaggiamento ?? []),
     ...(allItems.frutti ?? []),
     ...(allItems.idoli ?? []),
+    ...(allItems.patti ?? []),
   ].filter(i => (i.peso ?? 0) > 0)
 
   // item disabilitati → sempre contenibili (indipendentemente dal tipo)
@@ -197,12 +202,14 @@ const contenitorInfo = computed(() => {
   const armeAbilitate        = allWithPeso.filter(i => !i.disabled && i.tipo === 'ARMA')
   const oggettiAbilitati     = allWithPeso.filter(i => !i.disabled && i.tipo === 'OGGETTO')
   const consumabiliAbilitati = allWithPeso.filter(i => !i.disabled && i.tipo === 'CONSUMABILE')
+  // qualsiasi altro tipo abilitato con peso → entra solo nei contenitori con "includi tutti"
+  const altroAbilitato = allWithPeso.filter(i => !i.disabled && !['ARMA', 'OGGETTO', 'CONSUMABILE'].includes(i.tipo))
 
   // Distribuzione greedy identica al backend
-  type Slot = {id: number; capienza: number; includiArmi: boolean; includiOggetti: boolean; includiConsumabili: boolean;
-               items: any[]; armiItems: any[]; oggettiItems: any[]; consumabiliItems: any[]; filled: number}
+  type Slot = {id: number; capienza: number; includiArmi: boolean; includiOggetti: boolean; includiConsumabili: boolean; includiTutti: boolean;
+               items: any[]; armiItems: any[]; oggettiItems: any[]; consumabiliItems: any[]; altroItems: any[]; filled: number}
   const slots: Slot[] = contenitori.map(c => ({
-    ...c, items: [], armiItems: [], oggettiItems: [], consumabiliItems: [], filled: 0
+    ...c, items: [], armiItems: [], oggettiItems: [], consumabiliItems: [], altroItems: [], filled: 0
   }))
 
   // Helper: distribuisci un pool nei slot che accettano quel tipo
@@ -225,12 +232,14 @@ const contenitorInfo = computed(() => {
 
   // 1. item disabilitati → tutti i slot
   distribuisci(containable,      () => true,              (s, i) => s.items.push(i))
-  // 2. armi abilitate → slot con flag
-  distribuisci(armeAbilitate,    s => s.includiArmi,      (s, i) => s.armiItems.push(i))
-  // 3. oggetti abilitati → slot con flag
-  distribuisci(oggettiAbilitati, s => s.includiOggetti,   (s, i) => s.oggettiItems.push(i))
-  // 4. consumabili abilitati → slot con flag
-  distribuisci(consumabiliAbilitati, s => s.includiConsumabili, (s, i) => s.consumabiliItems.push(i))
+  // 2. armi abilitate → slot con flag armi o "tutti"
+  distribuisci(armeAbilitate,    s => s.includiArmi || s.includiTutti,      (s, i) => s.armiItems.push(i))
+  // 3. oggetti abilitati → slot con flag oggetti o "tutti"
+  distribuisci(oggettiAbilitati, s => s.includiOggetti || s.includiTutti,   (s, i) => s.oggettiItems.push(i))
+  // 4. consumabili abilitati → slot con flag consumabili o "tutti"
+  distribuisci(consumabiliAbilitati, s => s.includiConsumabili || s.includiTutti, (s, i) => s.consumabiliItems.push(i))
+  // 5. qualsiasi altro tipo abilitato con peso → slot solo con "tutti"
+  distribuisci(altroAbilitato, s => s.includiTutti, (s, i) => s.altroItems.push(i))
 
   // Distribuisci monete negli spazi rimasti
   let remainingCoins = coinWeight
@@ -244,7 +253,7 @@ const contenitorInfo = computed(() => {
   }
 
   const myIdx = slots.findIndex(s => s.id === item.id)
-  if (myIdx === -1) return {items: [], armiItems: [], oggettiItems: [], consumabiliItems: [],
+  if (myIdx === -1) return {items: [], armiItems: [], oggettiItems: [], consumabiliItems: [], altroItems: [],
                             filled: 0, capienza, pesoMassimo, pesoEffettivo: 0, coinInside: 0}
 
   const mySlot = slots[myIdx]
@@ -256,6 +265,7 @@ const contenitorInfo = computed(() => {
     armiItems: mySlot.armiItems,
     oggettiItems: mySlot.oggettiItems,
     consumabiliItems: mySlot.consumabiliItems,
+    altroItems: mySlot.altroItems,
     filled: mySlot.filled,
     capienza,
     pesoMassimo,
@@ -264,6 +274,7 @@ const contenitorInfo = computed(() => {
     includiArmi,
     includiOggetti,
     includiConsumabili,
+    includiTutti,
   }
 })
 
@@ -389,7 +400,7 @@ function showInfoItemPopup(itm) {
       </div>
       <div v-if="contenitorInfo.items.length || contenitorInfo.armiItems.length
                  || contenitorInfo.oggettiItems.length || contenitorInfo.consumabiliItems.length
-                 || contenitorInfo.coinInside > 0"
+                 || contenitorInfo.altroItems.length || contenitorInfo.coinInside > 0"
            class="contenitore-list">
         <!-- item disabilitati (tutti i tipi) -->
         <div v-for="itm in contenitorInfo.items" :key="itm.id" class="contenitore-item">
@@ -422,6 +433,13 @@ function showInfoItemPopup(itm) {
           <span class="contenitore-item-nome">{{ itm.nome }}
             <span class="muted" style="font-size:.72rem">(consumabile equipaggiato)</span>
           </span>
+          <span class="contenitore-item-peso muted">
+            {{ ((itm.peso ?? 0) * (itm.quantita ?? 1)).toFixed(2) }} kg
+          </span>
+        </div>
+        <!-- qualsiasi altro tipo con peso (flag "Tutto quello che pesa") -->
+        <div v-for="itm in contenitorInfo.altroItems" :key="'x'+itm.id" class="contenitore-item altro-row">
+          <span class="contenitore-item-nome">{{ itm.nome }}</span>
           <span class="contenitore-item-peso muted">
             {{ ((itm.peso ?? 0) * (itm.quantita ?? 1)).toFixed(2) }} kg
           </span>
@@ -596,6 +614,7 @@ function showInfoItemPopup(itm) {
 .arma-row        { background: #fefce8 !important; }
 .oggetto-row     { background: #eff6ff !important; }
 .consumabile-row { background: #fdf4ff !important; }
+.altro-row       { background: #f3f4f6 !important; }
 .monete-row      { background: #f0fdf4 !important; }
 .muted { color: var(--color-text-secondary, #6b7280); }
 </style>
