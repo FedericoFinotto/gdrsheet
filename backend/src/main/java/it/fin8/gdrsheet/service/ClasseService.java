@@ -34,14 +34,18 @@ public class ClasseService {
     private final ModificatoreRepository modificatoreRepository;
     private final EntityManager em;
 
+    private final PersonaggioCacheService personaggioCacheService;
+
     public ClasseService(ItemRepository itemRepository,
                          AvanzamentoRepository avanzamentoRepository,
                          ModificatoreRepository modificatoreRepository,
-                         EntityManager em) {
+                         EntityManager em,
+                         PersonaggioCacheService personaggioCacheService) {
         this.itemRepository = itemRepository;
         this.avanzamentoRepository = avanzamentoRepository;
         this.modificatoreRepository = modificatoreRepository;
         this.em = em;
+        this.personaggioCacheService = personaggioCacheService;
     }
 
     public ClasseDetailDTO getClasse(Integer id) {
@@ -342,6 +346,10 @@ public class ClasseService {
                 }
             }
         }
+
+        // una classe/razza è condivisa da tutti i personaggi che l'hanno scelta (via label
+        // CLASSE su un LIVELLO): invalida la cache di ognuno di loro.
+        personaggioCacheService.invalidaPerClasse(classe.getId());
 
         return classe;
     }

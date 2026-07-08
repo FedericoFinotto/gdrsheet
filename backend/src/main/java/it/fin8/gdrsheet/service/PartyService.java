@@ -41,6 +41,7 @@ public class PartyService {
     private final AuthzService authzService;
     private final GruppoRepository gruppoRepository;
     private final EntityManager em;
+    private final PersonaggioCacheService personaggioCacheService;
 
     public PartyService(PermessiPartyRepository permessiPartyRepository,
                         PermessiPersonaggiRepository permessiPersonaggiRepository,
@@ -55,7 +56,8 @@ public class PartyService {
                         UtenteRepository utenteRepository,
                         AuthzService authzService,
                         GruppoRepository gruppoRepository,
-                        EntityManager em) {
+                        EntityManager em,
+                        PersonaggioCacheService personaggioCacheService) {
         this.permessiPartyRepository = permessiPartyRepository;
         this.permessiPersonaggiRepository = permessiPersonaggiRepository;
         this.personaggioRepository = personaggioRepository;
@@ -70,6 +72,7 @@ public class PartyService {
         this.authzService = authzService;
         this.gruppoRepository = gruppoRepository;
         this.em = em;
+        this.personaggioCacheService = personaggioCacheService;
     }
 
     public PartyDetailDTO getPartyDetail(Integer partyId, Utente utente) {
@@ -260,6 +263,9 @@ public class PartyService {
             nuovo.setItemTarget(target);
             collegamentoRepository.save(nuovo);
         }
+
+        personaggioCacheService.invalidaPersonaggio(from.getId());
+        personaggioCacheService.invalidaPersonaggio(to.getId());
     }
 
     /* =====================================================================
@@ -681,6 +687,7 @@ public class PartyService {
         setModificatoreMoneta(conto, "MA", Math.max(0, target.getMa()));
         setModificatoreMoneta(conto, "MO", Math.max(0, target.getMo()));
         setModificatoreMoneta(conto, "MP", Math.max(0, target.getMp()));
+        personaggioCacheService.invalidaPersonaggio(banca.getId());
         return target;
     }
 
@@ -1088,6 +1095,7 @@ public class PartyService {
             setPersonaggioLabel(pg, Constants.LABEL_MILESTONE, String.valueOf(milestone));
             setPersonaggioLabel(pg, Constants.LABEL_LIVELLO, String.valueOf(livello));
             personaggioRepository.save(pg);
+            personaggioCacheService.invalidaPersonaggio(pg.getId());
             out.add(new MilestonePersonaggioDTO(pg.getId(), pg.getNome(), tipo,
                     milestone, livello, PersonaggioService.saghePerLivello(livello)));
         }
@@ -1160,6 +1168,7 @@ public class PartyService {
         setModificatoreMoneta(borsellino, "MO", target.getMo() - (totale.getMo() - bors.getMo()));
         setModificatoreMoneta(borsellino, "MP", target.getMp() - (totale.getMp() - bors.getMp()));
 
+        personaggioCacheService.invalidaPersonaggio(personaggioId);
         return target;
     }
 

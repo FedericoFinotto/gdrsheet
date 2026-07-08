@@ -123,6 +123,16 @@
 			<version>0.4.8</version>
 		</dependency>
 
+		<!-- Cache in-memory (Caffeine) per dati calcolati legati a un personaggio -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-cache</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+		</dependency>
+
 	</dependencies>
 
 	<build>

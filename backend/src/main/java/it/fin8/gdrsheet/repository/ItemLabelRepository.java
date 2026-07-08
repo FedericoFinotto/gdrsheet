@@ -50,4 +50,18 @@ public interface ItemLabelRepository extends JpaRepository<ItemLabel, Integer> {
             @Param("labels") java.util.Collection<String> labels,
             @Param("personaggioId") Integer personaggioId
     );
+
+    /**
+     * Id dei personaggi che hanno un LIVELLO la cui label CLASSE punta a questa classe/razza —
+     * l'associazione LIVELLO→CLASSE passa per una label, non per un Collegamento, quindi non è
+     * raggiungibile dalla risalita del grafo usata per gli altri item (vedi
+     * CollegamentoRepository#findPersonaggiRaggiungibiliDaItem). Usata per invalidare la cache di
+     * tutti i personaggi che usano una classe/razza quando questa viene modificata.
+     */
+    @Query("""
+            SELECT DISTINCT il.item.personaggio.id FROM ItemLabel il
+            WHERE il.label = 'CLASSE' AND il.valore = :classeId
+              AND il.item.personaggio.id IS NOT NULL
+            """)
+    List<Integer> findPersonaggiByClasseLabel(@Param("classeId") String classeId);
 }

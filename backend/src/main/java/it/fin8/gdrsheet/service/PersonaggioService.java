@@ -11,6 +11,8 @@ import it.fin8.gdrsheet.mapper.ItemMapper;
 import it.fin8.gdrsheet.mapper.ModificatoreMapper;
 import it.fin8.gdrsheet.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,6 +75,23 @@ public class PersonaggioService {
 
     @Autowired
     private AuthzService authzService;
+
+    @Autowired
+    private CacheManager cacheManager;
+
+    @Autowired
+    private PersonaggioCacheService personaggioCacheService;
+
+    private static final String CACHE_MODIFICATORI = "personaggioModificatori";
+    private static final String CACHE_ITEMS = "personaggioItems";
+
+    /** Chiave della cache items: dipende anche dall'utente perché il risultato è filtrato per
+     *  visibilità (label VISIBILITA, isAdmin) — utenti diversi sulla stessa scheda NON devono
+     *  condividere la stessa entry di cache. */
+    private static String itemsCacheKey(Integer id, Utente utente) {
+        Integer utenteId = utente != null ? utente.getId() : null;
+        return id + ":" + (utenteId != null ? utenteId : "anon");
+    }
 
     /**
      * Flattens iteratively the item hierarchy into a list.
@@ -179,6 +198,35 @@ public class PersonaggioService {
 
     public ItemsDTO getAllPersonaggioItemsDTOByIdPersonaggio(Integer id, Utente utente, Map<Integer, Integer> utilizziTotaleFormula) {
         return getAllPersonaggioItemsDTOByIdPersonaggio(id, utente, utilizziTotaleFormula, getAllPersonaggioItemsByIdPersonaggio(id));
+    }
+
+    /**
+     * Punto d'ingresso cache-aware per /items: se la cache ha già il risultato per
+     * (personaggioId, utente) lo restituisce subito, senza toccare il DB. Altrimenti calcola il
+     * flatten UNA volta e, con l'albero item ancora "caldo" in questa stessa richiesta/sessione,
+     * lo riusa per pre-scaldare anche la cache di getDatiPersonaggio — così la chiamata "gemella"
+     * (/modificatori, o viceversa) che arriva subito dopo lo trova già pronto invece di rifare da
+     * zero la stessa traversata costosa.
+     */
+    public ItemsDTO getAllPersonaggioItemsDTOByIdPersonaggio(Integer id, Utente utente) {
+        Cache itemsCache = cacheManager.getCache(CACHE_ITEMS);
+        String key = itemsCacheKey(id, utente);
+        if (itemsCache != null) {
+            ItemsDTO cached = itemsCache.get(key, ItemsDTO.class);
+            if (cached != null) return cached;
+        }
+
+        Cache modCache = cacheManager.getCache(CACHE_MODIFICATORI);
+        AllPersonaggioItems allPersonaggioItems = getAllPersonaggioItemsByIdPersonaggio(id);
+        DatiPersonaggioDTO dati = modCache != null ? modCache.get(id, DatiPersonaggioDTO.class) : null;
+        if (dati == null) {
+            dati = getDatiPersonaggio(id, allPersonaggioItems);
+            if (modCache != null) modCache.put(id, dati);
+        }
+
+        ItemsDTO result = getAllPersonaggioItemsDTOByIdPersonaggio(id, utente, dati.getUtilizziTotaleFormula(), allPersonaggioItems);
+        if (itemsCache != null) itemsCache.put(key, result);
+        return result;
     }
 
     /**
@@ -702,10 +750,47 @@ public class PersonaggioService {
 
     /**
      * Ottiene i dati del personaggio, includendo items da avanzamenti di classe in base al livello.
-     * Unifica i flatten in un solo passaggio per migliorare le prestazioni.
+     * Unifica i flatten in un solo passaggio per migliorare le prestazioni. Cache-aware: legge da
+     * cache se presente, senza pre-scaldare gli items (non conosce l'utente qui — vedi l'overload
+     * con Utente usato da /modificatori per quello).
      */
     public DatiPersonaggioDTO getDatiPersonaggio(Integer id) {
-        return getDatiPersonaggio(id, getAllPersonaggioItemsByIdPersonaggio(id));
+        Cache modCache = cacheManager.getCache(CACHE_MODIFICATORI);
+        if (modCache != null) {
+            DatiPersonaggioDTO cached = modCache.get(id, DatiPersonaggioDTO.class);
+            if (cached != null) return cached;
+        }
+        DatiPersonaggioDTO dati = getDatiPersonaggio(id, getAllPersonaggioItemsByIdPersonaggio(id));
+        if (modCache != null) modCache.put(id, dati);
+        return dati;
+    }
+
+    /**
+     * Punto d'ingresso cache-aware per /modificatori: come sopra, ma con l'albero item ancora
+     * "caldo" in questa stessa richiesta pre-scalda ANCHE la cache items per lo stesso utente —
+     * così se /items viene chiamato subito dopo (come fa il frontend ad ogni caricamento
+     * personaggio) trova già tutto pronto invece di rifare da zero la stessa traversata costosa.
+     */
+    public DatiPersonaggioDTO getDatiPersonaggio(Integer id, Utente utente) {
+        Cache modCache = cacheManager.getCache(CACHE_MODIFICATORI);
+        if (modCache != null) {
+            DatiPersonaggioDTO cached = modCache.get(id, DatiPersonaggioDTO.class);
+            if (cached != null) return cached;
+        }
+
+        AllPersonaggioItems allPersonaggioItems = getAllPersonaggioItemsByIdPersonaggio(id);
+        DatiPersonaggioDTO dati = getDatiPersonaggio(id, allPersonaggioItems);
+        if (modCache != null) modCache.put(id, dati);
+
+        if (utente != null) {
+            Cache itemsCache = cacheManager.getCache(CACHE_ITEMS);
+            String key = itemsCacheKey(id, utente);
+            if (itemsCache != null && itemsCache.get(key) == null) {
+                ItemsDTO items = getAllPersonaggioItemsDTOByIdPersonaggio(id, utente, dati.getUtilizziTotaleFormula(), allPersonaggioItems);
+                itemsCache.put(key, items);
+            }
+        }
+        return dati;
     }
 
     /**
@@ -1139,6 +1224,7 @@ public class PersonaggioService {
         }
 
         personaggioRepository.save(p);
+        personaggioCacheService.invalidaPersonaggio(id);
     }
 
     public Boolean updateHP(UpdateHPRequest upd) {
@@ -1163,6 +1249,7 @@ public class PersonaggioService {
             return false;
         }
 
+        personaggioCacheService.invalidaPersonaggio(upd.getIdPersonaggio());
         return true;
     }
 
@@ -1185,6 +1272,7 @@ public class PersonaggioService {
             return false;
         }
 
+        personaggioCacheService.invalidaPersonaggio(upd.getIdPersonaggio());
         return true;
     }
 
@@ -1459,6 +1547,7 @@ public class PersonaggioService {
 
         s.setValore(request.getValore().toString());
         statValueRepository.save(s);
+        personaggioCacheService.invalidaPersonaggio(request.getIdPersonaggio());
     }
 
     public void updateStatValue(UpdateStatValueRequest request) {
@@ -1477,6 +1566,7 @@ public class PersonaggioService {
             s.setMod(null);
         }
         statValueRepository.save(s);
+        personaggioCacheService.invalidaPersonaggio(request.getIdPersonaggio());
     }
 
     /**

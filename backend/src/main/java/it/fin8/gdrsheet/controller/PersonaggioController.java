@@ -76,11 +76,9 @@ public class PersonaggioController {
         itemService.ensurePreparedSpell(id);
         personaggioService.ensureStatValues(id);
 
-        // Flatten (traversata del grafo item) calcolato UNA SOLA VOLTA e condiviso tra i due
-        // calcoli sottostanti, che prima lo rifacevano ciascuno per conto proprio.
-        AllPersonaggioItems allPersonaggioItems = personaggioService.getAllPersonaggioItemsByIdPersonaggio(id);
-        DatiPersonaggioDTO dati = personaggioService.getDatiPersonaggio(id, allPersonaggioItems);
-        ItemsDTO result = personaggioService.getAllPersonaggioItemsDTOByIdPersonaggio(id, utente, dati.getUtilizziTotaleFormula(), allPersonaggioItems);
+        // Cache-aware: se /modificatori è già stato chiamato per questo utente (come fa il
+        // frontend ad ogni caricamento personaggio), trova già tutto pronto in cache.
+        ItemsDTO result = personaggioService.getAllPersonaggioItemsDTOByIdPersonaggio(id, utente);
 
         return ResponseEntity.ok(result);
     }
@@ -105,9 +103,10 @@ public class PersonaggioController {
     @GetMapping("/modificatori/{id}")
     public ResponseEntity<DatiPersonaggioDTO> modificatoriPersonaggio(
             @Parameter(description = "ID del personaggio", required = true)
-            @PathVariable Integer id
+            @PathVariable Integer id,
+            @AuthenticationPrincipal Utente utente
     ) {
-        DatiPersonaggioDTO result = personaggioService.getDatiPersonaggio(id);
+        DatiPersonaggioDTO result = personaggioService.getDatiPersonaggio(id, utente);
 
         return ResponseEntity.ok(result);
     }

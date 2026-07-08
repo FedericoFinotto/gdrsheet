@@ -45,6 +45,9 @@ public class ItemService {
     @Autowired
     private PersonaggioService personaggioService;
 
+    @Autowired
+    private PersonaggioCacheService personaggioCacheService;
+
     public Item switchItemState(Integer itemId, Integer personaggioId) {
         Item itm = itemRepository.findItemById(itemId);
 
@@ -60,6 +63,7 @@ public class ItemService {
             itemRepository.save(itm);
         }
 
+        personaggioCacheService.invalidaPersonaggio(personaggioId);
         return itm;
     }
 
@@ -142,6 +146,7 @@ public class ItemService {
         collegamentoRepository.saveAll(spellDaAggiungere);
         collegamentoRepository.saveAll(spellDaAggiornare);
 
+        personaggioCacheService.invalidaPersonaggio(request.getIdPersonaggio());
     }
 
     public void updateSpellUsage(UpdateSpellUsageRequest request) {
@@ -154,6 +159,8 @@ public class ItemService {
 
         spell.setLabel(Constants.COLLEGAMENTO_LABEL_N_USATI, request.getNewUsage().toString());
         collegamentoRepository.save(spell);
+
+        personaggioCacheService.invalidaPersonaggio(request.getIdPersonaggio());
     }
 
     @Transactional
@@ -213,7 +220,9 @@ public class ItemService {
             request.getLabelsPatch().forEach((k, v) -> putSingleLabel(itm, k, v));
         }
 
-        return itemRepository.save(itm);
+        Item saved = itemRepository.save(itm);
+        personaggioCacheService.invalidaPerItem(saved.getId());
+        return saved;
     }
 
     /**
@@ -327,6 +336,7 @@ public class ItemService {
             collegamentoRepository.save(link);
         }
 
+        if (pg != null) personaggioCacheService.invalidaPersonaggio(pg.getId());
         return saved;
     }
 
@@ -394,6 +404,10 @@ public class ItemService {
     public void deleteItem(Integer id, Integer idPersonaggio) {
         Item itm = itemRepository.findById(id).orElseThrow(() -> new RuntimeException("Item non trovato"));
 
+        // risolve i personaggi raggiungibili PRIMA di toccare il grafo Collegamento: dopo
+        // l'eliminazione i collegamenti non ci sono più e la risalita non troverebbe più nulla.
+        personaggioCacheService.invalidaPerItem(id);
+
         if (itm.getPersonaggio() != null) {
             hardDelete(itm);
             return;
@@ -432,6 +446,7 @@ public class ItemService {
         if (links.isEmpty()) throw new RuntimeException("L'item non fa parte dell'equipaggiamento del personaggio");
 
         collegamentoRepository.deleteAll(links);
+        personaggioCacheService.invalidaPersonaggio(idPersonaggio);
     }
 
     private void hardDelete(Item itm) {
@@ -524,6 +539,7 @@ public class ItemService {
         link.setLabels(new ArrayList<>());
         link.setLabel(Constants.ITEM_LABEL_DISABILITATO, Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE);
         collegamentoRepository.save(link);
+        personaggioCacheService.invalidaPersonaggio(idPersonaggio);
     }
 
     @Transactional
@@ -574,7 +590,9 @@ public class ItemService {
         applyAttacchi(itm, request.getAttacchi());
         applyChildren(itm, request.getChildren());
 
-        return itemRepository.save(itm);
+        Item saved = itemRepository.save(itm);
+        personaggioCacheService.invalidaPerItem(saved.getId());
+        return saved;
     }
 
     /**
@@ -590,7 +608,9 @@ public class ItemService {
         int max = parseIntOrZero(itm.getLabel(Constants.ITEM_LABEL_BARR_MAX));
         int cons = Math.max(0, Math.min(consumato, max));
         itm.setLabel(Constants.ITEM_LABEL_BARR_CONS, String.valueOf(cons));
-        return itemRepository.save(itm);
+        Item saved = itemRepository.save(itm);
+        personaggioCacheService.invalidaPerItem(saved.getId());
+        return saved;
     }
 
     private static int parseIntOrZero(String s) {
@@ -896,7 +916,10 @@ public class ItemService {
             }
         }
 
-        return itemRepository.save(livello);
+        Item saved = itemRepository.save(livello);
+        // i LIVELLO sono sempre intestati direttamente a un personaggio (mai condivisi)
+        if (saved.getPersonaggio() != null) personaggioCacheService.invalidaPersonaggio(saved.getPersonaggio().getId());
+        return saved;
     }
 
     /**
@@ -907,7 +930,9 @@ public class ItemService {
     public Item updateRanghiLivello(Integer id, UpdateLivelloRequest request) {
         Item livello = caricaLivello(id, null);
         applicaRanghi(livello, request.getRanghi());
-        return itemRepository.save(livello);
+        Item saved = itemRepository.save(livello);
+        if (saved.getPersonaggio() != null) personaggioCacheService.invalidaPersonaggio(saved.getPersonaggio().getId());
+        return saved;
     }
 
     /**
@@ -923,6 +948,7 @@ public class ItemService {
             applicaRanghi(livello, l.getRanghi());
             itemRepository.save(livello);
         }
+        personaggioCacheService.invalidaPersonaggio(request.getPersonaggioId());
     }
 
     /** Carica un item LIVELLO verificando il tipo e (se passato) l'appartenenza al personaggio. */
@@ -1179,6 +1205,7 @@ public class ItemService {
     @Transactional
     public void resetUtilizzi(Integer personaggioId) {
         itemLabelRepository.deleteByLabelAndPersonaggio_Id(Constants.LABEL_UTILIZZI_USATI, personaggioId);
+        personaggioCacheService.invalidaPersonaggio(personaggioId);
     }
 
     public void setUtilizziUsati(Integer itemId, Integer personaggioId, int usati) {
@@ -1193,6 +1220,7 @@ public class ItemService {
                 });
         label.setValore(String.valueOf(Math.max(0, usati)));
         itemLabelRepository.save(label);
+        personaggioCacheService.invalidaPersonaggio(personaggioId);
     }
 
 }

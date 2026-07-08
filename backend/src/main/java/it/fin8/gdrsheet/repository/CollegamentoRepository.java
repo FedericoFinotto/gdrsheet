@@ -42,4 +42,26 @@ public interface CollegamentoRepository extends JpaRepository<Collegamento, Inte
     @Query("SELECT c FROM Collegamento c JOIN FETCH c.itemSource JOIN FETCH c.itemTarget WHERE c.itemSource.id IN :sourceIds AND c.itemTarget.id IN :targetIds AND c.formulaQty IS NOT NULL")
     List<Collegamento> findWithFormulaQty(@Param("sourceIds") List<Integer> sourceIds,
                                           @Param("targetIds") List<Integer> targetIds);
+
+    /**
+     * Risale il grafo Collegamento da un item toccato fino a tutte le radici (item con
+     * personaggio_id valorizzato) raggiungibili, direttamente o indirettamente — un item di
+     * compendio condiviso può comparire come figlio sotto le schede di più personaggi. Usata per
+     * invalidare la cache di TUTTI i personaggi coinvolti quando quell'item viene modificato,
+     * anche se la modifica parte dalla scheda di uno solo di loro.
+     */
+    @Query(value = """
+            WITH RECURSIVE risalita(item_id) AS (
+                SELECT id_item_source FROM collegamento WHERE id_item_target = :itemId
+                UNION
+                SELECT c.id_item_source
+                FROM collegamento c
+                JOIN risalita r ON c.id_item_target = r.item_id
+            )
+            SELECT DISTINCT i.personaggio_id
+            FROM items i
+            WHERE i.personaggio_id IS NOT NULL
+              AND i.id IN (SELECT item_id FROM risalita UNION SELECT :itemId)
+            """, nativeQuery = true)
+    List<Integer> findPersonaggiRaggiungibiliDaItem(@Param("itemId") Integer itemId);
 }
