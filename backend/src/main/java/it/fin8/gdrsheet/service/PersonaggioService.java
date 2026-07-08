@@ -85,12 +85,16 @@ public class PersonaggioService {
     private static final String CACHE_MODIFICATORI = "personaggioModificatori";
     private static final String CACHE_ITEMS = "personaggioItems";
 
-    /** Chiave della cache items: dipende anche dall'utente perché il risultato è filtrato per
-     *  visibilità (label VISIBILITA, isAdmin) — utenti diversi sulla stessa scheda NON devono
-     *  condividere la stessa entry di cache. */
-    private static String itemsCacheKey(Integer id, Utente utente) {
-        Integer utenteId = utente != null ? utente.getId() : null;
-        return id + ":" + (utenteId != null ? utenteId : "anon");
+    /**
+     * Chiave della cache items: dipende dalla CLASSE di visibilità dell'utente (ADMIN/MASTER/
+     * OWNER/GIOCATORE), non dal singolo utente — sono due utenti GIOCATORE qualsiasi (non
+     * proprietari) a vedere esattamente lo stesso ItemsDTO, quindi condividono la stessa entry
+     * invece di sprecarne una a testa (vedi AuthzService.visibilityClass).
+     */
+    private String itemsCacheKey(Integer id, Utente utente) {
+        Integer partyId = personaggioRepository.findPartyIdById(id);
+        String visClass = authzService.visibilityClass(utente, id, partyId);
+        return id + ":" + visClass;
     }
 
     /**

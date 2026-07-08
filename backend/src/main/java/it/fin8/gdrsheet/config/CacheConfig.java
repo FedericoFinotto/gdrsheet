@@ -1,7 +1,7 @@
 package it.fin8.gdrsheet.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import it.fin8.gdrsheet.repository.CacheEntryRepository;
+import jakarta.persistence.EntityManagerFactory;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -23,7 +23,7 @@ import java.time.Duration;
 public class CacheConfig {
 
     @Bean
-    public CacheManager cacheManager(CacheEntryRepository cacheEntryRepository, ObjectMapper objectMapper) {
-        return new DbCacheManager(cacheEntryRepository, objectMapper, Duration.ofMinutes(30));
+    public CacheManager cacheManager(EntityManagerFactory entityManagerFactory, ObjectMapper objectMapper) {
+        return new DbCacheManager(entityManagerFactory, objectMapper, Duration.ofMinutes(30));
     }
 }

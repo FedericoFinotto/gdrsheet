@@ -1,7 +1,7 @@
 package it.fin8.gdrsheet.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import it.fin8.gdrsheet.repository.CacheEntryRepository;
+import jakarta.persistence.EntityManagerFactory;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 
@@ -18,20 +18,20 @@ import java.util.concurrent.ConcurrentMap;
  */
 public class DbCacheManager implements CacheManager {
 
-    private final CacheEntryRepository repository;
+    private final EntityManagerFactory entityManagerFactory;
     private final ObjectMapper objectMapper;
     private final Duration ttl;
-    private final ConcurrentMap<String, Cache> caches = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, DbCache> caches = new ConcurrentHashMap<>();
 
-    public DbCacheManager(CacheEntryRepository repository, ObjectMapper objectMapper, Duration ttl) {
-        this.repository = repository;
+    public DbCacheManager(EntityManagerFactory entityManagerFactory, ObjectMapper objectMapper, Duration ttl) {
+        this.entityManagerFactory = entityManagerFactory;
         this.objectMapper = objectMapper;
         this.ttl = ttl;
     }
 
     @Override
     public Cache getCache(String name) {
-        return caches.computeIfAbsent(name, n -> new DbCache(n, repository, objectMapper, ttl));
+        return caches.computeIfAbsent(name, n -> new DbCache(n, entityManagerFactory, objectMapper, ttl));
     }
 
     @Override

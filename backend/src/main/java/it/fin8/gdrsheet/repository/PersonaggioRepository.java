@@ -21,6 +21,10 @@ public interface PersonaggioRepository extends JpaRepository<Personaggio, Intege
 
     Personaggio findPersonaggioById(Integer idPersonaggio);
 
+    /** Proiezione leggera: solo l'id del party, senza caricare l'intero personaggio. */
+    @Query("SELECT p.party.id FROM Personaggio p WHERE p.id = :id")
+    Integer findPartyIdById(@Param("id") Integer id);
+
     List<Personaggio> findAllByParty_IdOrderByNomeAsc(Integer idParty);
 
     @Query("""

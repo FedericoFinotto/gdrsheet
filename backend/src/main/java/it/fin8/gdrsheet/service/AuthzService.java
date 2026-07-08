@@ -147,6 +147,21 @@ public class AuthzService {
         return true; // valore non riconosciuto: visibile
     }
 
+    /**
+     * Classe di visibilità di un utente rispetto a un personaggio: determina interamente cosa
+     * quell'utente vede (vedi canViewVisibilita) e il controllo "solo admin" sugli item
+     * strutturali. Usata per chiavare la cache /items per "ruolo effettivo" invece che per
+     * singolo utente: due utenti nella stessa classe vedono esattamente lo stesso ItemsDTO,
+     * quindi possono condividere la stessa entry di cache (al massimo 4 varianti per
+     * personaggio: ADMIN, MASTER, OWNER, GIOCATORE — invece di una per utente).
+     */
+    public String visibilityClass(Utente utente, Integer personaggioId, Integer partyId) {
+        if (isAdmin(utente)) return "ADMIN";
+        if (isMasterParty(utente, partyId)) return "MASTER";
+        if (isProprietarioPersonaggio(utente, personaggioId)) return "OWNER";
+        return "GIOCATORE";
+    }
+
     public void assertCanEditPersonaggio(Utente utente, Integer personaggioId) {
         if (!canEditPersonaggio(utente, personaggioId)) {
             throw new org.springframework.web.server.ResponseStatusException(

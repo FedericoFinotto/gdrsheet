@@ -1,6 +1,6 @@
 package it.fin8.gdrsheet.service;
 
-import it.fin8.gdrsheet.repository.CacheEntryRepository;
+import it.fin8.gdrsheet.config.DbCache;
 import it.fin8.gdrsheet.repository.CollegamentoRepository;
 import it.fin8.gdrsheet.repository.ItemLabelRepository;
 import org.springframework.cache.Cache;
@@ -21,14 +21,12 @@ public class PersonaggioCacheService {
     private final CacheManager cacheManager;
     private final CollegamentoRepository collegamentoRepository;
     private final ItemLabelRepository itemLabelRepository;
-    private final CacheEntryRepository cacheEntryRepository;
 
     public PersonaggioCacheService(CacheManager cacheManager, CollegamentoRepository collegamentoRepository,
-                                    ItemLabelRepository itemLabelRepository, CacheEntryRepository cacheEntryRepository) {
+                                    ItemLabelRepository itemLabelRepository) {
         this.cacheManager = cacheManager;
         this.collegamentoRepository = collegamentoRepository;
         this.itemLabelRepository = itemLabelRepository;
-        this.cacheEntryRepository = cacheEntryRepository;
     }
 
     /** Invalida tutte le cache region per un singolo personaggio. */
@@ -39,9 +37,11 @@ public class PersonaggioCacheService {
             if (cache == null) continue;
             // chiave semplice (es. personaggioModificatori, chiavata solo per id)
             cache.evict(personaggioId);
-            // chiavi composite "id:utenteId,..." (es. personaggioItems): match per prefisso.
-            // Formato chiave di cache_entry: "<cacheName>::<key>" (vedi DbCache.fullKey).
-            cacheEntryRepository.deleteByCacheKeyLike(cacheName + "::" + personaggioId + ":%");
+            // chiavi composite "id:utenteId,..." (es. personaggioItems): match per prefisso,
+            // via EntityManager isolato (vedi DbCache) per non toccare la sessione OSIV corrente.
+            if (cache instanceof DbCache dbCache) {
+                dbCache.evictByPrefix(personaggioId + ":");
+            }
         }
     }
 
