@@ -5,9 +5,8 @@ import {useCharacterStore} from "../../../../../../stores/personaggio";
 import Mobile_Stat from "../../Shared/Mobile_Stat.vue";
 import Mobile_HP from "../../Shared/Mobile_HP.vue";
 import Mobile_Contatore from "../../Shared/Mobile_Contatore.vue";
-import Tabella from "../../../../../../components/Tabella.vue";
 import Mobile_DettaglioItem from "../../Dettaglio/Mobile_DettaglioItem.vue";
-import {getItem, switchItemState, updatePersonaggioInfo} from "../../../../../../service/PersonaggioService";
+import {switchItemState, updatePersonaggioInfo} from "../../../../../../service/PersonaggioService";
 import usePopup from "../../../../../../function/usePopup";
 import useDiceRoll from "../../../../../../function/useDiceRoll";
 import {testoTaglia} from "../../../../../../function/Utils";
@@ -25,103 +24,28 @@ const props = defineProps({
   idPersonaggio: {type: Number, required: true}
 });
 
-// ── Frutti: carica i children TRASFORMAZIONE+FORMA via API (una volta sola per set di frutti) ──
-// Mappa frutto.id → array di {id, tipo} dei children rilevanti
-const fruttoChildMap = ref<Map<number, {id: number, tipo: string}[]>>(new Map())
-
-const TIPI_FRUTTO_CHILD = new Set(['TRASFORMAZIONE', 'FORMA'])
-
-const fruttiSignature = computed(() =>
-    (cache.value[props.idPersonaggio]?.items?.frutti ?? [])
-        .map((f: any) => f.id).sort().join(',')
-)
-
-watch(fruttiSignature, async (sig) => {
-  if (!sig) { fruttoChildMap.value = new Map(); return }
-  const frutti: any[] = cache.value[props.idPersonaggio]?.items?.frutti ?? []
-  const map = new Map<number, {id: number, tipo: string}[]>()
-  for (const frutto of frutti) {
-    try {
-      const res = await getItem(frutto.id)
-      const figli = (res.data.child ?? [])
-          .filter((c: any) => TIPI_FRUTTO_CHILD.has(c.itemTarget?.tipo))
-          .map((c: any) => ({id: c.itemTarget.id as number, tipo: c.itemTarget.tipo as string}))
-      map.set(frutto.id, figli)
-    } catch { map.set(frutto.id, []) }
-  }
-  fruttoChildMap.value = map
-}, {immediate: true})
-
-// Set piatto di tutti gli ID child (per escluderli dalle liste indipendenti)
-const fruttiChildIds = computed<Set<number>>(() => {
-  const s = new Set<number>()
-  fruttoChildMap.value.forEach(figli => figli.forEach(f => s.add(f.id)))
-  return s
-})
-
-// Frutti con stato live, separando trasformazioni da forme
+// ── Frutti: le forme/trasformazioni figlie arrivano già raggruppate dal backend
+// (frutto.trasformazioni: [{gruppo, trasformazioni}], "FORMA" per le forme) — niente chiamate
+// di dettaglio separate, niente calcoli client-side, niente flash iniziale. ──
 const fruttiConFigli = computed(() => {
-  const items = cache.value[props.idPersonaggio]?.items
-  const frutti: any[] = items?.frutti ?? []
-  const trsfLive: any[] = items?.trasformazioni ?? []
-  const formeLive: any[] = items?.forme ?? []
-  return frutti.map(frutto => {
-    const childDefs = fruttoChildMap.value.get(frutto.id) ?? []
-    const trasf = childDefs
-        .filter(c => c.tipo === 'TRASFORMAZIONE')
-        .map(c => trsfLive.find(t => t.id === c.id))
-        .filter(Boolean)
-        .sort((a: any, b: any) => a.nome.localeCompare(b.nome))
-    const forme = childDefs
-        .filter(c => c.tipo === 'FORMA')
-        .map(c => formeLive.find(f => f.id === c.id))
-        .filter(Boolean)
-        .sort((a: any, b: any) => a.nome.localeCompare(b.nome))
-    return {frutto, trasf, forme}
-  })
+  const frutti: any[] = cache.value[props.idPersonaggio]?.items?.frutti ?? []
+  return frutti.map(frutto => ({frutto, gruppi: frutto.trasformazioni ?? []}))
 })
 
-// ── Trasformazioni indipendenti (non figlie di nessun frutto), raggruppate per gruppo ──
-const itemsTrasformazioni = computed(() => {
-  const items = cache.value[props.idPersonaggio]?.items
-  return (items?.trasformazioni ?? [])
-      .filter((t: any) => !fruttiChildIds.value.has(t.id))
-      .map((itm: any) => ({
-        ...itm,
-        expandedComponent: markRaw(Mobile_DettaglioItem),
-        expandedProps: {data: {item: {...itm}, personaggio: cache.value[props.idPersonaggio]}}
-      }))
-      .sort((a: any, b: any) => a.nome.localeCompare(b.nome))
-})
+// ── Trasformazioni indipendenti (non figlie di alcun frutto): arrivano già raggruppate. ──
+const gruppiTrasformazioniIndipendenti = computed(() =>
+    cache.value[props.idPersonaggio]?.items?.trasformazioni ?? [])
 
-const gruppiTrasformazioni = computed(() => {
-  const map: Record<string, any[]> = {}
-  itemsTrasformazioni.value.forEach((itm: any) => {
-    const key = itm.gruppo ?? 'Senza gruppo'
-    if (!map[key]) map[key] = []
-    map[key].push(itm)
-  })
-  return map
-})
-
-
-// ── Toggle trasformazione/forma ──
-// siblings: lista entro cui cercare lo stesso gruppo per la mutua esclusione.
-// Se non fornita (trasformazioni indipendenti) usa tutte trasf+forme del personaggio.
+// ── Toggle trasformazione/forma: mutua esclusione dentro allo stesso gruppo ──
 const toggling = ref(false)
-async function toggleTrasf(trasf: any, siblings?: any[]) {
+async function toggleTrasf(trasf: any, siblings: any[]) {
   if (toggling.value) return
   toggling.value = true
   try {
-    const items = cache.value[props.idPersonaggio]?.items
-    const scope: any[] = siblings ?? [
-      ...(items?.trasformazioni ?? []),
-      ...(items?.forme ?? []),
-    ]
     const toSwitch: number[] = []
     if (trasf.disabled) {
-      // attivare: prima disabilita le altre attive dello stesso gruppo nel scope
-      scope
+      // attivare: prima disabilita le altre attive dello stesso gruppo
+      siblings
           .filter(t => !t.disabled && t.gruppo === trasf.gruppo)
           .forEach(t => toSwitch.push(t.id))
     }
@@ -145,12 +69,11 @@ function openInfoTrasf(trasf: any) {
       {
         data: {
           item: {id: trasf.id, nome: trasf.nome, tipo: trasf.tipo, disabled: trasf.disabled},
+          // items completo (non solo trasformazioni): flattenTrasformazioni deve poter cercare
+          // i "sibling" anche tra le trasformazioni/forme figlie dei frutti.
           personaggio: {
             modificatori: {id: props.idPersonaggio},
-            items: {
-              trasformazioni: personaggio?.items?.trasformazioni ?? [],
-              idoli: personaggio?.items?.idoli ?? [],
-            },
+            items: personaggio?.items ?? {},
           },
         }
       },
@@ -173,6 +96,11 @@ function formaColorClass(nome: string): string {
               : 'pill-forma-altro'
 }
 
+// titolo di sezione per un gruppo: "Forme" per il gruppo esplicito FORMA, altrimenti "Trasformazioni <gruppo>"
+function titoloGruppo(gruppo: string): string {
+  return gruppo === 'FORMA' ? 'Forme' : (gruppo ? `Trasformazioni ${gruppo}` : 'Trasformazioni')
+}
+
 // ── Apertura/chiusura card frutto ──
 const openFrutti = ref<Set<number>>(new Set())
 function toggleFruttoOpen(id: number) {
@@ -181,7 +109,7 @@ function toggleFruttoOpen(id: number) {
   openFrutti.value = s
 }
 
-// ── Apertura/chiusura card gruppo trasformazioni ──
+// ── Apertura/chiusura card gruppo trasformazioni indipendenti ──
 const openGruppi = ref<Set<string>>(new Set())
 function toggleGruppoOpen(gruppo: string) {
   const s = new Set(openGruppi.value)
@@ -365,63 +293,53 @@ async function salvaInfo() {
     <!-- Frutti: card apribile/chiudibile -->
     <template v-if="fruttiConFigli.length">
       <div class="frutti-list">
-        <div v-for="{frutto, trasf, forme} in fruttiConFigli" :key="frutto.id" class="frutto-card">
+        <div v-for="{frutto, gruppi} in fruttiConFigli" :key="frutto.id" class="frutto-card">
 
           <!-- Header: sempre visibile, click apre/chiude -->
           <button type="button" class="frutto-head" @click="toggleFruttoOpen(frutto.id)">
             <span class="chev" :class="{open: openFrutti.has(frutto.id)}">▸</span>
             <span class="frutto-nome" :class="{dimmed: frutto.disabled}">{{ frutto.nome }}</span>
-            <!-- chiuso: mostra gli elementi attivi (trasf + forme) come pillole compatte, allineate a destra (forma per ultima) -->
+            <!-- chiuso: mostra gli elementi attivi come pillole compatte, forma per ultima (piu' a destra) -->
             <template v-if="!openFrutti.has(frutto.id)">
               <span class="pill-group">
-                <span
-                    v-for="t in trasf.filter(x => !x.disabled)" :key="'t' + t.id"
-                    class="pill-attiva pill-trasf"
-                >{{ strippaPrefisso(t.nome) }}</span>
-                <span
-                    v-for="f in forme.filter(x => !x.disabled)" :key="'f' + f.id"
-                    class="pill-attiva" :class="formaColorClass(f.nome)"
-                >{{ strippaPrefisso(f.nome) }}</span>
-                <span v-if="[...trasf, ...forme].every(t => t.disabled)" class="pill-nessuna">—</span>
+                <template v-for="g in gruppi.filter(g => g.gruppo !== 'FORMA')" :key="g.gruppo">
+                  <span
+                      v-for="t in g.trasformazioni.filter(x => !x.disabled)" :key="t.id"
+                      class="pill-attiva pill-trasf"
+                  >{{ strippaPrefisso(t.nome) }}</span>
+                </template>
+                <template v-for="g in gruppi.filter(g => g.gruppo === 'FORMA')" :key="g.gruppo">
+                  <span
+                      v-for="t in g.trasformazioni.filter(x => !x.disabled)" :key="t.id"
+                      class="pill-attiva" :class="formaColorClass(t.nome)"
+                  >{{ strippaPrefisso(t.nome) }}</span>
+                </template>
+                <span v-if="gruppi.every(g => g.trasformazioni.every(t => t.disabled))" class="pill-nessuna">—</span>
               </span>
             </template>
           </button>
 
-          <!-- Body: visibile solo da aperta -->
+          <!-- Body: visibile solo da aperta. Forme prima, poi le trasformazioni -->
           <div v-if="openFrutti.has(frutto.id)" class="frutto-body">
-
-            <!-- Forme -->
-            <template v-if="forme.length">
-              <div class="tipo-sep forma-sep">Forme</div>
+            <template
+                v-for="g in [...gruppi.filter(g => g.gruppo === 'FORMA'), ...gruppi.filter(g => g.gruppo !== 'FORMA')]"
+                :key="g.gruppo"
+            >
+              <div class="tipo-sep" :class="{'forma-sep': g.gruppo === 'FORMA'}">{{ titoloGruppo(g.gruppo) }}</div>
               <div
-                  v-for="f in forme" :key="f.id"
-                  class="trasf-riga forma-riga"
-                  :class="{attiva: !f.disabled}"
-              >
-                <button type="button" class="trasf-toggle" :disabled="toggling" @click="toggleTrasf(f, forme)">
-                  <span class="dot forma-dot">{{ f.disabled ? '◇' : '◆' }}</span>
-                  <span class="trasf-nome">{{ f.nome }}</span>
-                </button>
-                <button type="button" class="btn-info" :title="`Info: ${f.nome}`" @click.stop="openInfoTrasf(f)">ⓘ</button>
-              </div>
-            </template>
-
-            <!-- Trasformazioni -->
-            <template v-if="trasf.length">
-              <div class="tipo-sep">Trasformazioni</div>
-              <div
-                  v-for="t in trasf" :key="t.id"
+                  v-for="t in g.trasformazioni" :key="t.id"
                   class="trasf-riga"
-                  :class="{attiva: !t.disabled}"
+                  :class="{attiva: !t.disabled, 'forma-riga': g.gruppo === 'FORMA'}"
               >
-                <button type="button" class="trasf-toggle" :disabled="toggling" @click="toggleTrasf(t, trasf)">
-                  <span class="dot">{{ t.disabled ? '○' : '●' }}</span>
+                <button type="button" class="trasf-toggle" :disabled="toggling" @click="toggleTrasf(t, g.trasformazioni)">
+                  <span class="dot" :class="{'forma-dot': g.gruppo === 'FORMA'}">
+                    {{ g.gruppo === 'FORMA' ? (t.disabled ? '◇' : '◆') : (t.disabled ? '○' : '●') }}
+                  </span>
                   <span class="trasf-nome">{{ t.nome }}</span>
                 </button>
                 <button type="button" class="btn-info" :title="`Info: ${t.nome}`" @click.stop="openInfoTrasf(t)">ⓘ</button>
               </div>
             </template>
-
           </div>
 
         </div>
@@ -430,32 +348,32 @@ async function salvaInfo() {
     </template>
 
     <!-- Trasformazioni indipendenti (non figlie di alcun frutto), raggruppate per gruppo come i frutti -->
-    <div v-if="Object.keys(gruppiTrasformazioni).length" class="frutti-list">
-      <div v-for="(trasf, gruppo) in gruppiTrasformazioni" :key="gruppo" class="frutto-card">
+    <div v-if="gruppiTrasformazioniIndipendenti.length" class="frutti-list">
+      <div v-for="g in gruppiTrasformazioniIndipendenti" :key="g.gruppo" class="frutto-card">
 
-        <!-- Header: chiuso mostra il gruppo e la trasformazione attiva -->
-        <button type="button" class="frutto-head" @click="toggleGruppoOpen(String(gruppo))">
-          <span class="chev" :class="{open: openGruppi.has(String(gruppo))}">▸</span>
-          <span class="frutto-nome">Trasformazioni {{ gruppo }}</span>
-          <template v-if="!openGruppi.has(String(gruppo))">
+        <!-- Header: chiuso mostra il gruppo e le trasformazioni attive -->
+        <button type="button" class="frutto-head" @click="toggleGruppoOpen(g.gruppo)">
+          <span class="chev" :class="{open: openGruppi.has(g.gruppo)}">▸</span>
+          <span class="frutto-nome">{{ titoloGruppo(g.gruppo) }}</span>
+          <template v-if="!openGruppi.has(g.gruppo)">
             <span class="pill-group">
               <span
-                  v-for="t in trasf.filter(x => !x.disabled)" :key="t.id"
+                  v-for="t in g.trasformazioni.filter(x => !x.disabled)" :key="t.id"
                   class="pill-attiva pill-trasf"
               >{{ strippaPrefisso(t.nome) }}</span>
-              <span v-if="trasf.every(x => x.disabled)" class="pill-nessuna">—</span>
+              <span v-if="g.trasformazioni.every(x => x.disabled)" class="pill-nessuna">—</span>
             </span>
           </template>
         </button>
 
         <!-- Body: una trasformazione per riga, con toggle e info -->
-        <div v-if="openGruppi.has(String(gruppo))" class="frutto-body">
+        <div v-if="openGruppi.has(g.gruppo)" class="frutto-body">
           <div
-              v-for="t in trasf" :key="t.id"
+              v-for="t in g.trasformazioni" :key="t.id"
               class="trasf-riga"
               :class="{attiva: !t.disabled}"
           >
-            <button type="button" class="trasf-toggle" :disabled="toggling" @click="toggleTrasf(t, trasf)">
+            <button type="button" class="trasf-toggle" :disabled="toggling" @click="toggleTrasf(t, g.trasformazioni)">
               <span class="dot">{{ t.disabled ? '○' : '●' }}</span>
               <span class="trasf-nome">{{ t.nome }}</span>
             </button>

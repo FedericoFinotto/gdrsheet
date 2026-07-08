@@ -4,8 +4,20 @@ import {Modificatore} from "../models/entity/Modificatore";
 import {Avanzamento} from "../models/entity/Avanzamento";
 import {LABELS} from "../models/entity/ItemLabel";
 import {DatiPersonaggio} from "../models/dto/DatiPersonaggio";
+import {Items} from "../models/dto/Items";
+import {Trasformazione} from "../models/dto/Trasformazione";
 
 const REGEX_DICE = /^\d+d\d+(?:[+-]\d+)?$/i;
+
+// Appiattisce tutte le trasformazioni (indipendenti + quelle figlie di un frutto) in un'unica lista,
+// per i toggle di mutua esclusione che devono cercare "sibling" con lo stesso gruppo a prescindere
+// da dove si trovino (backend le restituisce già raggruppate e separate per convenienza di rendering).
+export function flattenTrasformazioni(items: Items | undefined | null): Trasformazione[] {
+  if (!items) return []
+  const indipendenti = (items.trasformazioni ?? []).flatMap(g => g.trasformazioni)
+  const daiFrutti = (items.frutti ?? []).flatMap(f => (f.trasformazioni ?? []).flatMap(g => g.trasformazioni))
+  return [...indipendenti, ...daiFrutti]
+}
 
 export function testoModificatoreConTipo(mod: number | string, tipo?: string): string {
     if (tipo === 'MOLTIPLICA') return `×${mod}`;

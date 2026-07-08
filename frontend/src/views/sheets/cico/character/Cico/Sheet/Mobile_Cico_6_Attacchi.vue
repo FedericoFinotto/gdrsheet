@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import {computed, defineAsyncComponent, defineProps, ref, watch} from 'vue';
+import {computed, defineAsyncComponent, defineProps} from 'vue';
 import Tabella from "../../../../../../components/Tabella.vue";
 import {useCharacterStore} from "../../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
-import {getValoreFormula} from "../../../../../../function/Calcolo";
-import {applicaBonusDado, removePlus, risolviFormulaDanno, testoFormula, testoModificatore} from "../../../../../../function/Utils";
-import {Attacco} from "../../../../../../models/dto/Attacco";
+import {applicaBonusDado} from "../../../../../../function/Utils";
+import {AttaccoCalcolatoRow} from "../../../../../../function/Calcolo";
 import useDiceRoll from "../../../../../../function/useDiceRoll";
 import usePopup from "../../../../../../function/usePopup";
 
@@ -23,58 +22,9 @@ const props = defineProps({
   }
 });
 
-interface AttaccoRow {
-  id: any
-  nome: string
-  nomeItem: string
-  atk: string | null        // valore base calcolato
-  dmg: string | null
-  attacco: string
-  colpo: string
-  [key: string]: any
-}
-
-const itemsAttacchi = ref<AttaccoRow[]>([]);
-
-watch(
-    () => cache.value[props.idPersonaggio]?.items,
-    async (newChar) => {
-      if (!newChar || !newChar.attacchi) {
-        itemsAttacchi.value = [];
-        return;
-      }
-
-      const sorted = [...newChar.attacchi].sort((a: Attacco, b: Attacco) =>
-          a.nomeItem.localeCompare(b.nomeItem)
-      );
-
-      itemsAttacchi.value = await Promise.all(
-          sorted.map(async itm => {
-            let atkVal: string | null = null;
-            let dannoVal: string | null = null;
-
-            if (itm.attacco) {
-              const resp = await getValoreFormula(cache.value[props.idPersonaggio].modificatori, itm.attacco);
-              atkVal = testoModificatore(resp.data.risultato);
-            }
-
-            if (itm.colpo) {
-              const resp = await getValoreFormula(cache.value[props.idPersonaggio].modificatori, itm.colpo);
-              dannoVal = risolviFormulaDanno(resp.data.formula, cache.value[props.idPersonaggio].modificatori);
-            }
-
-            return {
-              ...itm,
-              atk: itm.tiroSalvezza ? `CD ${removePlus(atkVal)} ${itm.tiroSalvezza}` : atkVal,
-              dmg: dannoVal,
-              attacco: itm.attacco ? testoFormula(itm.attacco) : '',
-              colpo: itm.colpo ? testoFormula(itm.colpo) : '',
-            };
-          })
-      );
-    },
-    {immediate: true, deep: true}
-);
+// Le formule sono già precalcolate in background dallo store (subito dopo il caricamento di
+// items), quindi qui basta leggere dalla cache: niente chiamate di rete al primo render.
+const itemsAttacchi = computed(() => cache.value[props.idPersonaggio]?.attacchi ?? []);
 
 // applica il bonus d20 al valore atk quando il dado è attivo
 const itemsDisplay = computed(() => {
@@ -85,7 +35,7 @@ const itemsDisplay = computed(() => {
   }))
 })
 
-function apriDanno(row: AttaccoRow) {
+function apriDanno(row: AttaccoCalcolatoRow) {
   if (!row.dmg) return
   openPopup(DiceRollerPopup, {initialFormula: row.dmg}, {closable: true, autoClose: 0})
 }

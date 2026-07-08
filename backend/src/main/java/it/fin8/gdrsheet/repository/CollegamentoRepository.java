@@ -1,5 +1,6 @@
 package it.fin8.gdrsheet.repository;
 
+import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.entity.Collegamento;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -12,6 +13,20 @@ import java.util.List;
 public interface CollegamentoRepository extends JpaRepository<Collegamento, Integer> {
 
     List<Collegamento> findAllByItemSource_Id(Integer id);
+
+    /**
+     * Figli (id/nome/tipo del target) per un insieme di item sorgente, filtrati per tipo target.
+     * Proiezione leggera (niente JOIN FETCH di entità intere): usata per arricchire in batch gli
+     * ItemDTO con i loro figli ATTACCO/TRASFORMAZIONE/FORMA senza scatenare lazy-load su
+     * Item.child (non tutti gli item del flatten hanno il child eager-fetched).
+     */
+    @Query("""
+            SELECT c.itemSource.id, c.itemTarget.id, c.itemTarget.nome, c.itemTarget.tipo
+            FROM Collegamento c
+            WHERE c.itemSource.id IN :sourceIds
+              AND c.itemTarget.tipo IN :tipi
+            """)
+    List<Object[]> findFigliByTipo(@Param("sourceIds") List<Integer> sourceIds, @Param("tipi") List<TipoItem> tipi);
 
     List<Collegamento> findAllByItemTarget_Id(Integer id);
 

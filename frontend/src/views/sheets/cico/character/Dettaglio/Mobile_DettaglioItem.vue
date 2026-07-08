@@ -3,6 +3,7 @@ import {computed, defineProps, onMounted, ref} from 'vue';
 import {
   buildMappaItemAvanzamenti,
   buildMappaModificatoriAvanzamenti,
+  flattenTrasformazioni,
   iconForComponent,
   mostraLabel,
   testoFormula,
@@ -66,7 +67,9 @@ async function switchState() {
   if (item.disabled) {
     switch (item.tipo) {
       case 'TRASFORMAZIONE':
-        itemIdToSwitch.push(...personaggio.items.trasformazioni.filter(x => !x.disabled && x.gruppo === item.gruppo).map(x => x.id));
+        // Le trasformazioni sono raggruppate dal backend (indipendenti + quelle di un frutto):
+        // le appiattiamo per cercare i "sibling" con lo stesso gruppo a prescindere da dove si trovino.
+        itemIdToSwitch.push(...flattenTrasformazioni(personaggio.items).filter(x => !x.disabled && x.gruppo === item.gruppo).map(x => x.id));
         break;
       case 'IDOLO':
         itemIdToSwitch.push(...personaggio.items.idoli.filter(x => !x.disabled).map(x => x.id));

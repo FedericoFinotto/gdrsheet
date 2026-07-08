@@ -31,6 +31,19 @@ public class ItemMapper {
 
     public ItemDTO toDTO(Item entity, Integer utilizziTotale, Integer utilizziUsati) {
         ItemDTO dto = new ItemDTO();
+        populateBase(dto, entity, utilizziTotale, utilizziUsati);
+        return dto;
+    }
+
+    /** FRUTTO: stessi campi di {@link #toDTO}, più il campo trasformazioni (valorizzato dal chiamante). */
+    public FruttoDTO toFruttoDTO(Item entity, Integer utilizziTotale, Integer utilizziUsati) {
+        FruttoDTO dto = new FruttoDTO();
+        populateBase(dto, entity, utilizziTotale, utilizziUsati);
+        dto.setTrasformazioni(new ArrayList<>());
+        return dto;
+    }
+
+    private void populateBase(ItemDTO dto, Item entity, Integer utilizziTotale, Integer utilizziUsati) {
         dto.setId(entity.getId());
         dto.setNome(entity.getNome());
         dto.setTipo(entity.getTipo());
@@ -63,7 +76,6 @@ public class ItemMapper {
             dto.setIncludiConsumabiliAbilitati(true);
         if ("1".equals(entity.getLabel(Constants.LABEL_INCLUDI_TUTTI_ABILITATI)))
             dto.setIncludiTuttiAbilitati(true);
-        return dto;
     }
 
     private static Integer parseQuantita(String s) {

@@ -24,11 +24,13 @@ public class ItemsDTO {
     private List<LivelloDTO> livelli;
     private List<ItemDTO> maledizioni;
     private List<SpellBookDTO> spellbooks;
-    private List<TrasformazioneDTO> trasformazioni;
+    /** Trasformazioni INDIPENDENTI (non figlie di alcun FRUTTO), già raggruppate per "gruppo". */
+    private List<GruppoTrasformazioniDTO> trasformazioni;
     private List<ItemDTO> competenze;
     private List<ItemDTO> lingue;
     private List<ItemDTO> idoli;
-    private List<ItemDTO> frutti;
+    /** Frutti con le loro forme/trasformazioni figlie già raggruppate (vedi FruttoDTO). */
+    private List<FruttoDTO> frutti;
     private List<ItemDTO> forme;
     private List<ItemDTO> privilegi;
     private List<ItemDTO> contenitori;

@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -50,4 +52,7 @@ public class ItemDTO {
     /** Flag su CONTENITORE ("Tutto quello che pesa"): include qualsiasi item non disabilitato con
      *  peso, di qualunque tipo (implica gli altri INCLUDI_*). */
     private Boolean includiTuttiAbilitati;
+    /** Attacchi (ATTACCO) collegati come figli di questo item, precalcolati per evitare una chiamata
+     *  di dettaglio separata quando si espande la riga. Vuoto se nessuno. */
+    private List<ChildRefDTO> figliAttacchi;
 }

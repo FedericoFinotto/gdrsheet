@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, defineProps, onMounted, ref} from 'vue';
-import {mostraLabel, testoModificatore} from "../../../../../function/Utils";
+import {flattenTrasformazioni, mostraLabel, testoModificatore} from "../../../../../function/Utils";
 import {getItem, switchItemState} from "../../../../../service/PersonaggioService";
 import {ItemDB, TIPO_ITEM} from "../../../../../models/entity/ItemDB";
 import {useCharacterStore} from "../../../../../stores/personaggio";
@@ -34,7 +34,7 @@ async function switchState() {
   if (itemInfo.disabled) {
     switch (itemInfo.tipo) {
       case 'TRASFORMAZIONE':
-        itemIdToSwitch.push(...personaggio.items.trasformazioni.filter(x => !x.disabled).map(x => x.id));
+        itemIdToSwitch.push(...flattenTrasformazioni(personaggio.items).filter(x => !x.disabled).map(x => x.id));
         break;
       case 'IDOLO':
         itemIdToSwitch.push(...personaggio.items.idoli.filter(x => !x.disabled).map(x => x.id));

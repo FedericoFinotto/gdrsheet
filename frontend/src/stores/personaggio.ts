@@ -2,6 +2,7 @@ import {defineStore} from 'pinia'
 import {getAllPersonaggioItemsDTOByIdPersonaggio, getModificatoriPersonaggioById} from "../service/PersonaggioService";
 import {DatiPersonaggio} from "../models/dto/DatiPersonaggio";
 import {Items} from "../models/dto/Items";
+import {AttaccoCalcolatoRow, calcolaAttacchi} from "../function/Calcolo";
 
 export interface SharedDataState {
     character: any | null;
@@ -9,6 +10,8 @@ export interface SharedDataState {
     items: Items | null;
     loading: boolean;
     error: any | null;
+    attacchi: AttaccoCalcolatoRow[] | null;
+    attacchiLoading: boolean;
 }
 
 export interface SharedDataCache {
@@ -32,7 +35,7 @@ export const useCharacterStore = defineStore('character', {
             }
             console.log('RICALCOLO DATI PERSONAGGIO');
             if (!this.cache[id]) {
-                this.cache[id] = {character: null, modificatori: null, items: null, loading: true, error: null};
+                this.cache[id] = {character: null, modificatori: null, items: null, loading: true, error: null, attacchi: null, attacchiLoading: false};
             }
 
             try {
@@ -42,6 +45,9 @@ export const useCharacterStore = defineStore('character', {
                 // 2) then items
                 const itemsRes = await getAllPersonaggioItemsDTOByIdPersonaggio(id);
                 this.cache[id].items = itemsRes.data;
+                // 3) precalcola le formule degli attacchi in background (non attende il risultato):
+                // così la pagina Attacchi trova già la cache pronta invece di rifare N chiamate al primo render.
+                this.precalcolaAttacchi(id);
             } catch (err) {
                 this.cache[id].error = err;
             } finally {
@@ -49,6 +55,22 @@ export const useCharacterStore = defineStore('character', {
             }
 
             return this.cache[id];
+        },
+
+        /**
+         * Precalcola in background atk/dmg di tutti gli attacchi del personaggio e li mette in cache.
+         */
+        async precalcolaAttacchi(id: number) {
+            const state = this.cache[id];
+            if (!state?.items || !state?.modificatori) return;
+            state.attacchiLoading = true;
+            try {
+                state.attacchi = await calcolaAttacchi(state.items, state.modificatori);
+            } catch (err) {
+                console.error('Errore precalcolo formule attacchi:', err);
+            } finally {
+                state.attacchiLoading = false;
+            }
         },
 
         /**

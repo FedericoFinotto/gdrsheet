@@ -238,6 +238,11 @@ public class PersonaggioService {
             }
         }
 
+        // Lista piatta di TUTTE le trasformazioni (frutti-figlie incluse): raggruppata a fine metodo,
+        // separando quelle indipendenti (in itemsDTO.trasformazioni) da quelle di un FRUTTO (in
+        // FruttoDTO.trasformazioni).
+        List<TrasformazioneDTO> flatTrasformazioni = new ArrayList<>();
+
         Set<Integer> itemIdGiaAggiunti = new HashSet<>();
         for (Item itm : allPersonaggioItems.getItems()) {
             // filtro di visibilità (label VISIBILITA): nasconde l'item a chi non è autorizzato
@@ -300,7 +305,7 @@ public class PersonaggioService {
                 itemsDTO.getMaledizioni().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.TRASFORMAZIONE.equals(itm.getTipo())) {
-                itemsDTO.getTrasformazioni().add(itemMapper.toTrasformazioneDTO(itm));
+                flatTrasformazioni.add(itemMapper.toTrasformazioneDTO(itm));
             }
             if (TipoItem.COMP.equals(itm.getTipo())) {
                 ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
@@ -321,7 +326,7 @@ public class PersonaggioService {
                 itemsDTO.getContenitori().add(dto);
             }
             if (TipoItem.FRUTTO.equals(itm.getTipo())) {
-                itemsDTO.getFrutti().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                itemsDTO.getFrutti().add(itemMapper.toFruttoDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.FORMA.equals(itm.getTipo())) {
                 itemsDTO.getForme().add(itemMapper.toDTO(itm, uTotale, uUsati));
@@ -399,6 +404,91 @@ public class PersonaggioService {
             }
             itemsDTO.getClassi().add(itemMapper.toClasseDTO(classe));
         }
+
+        // Arricchisce ogni ItemDTO con i suoi figli ATTACCO (es. armi) e raggruppa le trasformazioni
+        // — precalcolati qui in UNA query batch così il frontend non deve fare chiamate di dettaglio
+        // separate (e non "rimescola" la UI dopo il primo render). NB: niente itm.getChild() qui,
+        // perché per gli item non-root del flatten non è eager-fetched e scatenerebbe un lazy-load
+        // per item.
+        Map<Integer, List<ChildRefDTO>> figliAttacchiMap = new HashMap<>();
+        Map<Integer, List<ChildRefDTO>> figliFruttoMap = new HashMap<>();
+        if (!allItemIds.isEmpty()) {
+            for (Object[] row : collegamentoRepository.findFigliByTipo(allItemIds,
+                    List.of(TipoItem.ATTACCO, TipoItem.TRASFORMAZIONE, TipoItem.FORMA))) {
+                Integer sourceId = (Integer) row[0];
+                ChildRefDTO ref = new ChildRefDTO((Integer) row[1], (String) row[2], (TipoItem) row[3]);
+                Map<Integer, List<ChildRefDTO>> target = TipoItem.ATTACCO.equals(ref.getTipo())
+                        ? figliAttacchiMap : figliFruttoMap;
+                target.computeIfAbsent(sourceId, k -> new ArrayList<>()).add(ref);
+            }
+        }
+        Stream.of(itemsDTO.getAbilita(), itemsDTO.getTalenti(), itemsDTO.getOggetti(), itemsDTO.getConsumabili(),
+                        itemsDTO.getArmi(), itemsDTO.getMunizioni(), itemsDTO.getEquipaggiamento(),
+                        itemsDTO.getClassi(), itemsDTO.getRazze(), itemsDTO.getMaledizioni(), itemsDTO.getCompetenze(),
+                        itemsDTO.getLingue(), itemsDTO.getIdoli(), itemsDTO.getContenitori(),
+                        itemsDTO.getForme(), itemsDTO.getPrivilegi(), itemsDTO.getAltro(), itemsDTO.getNotizie(),
+                        itemsDTO.getPatti())
+                .flatMap(List::stream)
+                .forEach(dto -> dto.setFigliAttacchi(figliAttacchiMap.getOrDefault(dto.getId(), List.of())));
+        // I FRUTTO sono List<FruttoDTO> (tipo diverso da List<ItemDTO>): gestiti a parte.
+        itemsDTO.getFrutti().forEach(dto -> dto.setFigliAttacchi(figliAttacchiMap.getOrDefault(dto.getId(), List.of())));
+
+        // Raggruppa le trasformazioni: per ogni FRUTTO, le sue forme (gruppo esplicito "FORMA") e le
+        // sue trasformazioni figlie (gruppo naturale) vanno in FruttoDTO.trasformazioni; il resto
+        // (trasformazioni indipendenti, non figlie di alcun frutto) va in itemsDTO.trasformazioni,
+        // raggruppato allo stesso modo.
+        Map<Integer, ItemDTO> formeById = itemsDTO.getForme().stream()
+                .collect(Collectors.toMap(ItemDTO::getId, x -> x, (a, b) -> a));
+        Map<Integer, TrasformazioneDTO> trasfById = flatTrasformazioni.stream()
+                .collect(Collectors.toMap(TrasformazioneDTO::getId, x -> x, (a, b) -> a));
+        Set<Integer> trasfClaimateDaFrutti = new HashSet<>();
+
+        for (FruttoDTO frutto : itemsDTO.getFrutti()) {
+            List<ChildRefDTO> figli = figliFruttoMap.getOrDefault(frutto.getId(), List.of());
+            List<TrasformazioneDTO> formaGroup = new ArrayList<>();
+            Map<String, List<TrasformazioneDTO>> trasfGroups = new LinkedHashMap<>();
+            for (ChildRefDTO ref : figli) {
+                if (TipoItem.FORMA.equals(ref.getTipo())) {
+                    ItemDTO forma = formeById.get(ref.getId());
+                    if (forma == null) continue;
+                    TrasformazioneDTO asTrasf = new TrasformazioneDTO();
+                    asTrasf.setId(forma.getId());
+                    asTrasf.setNome(forma.getNome());
+                    asTrasf.setTipo(forma.getTipo());
+                    asTrasf.setDisabled(forma.getDisabled());
+                    asTrasf.setGruppo("FORMA");
+                    formaGroup.add(asTrasf);
+                } else if (TipoItem.TRASFORMAZIONE.equals(ref.getTipo())) {
+                    TrasformazioneDTO trasf = trasfById.get(ref.getId());
+                    if (trasf == null) continue;
+                    trasfClaimateDaFrutti.add(trasf.getId());
+                    String g = trasf.getGruppo() != null ? trasf.getGruppo() : "";
+                    trasfGroups.computeIfAbsent(g, k -> new ArrayList<>()).add(trasf);
+                }
+            }
+            List<GruppoTrasformazioniDTO> gruppi = new ArrayList<>();
+            if (!formaGroup.isEmpty()) {
+                formaGroup.sort(Comparator.comparing(TrasformazioneDTO::getNome, String.CASE_INSENSITIVE_ORDER));
+                gruppi.add(new GruppoTrasformazioniDTO("FORMA", formaGroup));
+            }
+            trasfGroups.forEach((g, list) -> {
+                list.sort(Comparator.comparing(TrasformazioneDTO::getNome, String.CASE_INSENSITIVE_ORDER));
+                gruppi.add(new GruppoTrasformazioniDTO(g, list));
+            });
+            frutto.setTrasformazioni(gruppi);
+        }
+
+        // Trasformazioni indipendenti (non figlie di alcun frutto), raggruppate per "gruppo"
+        Map<String, List<TrasformazioneDTO>> gruppiIndipendenti = flatTrasformazioni.stream()
+                .filter(t -> !trasfClaimateDaFrutti.contains(t.getId()))
+                .collect(Collectors.groupingBy(
+                        t -> t.getGruppo() != null ? t.getGruppo() : "",
+                        LinkedHashMap::new,
+                        Collectors.toList()));
+        gruppiIndipendenti.forEach((g, list) -> {
+            list.sort(Comparator.comparing(TrasformazioneDTO::getNome, String.CASE_INSENSITIVE_ORDER));
+            itemsDTO.getTrasformazioni().add(new GruppoTrasformazioniDTO(g, list));
+        });
 
         return itemsDTO;
     }
