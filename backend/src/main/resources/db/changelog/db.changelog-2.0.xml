@@ -357,4 +357,24 @@
         </createTable>
     </changeSet>
 
+    <changeSet id="125" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="cache_entry"/>
+            </not>
+        </preConditions>
+        <comment>cache generica chiave/valore (JSON) per dati calcolati costosi legati a un personaggio, con scadenza esplicita e invalidazione attiva (vedi PersonaggioCacheService)</comment>
+        <createTable tableName="cache_entry">
+            <column name="cache_key" type="varchar(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="valore" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dt_scadenza" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
 </databaseChangeLog>

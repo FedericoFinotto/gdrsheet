@@ -10,8 +10,15 @@ import {applicaBonusDado, removePlus, risolviFormulaDanno, testoFormula, testoMo
 
 export function getValoreFormula(personaggio: DatiPersonaggio, formula: string) {
     if (!formula) return null;
-    personaggio.bonusAttacco.forEach(x => x.modificatore = x.attacchiMultipli[0]);
-    return calcolaFormula(formula, personaggio);
+    // Per il calcolo di UNA formula (un singolo attacco/incantesimo) il BAB da usare è il primo
+    // della sequenza di attacchi multipli. Clona bonusAttacco invece di mutare l'oggetto
+    // condiviso (cache dello store): il vero "modificatore" serve intatto altrove (Lotta,
+    // Mischia, Distanza), mutarlo in place lo sovrascriveva permanentemente col valore diminuito.
+    const personaggioPerFormula: DatiPersonaggio = {
+        ...personaggio,
+        bonusAttacco: personaggio.bonusAttacco.map(x => ({...x, modificatore: x.attacchiMultipli[0]})),
+    };
+    return calcolaFormula(formula, personaggioPerFormula);
 }
 
 export interface AttaccoCalcolatoRow {

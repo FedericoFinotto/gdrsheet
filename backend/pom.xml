@@ -123,14 +123,12 @@
 			<version>0.4.8</version>
 		</dependency>
 
-		<!-- Cache in-memory (Caffeine) per dati calcolati legati a un personaggio -->
+		<!-- Cache (dati calcolati legati a un personaggio: /items, /modificatori) — backend
+		     custom su tabella Postgres (vedi config.DbCacheManager), ispezionabile/cancellabile
+		     direttamente con DataGrip, nessuna infrastruttura aggiuntiva da avviare -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-cache</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.github.ben-manes.caffeine</groupId>
-			<artifactId>caffeine</artifactId>
 		</dependency>
 
 	</dependencies>

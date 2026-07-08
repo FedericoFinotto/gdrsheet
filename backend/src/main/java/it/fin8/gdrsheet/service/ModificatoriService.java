@@ -837,10 +837,14 @@ public class ModificatoriService {
     }
 
 
+    /** Il BAB si divide al massimo in 6 attacchi (regola di sistema), anche se il valore di
+     * partenza (per bonus da oggetti/buff) permetterebbe altrimenti più iterazioni. */
+    private static final int MAX_ATTACCHI_ITERATIVI = 6;
+
     public static List<Integer> computeIterativeAttacks(int baseBab, int baseMod) {
         List<Integer> attacks = new ArrayList<>();
         int value = baseBab;
-        while (value > 0) {
+        while (value > 0 && attacks.size() < MAX_ATTACCHI_ITERATIVI) {
             attacks.add(baseMod);
             value -= 5;
             baseMod -= 5;

@@ -1,33 +1,29 @@
 package it.fin8.gdrsheet.config;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import it.fin8.gdrsheet.repository.CacheEntryRepository;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 /**
- * Cache in-memory (Caffeine, nessuna infrastruttura esterna) per dati calcolati legati a un
- * personaggio (es. /items, formule attacchi). L'invalidazione è attiva e mirata (vedi
- * PersonaggioCacheService), non basata su TTL: l'expireAfterWrite qui sotto è solo un backstop
- * di sicurezza in caso di bug nell'invalidazione, non il meccanismo primario.
- * <p>
- * CaffeineCacheManager senza setCacheNames(...) crea le cache region "al volo" alla prima
- * richiesta di un nome non ancora visto: non serve elencare qui i nomi delle cache che verranno
- * aggiunte via @Cacheable in futuro.
+ * Cache su tabella Postgres (cache_entry, vedi DbCache/DbCacheManager) per dati calcolati legati
+ * a un personaggio (es. /items, /modificatori): nessuna infrastruttura aggiuntiva da avviare,
+ * ispezionabile/cancellabile direttamente con DataGrip. L'invalidazione è attiva e mirata (vedi
+ * PersonaggioCacheService), non basata su TTL: l'entryTtl qui sotto è solo un backstop di
+ * sicurezza in caso di bug nell'invalidazione (pulito periodicamente da CachePuliziaJob).
  */
 @Configuration
 @EnableCaching
+@EnableScheduling
 public class CacheConfig {
 
     @Bean
-    public CaffeineCacheManager cacheManager() {
-        CaffeineCacheManager manager = new CaffeineCacheManager();
-        manager.setCaffeine(Caffeine.newBuilder()
-                .expireAfterWrite(30, TimeUnit.MINUTES)
-                .maximumSize(10_000));
-        return manager;
+    public CacheManager cacheManager(CacheEntryRepository cacheEntryRepository, ObjectMapper objectMapper) {
+        return new DbCacheManager(cacheEntryRepository, objectMapper, Duration.ofMinutes(30));
     }
 }
