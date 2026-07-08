@@ -52,6 +52,14 @@ const canManageUsers = computed(() => {
   return r === 'MASTER' || r === 'ADMIN' || r === 'SUPERUSER'
 })
 
+// il reload va rimandato al prossimo tick: chiamarlo subito nello stesso handler del click
+// fa gareggiare la navigazione col teardown di Vue Router, generando un errore in console
+// (innocuo: il reload comunque avviene) ma inutile da vedere ogni volta.
+function toggleAdminMode() {
+  auth.setAdminMode(!auth.adminMode)
+  setTimeout(() => window.location.reload(), 0)
+}
+
 // aggiorna app
 const aggiornando = ref(false)
 async function forzaAggiornamento() {
@@ -178,7 +186,7 @@ function apriNotizie() {
             <button
               class="toggle-btn"
               :class="{ active: auth.adminMode }"
-              @click="auth.setAdminMode(!auth.adminMode); window.location.reload()"
+              @click="toggleAdminMode"
               :title="auth.adminMode ? 'Clicca per disattivare i privilegi admin' : 'Clicca per attivare i privilegi admin'"
             >
               <span class="toggle-track">
