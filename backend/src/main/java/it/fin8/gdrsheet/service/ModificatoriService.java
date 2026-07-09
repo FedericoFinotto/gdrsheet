@@ -218,7 +218,8 @@ public class ModificatoriService {
             List<ModificatoreDTO> modsDto,
             List<RankDTO> ranksDto,
             List<CaratteristicaDTO> carList,
-            List<ModificatoreDTO> cambiaGlobali
+            List<ModificatoreDTO> cambiaGlobali,
+            List<ContatoreItemDTO> contatoriItem
     ) {
         List<ModificatoreDTO> mods = new ArrayList<>(modsDto);
         // CAMBIA_CARATTERISTICA globale ("tutte le abilità"): unito ai mods così viene preservato
@@ -263,6 +264,16 @@ public class ModificatoriService {
                 formulaBase = Integer.parseInt(calcoloService.calcola(stat.getFormula(), carList));
                 mods.add(new ModificatoreDTO(null, stat.getStat().getId(), formulaBase, stat.getFormula(), null, null, true, "Formula", null, null));
             } catch (Exception ignored) {}
+        }
+        for (ModificatoreDTO modificatoreDTO : mods) {
+            if (modificatoreDTO.getFormula() != null && (modificatoreDTO.getFormula().contains("$") || modificatoreDTO.getFormula().indexOf('@') >= 0)) {
+                try {
+                    modificatoreDTO.setFormula(calcoloService.calcola(modificatoreDTO.itemIdInFormula(), contatoriItem.stream().map(ContatoreItemDTO::toCaratteristicaDTO).toList()));
+                    modificatoreDTO.setValore(Integer.parseInt(modificatoreDTO.getFormula()));
+                } catch (Exception e) {
+                    mods.remove(modificatoreDTO);
+                }
+            }
         }
         int bonusVal = mods.stream()
                 .filter(x -> x.getNota() == null && !TipoModificatore.CAMBIA_CARATTERISTICA.equals(x.getTipo()))
@@ -1032,7 +1043,8 @@ public class ModificatoriService {
                             ab.getAbilita().getModificatori(),
                             ab.getRank().getRanks(),
                             cars,
-                            Collections.emptyList()
+                            Collections.emptyList(),
+                            List.of()
                     );
 
                     abilitaList.set(i, nuovaAbilita);

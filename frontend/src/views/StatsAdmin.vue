@@ -34,6 +34,14 @@ const busy = ref(false)
 const filtro = ref('')
 
 const nuovaStat = ref<{ id: string; tipo: string; label: string }>({id: '', tipo: 'AB', label: ''})
+// Per il tipo AB, distingue Abilità generica / Conoscenza / Professione: sono tutte tipo='AB' a
+// livello di DB, si distinguono solo per convenzione sull'id (vedi gruppoDi più sotto).
+const sottoTipoAB = ref<'AB' | 'AB_CON' | 'AB_PROF'>('AB')
+const SOTTOTIPO_AB_OPTS = [
+  {value: 'AB', label: 'Abilità generica'},
+  {value: 'AB_CON', label: 'Conoscenza'},
+  {value: 'AB_PROF', label: 'Professione'},
+]
 
 // card apribili/chiudibili
 const aperti = ref<Set<string>>(new Set())
@@ -81,6 +89,57 @@ function gruppoDi(stat: any): string {
   return 'AB'
 }
 
+// Convenzione di numerazione per le famiglie "numerate": prefisso id, cifre di padding e primo
+// numero usato (es. AB1..AB36, CO00..CO11, PR00..PR06 — dati letti dal seed esistente).
+const CONFIG_FAMIGLIA: Record<string, { prefisso: string; padding: number; primo: number }> = {
+  AB: {prefisso: 'AB', padding: 0, primo: 1},
+  AB_CON: {prefisso: 'CO', padding: 2, primo: 0},
+  AB_PROF: {prefisso: 'PR', padding: 2, primo: 0},
+}
+
+// famiglia scelta nel form "nuova stat" (per AB usa il sotto-tipo scelto, altrimenti il tipo stesso)
+const famigliaSelezionata = computed(() => nuovaStat.value.tipo === 'AB' ? sottoTipoAB.value : nuovaStat.value.tipo)
+
+// tutte le stat esistenti della famiglia selezionata
+const statDellaFamiglia = computed(() => {
+  const fam = famigliaSelezionata.value
+  const conf = CONFIG_FAMIGLIA[fam]
+  return stats.value.filter(s => {
+    if (gruppoDi(s) !== fam) return false
+    // scarta eventuali id "anomali" che non seguono il pattern prefisso+numero
+    return !conf || new RegExp(`^${conf.prefisso}\\d+$`).test(String(s.id).toUpperCase())
+  })
+})
+
+// l'ultima statistica della famiglia: per le famiglie numerate quella col numero più alto,
+// altrimenti l'ultima della lista (nessun ordine "di creazione" disponibile, solo un riferimento)
+const ultimaStatFamiglia = computed(() => {
+  const lista = statDellaFamiglia.value
+  if (lista.length === 0) return null
+  const conf = CONFIG_FAMIGLIA[famigliaSelezionata.value]
+  if (!conf) return lista[lista.length - 1]
+  return [...lista].sort((a, b) => {
+    const na = parseInt(String(a.id).toUpperCase().replace(conf.prefisso, ''), 10) || 0
+    const nb = parseInt(String(b.id).toUpperCase().replace(conf.prefisso, ''), 10) || 0
+    return nb - na
+  })[0]
+})
+
+// id suggerito per la nuova stat: incrementato per le famiglie numerate (AB/CO/PR), altrimenti
+// l'id dell'ultima stat della stessa famiglia (solo come riferimento/formato da modificare a mano)
+const idSuggerito = computed(() => {
+  const conf = CONFIG_FAMIGLIA[famigliaSelezionata.value]
+  const ultimo = ultimaStatFamiglia.value
+  if (!conf) return ultimo?.id ?? ''
+  const n = ultimo ? (parseInt(String(ultimo.id).toUpperCase().replace(conf.prefisso, ''), 10) || 0) + 1 : conf.primo
+  return conf.prefisso + String(n).padStart(conf.padding, '0')
+})
+
+// prevalorizza l'id ogni volta che cambia tipo/sotto-tipo (l'admin può comunque modificarlo a mano)
+watch([() => nuovaStat.value.tipo, sottoTipoAB], () => {
+  nuovaStat.value.id = idSuggerito.value
+})
+
 // righe raggruppate (una card per gruppo)
 const gruppi = computed(() => {
   const map: Record<string, any[]> = {}
@@ -110,6 +169,7 @@ onMounted(async () => {
   if (!isMasterOrAdmin.value) { router.replace('/'); return }
   try {
     await Promise.all([loadStats(), loadMondi()])
+    nuovaStat.value.id = idSuggerito.value
   } catch (e: any) {
     errorMsg.value = e?.message ?? 'Errore di caricamento'
   }
@@ -174,9 +234,11 @@ async function salvaStat() {
     if (mondoSel.value != null) {
       await createStatDefault({mondoId: mondoSel.value, statId: nuovaStat.value.id.trim()})
     }
-    nuovaStat.value = {id: '', tipo: 'AB', label: ''}
+    nuovaStat.value.label = ''
     await loadStats()
     await loadDefaults()
+    // ricalcola il prossimo id suggerito per la stessa famiglia, per aggiungerne altre in fila
+    nuovaStat.value.id = idSuggerito.value
   } catch (e: any) {
     errorMsg.value = e?.response?.data?.message ?? e?.message ?? 'Errore nel salvataggio della stat'
   } finally {
@@ -258,18 +320,28 @@ async function salvaStat() {
       <div v-show="isAperta('__nuova')" class="card-body">
         <div class="grid">
           <label class="field">
-            <span class="lbl">Id (max 10)</span>
-            <input v-model.trim="nuovaStat.id" type="text" maxlength="10" placeholder="Es.: NUOTARE"/>
-          </label>
-          <label class="field">
             <span class="lbl">Tipo</span>
             <SearchSelect v-model="nuovaStat.tipo" :options="TIPO_OPTS" :sort="false"/>
+          </label>
+          <label v-if="nuovaStat.tipo === 'AB'" class="field">
+            <span class="lbl">Sotto-tipo</span>
+            <SearchSelect v-model="sottoTipoAB" :options="SOTTOTIPO_AB_OPTS" :sort="false"/>
+          </label>
+          <label class="field">
+            <span class="lbl">Id (max 10)</span>
+            <input v-model.trim="nuovaStat.id" type="text" maxlength="10" placeholder="Es.: NUOTARE"/>
           </label>
           <label class="field grow">
             <span class="lbl">Label</span>
             <input v-model.trim="nuovaStat.label" type="text" placeholder="Es.: Nuotare"/>
           </label>
         </div>
+        <p class="muted ultima-info">
+          <template v-if="ultimaStatFamiglia">
+            Ultima statistica di questo tipo: <strong>{{ ultimaStatFamiglia.label }}</strong> ({{ ultimaStatFamiglia.id }})
+          </template>
+          <template v-else>Nessuna statistica di questo tipo ancora salvata.</template>
+        </p>
         <button class="btn primary" :disabled="busy" @click="salvaStat">
           Crea statistica{{ mondoSel != null ? ' e abilita nel mondo' : '' }}
         </button>

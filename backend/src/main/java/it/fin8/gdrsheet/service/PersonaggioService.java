@@ -1035,7 +1035,8 @@ public class PersonaggioService {
                                     modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
                                     ranksDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
                                     carList,
-                                    cambiaAbilitaGlobali
+                                    cambiaAbilitaGlobali,
+                                    itemCounterList
                             ))
                             .toList()
             ).get();
