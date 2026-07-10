@@ -32,6 +32,9 @@ export const ICONS = {
     COMP_COLDFIRE: {kind: 'fa', classes: 'fa-solid fa-snowflake'},     // Coldfire (Frostburn) — puoi sostituire con SVG
     COMP_FROSTFELL: {kind: 'fa', classes: 'fa-solid fa-snowflake'},     // Ambiente Frostfell
     COMP_BREATH: {kind: 'fa', classes: 'fa-solid fa-wind'},          // Soffio (B)
+    GRADI_DIVINI: {kind: 'fa', classes: 'fa-solid fa-sun'},          // Gradi Divini (party)
+    LIVELLO: {kind: 'fa', classes: 'fa-solid fa-gem'},               // Livello atteso (party/info) - "rombo" esperienza
+    WARNING: {kind: 'fa', classes: 'fa-solid fa-triangle-exclamation'}, // livello atteso != livelli effettivi
 } as const satisfies Record<string, IconDef>;
 
 export type IconKey = keyof typeof ICONS;

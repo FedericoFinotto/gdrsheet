@@ -12,6 +12,7 @@ import useDiceRoll from "../../../../../../function/useDiceRoll";
 import {testoTaglia} from "../../../../../../function/Utils";
 import SearchSelect from "../../../../../../components/SearchSelect.vue";
 import PesoDettaglioPopup from "./PesoDettaglioPopup.vue";
+import Icona from "../../../../../../components/Icona/Icona.vue";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore);
@@ -133,6 +134,7 @@ const INFO_FIELDS: { key: string; label: string; type?: string }[] = [
   {key: 'TAGLIA', label: 'Taglia (base)', type: 'select'},
   {key: 'MILESTONE', label: 'Milestone attuali', type: 'number'},
   {key: 'LIVELLO', label: 'Livello (atteso)', type: 'number'},
+  {key: 'GRADI_DIVINI', label: 'Gradi Divini', type: 'number'},
 ]
 
 const TAGLIE: { value: string; label: string }[] = [
@@ -176,6 +178,18 @@ function toggleInfoOpen() {
 const pesoTotale = computed(() => cache.value[props.idPersonaggio]?.modificatori?.pesoTotale)
 const milestone = computed(() => cache.value[props.idPersonaggio]?.modificatori?.info?.MILESTONE)
 const milestoneTo = computed(() => cache.value[props.idPersonaggio]?.modificatori?.info?.MILESTONE_TO)
+const livelloAtteso = computed(() => cache.value[props.idPersonaggio]?.modificatori?.info?.LIVELLO)
+const gradiDivini = computed(() => cache.value[props.idPersonaggio]?.modificatori?.info?.GRADI_DIVINI)
+
+// livelli effettivi: item LIVELLO non disabilitati, escluso il livello 0 (stessa logica di PartyService)
+const numLivelliEffettivi = computed(() =>
+    (cache.value[props.idPersonaggio]?.items?.livelli ?? [])
+        .filter(l => !l.disabled && Number(l.livello) !== 0)
+        .length
+)
+const livelloMismatch = computed(() =>
+    livelloAtteso.value != null && Number(livelloAtteso.value) !== numLivelliEffettivi.value
+)
 
 function openPesoDettaglio() {
   const pg = cache.value[props.idPersonaggio]
@@ -216,8 +230,15 @@ async function salvaInfo() {
         <h2 class="info-nome">{{ cache[idPersonaggio]?.modificatori?.nome ?? "" }}</h2>
         <span v-if="pesoTotale != null" class="info-peso-badge"
               @click.stop="openPesoDettaglio">{{ pesoTotale }} kg</span>
-        <span v-if="milestone != null || milestoneTo != null" class="info-milestone-badge">
-          {{ milestone ?? '?' }} / {{ milestoneTo ?? '?' }}
+        <span v-if="livelloAtteso != null || milestone != null || milestoneTo != null"
+              class="info-livello-badge" :class="{warn: livelloMismatch}">
+          <Icona :name="livelloMismatch ? 'WARNING' : 'LIVELLO'"
+                 :title="livelloMismatch ? `Livello atteso ${livelloAtteso}, livelli effettivi ${numLivelliEffettivi}` : undefined"/>
+          <template v-if="livelloAtteso != null">{{ livelloAtteso }}</template>
+          <template v-if="milestone != null || milestoneTo != null">&nbsp;&nbsp;{{ milestone ?? '?' }}/{{ milestoneTo ?? '?' }}</template>
+        </span>
+        <span v-if="gradiDivini != null" class="info-divino-badge">
+          <i class="fa-solid fa-sun" aria-hidden="true"/> {{ gradiDivini }}
         </span>
       </button>
 
@@ -419,14 +440,30 @@ async function salvaInfo() {
   cursor: pointer;
 }
 .info-peso-badge:hover { background: #d9f99d; }
-.info-milestone-badge {
+.info-livello-badge {
   font-size: .75rem;
-  font-weight: 600;
+  font-weight: 700;
   padding: .15rem .5rem;
   border-radius: .4rem;
-  background: #dbeafe;
-  color: #1e40af;
+  background: #eef2ff;
+  color: #3730a3;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+}
+.info-livello-badge.warn { background: #fef3c7; color: #92400e; }
+.info-divino-badge {
+  font-size: .75rem;
+  font-weight: 700;
+  padding: .15rem .5rem;
+  border-radius: .4rem;
+  background: #fef9c3;
+  color: #854d0e;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
 }
 .info-body {
   border-top: 1px solid #e5e7eb;

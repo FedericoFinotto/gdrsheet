@@ -142,6 +142,14 @@ public class PartyService {
                     .filter(i -> !Boolean.TRUE.equals(i.isDisabled()))   // i livelli disabilitati non contano
                     .filter(i -> !"0".equals(i.getLabel(Constants.ITEM_LIVELLO_LVL)))
                     .count();
+            // Milestone attuali (label) e milestone necessarie (calcolate dal livello atteso, come in PersonaggioService)
+            Integer milestone = null;
+            String milestoneRaw = personaggioLabel(pg, Constants.LABEL_MILESTONE);
+            try { if (milestoneRaw != null) milestone = Integer.parseInt(milestoneRaw.trim()); } catch (NumberFormatException ignored) {}
+            int milestoneTo = PersonaggioService.saghePerLivello(livello != null ? livello : 1);
+            Integer gradiDivini = null;
+            String gradiDiviniRaw = personaggioLabel(pg, Constants.LABEL_GRADI_DIVINI);
+            try { if (gradiDiviniRaw != null) gradiDivini = Integer.parseInt(gradiDiviniRaw.trim()); } catch (NumberFormatException ignored) {}
             personaggi.add(new PartyDetailDTO.PersonaggioSoldiDTO(
                     pg.getId(),
                     pg.getNome(),
@@ -152,7 +160,10 @@ public class PartyService {
                     gruppoId,
                     capogruppo,
                     livello,
-                    numLivelli
+                    numLivelli,
+                    milestone,
+                    milestoneTo,
+                    gradiDivini
             ));
         }
 

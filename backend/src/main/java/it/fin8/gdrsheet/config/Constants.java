@@ -118,6 +118,9 @@ public final class Constants {
     // Livello "atteso" del personaggio: solo indicativo, non influenza i calcoli
     public static final String LABEL_LIVELLO = "LIVELLO";
 
+    // Gradi Divini del personaggio: solo indicativo, non influenza i calcoli
+    public static final String LABEL_GRADI_DIVINI = "GRADI_DIVINI";
+
     // Peso effettivo (kg) calcolato all'apertura della scheda e messo in cache come personaggio_label,
     // letto dalla lista party senza rifare il calcolo. Non modificabile a mano.
     public static final String LABEL_PESO_EFFETTIVO = "PESO_EFFETTIVO";
@@ -126,6 +129,6 @@ public final class Constants {
     public static final List<String> PERSONAGGIO_INFO_LABELS = List.of(
             "LUOGO_NASCITA", "DATA_NASCITA", "RAZZA", "SESSO", "PELLE", "ETA",
             "ALTEZZA", "PESO", "CAPELLI", "OCCHI", "ALLINEAMENTO", "TAGLIA",
-            "MILESTONE", "MILESTONE_TO", "LIVELLO");
+            "MILESTONE", "MILESTONE_TO", "LIVELLO", "GRADI_DIVINI");
 }
 

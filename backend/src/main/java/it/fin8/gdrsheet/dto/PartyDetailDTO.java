@@ -83,6 +83,12 @@ public class PartyDetailDTO {
         private Integer livello;
         /** Numero di livelli effettivi associati (item LIVELLO, escluso l'eventuale livello 0). */
         private int numLivelli;
+        /** Milestone attuali (personaggio_label MILESTONE); null se assente. */
+        private Integer milestone;
+        /** Milestone necessarie per il prossimo livello, calcolate dal livello atteso. */
+        private int milestoneTo;
+        /** Gradi Divini indicati dalla personaggio_label GRADI_DIVINI (solo indicativo); null se assente. */
+        private Integer gradiDivini;
     }
 
     @Getter

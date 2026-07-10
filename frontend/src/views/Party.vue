@@ -14,6 +14,7 @@ import {
 import {formatKg, formatPesoTotale, PartyDetail, PersonaggioSoldi} from '../models/dto/Party'
 import SoldiView from '../components/SoldiView.vue'
 import SearchSelect from '../components/SearchSelect.vue'
+import Icona from '../components/Icona/Icona.vue'
 import {listUsers} from '../service/AuthService'
 import {UtenteAdmin} from '../models/dto/Auth'
 
@@ -358,11 +359,16 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
           <li v-for="p in mieiPersonaggi" :key="p.id">
             <button class="card clickable" @click="apriScheda(p)">
               <span class="nome">{{ p.nome }} <span class="pill mio">Tuo</span></span>
-              <span v-if="p.livello != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
-                Lv {{ p.livello }}
-                <span v-if="livelloMismatch(p)" class="warn-tri" :title="`Livello atteso ${p.livello}, livelli effettivi ${p.numLivelli}`">⚠</span>
-              </span>
               <span v-if="p.peso > 0" class="pill peso">{{ formatKg(p.peso) }}</span>
+              <span v-if="p.livello != null || p.milestone != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
+                <Icona :name="livelloMismatch(p) ? 'WARNING' : 'LIVELLO'"
+                       :title="livelloMismatch(p) ? `Livello atteso ${p.livello}, livelli effettivi ${p.numLivelli}` : undefined"/>
+                <template v-if="p.livello != null">{{ p.livello }}</template>
+                <template v-if="p.milestone != null">&nbsp;&nbsp;{{ p.milestone }}/{{ p.milestoneTo }}</template>
+              </span>
+              <span v-if="p.gradiDivini != null" class="pill divino" title="Gradi Divini">
+                <Icona name="GRADI_DIVINI"/> {{ p.gradiDivini }}
+              </span>
             </button>
           </li>
         </ul>
@@ -392,11 +398,16 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
                 <span v-if="p.proprietario" class="pill mio">Tuo</span>
               </span>
               <span class="card-chips">
-                <span v-if="p.livello != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
-                  Lv {{ p.livello }}
-                  <span v-if="livelloMismatch(p)" class="warn-tri" :title="`Livello atteso ${p.livello}, livelli effettivi ${p.numLivelli}`">⚠</span>
-                </span>
                 <span v-if="p.peso > 0" class="pill peso">{{ formatKg(p.peso) }}</span>
+                <span v-if="p.livello != null || p.milestone != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
+                  <Icona :name="livelloMismatch(p) ? 'WARNING' : 'LIVELLO'"
+                         :title="livelloMismatch(p) ? `Livello atteso ${p.livello}, livelli effettivi ${p.numLivelli}` : undefined"/>
+                  <template v-if="p.livello != null">{{ p.livello }}</template>
+                  <template v-if="p.milestone != null">&nbsp;&nbsp;{{ p.milestone }}/{{ p.milestoneTo }}</template>
+                </span>
+                <span v-if="p.gradiDivini != null" class="pill divino" title="Gradi Divini">
+                  <Icona name="GRADI_DIVINI"/> {{ p.gradiDivini }}
+                </span>
               </span>
             </button>
           </li>
@@ -413,11 +424,16 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
                 {{ p.nome }}
                 <span v-if="p.proprietario" class="pill mio">Tuo</span>
               </span>
-              <span v-if="p.livello != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
-                Lv {{ p.livello }}
-                <span v-if="livelloMismatch(p)" class="warn-tri" :title="`Livello atteso ${p.livello}, livelli effettivi ${p.numLivelli}`">⚠</span>
-              </span>
               <span v-if="p.peso > 0" class="pill peso">{{ formatKg(p.peso) }}</span>
+              <span v-if="p.livello != null || p.milestone != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
+                <Icona :name="livelloMismatch(p) ? 'WARNING' : 'LIVELLO'"
+                       :title="livelloMismatch(p) ? `Livello atteso ${p.livello}, livelli effettivi ${p.numLivelli}` : undefined"/>
+                <template v-if="p.livello != null">{{ p.livello }}</template>
+                <template v-if="p.milestone != null">&nbsp;&nbsp;{{ p.milestone }}/{{ p.milestoneTo }}</template>
+              </span>
+              <span v-if="p.gradiDivini != null" class="pill divino" title="Gradi Divini">
+                <Icona name="GRADI_DIVINI"/> {{ p.gradiDivini }}
+              </span>
             </button>
           </li>
         </ul>
@@ -536,9 +552,9 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
   gap: .5rem;
   flex-shrink: 0;
 }
-.pill.livello { background: #eef2ff; color: #3730a3; font-weight: 700; white-space: nowrap; }
+.pill.livello { background: #eef2ff; color: #3730a3; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: .25rem; }
 .pill.livello.warn { background: #fef3c7; color: #92400e; }
-.warn-tri { margin-left: .15rem; color: #d97706; }
+.pill.divino { background: #fef9c3; color: #854d0e; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: .25rem; }
 
 /* accordion gruppo */
 .gruppo-block { gap: .35rem; }
