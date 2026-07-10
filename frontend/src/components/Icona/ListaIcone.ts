@@ -35,6 +35,12 @@ export const ICONS = {
     GRADI_DIVINI: {kind: 'fa', classes: 'fa-solid fa-sun'},          // Gradi Divini (party)
     LIVELLO: {kind: 'fa', classes: 'fa-solid fa-gem'},               // Livello atteso (party/info) - "rombo" esperienza
     WARNING: {kind: 'fa', classes: 'fa-solid fa-triangle-exclamation'}, // livello atteso != livelli effettivi
+    LEADER: {kind: 'fa', classes: 'fa-solid fa-crown'},              // Capogruppo (party)
+    TIPO_STELLA: {kind: 'fa', classes: 'fa-solid fa-star'},          // Tipo personaggio: Stella
+    TIPO_NAVE: {kind: 'fa', classes: 'fa-solid fa-ship'},            // Tipo personaggio: Nave/Barca
+    TIPO_BASE: {kind: 'fa', classes: 'fa-solid fa-umbrella-beach'},  // Tipo personaggio: Base/Isola
+    TIPO_NPC: {kind: 'fa', classes: 'fa-solid fa-user'},             // Tipo personaggio: NPC
+    TIPO_BANCA: {kind: 'fa', classes: 'fa-solid fa-building-columns'}, // Tipo personaggio: Banca
 } as const satisfies Record<string, IconDef>;
 
 export type IconKey = keyof typeof ICONS;

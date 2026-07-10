@@ -18,8 +18,6 @@ export interface PersonaggioSoldi {
     capogruppo?: boolean;       // è il capogruppo del suo gruppo
     livello?: number | null;    // livello atteso (label LIVELLO, indicativo)
     numLivelli?: number;        // n. livelli effettivi (escluso livello 0)
-    milestone?: number | null;  // milestone attuali (label MILESTONE)
-    milestoneTo?: number;       // milestone necessarie per il prossimo livello (calcolate dal livello atteso)
     gradiDivini?: number | null; // gradi divini (label GRADI_DIVINI, indicativo)
 }
 

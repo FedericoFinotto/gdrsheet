@@ -15,6 +15,7 @@ import {formatKg, formatPesoTotale, PartyDetail, PersonaggioSoldi} from '../mode
 import SoldiView from '../components/SoldiView.vue'
 import SearchSelect from '../components/SearchSelect.vue'
 import Icona from '../components/Icona/Icona.vue'
+import type {IconKey} from '../components/Icona/ListaIcone'
 import {listUsers} from '../service/AuthService'
 import {UtenteAdmin} from '../models/dto/Auth'
 
@@ -247,6 +248,38 @@ function toggleGruppo(id: number) {
 function capogruppoNome(membri: PersonaggioSoldi[]): string | null {
   return membri.find(m => m.capogruppo)?.nome ?? null
 }
+
+// icona/etichetta/colore per differenziare i tipi di personaggio (PG normale non ha icona)
+function tipoIcon(p: PersonaggioSoldi): IconKey | null {
+  switch (p.tipoPersonaggio) {
+    case 'STELLA': return 'TIPO_STELLA'
+    case 'NAVE': return 'TIPO_NAVE'
+    case 'BASE': return 'TIPO_BASE'
+    case 'BANCA': return 'TIPO_BANCA'
+    case 'NPC': return 'TIPO_NPC'
+    default: return null
+  }
+}
+function tipoLabel(p: PersonaggioSoldi): string {
+  switch (p.tipoPersonaggio) {
+    case 'STELLA': return 'Stella'
+    case 'NAVE': return 'Barca'
+    case 'BASE': return 'Base'
+    case 'BANCA': return 'Banca'
+    case 'NPC': return 'NPC'
+    default: return ''
+  }
+}
+function tipoRailClass(p: PersonaggioSoldi): string {
+  switch (p.tipoPersonaggio) {
+    case 'STELLA': return 't-stella'
+    case 'NAVE': return 't-nave'
+    case 'BASE': return 't-base'
+    case 'BANCA': return 't-banca'
+    case 'NPC': return 't-npc'
+    default: return ''
+  }
+}
 // il livello atteso (label) non corrisponde ai livelli effettivi (escluso il livello 0)
 function livelloMismatch(p: PersonaggioSoldi): boolean {
   return p.livello != null && p.livello !== (p.numLivelli ?? 0)
@@ -358,13 +391,13 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
         <ul class="cards">
           <li v-for="p in mieiPersonaggi" :key="p.id">
             <button class="card clickable" @click="apriScheda(p)">
-              <span class="nome">{{ p.nome }} <span class="pill mio">Tuo</span></span>
+              <Icona v-if="tipoIcon(p)" :name="tipoIcon(p)!" class="tipo-rail" :class="tipoRailClass(p)" :title="tipoLabel(p)"/>
+              <span class="nome">{{ p.nome }}</span>
               <span v-if="p.peso > 0" class="pill peso">{{ formatKg(p.peso) }}</span>
-              <span v-if="p.livello != null || p.milestone != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
+              <span v-if="p.livello != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
                 <Icona :name="livelloMismatch(p) ? 'WARNING' : 'LIVELLO'"
                        :title="livelloMismatch(p) ? `Livello atteso ${p.livello}, livelli effettivi ${p.numLivelli}` : undefined"/>
-                <template v-if="p.livello != null">{{ p.livello }}</template>
-                <template v-if="p.milestone != null">&nbsp;&nbsp;{{ p.milestone }}/{{ p.milestoneTo }}</template>
+                {{ p.livello }}
               </span>
               <span v-if="p.gradiDivini != null" class="pill divino" title="Gradi Divini">
                 <Icona name="GRADI_DIVINI"/> {{ p.gradiDivini }}
@@ -380,7 +413,7 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
           <span class="chev" :class="{open: aperti.has(g.id)}">▸</span>
           <span class="gruppo-nome">{{ g.nome }}</span>
           <span class="gruppo-head-right">
-            <span v-if="capogruppoNome(g.membri)" class="pill capo">★ {{ capogruppoNome(g.membri) }}</span>
+            <span v-if="capogruppoNome(g.membri)" class="pill capo"><Icona name="LEADER"/> {{ capogruppoNome(g.membri) }}</span>
             <span class="conteggio">{{ g.membri.length }}</span>
           </span>
         </button>
@@ -391,19 +424,16 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
         </div>
         <ul v-if="aperti.has(g.id)" class="cards">
           <li v-for="p in g.membri" :key="p.id">
-            <button class="card clickable" @click="apriScheda(p)">
-              <span class="nome">
-                <span v-if="p.capogruppo" class="capo-star" title="Capogruppo">★</span>
-                {{ p.nome }}
-                <span v-if="p.proprietario" class="pill mio">Tuo</span>
-              </span>
+            <button class="card clickable" :class="{own: p.proprietario}" @click="apriScheda(p)">
+              <Icona v-if="tipoIcon(p)" :name="tipoIcon(p)!" class="tipo-rail" :class="tipoRailClass(p)" :title="tipoLabel(p)"/>
+              <span class="nome">{{ p.nome }}</span>
               <span class="card-chips">
+                <Icona v-if="p.capogruppo" name="LEADER" class="capo-star" title="Capogruppo"/>
                 <span v-if="p.peso > 0" class="pill peso">{{ formatKg(p.peso) }}</span>
-                <span v-if="p.livello != null || p.milestone != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
+                <span v-if="p.livello != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
                   <Icona :name="livelloMismatch(p) ? 'WARNING' : 'LIVELLO'"
                          :title="livelloMismatch(p) ? `Livello atteso ${p.livello}, livelli effettivi ${p.numLivelli}` : undefined"/>
-                  <template v-if="p.livello != null">{{ p.livello }}</template>
-                  <template v-if="p.milestone != null">&nbsp;&nbsp;{{ p.milestone }}/{{ p.milestoneTo }}</template>
+                  {{ p.livello }}
                 </span>
                 <span v-if="p.gradiDivini != null" class="pill divino" title="Gradi Divini">
                   <Icona name="GRADI_DIVINI"/> {{ p.gradiDivini }}
@@ -419,17 +449,14 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
         <h2>Senza gruppo</h2>
         <ul class="cards">
           <li v-for="p in senzaGruppo" :key="p.id">
-            <button class="card clickable" @click="apriScheda(p)">
-              <span class="nome">
-                {{ p.nome }}
-                <span v-if="p.proprietario" class="pill mio">Tuo</span>
-              </span>
+            <button class="card clickable" :class="{own: p.proprietario}" @click="apriScheda(p)">
+              <Icona v-if="tipoIcon(p)" :name="tipoIcon(p)!" class="tipo-rail" :class="tipoRailClass(p)" :title="tipoLabel(p)"/>
+              <span class="nome">{{ p.nome }}</span>
               <span v-if="p.peso > 0" class="pill peso">{{ formatKg(p.peso) }}</span>
-              <span v-if="p.livello != null || p.milestone != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
+              <span v-if="p.livello != null" class="pill livello" :class="{warn: livelloMismatch(p)}">
                 <Icona :name="livelloMismatch(p) ? 'WARNING' : 'LIVELLO'"
                        :title="livelloMismatch(p) ? `Livello atteso ${p.livello}, livelli effettivi ${p.numLivelli}` : undefined"/>
-                <template v-if="p.livello != null">{{ p.livello }}</template>
-                <template v-if="p.milestone != null">&nbsp;&nbsp;{{ p.milestone }}/{{ p.milestoneTo }}</template>
+                {{ p.livello }}
               </span>
               <span v-if="p.gradiDivini != null" class="pill divino" title="Gradi Divini">
                 <Icona name="GRADI_DIVINI"/> {{ p.gradiDivini }}
@@ -445,6 +472,7 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
         <ul class="cards">
           <li v-for="p in membriBanche" :key="p.id">
             <button class="card clickable" @click="apriScheda(p)">
+              <Icona v-if="tipoIcon(p)" :name="tipoIcon(p)!" class="tipo-rail" :class="tipoRailClass(p)" :title="tipoLabel(p)"/>
               <span class="nome">{{ p.nome }}</span>
               <SoldiView :soldi="p.soldi" compatto/>
             </button>
@@ -518,8 +546,36 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
 }
 
 .card .nome { flex: 1; font-weight: 600; min-width: 8rem; }
-.card.clickable { cursor: pointer; }
+.card.clickable { position: relative; cursor: pointer; padding-left: 2.6rem; }
 .card.clickable:hover { background: #f9fafb; }
+
+/* icona di tipo personaggio: "rail" a tutta altezza sul bordo sinistro, discreta,
+   più stile della riga che icona vera e propria. Su schermi stretti il padding si
+   riduce e il nome può finire sopra alla rail, che resta comunque solo decorativa. */
+.tipo-rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  opacity: .16;
+  pointer-events: none;
+  border-top-left-radius: .6rem;
+  border-bottom-left-radius: .6rem;
+}
+.tipo-rail.t-stella { color: #ca8a04; }
+.tipo-rail.t-nave { color: #1d4ed8; }
+.tipo-rail.t-base { color: #0d9488; }
+.tipo-rail.t-banca { color: #7c3aed; }
+.tipo-rail.t-npc { color: #475569; }
+@media (max-width: 480px) {
+  .card.clickable { padding-left: .9rem; }
+}
+.card.clickable.own { border-left: 3px solid #22c55e; }
 
 .card.highlight {
   background: #fefce8;
@@ -542,9 +598,8 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
 }
 .pill.master { background: #fef3c7; color: #92400e; }
 .pill.giocatore { background: #dbeafe; color: #1e40af; }
-.pill.mio { background: #dcfce7; color: #166534; margin-left: .35rem; }
 .pill.peso { background: #f3f4f6; color: #374151; }
-.pill.capo { background: #fef3c7; color: #92400e; }
+.pill.capo { background: #fef3c7; color: #92400e; display: inline-flex; align-items: center; gap: .25rem; }
 .card-chips {
   margin-left: auto;
   display: inline-flex;
