@@ -36,6 +36,7 @@ public class AbilitaDTO {
         private Integer modificatore;
         private List<ModificatoreDTO> modificatori;
         private Boolean addestramento;
+        private Boolean rankable;
     }
 
     @Getter
@@ -50,7 +51,7 @@ public class AbilitaDTO {
 
     public AbilitaDTO(StatValue stat, Integer modificatore, List<ModificatoreDTO> modificatori, Integer valoreRank, Integer modRank, List<RankDTO> ranks, CaratteristicaDTO caratteristicaBase) {
         this.stat = stat;
-        abilita = new ABILITA(stat.getStat().getId(), stat.getStat().getLabel(), modificatore, modificatori, stat.getAddestramento());
+        abilita = new ABILITA(stat.getStat().getId(), stat.getStat().getLabel(), modificatore, modificatori, stat.getAddestramento(), stat.getStat().getRankable());
         rank = new RANK(valoreRank, modRank, ranks);
         base = caratteristicaBase;
         statValore = stat.getValore();

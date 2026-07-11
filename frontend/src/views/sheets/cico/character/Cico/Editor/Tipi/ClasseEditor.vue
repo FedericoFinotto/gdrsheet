@@ -155,9 +155,21 @@ async function loadStats() {
   }
 }
 
+// placeholder "famiglia intera" (Tutte le Abilità/Conoscenze/Intrattenere/Artigianato): non sono
+// abilità vere e proprie, non vanno mai mostrate/selezionate nella lista singola — solo tramite
+// i toggle dedicati qui sotto. Restano scelte come bersaglio di modificatori (altrove).
+const FAMIGLIA_PLACEHOLDER: { id: string; label: string }[] = [
+  {id: 'AB00', label: 'Tutte le Abilità'},
+  {id: 'CO00', label: 'Tutte le Conoscenze'},
+  {id: 'IN00', label: 'Tutti gli Intrattenere'},
+  {id: 'AR00', label: 'Tutti gli Artigianati'},
+]
+const FAMIGLIA_PLACEHOLDER_IDS = new Set(FAMIGLIA_PLACEHOLDER.map(f => f.id))
+
 const abilitaDisponibili = computed(() =>
     stats.value
         .filter(s => s.tipo === 'AB')
+        .filter(s => !FAMIGLIA_PLACEHOLDER_IDS.has(s.id))
         .filter(s => !filtroAbilita.value.trim()
             || s.label.toLowerCase().includes(filtroAbilita.value.trim().toLowerCase()))
 )
@@ -362,7 +374,10 @@ function setSlot(s: { slot: string[] }, livello: number, val: string) {
 const incantatore = computed(() => form.sezioni.some(s => s.liste.length > 0))
 // abilità di classe: tutte le stat di tipo AB
 function tutteAbIds(): string[] {
-  return stats.value.filter(s => s.tipo === 'AB').map(s => s.id)
+  return stats.value
+      .filter(s => s.tipo === 'AB')
+      .filter(s => !FAMIGLIA_PLACEHOLDER_IDS.has(s.id))
+      .map(s => s.id)
 }
 function selezionaTutteAbilita() {
   form.abilitaClasse = tutteAbIds()
@@ -458,6 +473,20 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
               <span class="lbl">Gradi agli altri livelli (RANK)</span>
               <input v-model.trim="form.rank" type="text" placeholder="Es.: (@INT+4)" :disabled="disabledAll"/>
             </label>
+          </div>
+
+          <div class="ab-list ab-famiglie">
+            <div v-for="f in FAMIGLIA_PLACEHOLDER" :key="f.id" class="ab-riga" :class="{ sel: isSelected(f.id) }">
+              <button type="button" class="ab-toggle" :disabled="disabledAll" @click="toggleAbilita(f.id)">
+                <span class="dot">{{ isSelected(f.id) ? '●' : '○' }}</span>
+                <span class="ab-nome">{{ f.label }}</span>
+              </button>
+              <button v-if="isSelected(f.id)" type="button" class="ab-pg" :class="{ on: isPersonaggio(f.id) }"
+                      :disabled="disabledAll" @click="togglePersonaggio(f.id)"
+                      title="Abilità personaggio: vale anche nei livelli di altre classi">
+                PG
+              </button>
+            </div>
           </div>
 
           <div class="ab-tools">
@@ -732,6 +761,10 @@ textarea { resize: vertical; }
 .ab-list {
   display: grid; gap: .3rem; max-height: 18rem; overflow-y: auto;
   padding: .15rem; border: 1px solid #eef2f7; border-radius: .5rem;
+}
+.ab-famiglie {
+  max-height: none; overflow: visible; margin-bottom: .5rem;
+  border-style: dashed; background: #f8fafc;
 }
 .ab-riga {
   display: flex; align-items: center; gap: .4rem;

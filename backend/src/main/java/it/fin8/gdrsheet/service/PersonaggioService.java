@@ -1027,17 +1027,37 @@ public class PersonaggioService {
                     .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()))
                     .toList();
             cambiaAbilitaGlobali.forEach(m -> { if (m.getValore() == null) m.setValore(0); });
+            // Placeholder di famiglia (AB00/AR00/CO00/IN00): mai mostrati come abilità vere e proprie
+            // (né in scheda né in Gestisci Gradi), valgono solo come bersaglio di Modificatore: un
+            // Modificatore su AB00 si applica automaticamente a tutte le abilità semplici (e così via
+            // per le altre famiglie), tramite placeholderPerAbilita().
             List<AbilitaDTO> abList = pool.submit(() ->
                     stats.stream()
                             .filter(sv -> TipoStat.AB.equals(sv.getStat().getTipo()))
-                            .map(sv -> modificatoriService.calcolaAbilita(
-                                    sv,
-                                    modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
-                                    ranksDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
-                                    carList,
-                                    cambiaAbilitaGlobali,
-                                    itemCounterList
-                            ))
+                            .filter(sv -> !ModificatoriService.FAMIGLIA_GENERICA.containsKey(sv.getStat().getId()))
+                            .map(sv -> {
+                                String idStat = sv.getStat().getId();
+                                List<ModificatoreDTO> modsAbilita = modsDtoByStat.getOrDefault(idStat, Collections.emptyList());
+                                // le abilità non "rankable" non salgono di livello: non vanno considerate
+                                // parte di "tutte le X" (placeholder di famiglia), né come bersaglio di
+                                // Modificatore né come membro dell'espansione classe-abilità.
+                                String placeholder = Boolean.FALSE.equals(sv.getStat().getRankable())
+                                        ? null : ModificatoriService.placeholderPerAbilita(idStat);
+                                if (placeholder != null) {
+                                    List<ModificatoreDTO> modsFamiglia = modsDtoByStat.getOrDefault(placeholder, Collections.emptyList());
+                                    if (!modsFamiglia.isEmpty()) {
+                                        modsAbilita = Stream.concat(modsAbilita.stream(), modsFamiglia.stream()).toList();
+                                    }
+                                }
+                                return modificatoriService.calcolaAbilita(
+                                        sv,
+                                        modsAbilita,
+                                        ranksDtoByStat.getOrDefault(idStat, Collections.emptyList()),
+                                        carList,
+                                        cambiaAbilitaGlobali,
+                                        itemCounterList
+                                );
+                            })
                             .toList()
             ).get();
             dto.getAbilita().addAll(abList);

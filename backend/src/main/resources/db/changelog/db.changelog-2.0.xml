@@ -470,4 +470,84 @@
         </sql>
     </changeSet>
 
+    <changeSet id="127" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM stats WHERE id = 'AB00'
+            </sqlCheck>
+        </preConditions>
+        <comment>
+            Stat fittizia "Tutte le abilità" (famiglia AB, come AR00/CO00/IN00): bersaglio di
+            Modificatore che si applica a tutte le abilità semplici. Utilizzabile anche come
+            abilità di classe placeholder in ABCLASSE per marcare l'intera famiglia AB come
+            abilità di classe.
+        </comment>
+        <insert tableName="stats">
+            <column name="id" value="AB00"/>
+            <column name="tipo" value="AB"/>
+            <column name="label" value="Tutte le abilità"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="128" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="stats" columnName="rankable"/>
+            </not>
+        </preConditions>
+        <comment>
+            Colonna "rankable": se false, l'abilità non compare in Gestisci Gradi né nella pagina
+            Livelli (non sale con i livelli), ma resta visibile in scheda e utilizzabile come
+            bersaglio di Modificatore. Default true per tutte le stat esistenti.
+        </comment>
+        <addColumn tableName="stats">
+            <column name="rankable" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="129" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT count(*) FROM stats WHERE id = 'C012'
+            </sqlCheck>
+        </preConditions>
+        <comment>
+            Corregge un errore di battitura: la Conoscenza "Bardica" era stata salvata con id
+            'C012' invece di 'CO13' (convenzione a 2 lettere + 2 cifre della famiglia CO).
+            Rinomina C012 -> CO13 ovunque referenziato (stats, stat_value.stat_id/mod,
+            modificatori.id_stat, stat_default.stat_id/default_mod, item_label.valore per
+            label='ABCLASSE'), con le stesse FK temporaneamente DEFERRABLE del changeSet 126
+            per un rename atomico senza violare i vincoli referenziali.
+        </comment>
+        <sql splitStatements="false">
+            DO $$
+            DECLARE
+                r RECORD;
+            BEGIN
+                FOR r IN
+                    SELECT con.conname, rel.relname AS table_name
+                    FROM pg_constraint con
+                    JOIN pg_class rel ON rel.oid = con.conrelid
+                    JOIN pg_class frel ON frel.oid = con.confrelid
+                    WHERE con.contype = 'f'
+                      AND frel.relname = 'stats'
+                LOOP
+                    EXECUTE format('ALTER TABLE %I ALTER CONSTRAINT %I DEFERRABLE INITIALLY IMMEDIATE', r.table_name, r.conname);
+                END LOOP;
+            END $$;
+
+            SET CONSTRAINTS ALL DEFERRED;
+
+            UPDATE stats SET id = 'CO13' WHERE id = 'C012';
+            UPDATE stat_value SET stat_id = 'CO13' WHERE stat_id = 'C012';
+            UPDATE stat_value SET mod = 'CO13' WHERE mod = 'C012';
+            UPDATE modificatori SET id_stat = 'CO13' WHERE id_stat = 'C012';
+            UPDATE stat_default SET stat_id = 'CO13' WHERE stat_id = 'C012';
+            UPDATE stat_default SET default_mod = 'CO13' WHERE default_mod = 'C012';
+            UPDATE item_label SET valore = regexp_replace(valore, '(^|,)C012(!?)(,|$)', '\1CO13\2\3', 'g') WHERE label = 'ABCLASSE' AND valore ~ '(^|,)C012(!?)(,|$)';
+        </sql>
+    </changeSet>
+
 </databaseChangeLog>

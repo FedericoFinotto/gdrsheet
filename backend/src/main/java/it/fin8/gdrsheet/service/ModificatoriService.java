@@ -3,10 +3,12 @@ package it.fin8.gdrsheet.service;
 import it.fin8.gdrsheet.config.Constants;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoModificatore;
+import it.fin8.gdrsheet.def.TipoStat;
 import it.fin8.gdrsheet.dto.*;
 import it.fin8.gdrsheet.entity.*;
 import it.fin8.gdrsheet.repository.ItemRepository;
 import it.fin8.gdrsheet.repository.PersonaggioRepository;
+import it.fin8.gdrsheet.repository.StatRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -31,6 +33,9 @@ public class ModificatoriService {
 
     @Autowired
     private DiceRoller roll;
+
+    @Autowired
+    private StatRepository statRepository;
 
 
     CaratteristicaDTO calcolaCaratteristica(
@@ -222,6 +227,20 @@ public class ModificatoriService {
             List<ContatoreItemDTO> contatoriItem
     ) {
         List<ModificatoreDTO> mods = new ArrayList<>(modsDto);
+        Map<String, String> valori = new HashMap<>();
+        valori.putAll(contatoriItem.stream()
+                .collect(Collectors.toMap(
+                        x -> "$".concat(x.getId()),
+                        x -> x.getValore().toString(),
+                        (a, b) -> a
+                )));
+        valori.putAll(carList.stream()
+                .collect(Collectors.toMap(
+                        x -> "@".concat(x.getId()),
+                        x -> x.getModificatore().toString(),
+                        (a, b) -> a
+                )));
+
         // CAMBIA_CARATTERISTICA globale ("tutte le abilità"): unito ai mods così viene preservato
         // anche nelle ricomputazioni (es. sinergie) ed è visibile nel popup dell'abilità.
         if (cambiaGlobali != null) {
@@ -261,14 +280,13 @@ public class ModificatoriService {
         int formulaBase = 0;
         if (stat.getFormula() != null && !stat.getFormula().isBlank()) {
             try {
-                formulaBase = Integer.parseInt(calcoloService.calcola(stat.getFormula(), carList));
-                mods.add(new ModificatoreDTO(null, stat.getStat().getId(), formulaBase, stat.getFormula(), null, null, true, "Formula", null, null));
+                mods.add(new ModificatoreDTO(null, stat.getStat().getId(), 0, stat.getFormula(), null, null, true, "Formula", null, null));
             } catch (Exception ignored) {}
         }
         for (ModificatoreDTO modificatoreDTO : mods) {
             if (modificatoreDTO.getFormula() != null && (modificatoreDTO.getFormula().contains("$") || modificatoreDTO.getFormula().indexOf('@') >= 0)) {
                 try {
-                    modificatoreDTO.setFormula(calcoloService.calcola(modificatoreDTO.itemIdInFormula(), contatoriItem.stream().map(ContatoreItemDTO::toCaratteristicaDTO).toList()));
+                    modificatoreDTO.setFormula(calcoloService.calcola(modificatoreDTO.itemIdInFormula(), valori));
                     modificatoreDTO.setValore(Integer.parseInt(modificatoreDTO.getFormula()));
                 } catch (Exception e) {
                     mods.remove(modificatoreDTO);
@@ -960,12 +978,44 @@ public class ModificatoriService {
     }
 
     /**
+     * Placeholder generico di famiglia -> prefisso: se listato come abilità di classe, vale per
+     * TUTTI i "figli" della famiglia (es. AR00 di classe => Artigianato: Armi, Artigianato:
+     * Armature, ecc. sono tutte di classe), non solo per il placeholder stesso.
+     */
+    public static final Map<String, String> FAMIGLIA_GENERICA = Map.of(
+            "AR00", "AR",
+            "CO00", "CO",
+            "IN00", "IN",
+            "AB00", "AB"
+    );
+
+    /**
+     * Id del placeholder di famiglia (AB00/AR00/CO00/IN00) che, come bersaglio di un
+     * {@code Modificatore}, si applica a TUTTE le abilità con quel prefisso. Es.: "AB3" -> "AB00",
+     * "AR01" -> "AR00". Ritorna {@code null} se l'id non corrisponde a nessuna famiglia nota.
+     */
+    public static String placeholderPerAbilita(String statId) {
+        if (statId == null) return null;
+        for (Map.Entry<String, String> e : FAMIGLIA_GENERICA.entrySet()) {
+            String placeholder = e.getKey();
+            String prefisso = e.getValue();
+            if (!statId.equals(placeholder) && statId.startsWith(prefisso)) {
+                return placeholder;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Indice abilità-di-classe per {@code idClasse}, a partire dalle classi già calcolate da
-     * {@link #getClassiUnicheDaLivelli(Integer)}. Economico (nessun accesso al DB): può essere
-     * richiamato per ogni livello del personaggio riusando lo stesso {@code classiUniche}.
+     * {@link #getClassiUnicheDaLivelli(Integer)}. Economico (nessun accesso al DB) nel caso comune:
+     * la query per i "figli" di una famiglia (AR/CO/IN) viene fatta al più una volta per famiglia
+     * e SOLO se una classe la referenzia tramite il placeholder generico (AR00/CO00/IN00), può
+     * essere richiamato per ogni livello del personaggio riusando lo stesso {@code classiUniche}.
      */
     public List<AbilitaClasseDTO> getAbilitaClasse(List<Item> classiUniche, Integer idClasse) {
         Map<String, AbilitaClasseDTO> index = new LinkedHashMap<>();
+        Map<String, List<String>> membriFamiglia = new HashMap<>();
         for (Item cl : classiUniche) {
             String abClasse = cl.getLabel(Constants.ITEM_LABEL_ABILITA_CLASSE);
             if (abClasse == null || abClasse.isBlank()) continue;
@@ -976,22 +1026,37 @@ public class ModificatoriService {
                     .forEach(tok -> {
                         boolean all = tok.contains("!");
                         boolean classeRichiesta = cl.getId().equals(idClasse);
-                        String idAb = tok.replace("!", "").trim();
+                        String idAb = tok.replace("!", "").trim().toUpperCase();
 
-                        AbilitaClasseDTO dto = index.computeIfAbsent(
-                                idAb,
-                                k -> new AbilitaClasseDTO(new ArrayList<>(), k, false, false)
-                        );
+                        String prefissoFamiglia = FAMIGLIA_GENERICA.get(idAb);
+                        List<String> idsDaMarcare = prefissoFamiglia == null
+                                ? List.of(idAb)
+                                : membriFamiglia.computeIfAbsent(prefissoFamiglia,
+                                p -> statRepository.findAllByTipoAndIdStartingWith(TipoStat.AB, p)
+                                        .stream()
+                                        // le abilità non "rankable" non salgono di livello: non vanno
+                                        // considerate parte di "tutte le X" (placeholder di famiglia)
+                                        .filter(s -> !Boolean.FALSE.equals(s.getRankable()))
+                                        .map(Stat::getId).toList());
+                        if (idsDaMarcare.isEmpty())
+                            idsDaMarcare = List.of(idAb); // nessun figlio a catalogo: marca almeno il placeholder
 
-                        // aggiungi classe se non già presente
-                        List<IdNomeDTO> cls = dto.getClasse();
-                        boolean presente = cls.stream().anyMatch(c -> Objects.equals(c.getId(), cl.getId()));
-                        if (!presente) {
-                            cls.add(new IdNomeDTO(cl.getId(), cl.getNome()));
+                        for (String id : idsDaMarcare) {
+                            AbilitaClasseDTO dto = index.computeIfAbsent(
+                                    id,
+                                    k -> new AbilitaClasseDTO(new ArrayList<>(), k, false, false)
+                            );
+
+                            // aggiungi classe se non già presente
+                            List<IdNomeDTO> cls = dto.getClasse();
+                            boolean presente = cls.stream().anyMatch(c -> Objects.equals(c.getId(), cl.getId()));
+                            if (!presente) {
+                                cls.add(new IdNomeDTO(cl.getId(), cl.getNome()));
+                            }
+
+                            if (all) dto.setAll(true);
+                            if (classeRichiesta) dto.setDiClasse(true);
                         }
-
-                        if (all) dto.setAll(true);
-                        if (classeRichiesta) dto.setDiClasse(true);
                     });
         }
         return new ArrayList<>(index.values());

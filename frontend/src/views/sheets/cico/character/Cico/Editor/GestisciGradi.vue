@@ -36,6 +36,13 @@ const avvisoBackend = ref(false)   // true se la risposta livelli non contiene i
 
 const colonne = ref<Colonna[]>([])
 const righe = ref<Riga[]>([])
+// larghezza della colonna nome, calcolata sul nome più lungo tra TUTTE le righe (abilità,
+// conoscenze, intrattenere, artigianato, professioni) così ogni tabella ha la stessa larghezza
+// e nessun nome viene troncato.
+const abilColWidth = computed(() => {
+  const maxLen = righe.value.reduce((m, r) => Math.max(m, r.nome.length), 0)
+  return maxLen > 0 ? `${maxLen + 1}ch` : '9rem'
+})
 // model[uid][livelloId] = punti rank spesi (valore grezzo salvato)
 const model = reactive<Record<string, Record<number, number>>>({})
 // stato iniziale (dopo il prefill) per salvare SOLO i livelli modificati
@@ -165,6 +172,7 @@ async function carica() {
     const abilita: Abilita[] = res.data ?? []
 
     righe.value = abilita
+        .filter(a => a.abilita?.rankable !== false)
         .map(a => ({uid: String(a.abilita?.id ?? ''), nome: a.abilita?.nome ?? ''}))
         .filter(r => r.uid)
         .sort((a, b) => a.nome.localeCompare(b.nome))
@@ -282,7 +290,7 @@ onMounted(carica)
     <p v-if="loading" class="gg-info">Caricamento…</p>
     <p v-else-if="vuoto" class="gg-info">Nessun livello o abilità disponibile.</p>
 
-    <div v-else class="gg-table-wrap">
+    <div v-else class="gg-table-wrap" :style="{ '--abil-col-w': abilColWidth }">
       <!-- Abilità/Conoscenze/Intrattenere/Artigianato: una tabella per famiglia, stesso budget condiviso -->
       <template v-for="grp in righePerFamiglia" :key="grp.famiglia">
         <h3 class="fam-title">{{ grp.label }}</h3>
@@ -437,15 +445,14 @@ onMounted(carica)
 .lvl-head { display: flex; flex-direction: column; line-height: 1.1; }
 .lvl-max { font-size: .68rem; font-weight: 600; color: #64748b; }
 
-/* larghezza fissa così le due tabelle (abilità e professioni) restano allineate */
+/* larghezza calcolata sul nome più lungo tra tutte le tabelle (--abil-col-w, impostata
+   dinamicamente), così ogni tabella resta allineata e nessun nome viene troncato */
 .abil-col {
   text-align: left;
-  width: 9rem;
-  min-width: 9rem;
-  max-width: 9rem;
+  width: var(--abil-col-w, 9rem);
+  min-width: var(--abil-col-w, 9rem);
+  max-width: var(--abil-col-w, 9rem);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .fam-title {

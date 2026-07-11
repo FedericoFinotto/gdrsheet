@@ -10,4 +10,5 @@ public class StatRequest {
     private String id;     // max 10
     private String tipo;   // TipoStat
     private String label;
+    private Boolean rankable; // null = non modificare (update) / true (creazione)
 }

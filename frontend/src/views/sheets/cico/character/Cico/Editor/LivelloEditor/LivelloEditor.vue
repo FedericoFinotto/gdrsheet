@@ -244,7 +244,7 @@ async function refreshGradiInfo() {
 
 /* Righe abilità */
 const rows = computed<SkillRow[]>(() => {
-  return (abilita.value ?? []).map(a => {
+  return (abilita.value ?? []).filter(a => a.abilita?.rankable !== false).map(a => {
     const uid = abilUid(a)
     const name = abilName(a)
     const isClass = isClassSkill(uid)

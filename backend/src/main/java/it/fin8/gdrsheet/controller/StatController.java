@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/stats")
@@ -63,10 +64,17 @@ public class StatController {
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tipo stat non valido");
         }
-        Stat s = statRepository.findById(req.getId().trim()).orElseGet(Stat::new);
+        Optional<Stat> esistente = statRepository.findById(req.getId().trim());
+        boolean nuova = esistente.isEmpty();
+        Stat s = esistente.orElseGet(Stat::new);
         s.setId(req.getId().trim());
         s.setTipo(tipo);
         s.setLabel(req.getLabel().trim());
+        if (req.getRankable() != null) {
+            s.setRankable(req.getRankable());
+        } else if (nuova) {
+            s.setRankable(true);
+        }
         return ResponseEntity.ok(statRepository.save(s));
     }
 

@@ -36,19 +36,52 @@ const abilita = computed(() => {
     }
   }).sort((a, b) => a.nome.localeCompare(b.nome));
 })
+
+// Abilità/Conoscenze/Intrattenere/Artigianato/Professioni: distinte solo per convenzione
+// sull'id (tutte tipo='AB' a DB) — stessa suddivisione usata in Gestisci Gradi.
+type Famiglia = 'AB' | 'CO' | 'IN' | 'AR' | 'PR'
+const FAMIGLIA_LABEL: Record<Famiglia, string> = {
+  AB: 'Abilità', CO: 'Conoscenze', IN: 'Intrattenere', AR: 'Artigianato', PR: 'Professioni',
+}
+const FAMIGLIE_ORDINATE: Famiglia[] = ['AB', 'CO', 'IN', 'AR', 'PR']
+
+function famigliaDi(id: string): Famiglia {
+  const up = String(id ?? '').toUpperCase()
+  if (up.startsWith('PR')) return 'PR'
+  if (up.startsWith('CO')) return 'CO'
+  if (up.startsWith('IN')) return 'IN'
+  if (up.startsWith('AR')) return 'AR'
+  return 'AB'
+}
+
+const abilitaPerFamiglia = computed(() =>
+    FAMIGLIE_ORDINATE
+        .map(f => ({famiglia: f, label: FAMIGLIA_LABEL[f], righe: abilita.value.filter(a => famigliaDi(a.id) === f)}))
+        .filter(g => g.righe.length > 0))
 </script>
 
 <template>
-  <div>
-
-    <Tabella
-        :columns="[
-      { field: 'nome', label: '' },
-      { field: 'valore', label: '' },
-      { field: 'caratteristica', label: '' }
-    ]"
-        :expandable="true"
-        :items="abilita"
-    />
+  <div class="abilita-page">
+    <section v-for="grp in abilitaPerFamiglia" :key="grp.famiglia" class="abilita-section">
+      <div class="section-header">
+        <span class="section-title">{{ grp.label }}</span>
+      </div>
+      <Tabella
+          :columns="[
+        { field: 'nome', label: '' },
+        { field: 'valore', label: '' },
+        { field: 'caratteristica', label: '' }
+      ]"
+          :expandable="true"
+          :items="grp.righe"
+      />
+    </section>
   </div>
 </template>
+
+<style scoped>
+.abilita-page { display: flex; flex-direction: column; gap: 1rem; }
+.abilita-section { display: flex; flex-direction: column; gap: .4rem; }
+.section-header { display: flex; align-items: center; gap: .5rem; }
+.section-title { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; }
+</style>

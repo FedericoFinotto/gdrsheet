@@ -3,6 +3,7 @@ export interface Stat {
     id: string;
     tipo: TipoStat | null;
     label: string;
+    rankable?: boolean;
 }
 
 export const TIPO_STAT = {

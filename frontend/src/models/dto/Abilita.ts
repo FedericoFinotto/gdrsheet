@@ -19,6 +19,7 @@ export interface ABILITA {
     modificatore: number;
     modificatori: Modificatore[];
     addestramento: boolean;
+    rankable: boolean;
 }
 
 export interface RANK {

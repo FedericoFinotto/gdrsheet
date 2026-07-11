@@ -33,7 +33,7 @@ const errorMsg = ref<string | null>(null)
 const busy = ref(false)
 const filtro = ref('')
 
-const nuovaStat = ref<{ id: string; tipo: string; label: string }>({id: '', tipo: 'AB', label: ''})
+const nuovaStat = ref<{ id: string; tipo: string; label: string; rankable: boolean }>({id: '', tipo: 'AB', label: '', rankable: true})
 // Per il tipo AB, distingue Abilità generica / Conoscenza / Intrattenere / Artigianato /
 // Professione: sono tutte tipo='AB' a livello di DB, si distinguono solo per convenzione
 // sull'id (vedi gruppoDi più sotto). Conoscenza, Intrattenere e Artigianato hanno "figli"
@@ -227,6 +227,22 @@ async function salvaDef(def: StatDefaultRow) {
   }
 }
 
+// toggle "rankable" di una stat esistente (upsert: tipo/label invariati)
+async function toggleRankable(stat: any) {
+  if (busy.value) return
+  busy.value = true
+  errorMsg.value = null
+  const nuovo = !(stat.rankable !== false)
+  try {
+    await createStat({id: stat.id, tipo: stat.tipo, label: stat.label, rankable: nuovo})
+    stat.rankable = nuovo
+  } catch (e: any) {
+    errorMsg.value = e?.response?.data?.message ?? e?.message ?? 'Errore nel salvataggio'
+  } finally {
+    busy.value = false
+  }
+}
+
 // nuova stat: la crea globalmente e la assegna subito al mondo selezionato
 async function salvaStat() {
   errorMsg.value = null
@@ -240,11 +256,13 @@ async function salvaStat() {
       id: nuovaStat.value.id.trim(),
       tipo: nuovaStat.value.tipo,
       label: nuovaStat.value.label.trim(),
+      rankable: nuovaStat.value.rankable,
     })
     if (mondoSel.value != null) {
       await createStatDefault({mondoId: mondoSel.value, statId: nuovaStat.value.id.trim()})
     }
     nuovaStat.value.label = ''
+    nuovaStat.value.rankable = true
     await loadStats()
     await loadDefaults()
     // ricalcola il prossimo id suggerito per la stessa famiglia, per aggiungerne altre in fila
@@ -299,6 +317,11 @@ async function salvaStat() {
               <span class="stat-name">{{ r.stat.label }}</span>
               <span class="stat-id">{{ r.stat.id }}</span>
             </label>
+            <label class="field chk rankable-chk" :title="'Se disattivato, non compare in Gestisci Gradi né in Livelli'">
+              <input type="checkbox" :checked="r.stat.rankable !== false" :disabled="busy"
+                     @change="toggleRankable(r.stat)"/>
+              <span>Rankable</span>
+            </label>
 
             <div v-if="r.def" class="row-edit">
               <label class="field sm">
@@ -344,6 +367,10 @@ async function salvaStat() {
           <label class="field grow">
             <span class="lbl">Label</span>
             <input v-model.trim="nuovaStat.label" type="text" placeholder="Es.: Nuotare"/>
+          </label>
+          <label class="field chk">
+            <input type="checkbox" v-model="nuovaStat.rankable"/>
+            <span>Rankable</span>
           </label>
         </div>
         <p class="muted ultima-info">
@@ -391,6 +418,7 @@ input[type="text"] { width: 100%; box-sizing: border-box; padding: .45rem .55rem
 .stat-id { font-size: .72rem; background: #eef2ff; color: #3730a3; border-radius: .35rem; padding: .05rem .35rem; }
 .stat-tipo { font-size: .72rem; opacity: .65; }
 .row-edit { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-end; margin-top: .5rem; padding-top: .5rem; border-top: 1px solid #eef2f7; }
+.rankable-chk { margin-top: .35rem; font-size: .8rem; opacity: .85; }
 
 .muted { font-size: .85rem; opacity: .6; }
 .btn { padding: .5rem .9rem; border-radius: .5rem; border: 1px solid transparent; cursor: pointer; }

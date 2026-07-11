@@ -28,5 +28,10 @@ public class Stat {
 	@Column(name = "label", nullable = false, length = 64)
 	private String label;
 
+	/** Se false, l'abilità non compare in Gestisci Gradi né nella pagina Livelli (non "sale" con
+	 *  i livelli), ma resta visibile in scheda e utilizzabile come bersaglio di Modificatore. */
+	@NotNull
+	@Column(name = "rankable", nullable = false)
+	private Boolean rankable = true;
 
 }

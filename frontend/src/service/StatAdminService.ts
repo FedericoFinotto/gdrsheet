@@ -22,7 +22,7 @@ export function getStatsAll(): Promise<AxiosResponse<Stat[]>> {
     return api.get<Stat[]>('/stats');
 }
 
-export function createStat(payload: { id: string; tipo: string; label: string }): Promise<AxiosResponse<Stat>> {
+export function createStat(payload: { id: string; tipo: string; label: string; rankable?: boolean }): Promise<AxiosResponse<Stat>> {
     return api.post<Stat>('/stats', payload);
 }
 
