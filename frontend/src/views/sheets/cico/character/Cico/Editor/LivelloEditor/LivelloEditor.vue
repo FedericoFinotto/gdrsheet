@@ -250,10 +250,11 @@ const rows = computed<SkillRow[]>(() => {
     const isClass = isClassSkill(uid)
     const isOtherClass = isAltraClassSkill(uid)
     const spent = Number(form.ranghi[uid] ?? 0)
-    const effect = isClass ? spent : Math.floor(spent / 2)
+    // le professioni non hanno concetto di abilità di classe: 1 punto = 1 grado, sempre
+    const effect = isProfessione(uid) ? spent : (isClass ? spent : Math.floor(spent / 2))
     const current = Number(currentByUid[uid] ?? 0)
     const total = current + effect
-    const max = isClass || isOtherClass
+    const max = isProfessione(uid) || isClass || isOtherClass
         ? gradiInfo.value?.max ?? Infinity
         : Math.floor((gradiInfo.value?.max ?? Infinity) / 2)
     return {uid, name, isClass, isOtherClass, spent, effect, current, total, max}
@@ -262,7 +263,7 @@ const rows = computed<SkillRow[]>(() => {
 function canInc(r: SkillRow): boolean {
   if (!gradiInfo.value) return true
   const nextSpent = r.spent + 1
-  const nextEffect = r.isClass ? nextSpent : Math.floor(nextSpent / 2)
+  const nextEffect = isProfessione(r.uid) ? nextSpent : (r.isClass ? nextSpent : Math.floor(nextSpent / 2))
   const wouldExceedMax = r.max < (r.current + nextEffect)
   if (isProfessione(r.uid)) return !wouldExceedMax
   const wouldExceedBudget = (totalPointsSpent.value + 1) > budgetGradi.value
@@ -286,10 +287,11 @@ function onDirectChange(uid: string, val: string) {
   const a = abilita.value.find(x => abilUid(x) === uid)
   if (a && gradiInfo.value) {
     const isClass = isClassSkill(uid)
+    const professione = isProfessione(uid)
     let s = form.ranghi[uid]
     const current = currentByUid[uid] ?? 0
     while (s > 0) {
-      const e = isClass ? s : Math.floor(s / 2)
+      const e = professione ? s : (isClass ? s : Math.floor(s / 2))
       if (current + e <= gradiInfo.value.max) break
       s--
     }

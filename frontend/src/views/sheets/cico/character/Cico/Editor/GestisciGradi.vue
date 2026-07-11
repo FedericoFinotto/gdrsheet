@@ -82,14 +82,38 @@ const modificato = computed(() => colonne.value.some(colonnaModificata))
 const isClasse = (col: Colonna, uid: string) => col.classSet.has(uid.toLowerCase())
 
 // le professioni (stat id che inizia con "PR") sono a parte: non consumano il
-// budget del livello e non rientrano nel conteggio.
+// budget del livello, non rientrano nel conteggio e non hanno concetto di "abilità
+// di classe" — 1 punto investito vale sempre 1 grado, punto e basta.
 const isProfessione = (uid: string) => uid.toUpperCase().startsWith('PR')
 const righeNormali = computed(() => righe.value.filter(r => !isProfessione(r.uid)))
 const righeProfessioni = computed(() => righe.value.filter(r => isProfessione(r.uid)))
 
-// valore applicato: pieno se abilità di classe, metà se trasversale/cross
+// Famiglie che condividono il budget del livello (Abilità/Conoscenze/Intrattenere/Artigianato),
+// distinte solo per raggruppare la visualizzazione — stesso pool di punti, stesso concetto di
+// abilità di classe. Le Professioni (PR) restano a parte (vedi sopra).
+type Famiglia = 'AB' | 'CO' | 'IN' | 'AR'
+const FAMIGLIA_LABEL: Record<Famiglia, string> = {AB: 'Abilità', CO: 'Conoscenze', IN: 'Intrattenere', AR: 'Artigianato'}
+const FAMIGLIE_ORDINATE: Famiglia[] = ['AB', 'CO', 'IN', 'AR']
+
+function famigliaDi(uid: string): Famiglia {
+  const id = uid.toUpperCase()
+  if (id.startsWith('CO')) return 'CO'
+  if (id.startsWith('IN')) return 'IN'
+  if (id.startsWith('AR')) return 'AR'
+  return 'AB'
+}
+
+// righe normali raggruppate per famiglia, solo per la visualizzazione (una tabella per gruppo)
+const righePerFamiglia = computed(() =>
+    FAMIGLIE_ORDINATE
+        .map(f => ({famiglia: f, label: FAMIGLIA_LABEL[f], righe: righeNormali.value.filter(r => famigliaDi(r.uid) === f)}))
+        .filter(g => g.righe.length > 0))
+
+// valore applicato: le professioni sono sempre 1:1 (nessun concetto di classe/cross);
+// per le altre, pieno se abilità di classe, metà se trasversale/cross
 function applicato(col: Colonna, uid: string): number {
   const p = punti(uid, livId(col))
+  if (isProfessione(uid)) return p
   return isClasse(col, uid) ? p : p / 2
 }
 
@@ -109,7 +133,7 @@ const totaleRiga = (uid: string) =>
 function canInc(col: Colonna, uid: string): boolean {
   // le professioni non consumano il budget del livello
   if (!isProfessione(uid) && totaleColonna(col) >= col.budget) return false
-  const delta = isClasse(col, uid) ? 1 : 0.5
+  const delta = isProfessione(uid) ? 1 : (isClasse(col, uid) ? 1 : 0.5)
   const idx = colonne.value.findIndex(c => c.id === col.id)
   let cum = 0
   for (let j = 0; j < colonne.value.length; j++) {
@@ -259,36 +283,44 @@ onMounted(carica)
     <p v-else-if="vuoto" class="gg-info">Nessun livello o abilità disponibile.</p>
 
     <div v-else class="gg-table-wrap">
-      <table class="gg-table">
-        <thead>
-          <tr>
-            <th class="sticky-col abil-col">Abilità</th>
-            <th v-for="c in colonne" :key="c.id" class="lvl-col" :title="c.classe">
-              <div class="lvl-head">
-                <span>Lv {{ c.livello }}</span>
-                <span class="lvl-max">gradi {{ c.budget }}</span>
-              </div>
-            </th>
-            <th class="tot-col">Tot</th>
-          </tr>
-        </thead>
+      <!-- Abilità/Conoscenze/Intrattenere/Artigianato: una tabella per famiglia, stesso budget condiviso -->
+      <template v-for="grp in righePerFamiglia" :key="grp.famiglia">
+        <h3 class="fam-title">{{ grp.label }}</h3>
+        <table class="gg-table">
+          <thead>
+            <tr>
+              <th class="sticky-col abil-col">{{ grp.label }}</th>
+              <th v-for="c in colonne" :key="c.id" class="lvl-col" :title="c.classe">
+                <div class="lvl-head">
+                  <span>Lv {{ c.livello }}</span>
+                  <span class="lvl-max">gradi {{ c.budget }}</span>
+                </div>
+              </th>
+              <th class="tot-col">Tot</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in grp.righe" :key="r.uid">
+              <td class="sticky-col abil-col" :title="r.nome">{{ r.nome }}</td>
+              <td
+                  v-for="c in colonne" :key="c.id"
+                  class="cell" :class="{ classe: isClasse(c, r.uid) }"
+              >
+                <div class="stepper">
+                  <button type="button" class="step" @click="dec(r.uid, c)" :disabled="punti(r.uid, c.id) <= 0">−</button>
+                  <span class="val">{{ fmt(applicato(c, r.uid)) }}</span>
+                  <button type="button" class="step" @click="inc(r.uid, c)" :disabled="!canInc(c, r.uid)">+</button>
+                </div>
+              </td>
+              <td class="tot-col">{{ fmt(totaleRiga(r.uid)) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
+
+      <!-- Riepilogo punti: budget condiviso da Abilità/Conoscenze/Intrattenere/Artigianato -->
+      <table v-if="righePerFamiglia.length" class="gg-table gg-summary">
         <tbody>
-          <tr v-for="r in righeNormali" :key="r.uid">
-            <td class="sticky-col abil-col" :title="r.nome">{{ r.nome }}</td>
-            <td
-                v-for="c in colonne" :key="c.id"
-                class="cell" :class="{ classe: isClasse(c, r.uid) }"
-            >
-              <div class="stepper">
-                <button type="button" class="step" @click="dec(r.uid, c)" :disabled="punti(r.uid, c.id) <= 0">−</button>
-                <span class="val">{{ fmt(applicato(c, r.uid)) }}</span>
-                <button type="button" class="step" @click="inc(r.uid, c)" :disabled="!canInc(c, r.uid)">+</button>
-              </div>
-            </td>
-            <td class="tot-col">{{ fmt(totaleRiga(r.uid)) }}</td>
-          </tr>
-        </tbody>
-        <tfoot>
           <tr>
             <td class="sticky-col abil-col">Punti spesi</td>
             <td v-for="c in colonne" :key="c.id" class="tot-col" :class="{ over: sforato(c) }">
@@ -296,12 +328,13 @@ onMounted(carica)
             </td>
             <td class="tot-col"></td>
           </tr>
-        </tfoot>
+        </tbody>
       </table>
 
-      <!-- Professioni: a parte, non contano nel budget né nel conteggio -->
+      <!-- Professioni: a parte, non contano nel budget e non hanno concetto di abilità di
+           classe — 1 punto investito vale sempre 1 grado. -->
       <template v-if="righeProfessioni.length">
-        <h3 class="prof-title">Professioni</h3>
+        <h3 class="fam-title">Professioni</h3>
         <table class="gg-table">
           <thead>
             <tr>
@@ -318,10 +351,7 @@ onMounted(carica)
           <tbody>
             <tr v-for="r in righeProfessioni" :key="r.uid">
               <td class="sticky-col abil-col" :title="r.nome">{{ r.nome }}</td>
-              <td
-                  v-for="c in colonne" :key="c.id"
-                  class="cell" :class="{ classe: isClasse(c, r.uid) }"
-              >
+              <td v-for="c in colonne" :key="c.id" class="cell">
                 <div class="stepper">
                   <button type="button" class="step" @click="dec(r.uid, c)" :disabled="punti(r.uid, c.id) <= 0">−</button>
                   <span class="val">{{ fmt(applicato(c, r.uid)) }}</span>
@@ -418,11 +448,15 @@ onMounted(carica)
   text-overflow: ellipsis;
 }
 
-.prof-title {
+.fam-title {
   margin: .8rem 0 .3rem;
   font-size: .95rem;
   color: #475569;
 }
+.fam-title:first-child { margin-top: 0; }
+
+.gg-summary { margin-top: -1px; }
+.gg-summary .abil-col { font-weight: 700; }
 
 .sticky-col { position: sticky; left: 0; background: #fff; z-index: 2; }
 .gg-table thead .sticky-col { z-index: 3; background: #f8fafc; }

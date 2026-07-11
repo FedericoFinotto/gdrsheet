@@ -34,12 +34,16 @@ const busy = ref(false)
 const filtro = ref('')
 
 const nuovaStat = ref<{ id: string; tipo: string; label: string }>({id: '', tipo: 'AB', label: ''})
-// Per il tipo AB, distingue Abilità generica / Conoscenza / Professione: sono tutte tipo='AB' a
-// livello di DB, si distinguono solo per convenzione sull'id (vedi gruppoDi più sotto).
-const sottoTipoAB = ref<'AB' | 'AB_CON' | 'AB_PROF'>('AB')
+// Per il tipo AB, distingue Abilità generica / Conoscenza / Intrattenere / Artigianato /
+// Professione: sono tutte tipo='AB' a livello di DB, si distinguono solo per convenzione
+// sull'id (vedi gruppoDi più sotto). Conoscenza, Intrattenere e Artigianato hanno "figli"
+// (più specializzazioni selezionabili), Professione è invece completamente a parte.
+const sottoTipoAB = ref<'AB' | 'AB_CON' | 'AB_INT' | 'AB_ART' | 'AB_PROF'>('AB')
 const SOTTOTIPO_AB_OPTS = [
   {value: 'AB', label: 'Abilità generica'},
   {value: 'AB_CON', label: 'Conoscenza'},
+  {value: 'AB_INT', label: 'Intrattenere'},
+  {value: 'AB_ART', label: 'Artigianato'},
   {value: 'AB_PROF', label: 'Professione'},
 ]
 
@@ -71,29 +75,35 @@ const righe = computed(() => {
       .map(s => ({stat: s, def: defaultByStat.value[s.id] ?? null}))
 })
 
-// etichette e ordine dei "gruppi" (le abilità sono divise in Abilità/Conoscenze/Professioni)
+// etichette e ordine dei "gruppi" (le abilità sono divise in Abilità/Conoscenze/Intrattenere/
+// Artigianato/Professioni)
 const TIPO_LABEL: Record<string, string> = {
-  CAR: 'Caratteristiche', AB: 'Abilità', AB_CON: 'Conoscenze', AB_PROF: 'Professioni',
+  CAR: 'Caratteristiche', AB: 'Abilità', AB_CON: 'Conoscenze', AB_INT: 'Intrattenere', AB_ART: 'Artigianato', AB_PROF: 'Professioni',
   TS: 'Tiri Salvezza', PF: 'Punti Ferita', ATT: 'Attributi', CA: 'Classe Armatura',
   ATK: 'Attacco', COUNT: 'Contatori', VALUTA: 'Valuta',
 }
 const TIPO_ORDINE = Object.keys(TIPO_LABEL)
 
-// gruppo grafico di una stat (separa professioni e conoscenze dalle abilità)
+// gruppo grafico di una stat (separa conoscenze/intrattenere/artigianato/professioni dalle abilità)
 function gruppoDi(stat: any): string {
   if (stat.tipo !== 'AB') return stat.tipo ?? 'ALTRO'
   const id = String(stat.id ?? '').toUpperCase()
   const label = String(stat.label ?? '').toLowerCase()
   if (id.startsWith('PR') || label.startsWith('professione')) return 'AB_PROF'
-  if (label.startsWith('conoscenz')) return 'AB_CON'
+  if (id.startsWith('CO') || label.startsWith('conoscenz')) return 'AB_CON'
+  if (id.startsWith('IN') || label.startsWith('intrattenere')) return 'AB_INT'
+  if (id.startsWith('AR') || label.startsWith('artigianato')) return 'AB_ART'
   return 'AB'
 }
 
 // Convenzione di numerazione per le famiglie "numerate": prefisso id, cifre di padding e primo
-// numero usato (es. AB1..AB36, CO00..CO11, PR00..PR06 — dati letti dal seed esistente).
+// numero usato (es. AB1..AB36, CO00..CO11, PR00..PR06 — dati letti dal seed esistente; IN e AR
+// seguono la stessa convenzione a 2 cifre di CO/PR essendo anch'esse famiglie "con figli").
 const CONFIG_FAMIGLIA: Record<string, { prefisso: string; padding: number; primo: number }> = {
   AB: {prefisso: 'AB', padding: 0, primo: 1},
   AB_CON: {prefisso: 'CO', padding: 2, primo: 0},
+  AB_INT: {prefisso: 'IN', padding: 2, primo: 0},
+  AB_ART: {prefisso: 'AR', padding: 2, primo: 0},
   AB_PROF: {prefisso: 'PR', padding: 2, primo: 0},
 }
 
@@ -125,8 +135,8 @@ const ultimaStatFamiglia = computed(() => {
   })[0]
 })
 
-// id suggerito per la nuova stat: incrementato per le famiglie numerate (AB/CO/PR), altrimenti
-// l'id dell'ultima stat della stessa famiglia (solo come riferimento/formato da modificare a mano)
+// id suggerito per la nuova stat: incrementato per le famiglie numerate (AB/CO/IN/AR/PR),
+// altrimenti l'id dell'ultima stat della stessa famiglia (solo come riferimento/formato da modificare a mano)
 const idSuggerito = computed(() => {
   const conf = CONFIG_FAMIGLIA[famigliaSelezionata.value]
   const ultimo = ultimaStatFamiglia.value

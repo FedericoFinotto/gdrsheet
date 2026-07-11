@@ -87,6 +87,11 @@ public class ModificatoreMapper {
                 dto.setClasse(x.getClasse().get(0).getNome());
             });
         }
+        // le professioni (id che inizia con "PR") non hanno concetto di abilità di classe:
+        // sempre a tasso pieno (1 punto = 1 grado), mai dimezzate come le cross-class.
+        if (entity.getStat().getId() != null && entity.getStat().getId().toUpperCase().startsWith("PR")) {
+            dto.setDiClasse(true);
+        }
 
         if (Constants.RANK_MAX.equals(entity.getValore())) {
             Integer maxRank = livelloPersonaggio + 3;

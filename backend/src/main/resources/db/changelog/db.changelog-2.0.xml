@@ -377,4 +377,97 @@
         </createTable>
     </changeSet>
 
+    <changeSet id="126" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT count(*) FROM stats WHERE id = 'AB18'
+            </sqlCheck>
+        </preConditions>
+        <comment>
+            Rinomina le stat "con figli" AB18 (Intrattenere), AB38/AB40/AB41/AB39/AB42
+            (Intrattenere: corda/fiato/percussione/recitare/Surreale) e AB3 (Artigianato)
+            nella nuova nomenclatura IN&lt;NN&gt;/AR&lt;NN&gt;, propagando il rename ovunque
+            l'id sia referenziato (stats, stat_value.stat_id/mod, modificatori.id_stat,
+            stat_default.stat_id/default_mod, item_label.valore per label='ABCLASSE').
+            Le FK verso stats vengono rese temporaneamente DEFERRABLE per la sola durata di
+            questa transazione, così l'intero rename è un unico commit atomico senza violare
+            i vincoli referenziali durante i passaggi intermedi.
+        </comment>
+        <sql splitStatements="false">
+            DO $$
+            DECLARE
+                r RECORD;
+            BEGIN
+                FOR r IN
+                    SELECT con.conname, rel.relname AS table_name
+                    FROM pg_constraint con
+                    JOIN pg_class rel ON rel.oid = con.conrelid
+                    JOIN pg_class frel ON frel.oid = con.confrelid
+                    WHERE con.contype = 'f'
+                      AND frel.relname = 'stats'
+                LOOP
+                    EXECUTE format('ALTER TABLE %I ALTER CONSTRAINT %I DEFERRABLE INITIALLY IMMEDIATE', r.table_name, r.conname);
+                END LOOP;
+            END $$;
+
+            SET CONSTRAINTS ALL DEFERRED;
+
+            UPDATE stats SET id = 'IN00' WHERE id = 'AB18';
+            UPDATE stats SET id = 'IN01' WHERE id = 'AB38';
+            UPDATE stats SET id = 'IN02' WHERE id = 'AB40';
+            UPDATE stats SET id = 'IN03' WHERE id = 'AB41';
+            UPDATE stats SET id = 'IN04' WHERE id = 'AB39';
+            UPDATE stats SET id = 'IN05' WHERE id = 'AB42';
+            UPDATE stats SET id = 'AR00' WHERE id = 'AB3';
+
+            UPDATE stat_value SET stat_id = 'IN00' WHERE stat_id = 'AB18';
+            UPDATE stat_value SET stat_id = 'IN01' WHERE stat_id = 'AB38';
+            UPDATE stat_value SET stat_id = 'IN02' WHERE stat_id = 'AB40';
+            UPDATE stat_value SET stat_id = 'IN03' WHERE stat_id = 'AB41';
+            UPDATE stat_value SET stat_id = 'IN04' WHERE stat_id = 'AB39';
+            UPDATE stat_value SET stat_id = 'IN05' WHERE stat_id = 'AB42';
+            UPDATE stat_value SET stat_id = 'AR00' WHERE stat_id = 'AB3';
+
+            UPDATE stat_value SET mod = 'IN00' WHERE mod = 'AB18';
+            UPDATE stat_value SET mod = 'IN01' WHERE mod = 'AB38';
+            UPDATE stat_value SET mod = 'IN02' WHERE mod = 'AB40';
+            UPDATE stat_value SET mod = 'IN03' WHERE mod = 'AB41';
+            UPDATE stat_value SET mod = 'IN04' WHERE mod = 'AB39';
+            UPDATE stat_value SET mod = 'IN05' WHERE mod = 'AB42';
+            UPDATE stat_value SET mod = 'AR00' WHERE mod = 'AB3';
+
+            UPDATE modificatori SET id_stat = 'IN00' WHERE id_stat = 'AB18';
+            UPDATE modificatori SET id_stat = 'IN01' WHERE id_stat = 'AB38';
+            UPDATE modificatori SET id_stat = 'IN02' WHERE id_stat = 'AB40';
+            UPDATE modificatori SET id_stat = 'IN03' WHERE id_stat = 'AB41';
+            UPDATE modificatori SET id_stat = 'IN04' WHERE id_stat = 'AB39';
+            UPDATE modificatori SET id_stat = 'IN05' WHERE id_stat = 'AB42';
+            UPDATE modificatori SET id_stat = 'AR00' WHERE id_stat = 'AB3';
+
+            UPDATE stat_default SET stat_id = 'IN00' WHERE stat_id = 'AB18';
+            UPDATE stat_default SET stat_id = 'IN01' WHERE stat_id = 'AB38';
+            UPDATE stat_default SET stat_id = 'IN02' WHERE stat_id = 'AB40';
+            UPDATE stat_default SET stat_id = 'IN03' WHERE stat_id = 'AB41';
+            UPDATE stat_default SET stat_id = 'IN04' WHERE stat_id = 'AB39';
+            UPDATE stat_default SET stat_id = 'IN05' WHERE stat_id = 'AB42';
+            UPDATE stat_default SET stat_id = 'AR00' WHERE stat_id = 'AB3';
+
+            UPDATE stat_default SET default_mod = 'IN00' WHERE default_mod = 'AB18';
+            UPDATE stat_default SET default_mod = 'IN01' WHERE default_mod = 'AB38';
+            UPDATE stat_default SET default_mod = 'IN02' WHERE default_mod = 'AB40';
+            UPDATE stat_default SET default_mod = 'IN03' WHERE default_mod = 'AB41';
+            UPDATE stat_default SET default_mod = 'IN04' WHERE default_mod = 'AB39';
+            UPDATE stat_default SET default_mod = 'IN05' WHERE default_mod = 'AB42';
+            UPDATE stat_default SET default_mod = 'AR00' WHERE default_mod = 'AB3';
+
+            UPDATE item_label SET valore = regexp_replace(valore, '(^|,)AB18(!?)(,|$)', '\1IN00\2\3', 'g') WHERE label = 'ABCLASSE' AND valore ~ '(^|,)AB18(!?)(,|$)';
+            UPDATE item_label SET valore = regexp_replace(valore, '(^|,)AB38(!?)(,|$)', '\1IN01\2\3', 'g') WHERE label = 'ABCLASSE' AND valore ~ '(^|,)AB38(!?)(,|$)';
+            UPDATE item_label SET valore = regexp_replace(valore, '(^|,)AB40(!?)(,|$)', '\1IN02\2\3', 'g') WHERE label = 'ABCLASSE' AND valore ~ '(^|,)AB40(!?)(,|$)';
+            UPDATE item_label SET valore = regexp_replace(valore, '(^|,)AB41(!?)(,|$)', '\1IN03\2\3', 'g') WHERE label = 'ABCLASSE' AND valore ~ '(^|,)AB41(!?)(,|$)';
+            UPDATE item_label SET valore = regexp_replace(valore, '(^|,)AB39(!?)(,|$)', '\1IN04\2\3', 'g') WHERE label = 'ABCLASSE' AND valore ~ '(^|,)AB39(!?)(,|$)';
+            UPDATE item_label SET valore = regexp_replace(valore, '(^|,)AB42(!?)(,|$)', '\1IN05\2\3', 'g') WHERE label = 'ABCLASSE' AND valore ~ '(^|,)AB42(!?)(,|$)';
+            UPDATE item_label SET valore = regexp_replace(valore, '(^|,)AB3(!?)(,|$)', '\1AR00\2\3', 'g') WHERE label = 'ABCLASSE' AND valore ~ '(^|,)AB3(!?)(,|$)';
+        </sql>
+    </changeSet>
+
 </databaseChangeLog>
