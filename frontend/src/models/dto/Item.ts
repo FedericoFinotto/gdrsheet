@@ -27,4 +27,6 @@ export interface Item {
     includiTuttiAbilitati?: boolean | null;
     /** Attacchi (ATTACCO) collegati come figli, precalcolati dal backend. */
     figliAttacchi?: ChildRef[];
+    /** Manuale di provenienza (label MANUALE_SP). */
+    manuale?: string;
 }

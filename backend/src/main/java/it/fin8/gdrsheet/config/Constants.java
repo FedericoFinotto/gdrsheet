@@ -109,6 +109,18 @@ public final class Constants {
     public static final String ITEM_VISIBILITA_OWNER = "OWNER";        // solo proprietario + master + admin
     public static final String ITEM_VISIBILITA_MASTER = "MASTER";      // solo master + admin
 
+    // Label da import bulk di compendio (es. Talenti da dndtools.org, vedi scripts/dndtools-scraper).
+    // ITEM_LABEL_MANUALE (sopra) è riusata per il manuale di provenienza.
+    public static final String ITEM_LABEL_PAGE = "PAGE";               // pagina nel manuale
+    public static final String ITEM_LABEL_PREREQUISITE = "PREREQUISITE";
+    public static final String ITEM_LABEL_REQUIRED_FOR = "REQUIRED_FOR";
+    public static final String ITEM_LABEL_BENEFIT = "BENEFIT";
+    public static final String ITEM_LABEL_LINK = "LINK";               // url pagina di origine
+    public static final String ITEM_LABEL_CATEGORY = "CATEGORY";       // multi-valore: più righe per lo stesso item
+    public static final String ITEM_LABEL_SPECIAL = "SPECIAL";
+    public static final String ITEM_LABEL_NORMAL = "NORMAL";
+    public static final String ITEM_LABEL_EXTRA = "EXTRA";             // fallback per sezioni non mappate esplicitamente
+
     public static final String LABEL_MILESTONE = "MILESTONE";
     public static final String LABEL_MILESTONE_TO = "MILESTONE_TO";
     public static final String LABEL_NOTIZIA_DATA_INIZIO = "DATA_INIZIO";

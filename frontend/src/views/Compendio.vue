@@ -122,8 +122,13 @@ onMounted(load)
         <li v-for="itm in pagina.content" :key="itm.id" class="row-wrap">
           <div class="row">
             <button class="row-main" @click="toggleExpand(itm.id)">
-              <span class="nome">{{ itm.nome }}</span>
-              <span class="pill tipo">{{ TIPO_ITEM_LABELS[itm.tipo] ?? itm.tipo }}</span>
+              <div class="row-main-content">
+                <span v-if="itm.manuale" class="manuale">{{ itm.manuale }}</span>
+                <div class="row-main-line">
+                  <span class="nome">{{ itm.nome }}</span>
+                  <span class="pill tipo">{{ TIPO_ITEM_LABELS[itm.tipo] ?? itm.tipo }}</span>
+                </div>
+              </div>
             </button>
             <button class="btn-edit" title="Modifica" @click="router.push(`/itemeditor/${itm.id}`)">
               ✎
@@ -212,10 +217,7 @@ onMounted(load)
 
 .row-main {
   flex: 1;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: .5rem;
+  display: flex;
   padding: .6rem .75rem;
   background: transparent;
   border: 0;
@@ -225,6 +227,29 @@ onMounted(load)
 }
 
 .row-main:hover { background: #f9fafb; }
+
+.row-main-content {
+  display: grid;
+  gap: .1rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.manuale {
+  font-size: .7rem;
+  color: var(--color-text-secondary, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-main-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: .5rem;
+  min-width: 0;
+}
 
 .nome {
   font-weight: 600;

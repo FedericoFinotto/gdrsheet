@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.dto.ClasseDetailDTO;
+import it.fin8.gdrsheet.dto.ImportJsonlResultDTO;
 import it.fin8.gdrsheet.dto.ItemDTO;
 import it.fin8.gdrsheet.dto.MondoDTO;
 import it.fin8.gdrsheet.dto.NotiziaDTO;
@@ -23,12 +24,17 @@ import it.fin8.gdrsheet.repository.MondoRepository;
 import it.fin8.gdrsheet.repository.SistemaRepository;
 import it.fin8.gdrsheet.service.AuthzService;
 import it.fin8.gdrsheet.service.ClasseService;
+import it.fin8.gdrsheet.service.ItemImportService;
 import it.fin8.gdrsheet.service.ItemService;
 import it.fin8.gdrsheet.service.PartyService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -38,6 +44,7 @@ public class ItemController {
 
     private final ItemRepository repo;
     private final ItemService itemService;
+    private final ItemImportService itemImportService;
     private final ItemMapper itemMapper;
     private final AuthzService authzService;
     private final ClasseService classeService;
@@ -45,9 +52,10 @@ public class ItemController {
     private final SistemaRepository sistemaRepository;
     private final PartyService partyService;
 
-    public ItemController(ItemRepository repo, ItemService itemService, ItemMapper itemMapper, AuthzService authzService, ClasseService classeService, MondoRepository mondoRepository, SistemaRepository sistemaRepository, PartyService partyService) {
+    public ItemController(ItemRepository repo, ItemService itemService, ItemImportService itemImportService, ItemMapper itemMapper, AuthzService authzService, ClasseService classeService, MondoRepository mondoRepository, SistemaRepository sistemaRepository, PartyService partyService) {
         this.repo = repo;
         this.itemService = itemService;
+        this.itemImportService = itemImportService;
         this.itemMapper = itemMapper;
         this.authzService = authzService;
         this.classeService = classeService;
@@ -311,6 +319,26 @@ public class ItemController {
             authzService.assertCanEditPersonaggio(utente, idPersonaggio);
         itemService.deleteItem(id, idPersonaggio);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Import bulk di item di compendio da un file JSONL",
+            description = "Un oggetto JSON per riga. 'mapping' è un oggetto JSON piatto " +
+                    "{'nome': <sorgente>, 'descrizione': <sorgente>, 'label.<NOME>': <sorgente>}; " +
+                    "la sorgente può essere un campo semplice, un percorso puntato (es. 'extraSections.Special'), " +
+                    "una lista (una riga label per elemento) o terminare in '.*' per raccogliere come fallback " +
+                    "tutte le chiavi di quell'oggetto non già mappate esplicitamente altrove. Riservato agli admin."
+    )
+    @PostMapping(value = "/import-jsonl", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ImportJsonlResultDTO> importJsonl(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("mapping") String mapping,
+            @RequestParam(value = "tipo", defaultValue = "TALENTO") TipoItem tipo,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        if (!authzService.isAdmin(utente))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo un admin può importare dati in blocco");
+        return ResponseEntity.ok(itemImportService.importJsonl(file, mapping, tipo));
     }
 
     @Operation(

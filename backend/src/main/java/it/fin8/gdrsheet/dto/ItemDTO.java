@@ -55,4 +55,6 @@ public class ItemDTO {
     /** Attacchi (ATTACCO) collegati come figli di questo item, precalcolati per evitare una chiamata
      *  di dettaglio separata quando si espande la riga. Vuoto se nessuno. */
     private List<ChildRefDTO> figliAttacchi;
+    /** Manuale di provenienza (label MANUALE_SP). Null se non impostato. */
+    private String manuale;
 }

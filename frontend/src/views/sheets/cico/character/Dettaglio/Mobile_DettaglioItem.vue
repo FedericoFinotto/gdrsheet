@@ -21,7 +21,7 @@ import Mobile_DettaglioItem from "./Mobile_DettaglioItem.vue";
 import {Modificatore} from "../../../../../models/entity/Modificatore";
 import {Avanzamento} from "../../../../../models/entity/Avanzamento";
 import {Item} from "../../../../../models/dto/Item";
-import {getItemLabel, LABELS, thereIsValoreLabel} from "../../../../../models/entity/ItemLabel";
+import {getItemLabel, getItemLabels, LABELS, thereIsValoreLabel} from "../../../../../models/entity/ItemLabel";
 import {useHp} from "../../../../../function/useHp";
 
 const router = useRouter()
@@ -281,6 +281,24 @@ const contenitorInfo = computed(() => {
   }
 })
 
+// Talento: dati stile dndtools.org (vedi scripts/dndtools-scraper), da item_label
+const talentoInfo = computed(() => {
+  if (!itemDetail.value || itemDetail.value.tipo !== TIPO_ITEM.TALENTO) return null
+  const d = itemDetail.value
+  return {
+    manuale: getItemLabel(d, LABELS.MANUALE),
+    pagina: getItemLabel(d, LABELS.PAGE),
+    link: getItemLabel(d, LABELS.LINK),
+    categorie: getItemLabels(d, LABELS.CATEGORY) ?? [],
+    prerequisito: getItemLabel(d, LABELS.PREREQUISITE),
+    richiestoPer: getItemLabel(d, LABELS.REQUIRED_FOR),
+    beneficio: getItemLabel(d, LABELS.BENEFIT),
+    normale: getItemLabel(d, LABELS.NORMAL),
+    speciale: getItemLabel(d, LABELS.SPECIAL),
+    extra: getItemLabels(d, LABELS.EXTRA) ?? [],
+  }
+})
+
 function showInfoItemPopup(itm) {
   openPopup(
       Mobile_DettaglioItem,
@@ -456,6 +474,14 @@ function showInfoItemPopup(itm) {
       <div v-else class="contenitore-empty muted">Vuoto</div>
     </div>
 
+    <!-- Talento: header manuale/pagina/categorie in stile dndtools -->
+    <div v-if="talentoInfo && (talentoInfo.manuale || talentoInfo.categorie.length)" class="talento-header">
+      <span v-if="talentoInfo.manuale" class="talento-manuale">
+        ({{ talentoInfo.manuale }}<template v-if="talentoInfo.pagina">, p. {{ talentoInfo.pagina }}</template>)
+      </span>
+      <span v-for="cat in talentoInfo.categorie" :key="cat" class="talento-categoria">{{ cat }}</span>
+    </div>
+
     <!-- Descrizione -->
     <div v-if="itemDetail.descrizione">
       <strong>Descrizione</strong><br>
@@ -463,6 +489,37 @@ function showInfoItemPopup(itm) {
       <div style="height: 20px"></div>
       <div class="spazietto"/>
     </div>
+
+    <!-- Talento: sezioni stile dndtools (una card per sezione presente) -->
+    <template v-if="talentoInfo">
+      <div v-if="talentoInfo.prerequisito" class="section-card">
+        <div class="section-card-header">Prerequisito</div>
+        <div class="section-card-body">{{ talentoInfo.prerequisito }}</div>
+      </div>
+      <div v-if="talentoInfo.richiestoPer" class="section-card">
+        <div class="section-card-header">Richiesto per</div>
+        <div class="section-card-body">{{ talentoInfo.richiestoPer }}</div>
+      </div>
+      <div v-if="talentoInfo.beneficio" class="section-card">
+        <div class="section-card-header">Beneficio</div>
+        <div class="section-card-body">{{ talentoInfo.beneficio }}</div>
+      </div>
+      <div v-if="talentoInfo.normale" class="section-card">
+        <div class="section-card-header">Normale</div>
+        <div class="section-card-body">{{ talentoInfo.normale }}</div>
+      </div>
+      <div v-if="talentoInfo.speciale" class="section-card">
+        <div class="section-card-header">Speciale</div>
+        <div class="section-card-body">{{ talentoInfo.speciale }}</div>
+      </div>
+      <div v-for="(ex, i) in talentoInfo.extra" :key="'extra'+i" class="section-card">
+        <div class="section-card-header">Altro</div>
+        <div class="section-card-body">{{ ex }}</div>
+      </div>
+      <div v-if="talentoInfo.link" class="talento-link">
+        <a :href="talentoInfo.link" target="_blank" rel="noopener noreferrer">Fonte ↗</a>
+      </div>
+    </template>
 
     <!-- Attacchi -->
     <div v-if="listaAttacchi.length">
@@ -620,4 +677,47 @@ function showInfoItemPopup(itm) {
 .altro-row       { background: #f3f4f6 !important; }
 .monete-row      { background: #f0fdf4 !important; }
 .muted { color: var(--color-text-secondary, #6b7280); }
+
+/* Talento: header manuale/pagina/categorie + sezioni stile dndtools */
+.talento-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .4rem;
+  margin-bottom: .5rem;
+  font-size: .8rem;
+}
+.talento-manuale { color: var(--color-text-secondary, #6b7280); font-style: italic; }
+.talento-categoria {
+  background: var(--color-surface-2, #f3f4f6);
+  color: var(--color-text-secondary, #6b7280);
+  border-radius: .4rem;
+  padding: .1rem .5rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: .7rem;
+  letter-spacing: .03em;
+}
+.section-card {
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: .5rem;
+  overflow: hidden;
+  margin: .5rem 0;
+}
+.section-card-header {
+  background: var(--color-surface-2, #f3f4f6);
+  padding: .4rem .75rem;
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.section-card-body {
+  padding: .6rem .75rem;
+  font-size: .88rem;
+  white-space: pre-wrap;
+}
+.talento-link { margin: .5rem 0; font-size: .85rem; }
+.talento-link a { color: #1d4ed8; }
 </style>

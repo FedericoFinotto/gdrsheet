@@ -49,6 +49,7 @@ public class ItemMapper {
         dto.setTipo(entity.getTipo());
         dto.setDisabled(isDisabled(entity));
         dto.setQuantita(parseQuantita(entity.getLabel(Constants.LABEL_QTA)));
+        dto.setManuale(entity.getLabel(Constants.ITEM_LABEL_MANUALE));
 
         if (Constants.ITEM_TIPO_BARRIERA.equalsIgnoreCase(entity.getLabel(Constants.ITEM_LABEL_TIPO))) {
             dto.setBarriera(true);

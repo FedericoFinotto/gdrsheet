@@ -17,6 +17,7 @@ import {useMondoSistema} from '../../../../../../function/useMondoSistema'
 import HtmlEditor from '../../../../../../components/HtmlEditor.vue'
 import SearchSelect from '../../../../../../components/SearchSelect.vue'
 import LabelsEditor from './Sections/LabelsEditor.vue'
+import MultiValueField from './Sections/MultiValueField.vue'
 import ModificatoriEditor from './Sections/ModificatoriEditor.vue'
 import AttacchiEditor from './Sections/AttacchiEditor.vue'
 import ChildrenEditor from './Sections/ChildrenEditor.vue'
@@ -51,6 +52,7 @@ const form = reactive<{
   manuale: string
   descrizione: string
   campi: Record<string, string>
+  campiMulti: Record<string, string[]>
   labels: LabelRow[]
   modificatori: ModificatoreRow[]
   attacchi: AttaccoRow[]
@@ -66,7 +68,8 @@ const form = reactive<{
   enName: '',
   manuale: '',
   descrizione: '',
-  campi: {},
+  campi: Object.fromEntries(props.campiLabel.filter(c => !c.multiValore).map(c => [c.key, ''])),
+  campiMulti: Object.fromEntries(props.campiLabel.filter(c => c.multiValore).map(c => [c.key, [] as string[]])),
   labels: [],
   modificatori: [],
   attacchi: [],
@@ -86,8 +89,10 @@ function preload() {
   form.nome = props.item.nome ?? ''
   form.descrizione = props.item.descrizione ?? ''
 
-  const campoKeys = new Set(props.campiLabel.map(c => c.key))
-  form.campi = Object.fromEntries(props.campiLabel.map(c => [c.key, '']))
+  const campoKeys = new Set(props.campiLabel.filter(c => !c.multiValore).map(c => c.key))
+  const campoKeysMulti = new Set(props.campiLabel.filter(c => c.multiValore).map(c => c.key))
+  form.campi = Object.fromEntries(props.campiLabel.filter(c => !c.multiValore).map(c => [c.key, '']))
+  form.campiMulti = Object.fromEntries(props.campiLabel.filter(c => c.multiValore).map(c => [c.key, []]))
 
   // QTA: preferisce quantita già calcolata (da inventario personaggio), poi labels globali (compendio)
   form.qta = (showQta.value && props.item.quantita != null) ? props.item.quantita : 1
@@ -119,6 +124,8 @@ function preload() {
       form.enName = val
     } else if (key === 'MANUALE_SP') {
       form.manuale = val
+    } else if (campoKeysMulti.has(key)) {
+      form.campiMulti[key].push(val)
     } else if (campoKeys.has(key) && !form.campi[key]) {
       form.campi[key] = val
     } else {
@@ -182,6 +189,7 @@ function restoreSnapshot(snap: any) {
   form.manuale = snap.manuale ?? ''
   form.descrizione = snap.descrizione ?? ''
   form.campi = {...(snap.campi ?? {})}
+  form.campiMulti = {...(snap.campiMulti ?? {})}
   form.labels = snap.labels ?? []
   form.modificatori = snap.modificatori ?? []
   form.attacchi = snap.attacchi ?? []
@@ -249,8 +257,15 @@ function buildPayload(): UpdateItemRequest {
   }
   // campi specifici -> labels
   for (const c of props.campiLabel) {
-    const v = (form.campi[c.key] ?? '').trim()
-    if (v) labels.push({label: c.key, valore: v})
+    if (c.multiValore) {
+      for (const v of (form.campiMulti[c.key] ?? [])) {
+        const trimmed = v.trim()
+        if (trimmed) labels.push({label: c.key, valore: trimmed})
+      }
+    } else {
+      const v = (form.campi[c.key] ?? '').trim()
+      if (v) labels.push({label: c.key, valore: v})
+    }
   }
   // labels generiche
   for (const l of form.labels) {
@@ -327,7 +342,8 @@ async function onSaveAndNew() {
 function resetForNew() {
   form.nome = ''
   form.descrizione = ''
-  form.campi = Object.fromEntries(props.campiLabel.map(c => [c.key, '']))
+  form.campi = Object.fromEntries(props.campiLabel.filter(c => !c.multiValore).map(c => [c.key, '']))
+  form.campiMulti = Object.fromEntries(props.campiLabel.filter(c => c.multiValore).map(c => [c.key, []]))
   form.labels = []
   form.modificatori = []
   form.attacchi = []
@@ -400,8 +416,13 @@ function onCancel() {
         <div class="section-card-header">{{ campiLabelTitolo }}</div>
         <div class="row two">
           <label v-for="c in campiLabel" :key="c.key" class="field"
-                 :class="{ full: c.textarea, 'field-checkbox': c.tipo === 'checkbox' }">
-            <template v-if="c.tipo === 'checkbox'">
+                 :class="{ full: c.textarea || c.multiValore, 'field-checkbox': c.tipo === 'checkbox' }">
+            <template v-if="c.multiValore">
+              <span class="lbl">{{ c.label }}</span>
+              <MultiValueField v-model="form.campiMulti[c.key]" :textarea="c.textarea"
+                                :disabled="disabledAll" :placeholder="c.placeholder"/>
+            </template>
+            <template v-else-if="c.tipo === 'checkbox'">
               <span class="lbl">{{ c.label }}</span>
               <input type="checkbox"
                      :checked="form.campi[c.key] === '1'"
@@ -421,8 +442,13 @@ function onCancel() {
       </div>
       <div v-else class="row two">
         <label v-for="c in campiLabel" :key="c.key" class="field"
-               :class="{ full: c.textarea, 'field-checkbox': c.tipo === 'checkbox' }">
-          <template v-if="c.tipo === 'checkbox'">
+               :class="{ full: c.textarea || c.multiValore, 'field-checkbox': c.tipo === 'checkbox' }">
+          <template v-if="c.multiValore">
+            <span class="lbl">{{ c.label }}</span>
+            <MultiValueField v-model="form.campiMulti[c.key]" :textarea="c.textarea"
+                              :disabled="disabledAll" :placeholder="c.placeholder"/>
+          </template>
+          <template v-else-if="c.tipo === 'checkbox'">
             <span class="lbl">{{ c.label }}</span>
             <input type="checkbox"
                    :checked="form.campi[c.key] === '1'"

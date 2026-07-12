@@ -28,7 +28,19 @@ export const LABELS = {
     SPELL_SLOT: 'SP_SLOT',
     ABILITA_CLASSE: 'ABCLASSE',
     CLASSE: 'CLASSE',
-    MALEDIZIONE: 'MLDZN'
+    MALEDIZIONE: 'MLDZN',
+    // Talento (import bulk da dndtools.org, vedi scripts/dndtools-scraper)
+    EN_NAME: 'EN_NAME',
+    MANUALE: 'MANUALE_SP',
+    PAGE: 'PAGE',
+    LINK: 'LINK',
+    CATEGORY: 'CATEGORY',
+    PREREQUISITE: 'PREREQUISITE',
+    REQUIRED_FOR: 'REQUIRED_FOR',
+    BENEFIT: 'BENEFIT',
+    SPECIAL: 'SPECIAL',
+    NORMAL: 'NORMAL',
+    EXTRA: 'EXTRA',
 } as const;
 export type TipoLabels = typeof LABELS[keyof typeof LABELS];
 
