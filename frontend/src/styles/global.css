@@ -251,6 +251,11 @@ input, select, textarea {
     background: var(--tertiary-color);
 }
 
+/* Evidenzia la caratteristica quando ha un modificatore "Temporaneo" attivo */
+.stat-box.has-temp {
+    box-shadow: inset 0 0 0 2px #0f766e;
+}
+
 /* Titolo stat: piccolo, 1 riga orizzontale */
 .stat-nome, .label {
     font-weight: 700;

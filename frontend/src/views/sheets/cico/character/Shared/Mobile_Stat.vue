@@ -104,6 +104,14 @@ const notaCount = computed(() => {
   return mods.filter(m => m.nota != null && m.nota !== '').length
 })
 
+// evidenzia la caratteristica quando ha un modificatore "Temporaneo" attivo (non zero),
+// visibile anche da fuori senza aprire il dettaglio (vedi Mobile_DettaglioCaratteristica.vue)
+const hasTemp = computed(() => {
+  const mods = stat.value?.modificatori
+  if (!Array.isArray(mods)) return false
+  return mods.some(m => String(m?.item ?? '').toLowerCase() === 'temporaneo' && Number(m?.valore) !== 0)
+})
+
 // modificatore mostrato: se è in corso un tiro globale e la stat è idonea,
 // somma il risultato del d20 al valore.
 const modificatoreVisualizzato = computed(() => {
@@ -117,7 +125,7 @@ const modificatoreVisualizzato = computed(() => {
 </script>
 
 <template>
-  <div class="stat-box">
+  <div class="stat-box" :class="{'has-temp': hasTemp}" :title="hasTemp ? 'Modificatore temporaneo attivo' : undefined">
     <div class="label">{{ label ?? id }}</div>
     <div class="modifier-wrap" @click="showPopup">
       <span class="modifier">{{ modificatoreVisualizzato }}</span>
