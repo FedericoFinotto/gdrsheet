@@ -121,6 +121,21 @@ public final class Constants {
     public static final String ITEM_LABEL_NORMAL = "NORMAL";
     public static final String ITEM_LABEL_EXTRA = "EXTRA";             // fallback per sezioni non mappate esplicitamente
 
+    // Descrittori Oggetto (flag booleani "1"/assente, editabili su qualunque item)
+    public static final String ITEM_LABEL_MAGICO = "MAGICO";
+    public static final String ITEM_LABEL_PSIONICO = "PSIONICO";
+    public static final String ITEM_LABEL_DIVINO = "DIVINO";
+    public static final String ITEM_LABEL_LEGGENDARIO = "LEGGENDARIO";
+    public static final String ITEM_LABEL_UNICO = "UNICO";
+    public static final String ITEM_LABEL_COSTO = "COSTO";
+    public static final String ITEM_LABEL_MATERIALE = "MATERIALE";
+
+    // Descrittori Abilità (flag booleani, possono essere attivi insieme)
+    public static final String ITEM_LABEL_DESCR_STRAORDINARIA = "DESCR_STR";
+    public static final String ITEM_LABEL_DESCR_MAGICA = "DESCR_MAG";
+    public static final String ITEM_LABEL_DESCR_SOPRANNATURALE = "DESCR_SOP";
+    public static final String ITEM_LABEL_DESCR_NATURALE = "DESCR_NAT";
+
     public static final String LABEL_MILESTONE = "MILESTONE";
     public static final String LABEL_MILESTONE_TO = "MILESTONE_TO";
     public static final String LABEL_NOTIZIA_DATA_INIZIO = "DATA_INIZIO";

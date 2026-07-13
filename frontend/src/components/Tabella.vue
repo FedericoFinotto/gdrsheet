@@ -38,6 +38,9 @@ interface ColumnDef {
   // badge opzionale accanto al testo (es. quantità): null/'' = nascosto
   badge?: Fn<string | null | undefined>;
 
+  // chip opzionali PRIMA del testo (es. descrittori Str/Mag/Sop di un'abilità)
+  prefixChips?: Fn<{ text: string; class?: string }[] | null | undefined>;
+
   type?: 'text' | 'counter' | 'icons';
 
   // click handler opzionale sulla cella testo (stoppa la propagazione alla riga)
@@ -211,6 +214,8 @@ function clickIcon(ic: RowIcon, row: any) {
                 @click="col.onClick ? ($event.stopPropagation(), col.onClick(row)) : undefined"
             >
               <div class="primary">
+                <span v-for="(chip, ci) in (col.prefixChips ? col.prefixChips(row) : [])" :key="ci"
+                      class="cell-prefix-chip" :class="chip.class">{{ chip.text }}</span>
                 {{ row[col.field] }}
                 <span v-if="col.badge && col.badge(row)" class="cell-badge">{{ col.badge(row) }}</span>
               </div>
@@ -335,5 +340,20 @@ img.row-icon {
   font-weight: 700;
   vertical-align: middle;
 }
+
+.cell-prefix-chip {
+  display: inline-block;
+  margin-right: .3rem;
+  padding: .05rem .4rem;
+  border-radius: .5rem;
+  font-size: .68rem;
+  font-weight: 700;
+  vertical-align: middle;
+  background: var(--color-surface-2, #f3f4f6);
+  color: var(--color-text-secondary, #6b7280);
+}
+.cell-prefix-chip.chip-str { background: #fef3c7; color: #92400e; }
+.cell-prefix-chip.chip-mag { background: #ede9fe; color: #5b21b6; }
+.cell-prefix-chip.chip-sop { background: #dbeafe; color: #1d4ed8; }
 
 </style>

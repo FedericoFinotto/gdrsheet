@@ -57,4 +57,9 @@ public class ItemDTO {
     private List<ChildRefDTO> figliAttacchi;
     /** Manuale di provenienza (label MANUALE_SP). Null se non impostato. */
     private String manuale;
+    /** Descrittori Abilità (label DESCR_STR/DESCR_MAG/DESCR_SOP/DESCR_NAT), possono essere true insieme. */
+    private Boolean descrStraordinaria;
+    private Boolean descrMagica;
+    private Boolean descrSoprannaturale;
+    private Boolean descrNaturale;
 }

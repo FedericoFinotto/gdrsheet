@@ -53,6 +53,8 @@ const form = reactive<{
   descrizione: string
   campi: Record<string, string>
   campiMulti: Record<string, string[]>
+  descrOggetto: { magico: boolean; psionico: boolean; divino: boolean; leggendario: boolean; unico: boolean; costo: string; materiale: string }
+  descrAbilita: { straordinaria: boolean; magica: boolean; soprannaturale: boolean; naturale: boolean }
   labels: LabelRow[]
   modificatori: ModificatoreRow[]
   attacchi: AttaccoRow[]
@@ -70,6 +72,8 @@ const form = reactive<{
   descrizione: '',
   campi: Object.fromEntries(props.campiLabel.filter(c => !c.multiValore).map(c => [c.key, ''])),
   campiMulti: Object.fromEntries(props.campiLabel.filter(c => c.multiValore).map(c => [c.key, [] as string[]])),
+  descrOggetto: {magico: false, psionico: false, divino: false, leggendario: false, unico: false, costo: '', materiale: ''},
+  descrAbilita: {straordinaria: false, magica: false, soprannaturale: false, naturale: false},
   labels: [],
   modificatori: [],
   attacchi: [],
@@ -83,7 +87,10 @@ const form = reactive<{
   idSistema: null as number | null,
 })
 
-const open = reactive({labels: false, modificatori: false, attacchi: false, children: false, forme: false})
+const open = reactive({
+  labels: false, modificatori: false, attacchi: false, children: false, forme: false,
+  campiLabel: false, descrOggetto: false, descrAbilita: false,
+})
 
 function preload() {
   form.nome = props.item.nome ?? ''
@@ -105,6 +112,8 @@ function preload() {
   form.compendio = props.mode === 'create' && route.query.compendio === '1'
   form.visibilita = ''
   form.labels = []
+  form.descrOggetto = {magico: false, psionico: false, divino: false, leggendario: false, unico: false, costo: '', materiale: ''}
+  form.descrAbilita = {straordinaria: false, magica: false, soprannaturale: false, naturale: false}
   for (const l of (props.item.labels ?? [])) {
     const key = l.label ?? ''
     const val = l.valore ?? ''
@@ -124,6 +133,28 @@ function preload() {
       form.enName = val
     } else if (key === 'MANUALE_SP') {
       form.manuale = val
+    } else if (key === 'MAGICO') {
+      form.descrOggetto.magico = val === '1'
+    } else if (key === 'PSIONICO') {
+      form.descrOggetto.psionico = val === '1'
+    } else if (key === 'DIVINO') {
+      form.descrOggetto.divino = val === '1'
+    } else if (key === 'LEGGENDARIO') {
+      form.descrOggetto.leggendario = val === '1'
+    } else if (key === 'UNICO') {
+      form.descrOggetto.unico = val === '1'
+    } else if (key === 'COSTO') {
+      form.descrOggetto.costo = val
+    } else if (key === 'MATERIALE') {
+      form.descrOggetto.materiale = val
+    } else if (key === 'DESCR_STR') {
+      form.descrAbilita.straordinaria = val === '1'
+    } else if (key === 'DESCR_MAG') {
+      form.descrAbilita.magica = val === '1'
+    } else if (key === 'DESCR_SOP') {
+      form.descrAbilita.soprannaturale = val === '1'
+    } else if (key === 'DESCR_NAT') {
+      form.descrAbilita.naturale = val === '1'
     } else if (campoKeysMulti.has(key)) {
       form.campiMulti[key].push(val)
     } else if (campoKeys.has(key) && !form.campi[key]) {
@@ -190,6 +221,8 @@ function restoreSnapshot(snap: any) {
   form.descrizione = snap.descrizione ?? ''
   form.campi = {...(snap.campi ?? {})}
   form.campiMulti = {...(snap.campiMulti ?? {})}
+  form.descrOggetto = {...(snap.descrOggetto ?? {magico: false, psionico: false, divino: false, leggendario: false, unico: false, costo: '', materiale: ''})}
+  form.descrAbilita = {...(snap.descrAbilita ?? {straordinaria: false, magica: false, soprannaturale: false, naturale: false})}
   form.labels = snap.labels ?? []
   form.modificatori = snap.modificatori ?? []
   form.attacchi = snap.attacchi ?? []
@@ -248,6 +281,37 @@ const sumChildren = computed(() =>
     form.children.map(c => c.nome).join(', ') || '—')
 const sumForme = computed(() =>
     form.forme.map(c => c.nome).join(', ') || '—')
+const sumDescrOggetto = computed(() => {
+  const d = form.descrOggetto
+  const flags = []
+  if (d.magico) flags.push('Magico')
+  if (d.psionico) flags.push('Psionico')
+  if (d.divino) flags.push('Divino')
+  if (d.leggendario) flags.push('Leggendario')
+  if (d.unico) flags.push('Unico')
+  if (d.costo.trim()) flags.push(`Costo: ${d.costo.trim()}`)
+  if (d.materiale.trim()) flags.push(`Materiale: ${d.materiale.trim()}`)
+  return flags.join(', ') || '—'
+})
+const sumDescrAbilita = computed(() => {
+  const d = form.descrAbilita
+  const flags = []
+  if (d.straordinaria) flags.push('Str')
+  if (d.magica) flags.push('Mag')
+  if (d.soprannaturale) flags.push('Sop')
+  if (d.naturale) flags.push('Naturale')
+  return flags.join(', ') || '—'
+})
+const sumCampiLabel = computed(() => {
+  const filled = []
+  for (const c of props.campiLabel) {
+    const has = c.multiValore
+        ? (form.campiMulti[c.key] ?? []).some(v => v.trim())
+        : !!(form.campi[c.key] ?? '').trim()
+    if (has) filled.push(c.label)
+  }
+  return filled.join(', ') || '—'
+})
 
 function buildPayload(): UpdateItemRequest {
   const labels: LabelRow[] = []
@@ -274,6 +338,19 @@ function buildPayload(): UpdateItemRequest {
   // nome originale inglese e manuale di provenienza
   if (form.enName.trim()) labels.push({label: 'EN_NAME', valore: form.enName.trim()})
   if (form.manuale.trim()) labels.push({label: 'MANUALE_SP', valore: form.manuale.trim()})
+  // Descrittori Oggetto
+  if (form.descrOggetto.magico) labels.push({label: 'MAGICO', valore: '1'})
+  if (form.descrOggetto.psionico) labels.push({label: 'PSIONICO', valore: '1'})
+  if (form.descrOggetto.divino) labels.push({label: 'DIVINO', valore: '1'})
+  if (form.descrOggetto.leggendario) labels.push({label: 'LEGGENDARIO', valore: '1'})
+  if (form.descrOggetto.unico) labels.push({label: 'UNICO', valore: '1'})
+  if (form.descrOggetto.costo.trim()) labels.push({label: 'COSTO', valore: form.descrOggetto.costo.trim()})
+  if (form.descrOggetto.materiale.trim()) labels.push({label: 'MATERIALE', valore: form.descrOggetto.materiale.trim()})
+  // Descrittori Abilità
+  if (form.descrAbilita.straordinaria) labels.push({label: 'DESCR_STR', valore: '1'})
+  if (form.descrAbilita.magica) labels.push({label: 'DESCR_MAG', valore: '1'})
+  if (form.descrAbilita.soprannaturale) labels.push({label: 'DESCR_SOP', valore: '1'})
+  if (form.descrAbilita.naturale) labels.push({label: 'DESCR_NAT', valore: '1'})
   // utilizzi massimi (globale sull'item)
   if (form.utilizzi != null && Number.isInteger(form.utilizzi) && form.utilizzi > 0)
     labels.push({label: 'UTILIZZI', valore: String(form.utilizzi)})
@@ -344,6 +421,8 @@ function resetForNew() {
   form.descrizione = ''
   form.campi = Object.fromEntries(props.campiLabel.filter(c => !c.multiValore).map(c => [c.key, '']))
   form.campiMulti = Object.fromEntries(props.campiLabel.filter(c => c.multiValore).map(c => [c.key, []]))
+  form.descrOggetto = {magico: false, psionico: false, divino: false, leggendario: false, unico: false, costo: '', materiale: ''}
+  form.descrAbilita = {straordinaria: false, magica: false, soprannaturale: false, naturale: false}
   form.labels = []
   form.modificatori = []
   form.attacchi = []
@@ -410,36 +489,115 @@ function onCancel() {
       <HtmlEditor v-model="form.descrizione" :rows="10" :disabled="disabledAll"/>
     </label>
 
-    <!-- campi specifici per tipo -->
-    <template v-if="campiLabel.length">
-      <div v-if="campiLabelTitolo" class="section-card">
-        <div class="section-card-header">{{ campiLabelTitolo }}</div>
+    <!-- Descrittori Oggetto (validi per qualunque item) -->
+    <section v-if="!minimal" class="fold">
+      <button type="button" class="fold-head" @click="open.descrOggetto = !open.descrOggetto"
+              :aria-expanded="open.descrOggetto ? 'true' : 'false'">
+        <span class="fold-title">Descrittori Oggetto</span>
+        <span class="fold-summary">{{ sumDescrOggetto }}</span>
+        <span class="chev" :class="{ open: open.descrOggetto }">▸</span>
+      </button>
+      <div v-show="open.descrOggetto" class="fold-body">
         <div class="row two">
-          <label v-for="c in campiLabel" :key="c.key" class="field"
-                 :class="{ full: c.textarea || c.multiValore, 'field-checkbox': c.tipo === 'checkbox' }">
-            <template v-if="c.multiValore">
-              <span class="lbl">{{ c.label }}</span>
-              <MultiValueField v-model="form.campiMulti[c.key]" :textarea="c.textarea"
-                                :disabled="disabledAll" :placeholder="c.placeholder"/>
-            </template>
-            <template v-else-if="c.tipo === 'checkbox'">
-              <span class="lbl">{{ c.label }}</span>
-              <input type="checkbox"
-                     :checked="form.campi[c.key] === '1'"
-                     :disabled="disabledAll"
-                     @change="(e) => form.campi[c.key] = (e.target as HTMLInputElement).checked ? '1' : ''"/>
-            </template>
-            <template v-else>
-              <span class="lbl">{{ c.label }}</span>
-              <textarea v-if="c.textarea" v-model="form.campi[c.key]" rows="3"
-                        :disabled="disabledAll" :placeholder="c.placeholder"/>
-              <input v-else v-model="form.campi[c.key]"
-                     :type="c.tipo === 'datetime-local' ? 'datetime-local' : 'text'"
-                     :disabled="disabledAll" :placeholder="c.placeholder"/>
-            </template>
+          <label class="field field-checkbox">
+            <span class="lbl">Magico</span>
+            <input type="checkbox" v-model="form.descrOggetto.magico" :disabled="disabledAll"/>
+          </label>
+          <label class="field field-checkbox">
+            <span class="lbl">Psionico</span>
+            <input type="checkbox" v-model="form.descrOggetto.psionico" :disabled="disabledAll"/>
+          </label>
+          <label class="field field-checkbox">
+            <span class="lbl">Divino</span>
+            <input type="checkbox" v-model="form.descrOggetto.divino" :disabled="disabledAll"/>
+          </label>
+          <label class="field field-checkbox">
+            <span class="lbl">Leggendario</span>
+            <input type="checkbox" v-model="form.descrOggetto.leggendario" :disabled="disabledAll"/>
+          </label>
+          <label class="field field-checkbox">
+            <span class="lbl">Unico</span>
+            <input type="checkbox" v-model="form.descrOggetto.unico" :disabled="disabledAll"/>
+          </label>
+          <label class="field">
+            <span class="lbl">Costo</span>
+            <input v-model.trim="form.descrOggetto.costo" type="text" :disabled="disabledAll" placeholder="es. 150 mo"/>
+          </label>
+          <label class="field">
+            <span class="lbl">Materiale</span>
+            <input v-model.trim="form.descrOggetto.materiale" type="text" :disabled="disabledAll" placeholder="es. Acciaio, mithral"/>
           </label>
         </div>
       </div>
+    </section>
+
+    <!-- Descrittori Abilità (validi per qualunque item, possono essere attivi insieme) -->
+    <section v-if="!minimal" class="fold">
+      <button type="button" class="fold-head" @click="open.descrAbilita = !open.descrAbilita"
+              :aria-expanded="open.descrAbilita ? 'true' : 'false'">
+        <span class="fold-title">Descrittori Abilità</span>
+        <span class="fold-summary">{{ sumDescrAbilita }}</span>
+        <span class="chev" :class="{ open: open.descrAbilita }">▸</span>
+      </button>
+      <div v-show="open.descrAbilita" class="fold-body">
+        <div class="row two">
+          <label class="field field-checkbox">
+            <span class="lbl">Straordinaria (Str)</span>
+            <input type="checkbox" v-model="form.descrAbilita.straordinaria" :disabled="disabledAll"/>
+          </label>
+          <label class="field field-checkbox">
+            <span class="lbl">Magica (Mag)</span>
+            <input type="checkbox" v-model="form.descrAbilita.magica" :disabled="disabledAll"/>
+          </label>
+          <label class="field field-checkbox">
+            <span class="lbl">Soprannaturale (Sop)</span>
+            <input type="checkbox" v-model="form.descrAbilita.soprannaturale" :disabled="disabledAll"/>
+          </label>
+          <label class="field field-checkbox">
+            <span class="lbl">Naturale</span>
+            <input type="checkbox" v-model="form.descrAbilita.naturale" :disabled="disabledAll"/>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- campi specifici per tipo -->
+    <template v-if="campiLabel.length">
+      <section v-if="campiLabelTitolo" class="fold">
+        <button type="button" class="fold-head" @click="open.campiLabel = !open.campiLabel"
+                :aria-expanded="open.campiLabel ? 'true' : 'false'">
+          <span class="fold-title">{{ campiLabelTitolo }}</span>
+          <span class="fold-summary">{{ sumCampiLabel }}</span>
+          <span class="chev" :class="{ open: open.campiLabel }">▸</span>
+        </button>
+        <div v-show="open.campiLabel" class="fold-body">
+          <div class="row two">
+            <label v-for="c in campiLabel" :key="c.key" class="field"
+                   :class="{ full: c.textarea || c.multiValore, 'field-checkbox': c.tipo === 'checkbox' }">
+              <template v-if="c.multiValore">
+                <span class="lbl">{{ c.label }}</span>
+                <MultiValueField v-model="form.campiMulti[c.key]" :textarea="c.textarea"
+                                  :disabled="disabledAll" :placeholder="c.placeholder"/>
+              </template>
+              <template v-else-if="c.tipo === 'checkbox'">
+                <span class="lbl">{{ c.label }}</span>
+                <input type="checkbox"
+                       :checked="form.campi[c.key] === '1'"
+                       :disabled="disabledAll"
+                       @change="(e) => form.campi[c.key] = (e.target as HTMLInputElement).checked ? '1' : ''"/>
+              </template>
+              <template v-else>
+                <span class="lbl">{{ c.label }}</span>
+                <textarea v-if="c.textarea" v-model="form.campi[c.key]" rows="3"
+                          :disabled="disabledAll" :placeholder="c.placeholder"/>
+                <input v-else v-model="form.campi[c.key]"
+                       :type="c.tipo === 'datetime-local' ? 'datetime-local' : 'text'"
+                       :disabled="disabledAll" :placeholder="c.placeholder"/>
+              </template>
+            </label>
+          </div>
+        </div>
+      </section>
       <div v-else class="row two">
         <label v-for="c in campiLabel" :key="c.key" class="field"
                :class="{ full: c.textarea || c.multiValore, 'field-checkbox': c.tipo === 'checkbox' }">

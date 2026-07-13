@@ -153,8 +153,21 @@ function utilizziCol() {
   }
 }
 
-const col = (label: string, withBadge = false) => [
-  {field: 'nome', label, disabled: (row: any) => row.disabled, ...(withBadge ? {badge: badgeQta} : {})},
+// chip descrittori (Str/Mag/Sop) prima del nome, per le righe Abilità
+function abilitaChips(row: any): { text: string; class?: string }[] {
+  const chips: { text: string; class?: string }[] = []
+  if (row.descrStraordinaria) chips.push({text: 'Str', class: 'chip-str'})
+  if (row.descrMagica) chips.push({text: 'Mag', class: 'chip-mag'})
+  if (row.descrSoprannaturale) chips.push({text: 'Sop', class: 'chip-sop'})
+  return chips
+}
+
+const col = (label: string, withBadge = false, prefixChips?: (row: any) => any[]) => [
+  {
+    field: 'nome', label, disabled: (row: any) => row.disabled,
+    ...(withBadge ? {badge: badgeQta} : {}),
+    ...(prefixChips ? {prefixChips} : {}),
+  },
   utilizziCol(),
 ];
 
@@ -169,8 +182,8 @@ const columnsPatti = col('Patti');
 const columnsNotizie = col('Notizie');
 const columnsFrutti = col('Frutti');
 const columnsIdoli = col('Idoli');
-const columnsAbilita = col('Abilità');
-const columnsAbilitaPassive = col('Abilità Passive');
+const columnsAbilita = col('Abilità', false, abilitaChips);
+const columnsAbilitaPassive = col('Abilità Passive', false, abilitaChips);
 const columnsTalenti = col('Talenti');
 const columnsPrivilegi = col('Privilegi di Classe');
 const columnsMaledizioni = col('Maledizioni');

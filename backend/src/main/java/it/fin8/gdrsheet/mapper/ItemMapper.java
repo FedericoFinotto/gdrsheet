@@ -77,6 +77,15 @@ public class ItemMapper {
             dto.setIncludiConsumabiliAbilitati(true);
         if ("1".equals(entity.getLabel(Constants.LABEL_INCLUDI_TUTTI_ABILITATI)))
             dto.setIncludiTuttiAbilitati(true);
+
+        if ("1".equals(entity.getLabel(Constants.ITEM_LABEL_DESCR_STRAORDINARIA)))
+            dto.setDescrStraordinaria(true);
+        if ("1".equals(entity.getLabel(Constants.ITEM_LABEL_DESCR_MAGICA)))
+            dto.setDescrMagica(true);
+        if ("1".equals(entity.getLabel(Constants.ITEM_LABEL_DESCR_SOPRANNATURALE)))
+            dto.setDescrSoprannaturale(true);
+        if ("1".equals(entity.getLabel(Constants.ITEM_LABEL_DESCR_NATURALE)))
+            dto.setDescrNaturale(true);
     }
 
     private static Integer parseQuantita(String s) {

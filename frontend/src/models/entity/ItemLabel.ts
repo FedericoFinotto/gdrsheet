@@ -41,6 +41,19 @@ export const LABELS = {
     SPECIAL: 'SPECIAL',
     NORMAL: 'NORMAL',
     EXTRA: 'EXTRA',
+    // Descrittori Oggetto
+    MAGICO: 'MAGICO',
+    PSIONICO: 'PSIONICO',
+    DIVINO: 'DIVINO',
+    LEGGENDARIO: 'LEGGENDARIO',
+    UNICO: 'UNICO',
+    COSTO: 'COSTO',
+    MATERIALE: 'MATERIALE',
+    // Descrittori Abilità
+    DESCR_STRAORDINARIA: 'DESCR_STR',
+    DESCR_MAGICA: 'DESCR_MAG',
+    DESCR_SOPRANNATURALE: 'DESCR_SOP',
+    DESCR_NATURALE: 'DESCR_NAT',
 } as const;
 export type TipoLabels = typeof LABELS[keyof typeof LABELS];
 

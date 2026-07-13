@@ -29,4 +29,9 @@ export interface Item {
     figliAttacchi?: ChildRef[];
     /** Manuale di provenienza (label MANUALE_SP). */
     manuale?: string;
+    /** Descrittori Abilità (label DESCR_STR/DESCR_MAG/DESCR_SOP/DESCR_NAT), possono essere true insieme. */
+    descrStraordinaria?: boolean;
+    descrMagica?: boolean;
+    descrSoprannaturale?: boolean;
+    descrNaturale?: boolean;
 }
