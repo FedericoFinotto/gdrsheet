@@ -30,6 +30,11 @@ export function useHp(idPersonaggio: number) {
       cache.value[idPersonaggio]?.modificatori?.contatori?.find((s: any) => s.id === 'PFTEMP'))
 
   const hpMax = computed<number>(() => pfStat.value?.max ?? 0)
+  // modificatori che sommano al massimo HP (livello, dadi vita, COS, oggetti...), stessa
+  // forma usata dalle altre caratteristiche (vedi Mobile_DettaglioCaratteristica.vue)
+  const pfModificatori = computed<any[]>(() => pfStat.value?.modificatori ?? [])
+  // livelli del personaggio (id, livello, classe, maledizione...), per etichettare/ordinare i modificatori PF per livello
+  const livelli = computed<any[]>(() => cache.value[idPersonaggio]?.items?.livelli ?? [])
   const damageNeg = computed<number>(() => pfStat.value?.valore ?? 0)  // <= 0
   const hp = computed<number>(() => Math.max(0, hpMax.value + damageNeg.value))
   const pfTemp = computed<number>(() => pfTempStat.value?.valore ?? 0)
@@ -194,7 +199,7 @@ export function useHp(idPersonaggio: number) {
 
   return {
     hp, hpMax, pfTemp, barriere, barriereTotal, barriereMaxTotal,
-    totalMax, remaining,
+    totalMax, remaining, pfModificatori, livelli,
     modifyHp, modifyTemp, setTemp,
     modifyBarriera, resetBarriera, distruggiBarriera,
   }

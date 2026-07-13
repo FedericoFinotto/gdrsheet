@@ -1,14 +1,61 @@
 <script setup lang="ts">
-import {ref} from 'vue'
+import {computed, ref} from 'vue'
 import {useHp} from '../../../../../function/useHp'
+import {testoFormula, testoModificatore} from '../../../../../function/Utils'
+import Tabella from '../../../../../components/Tabella.vue'
 
 const props = defineProps<{ idPersonaggio: number }>()
 
 const {
-  hp, hpMax, pfTemp, barriere, barriereTotal,
+  hp, hpMax, pfTemp, barriere, barriereTotal, pfModificatori, livelli,
   modifyHp, modifyTemp, setTemp,
   modifyBarriera, resetBarriera, distruggiBarriera,
 } = useHp(props.idPersonaggio)
+
+// Dettaglio HP massimi: stesso pattern di Mobile_DettaglioCaratteristica.vue,
+// senza la barretta "Temporaneo" (già gestita qui sotto tramite PFTEMP).
+// Ordine: Base, poi i contributi di livello in ordine crescente (etichettati "N: Classe[ / Maledizione]"),
+// poi tutte le altre fonti (talenti, oggetti, ecc.).
+const mostraDettaglio = ref(false)
+
+function classificaEEtichetta(mod: any): { ordine: number; livello: number; origine: string } {
+  if (mod.item === 'BASE' && mod.itemId == null) {
+    return {ordine: 0, livello: -1, origine: 'Base'}
+  }
+  if (mod.tipoItem === 'LIVELLO') {
+    let lvl = mod.itemId != null
+        ? livelli.value.find((l: any) => l.id === mod.itemId)
+        : null
+    if (!lvl && typeof mod.item === 'string' && mod.item.endsWith(' Maledetto')) {
+      const nomeLivello = mod.item.replace(/ Maledetto$/, '')
+      lvl = livelli.value.find((l: any) => l.nome === nomeLivello)
+    }
+    if (lvl) {
+      const origine = `${lvl.livello}: ${lvl.classe}` + (lvl.maledizione ? ` / ${lvl.maledizione}` : '')
+      return {ordine: 1, livello: lvl.livello, origine}
+    }
+  }
+  return {ordine: 2, livello: Infinity, origine: mod.item ?? 'Sconosciuto'}
+}
+
+const modsOrdinati = computed(() =>
+    pfModificatori.value
+        .map((mod: any) => ({mod, ...classificaEEtichetta(mod)}))
+        .sort((a, b) => a.ordine - b.ordine || a.livello - b.livello)
+)
+const modsSempre = computed(() => modsOrdinati.value.filter(x => x.mod?.sempreAttivo))
+const modsSituaz = computed(() => modsOrdinati.value.filter(x => !x.mod?.sempreAttivo))
+
+function mappaRiga(entry: { mod: any; origine: string }) {
+  const mod = entry.mod
+  const base = testoModificatore(mod.valore)
+  const formula = mod.formula ? testoFormula(mod.formula) : null
+  let valoreFinale = base === '+0' && formula ? formula : base
+  if (mod.tipo === 'PERCENTUALE') valoreFinale = valoreFinale + '%'
+  if (mod.tipo === 'MOLTIPLICA' && mod.formula) valoreFinale = `×${mod.formula} ${valoreFinale}`
+  if (mod.tipo === 'DIVIDI' && mod.formula) valoreFinale = `/${mod.formula} ${valoreFinale}`
+  return {...mod, origine: entry.origine, valor: valoreFinale}
+}
 
 // input rapido per danno/cura
 const importo = ref<number | null>(null)
@@ -43,6 +90,21 @@ function applicaTemp(segno: 1 | -1) {
         <span v-if="pfTemp > 0" class="pill temp">+{{ pfTemp }} temp</span>
         <span v-if="barriereTotal > 0" class="pill barr">+{{ barriereTotal }} barriere</span>
       </div>
+      <button type="button" class="dettaglio-toggle" @click="mostraDettaglio = !mostraDettaglio">
+        <span class="chev" :class="{open: mostraDettaglio}">▸</span> Dettaglio HP massimi
+      </button>
+      <section v-if="mostraDettaglio" class="dettaglio-block">
+        <div v-if="modsSempre.length">
+          <Tabella :items="modsSempre.map(x => mappaRiga(x))"
+                   :columns="[{field: 'origine', subfield: 'nota', label: ''}, {field: 'valor'}]"/>
+        </div>
+        <div class="spazietto" v-if="modsSempre.length && modsSituaz.length"/>
+        <div v-if="modsSituaz.length">
+          <Tabella :items="modsSituaz.map(x => mappaRiga(x))"
+                   :columns="[{field: 'origine', subfield: 'nota', label: ''}, {field: 'valor'}]"/>
+        </div>
+        <div v-if="!modsSempre.length && !modsSituaz.length" class="empty">Nessun dettaglio disponibile.</div>
+      </section>
     </div>
 
     <!-- danno / cura -->
@@ -113,6 +175,23 @@ h2 { margin: 0; font-size: 1.1rem; }
 .pill { font-size: .78rem; font-weight: 700; padding: .15rem .6rem; border-radius: 999px; }
 .pill.temp { background: #ccfbf1; color: #0f766e; }
 .pill.barr { background: #dbeafe; color: #1d4ed8; }
+
+.dettaglio-toggle {
+  justify-self: center;
+  margin-top: .3rem;
+  border: 0; background: none; cursor: pointer;
+  font-size: .8rem; font-weight: 600; color: #2563eb;
+  display: inline-flex; align-items: center; gap: .3rem;
+}
+.dettaglio-toggle .chev { transition: transform .15s ease; }
+.dettaglio-toggle .chev.open { transform: rotate(90deg); }
+.dettaglio-block {
+  width: 100%;
+  border: 1px solid #e5e7eb; border-radius: .5rem;
+  background: #f9fafb; padding: .5rem .6rem;
+  margin-top: .3rem;
+}
+.dettaglio-block .empty { font-size: .85rem; opacity: .6; }
 
 .block { display: grid; gap: .4rem; }
 .lbl { font-size: .8rem; font-weight: 700; opacity: .8; }
