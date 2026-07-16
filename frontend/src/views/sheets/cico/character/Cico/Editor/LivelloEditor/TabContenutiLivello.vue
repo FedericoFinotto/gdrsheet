@@ -1,9 +1,19 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, markRaw, onMounted, ref, watch} from 'vue'
 import TabExpandable from '../../../../../../../components/TabExpandable.vue'
 import {ItemDB} from '../../../../../../../models/entity/ItemDB'
 import {Modificatore} from '../../../../../../../models/entity/Modificatore'
 import {GrantRow} from "../../../../../../../models/dto/GrantRow";
+import usePopup from '../../../../../../../function/usePopup'
+import DescrizioneItemPopup from './DescrizioneItemPopup.vue'
+
+const {openPopup} = usePopup()
+
+function mostraDescrizione(g: GrantRow) {
+  const itemId = (g.raw as ItemDB)?.id
+  if (!itemId) return
+  openPopup(markRaw(DescrizioneItemPopup), {itemId, nome: g.descrizione}, {closable: true})
+}
 
 
 const props = defineProps<{
@@ -239,6 +249,13 @@ function setGrantQty(g: GrantRow, val: string) {
                 <span class="pill red" v-else>MOD</span>
                 <span class="grant-name">{{ g.descrizione }}</span>
               </label>
+              <button
+                  v-if="g.tipo === 'ITEM'"
+                  type="button"
+                  class="btn-info"
+                  title="Vedi descrizione"
+                  @click="mostraDescrizione(g)"
+              >ℹ</button>
               <input
                   v-if="g.tipo === 'ITEM'"
                   class="grant-qty"
@@ -294,10 +311,16 @@ function setGrantQty(g: GrantRow, val: string) {
 
 .grant-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: .4rem;
   align-items: center;
 }
+.btn-info {
+  width: 1.7rem; height: 1.7rem; padding: 0;
+  border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8;
+  border-radius: .4rem; cursor: pointer; font-size: .85rem; line-height: 1;
+}
+.btn-info:hover { background: #dbeafe; }
 .grant-check {
   display: grid;
   grid-template-columns: auto auto 1fr;

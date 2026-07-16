@@ -1,10 +1,19 @@
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue'
+import {computed, markRaw, ref, watch} from 'vue'
 import TabExpandable from '../../../../../../../components/TabExpandable.vue'
 import {ItemDB, TIPO_ITEM} from '../../../../../../../models/entity/ItemDB'
 import {searchItems} from '../../../../../../../service/PersonaggioService'
 import Icona from '../../../../../../../components/Icona/Icona.vue'
 import SearchSelect from '../../../../../../../components/SearchSelect.vue'
+import usePopup from '../../../../../../../function/usePopup'
+import DescrizioneItemPopup from './DescrizioneItemPopup.vue'
+
+const {openPopup} = usePopup()
+
+function mostraDescrizione(item: ItemDB) {
+  if (!item?.id) return
+  openPopup(markRaw(DescrizioneItemPopup), {itemId: item.id, nome: item.nome}, {closable: true})
+}
 
 const props = defineProps<{
   disabled: boolean
@@ -85,6 +94,7 @@ const summaryText = computed(() =>
           <div v-for="item in items" :key="item.id" class="added-row">
             <span class="added-tipo">{{ TIPO_LABEL[item.tipo] ?? item.tipo }}</span>
             <span class="added-nome">{{ item.nome }}</span>
+            <button type="button" class="btn-info" title="Vedi descrizione" @click="mostraDescrizione(item)">ℹ</button>
             <button type="button" class="remove-btn" :disabled="disabled" @click="rimuovi(item)"
                 title="Rimuovi">
               <Icona name="XMARK"/>
@@ -122,6 +132,7 @@ const summaryText = computed(() =>
           <div v-for="r in risultati" :key="r.id" class="result-row" @click="!disabled && aggiungi(r)">
             <span class="added-tipo">{{ TIPO_LABEL[r.tipo] ?? r.tipo }}</span>
             <span class="result-nome">{{ r.nome }}</span>
+            <button type="button" class="btn-info" title="Vedi descrizione" @click.stop="mostraDescrizione(r)">ℹ</button>
             <Icona name="ADD" class="add-ico"/>
           </div>
         </div>
@@ -190,6 +201,15 @@ const summaryText = computed(() =>
 }
 .remove-btn:disabled { opacity: .4; cursor: default; }
 .remove-btn:hover:not(:disabled) { background: #fee2e2; }
+
+.btn-info {
+  flex-shrink: 0;
+  width: 1.5rem; height: 1.5rem; padding: 0;
+  border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8;
+  border-radius: .4rem; cursor: pointer; font-size: .8rem; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-info:hover { background: #dbeafe; }
 
 .add-ico {
   font-size: .8rem;
