@@ -5,11 +5,13 @@ import {ItemDB} from '../../../../../../../models/entity/ItemDB'
 import {Stat} from '../../../../../../../models/entity/Stat'
 import {Item} from '../../../../../../../models/dto/Item'
 import api from '../../../../../../../service/api'
-import {getStats, searchItems} from '../../../../../../../service/PersonaggioService'
+import {getItem, getStats, searchItems, updateItem} from '../../../../../../../service/PersonaggioService'
 import HtmlEditor from '../../../../../../../components/HtmlEditor.vue'
 import {SPELL_LIST_CODES, spellListLabel} from '../../../../../../../function/spellLists'
 import SearchSelect from '../../../../../../../components/SearchSelect.vue'
 import {useMondoSistema} from '../../../../../../../function/useMondoSistema'
+import {LABELS} from '../../../../../../../models/entity/ItemLabel'
+import {LabelRow} from '../../../../../../../models/dto/UpdateItemRequest'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
@@ -39,6 +41,15 @@ interface AbilitaConcessa {
   tipo?: string
   nuovo?: boolean
   qty?: number | null
+  // --- editing avanzato (caricati on-demand dall'item collegato quando si attiva la modalità avanzata) ---
+  descrizione?: string
+  altreLabels?: LabelRow[]   // label esistenti sull'item diverse dai 4 descrittori, da preservare al salvataggio
+  straordinaria?: boolean
+  magica?: boolean
+  soprannaturale?: boolean
+  naturale?: boolean
+  caricato?: boolean
+  salvandoRiga?: boolean
 }
 
 const form = reactive({
@@ -292,46 +303,79 @@ function rimuoviConcessa(i: number) {
   form.abilitaConcesse.splice(i, 1)
 }
 
+/* ---- Privilegi di Classe: modalità avanzata (livello + descrizione + descrittori) ---- */
+const modalitaAvanzata = ref(false)
+const DESCR_LABELS: string[] = [
+  LABELS.DESCR_STRAORDINARIA, LABELS.DESCR_MAGICA, LABELS.DESCR_SOPRANNATURALE, LABELS.DESCR_NATURALE,
+]
+
+async function caricaDettagliAvanzati(a: AbilitaConcessa) {
+  if (!a.itemId || a.caricato) return
+  try {
+    const it = (await getItem(a.itemId)).data
+    a.descrizione = it.descrizione ?? ''
+    const val = (label: string) => it.labels?.find(l => l.label === label)?.valore
+    a.straordinaria = val(LABELS.DESCR_STRAORDINARIA) === '1'
+    a.magica = val(LABELS.DESCR_MAGICA) === '1'
+    a.soprannaturale = val(LABELS.DESCR_SOPRANNATURALE) === '1'
+    a.naturale = val(LABELS.DESCR_NATURALE) === '1'
+    a.altreLabels = (it.labels ?? [])
+        .filter(l => l.label && !DESCR_LABELS.includes(l.label))
+        .map(l => ({label: l.label!, valore: l.valore ?? ''}))
+    a.caricato = true
+  } catch (e) {
+    console.error('Errore caricamento dettagli privilegio:', e)
+  }
+}
+
+watch(modalitaAvanzata, (attiva) => {
+  if (!attiva) return
+  for (const a of form.abilitaConcesse) caricaDettagliAvanzati(a)
+})
+
 /* ---- salvataggio ---- */
+function buildClassePayload() {
+  return {
+    id: props.mode === 'create' ? null : props.item.id,
+    tipo: props.mode === 'create' ? props.item.tipo : undefined,
+    nome: form.nome.trim(),
+    enName: form.enName.trim() || null,
+    manuale: form.manuale.trim() || null,
+    idMondo: form.idMondo ?? null,
+    idSistema: form.idSistema ?? null,
+    descrizione: form.descrizione || null,
+    abilitaClasse: form.abilitaClasse.map(id => abPersonaggio.value.has(id) ? `${id}!` : id),
+    spellList: null,
+    spellSlotBonus: null,
+    sezioniIncantesimi: form.sezioni
+        .map(s => {
+          const prog = (s.progressione || 'CUSTOM').trim()
+          const slot = prog === 'CUSTOM'
+              ? s.slot.slice(0, form.numLivelli).map(x => (x ?? '').trim())
+              : []
+          return {
+            liste: (s.liste ?? []).map(x => x.trim()).filter(Boolean),
+            progressione: prog,
+            bonus: s.bonus.trim() || null,
+            slot: slot.some(x => x) ? slot : null,
+          }
+        })
+        .filter(s => s.liste.length > 0),
+    rank1: form.rank1.trim() || null,
+    rank: form.rank.trim() || null,
+    dv: form.dv.trim() || null,
+    numLivelli: form.numLivelli,
+    livelli: form.livelli.slice(0, form.numLivelli),
+    abilitaConcesse: form.abilitaConcesse.map(a => ({livello: a.livello, itemId: a.itemId, nome: a.nome, qty: a.qty ?? null})),
+  }
+}
+
 async function onSave() {
   if (!canSave.value) return
   busy.value = true
   errorMsg.value = null
   try {
-    const payload = {
-      id: props.mode === 'create' ? null : props.item.id,
-      tipo: props.mode === 'create' ? props.item.tipo : undefined,
-      nome: form.nome.trim(),
-      enName: form.enName.trim() || null,
-      manuale: form.manuale.trim() || null,
-      idMondo: form.idMondo ?? null,
-      idSistema: form.idSistema ?? null,
-      descrizione: form.descrizione || null,
-      abilitaClasse: form.abilitaClasse.map(id => abPersonaggio.value.has(id) ? `${id}!` : id),
-      spellList: null,
-      spellSlotBonus: null,
-      sezioniIncantesimi: form.sezioni
-          .map(s => {
-            const prog = (s.progressione || 'CUSTOM').trim()
-            const slot = prog === 'CUSTOM'
-                ? s.slot.slice(0, form.numLivelli).map(x => (x ?? '').trim())
-                : []
-            return {
-              liste: (s.liste ?? []).map(x => x.trim()).filter(Boolean),
-              progressione: prog,
-              bonus: s.bonus.trim() || null,
-              slot: slot.some(x => x) ? slot : null,
-            }
-          })
-          .filter(s => s.liste.length > 0),
-      rank1: form.rank1.trim() || null,
-      rank: form.rank.trim() || null,
-      dv: form.dv.trim() || null,
-      numLivelli: form.numLivelli,
-      livelli: form.livelli.slice(0, form.numLivelli),
-      abilitaConcesse: form.abilitaConcesse.map(a => ({livello: a.livello, itemId: a.itemId, nome: a.nome, qty: a.qty ?? null})),
-    }
-    await api.post('/item/classe', payload)
+    await api.post('/item/classe', buildClassePayload())
     emit('saved')
   } catch (e: any) {
     errorMsg.value = e?.response?.status === 403
@@ -340,6 +384,30 @@ async function onSave() {
     console.error('Errore salvataggio classe:', e)
   } finally {
     busy.value = false
+  }
+}
+
+// Salvataggio della singola riga "Privilegi di Classe" in modalità avanzata: persiste
+// descrizione/descrittori sull'item collegato e il livello (che vive solo nel collegamento
+// avanzamento classe->item) tramite lo stesso endpoint di salvataggio della classe, ma SENZA
+// emettere 'saved' — l'editor resta aperto, a differenza del bottone "Salva classe".
+async function salvaRigaAvanzata(a: AbilitaConcessa) {
+  if (!a.itemId || a.salvandoRiga) return
+  a.salvandoRiga = true
+  errorMsg.value = null
+  try {
+    const labels: LabelRow[] = [...(a.altreLabels ?? [])]
+    if (a.straordinaria) labels.push({label: LABELS.DESCR_STRAORDINARIA, valore: '1'})
+    if (a.magica) labels.push({label: LABELS.DESCR_MAGICA, valore: '1'})
+    if (a.soprannaturale) labels.push({label: LABELS.DESCR_SOPRANNATURALE, valore: '1'})
+    if (a.naturale) labels.push({label: LABELS.DESCR_NATURALE, valore: '1'})
+    await updateItem(a.itemId, {descrizione: a.descrizione ?? '', labels})
+    await api.post('/item/classe', buildClassePayload())
+  } catch (e: any) {
+    errorMsg.value = 'Errore nel salvataggio del privilegio'
+    console.error('Errore salvataggio riga privilegio:', e)
+  } finally {
+    a.salvandoRiga = false
   }
 }
 
@@ -650,23 +718,73 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
           <span class="chev" :class="{ open: open.concesse }">▸</span>
         </button>
         <div v-show="open.concesse" class="fold-body">
-          <div v-for="(a, i) in form.abilitaConcesse" :key="`${a.itemId ?? 'new'}-${a.nome}-${a.livello}`" class="conc-row">
-            <span class="liv-pill">Liv {{ a.livello }}</span>
-            <span class="nome"><span v-if="a.nuovo" class="new-chip">NEW</span>{{ a.nome }}</span>
-            <input
-                class="qty-input"
-                type="number"
-                min="1"
-                step="1"
-                :value="a.qty ?? ''"
-                :disabled="disabledAll"
-                placeholder="—"
-                title="Utilizzi concessi"
-                @change="a.qty = ($event.target as HTMLInputElement).value ? parseInt(($event.target as HTMLInputElement).value) || null : null"
-            />
-            <button type="button" class="btn-edit" :disabled="disabledAll || !a.itemId"
-                    @click="editConcessa(a.itemId!)" title="Modifica">✎</button>
-            <button type="button" class="btn-del" :disabled="disabledAll" @click="rimuoviConcessa(i)">✕</button>
+          <label class="adv-toggle">
+            <span class="switch">
+              <input type="checkbox" v-model="modalitaAvanzata" :disabled="disabledAll"/>
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </span>
+            <span class="adv-toggle-label">{{ modalitaAvanzata ? 'Modalità avanzata' : 'Modalità semplice' }}</span>
+          </label>
+
+          <div v-for="(a, i) in form.abilitaConcesse" :key="`${a.itemId ?? 'new'}-${a.nome}-${a.livello}`" class="conc-item">
+            <div class="conc-row">
+              <span class="liv-pill">Liv {{ a.livello }}</span>
+              <span class="nome"><span v-if="a.nuovo" class="new-chip">NEW</span>{{ a.nome }}</span>
+              <input
+                  class="qty-input"
+                  type="number"
+                  min="1"
+                  step="1"
+                  :value="a.qty ?? ''"
+                  :disabled="disabledAll"
+                  placeholder="—"
+                  title="Utilizzi concessi"
+                  @change="a.qty = ($event.target as HTMLInputElement).value ? parseInt(($event.target as HTMLInputElement).value) || null : null"
+              />
+              <button type="button" class="btn-edit" :disabled="disabledAll || !a.itemId"
+                      @click="editConcessa(a.itemId!)" title="Modifica">✎</button>
+              <button type="button" class="btn-del" :disabled="disabledAll" @click="rimuoviConcessa(i)">✕</button>
+            </div>
+
+            <div v-if="modalitaAvanzata" class="conc-adv">
+              <p v-if="!a.itemId" class="muted">Salva prima la classe per poter modificare questo nuovo privilegio.</p>
+              <template v-else>
+                <label class="field liv-input">
+                  <span class="lbl">Livello</span>
+                  <input v-model.number="a.livello" type="number" min="1" :max="form.numLivelli" :disabled="disabledAll"/>
+                </label>
+                <div class="conc-adv-body">
+                  <label class="field grow">
+                    <span class="lbl">Descrizione</span>
+                    <HtmlEditor v-model="a.descrizione" :rows="3" :disabled="disabledAll"/>
+                  </label>
+                  <div class="conc-adv-flags">
+                    <label class="chk-row">
+                      <input type="checkbox" v-model="a.straordinaria" :disabled="disabledAll"/>
+                      <span>Straordinaria</span>
+                    </label>
+                    <label class="chk-row">
+                      <input type="checkbox" v-model="a.magica" :disabled="disabledAll"/>
+                      <span>Magica</span>
+                    </label>
+                    <label class="chk-row">
+                      <input type="checkbox" v-model="a.soprannaturale" :disabled="disabledAll"/>
+                      <span>Soprannaturale</span>
+                    </label>
+                    <label class="chk-row">
+                      <input type="checkbox" v-model="a.naturale" :disabled="disabledAll"/>
+                      <span>Naturale</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="conc-adv-actions">
+                  <button type="button" class="btn primary sm" :disabled="disabledAll || a.salvandoRiga"
+                          @click="salvaRigaAvanzata(a)">
+                    {{ a.salvandoRiga ? 'Salvataggio…' : 'Salva riga' }}
+                  </button>
+                </div>
+              </template>
+            </div>
           </div>
 
           <div class="conc-add">
@@ -837,6 +955,38 @@ textarea { resize: vertical; }
 }
 .conc-add { display: grid; grid-template-columns: 5rem 1fr; gap: .4rem; align-items: end; }
 .conc-add .grow { min-width: 0; }
+
+.adv-toggle { display: flex; align-items: center; gap: .5rem; font-size: .85rem; font-weight: 600; margin-bottom: .3rem; cursor: pointer; }
+.adv-toggle-label { transition: color .15s; }
+.switch { position: relative; display: inline-flex; flex-shrink: 0; width: 2.4rem; height: 1.3rem; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+.switch-track {
+  position: absolute; inset: 0; border-radius: 999px; background: #d0d5dd;
+  transition: background-color .15s;
+}
+.switch-thumb {
+  position: absolute; top: .15rem; left: .15rem; width: 1rem; height: 1rem;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3);
+  transition: transform .15s;
+}
+.switch input:checked + .switch-track { background: #2563eb; }
+.switch input:checked + .switch-track .switch-thumb { transform: translateX(1.1rem); }
+.switch input:disabled + .switch-track { opacity: .6; cursor: default; }
+.conc-item { display: flex; flex-direction: column; gap: .3rem; }
+.conc-adv {
+  border: 1px dashed #93c5fd; border-radius: .5rem; padding: .5rem; background: #f8fafc;
+  display: flex; flex-direction: column; gap: .5rem;
+}
+.conc-adv .liv-input { max-width: 6rem; }
+.conc-adv-body { display: flex; gap: .6rem; align-items: flex-start; }
+.conc-adv-body .grow { flex: 1; min-width: 0; }
+.conc-adv-flags {
+  flex: 0 0 auto; display: flex; flex-direction: column; gap: .3rem;
+  border: 1px solid #e5e7eb; border-radius: .5rem; padding: .5rem; background: #fff; min-width: 9rem;
+}
+.chk-row { display: flex; align-items: center; gap: .4rem; font-size: .8rem; }
+.conc-adv-actions { display: flex; justify-content: flex-end; }
+@media (max-width: 640px) { .conc-adv-body { flex-direction: column; } }
 
 .results {
   list-style: none; margin: 0; padding: 0;

@@ -15,11 +15,28 @@ function onInput() {
   if (el.value) emit('update:modelValue', el.value.innerHTML)
 }
 
+// true durante un exec() lanciato dalla toolbar: il focus() qui sotto è "nostro" e non deve
+// far scattare il reset di onFocus (altrimenti annullerebbe il toggle appena richiesto dall'utente)
+let programmatic = false
+
 function exec(cmd: string, value?: string) {
   if (props.disabled) return
+  programmatic = true
   el.value?.focus()
   document.execCommand(cmd, false, value)
   onInput()
+  programmatic = false
+}
+
+// Alcuni browser (soprattutto mobile) mantengono attivo lo stato "grassetto/corsivo/sottolineato"
+// da un'interazione precedente (anche di un altro campo): se l'editor è vuoto quando riceve il
+// focus, lo spegniamo esplicitamente così il testo digitato riparte sempre in stile normale.
+function onFocus() {
+  if (props.disabled || programmatic) return
+  if (!el.value || el.value.innerText.trim() !== '') return
+  if (document.queryCommandState('bold')) document.execCommand('bold', false)
+  if (document.queryCommandState('italic')) document.execCommand('italic', false)
+  if (document.queryCommandState('underline')) document.execCommand('underline', false)
 }
 
 // incolla come testo semplice per evitare HTML "sporco" da altre fonti
@@ -63,6 +80,7 @@ watch(() => props.modelValue, (v) => {
         :style="{ minHeight: (rows * 1.4) + 'rem' }"
         @input="onInput"
         @paste="onPaste"
+        @focus="onFocus"
     />
   </div>
 </template>
