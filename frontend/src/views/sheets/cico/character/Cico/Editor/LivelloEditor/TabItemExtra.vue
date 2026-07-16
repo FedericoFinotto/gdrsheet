@@ -6,25 +6,45 @@ import {searchItems} from '../../../../../../../service/PersonaggioService'
 import Icona from '../../../../../../../components/Icona/Icona.vue'
 import SearchSelect from '../../../../../../../components/SearchSelect.vue'
 import usePopup from '../../../../../../../function/usePopup'
-import DescrizioneItemPopup from './DescrizioneItemPopup.vue'
+import Mobile_DettaglioItem from '../../../Dettaglio/Mobile_DettaglioItem.vue'
+import {useCharacterStore} from '../../../../../../../stores/personaggio'
+import {storeToRefs} from 'pinia'
 
 const {openPopup} = usePopup()
-
-function mostraDescrizione(item: ItemDB) {
-  if (!item?.id) return
-  openPopup(markRaw(DescrizioneItemPopup), {itemId: item.id, nome: item.nome}, {closable: true})
-}
+const characterStore = useCharacterStore()
+const {cache} = storeToRefs(characterStore)
 
 const props = defineProps<{
   disabled: boolean
   loading?: boolean
   items: ItemDB[]        // item extra correnti
+  idPersonaggio?: number | null
 }>()
 
 const emit = defineEmits<{
   (e: 'update:items', v: ItemDB[]): void
   (e: 'create-new', tipo: string | undefined, nome: string): void
 }>()
+
+// Popup "vedi descrizione": stesso componente usato per il dettaglio degli item in inventario,
+// in sola lettura (niente Attiva/Disattiva/Modifica, non ha senso in questo contesto di editing).
+async function mostraDescrizione(item: ItemDB) {
+  if (!item?.id) return
+  if (props.idPersonaggio != null && !cache.value[props.idPersonaggio]) {
+    await characterStore.fetchCharacter(props.idPersonaggio)
+  }
+  openPopup(
+      markRaw(Mobile_DettaglioItem),
+      {
+        data: {
+          item: {id: item.id, nome: item.nome, tipo: item.tipo},
+          personaggio: props.idPersonaggio != null ? cache.value[props.idPersonaggio] : null,
+        },
+        readonly: true,
+      },
+      {closable: true},
+  )
+}
 
 const TIPI_DISPONIBILI = [
   {value: '', label: 'Tutti i tipi'},

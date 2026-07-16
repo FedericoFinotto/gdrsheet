@@ -5,16 +5,13 @@ import {ItemDB} from '../../../../../../../models/entity/ItemDB'
 import {Modificatore} from '../../../../../../../models/entity/Modificatore'
 import {GrantRow} from "../../../../../../../models/dto/GrantRow";
 import usePopup from '../../../../../../../function/usePopup'
-import DescrizioneItemPopup from './DescrizioneItemPopup.vue'
+import Mobile_DettaglioItem from '../../../Dettaglio/Mobile_DettaglioItem.vue'
+import {useCharacterStore} from '../../../../../../../stores/personaggio'
+import {storeToRefs} from 'pinia'
 
 const {openPopup} = usePopup()
-
-function mostraDescrizione(g: GrantRow) {
-  const itemId = (g.raw as ItemDB)?.id
-  if (!itemId) return
-  openPopup(markRaw(DescrizioneItemPopup), {itemId, nome: g.descrizione}, {closable: true})
-}
-
+const characterStore = useCharacterStore()
+const {cache} = storeToRefs(characterStore)
 
 const props = defineProps<{
   disabled: boolean
@@ -23,6 +20,7 @@ const props = defineProps<{
   classe: any | null
   livello: ItemDB | null
   livelliSelezionati: number[]
+  idPersonaggio?: number | null
   selectedGrantIds: Set<string>
   selectedGrants: GrantRow[]
   defaultOpen: boolean
@@ -31,6 +29,27 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:selectedGrants', v: GrantRow[]): void
 }>()
+
+// Popup "vedi descrizione": stesso componente usato per il dettaglio degli item in inventario,
+// in sola lettura (niente Attiva/Disattiva/Modifica, non ha senso in questo contesto di editing).
+async function mostraDescrizione(g: GrantRow) {
+  const raw = g.raw as ItemDB
+  if (!raw?.id) return
+  if (props.idPersonaggio != null && !cache.value[props.idPersonaggio]) {
+    await characterStore.fetchCharacter(props.idPersonaggio)
+  }
+  openPopup(
+      markRaw(Mobile_DettaglioItem),
+      {
+        data: {
+          item: {id: raw.id, nome: raw.nome, tipo: raw.tipo},
+          personaggio: props.idPersonaggio != null ? cache.value[props.idPersonaggio] : null,
+        },
+        readonly: true,
+      },
+      {closable: true},
+  )
+}
 
 // stato locale NON computed
 const grantsByLevel = ref<Record<number, GrantRow[]>>({})

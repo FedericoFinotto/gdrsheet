@@ -621,6 +621,7 @@ const sumClasseMaledizione = computed(() =>
         :livello="item"
         :livelli-selezionati="livelliSelezionati"
         :default-open="true"
+        :id-personaggio="personaggioId"
         v-model:selected-grant-ids="selectedGrantIds"
         v-model:selected-grants="selectedGrants"
     />
@@ -629,6 +630,7 @@ const sumClasseMaledizione = computed(() =>
         :disabled="disabledAll"
         :loading="busy"
         :items="extraItems"
+        :id-personaggio="personaggioId"
         @update:items="extraItems = $event"
         @create-new="onCreateExtra"
     />

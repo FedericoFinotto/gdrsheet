@@ -31,7 +31,11 @@ const props = defineProps<{
   data: {
     item: Item;            // l'oggetto item con id e tipo
     personaggio: any;
-  }
+  };
+  // true quando il popup è usato come semplice "vedi info" fuori dal contesto scheda/inventario
+  // (es. editor livello): nasconde la action-bar (Attiva/Disattiva, Modifica), dato che lì lo stato
+  // "disabled" dell'item passato non è affidabile e le due azioni non hanno senso nel contesto.
+  readonly?: boolean;
 }>();
 const {item, personaggio} = props.data;
 
@@ -311,7 +315,7 @@ function showInfoItemPopup(itm) {
 <template>
   <div class="abilita-detail-card" v-if="!loading && itemDetail">
     <!-- Barra azioni: togli/metti + modifica -->
-    <div class="action-bar">
+    <div v-if="!readonly" class="action-bar">
       <button
           v-if="disableLabel"
           type="button"
