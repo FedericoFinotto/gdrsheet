@@ -32,6 +32,12 @@ const idPersonaggio = computed<number | undefined>(() => {
   return Number.isFinite(n) && n > 0 ? n : undefined
 })
 
+// contesto party (es. QUEST aperta dalla pagina Quest di un party, senza un personaggio di mezzo)
+const idParty = computed<number | undefined>(() => {
+  const n = Number(route.query.party)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+})
+
 const deleting = ref(false)
 const unlinking = ref(false)
 
@@ -158,8 +164,11 @@ function goBack() {
 }
 
 function openParent(p: Item) {
-  const path = `/itemeditor/${p.id}` + (idPersonaggio.value ? `?personaggio=${idPersonaggio.value}` : '')
-  router.push(path)
+  const params = new URLSearchParams()
+  if (idPersonaggio.value) params.set('personaggio', String(idPersonaggio.value))
+  else if (idParty.value) params.set('party', String(idParty.value))
+  const q = params.toString() ? `?${params.toString()}` : ''
+  router.push(`/itemeditor/${p.id}${q}`)
 }
 
 // dopo il salvataggio: chiudi il popup di dettaglio (mostra dati vecchi),
@@ -219,6 +228,7 @@ async function onSaved() {
             :is="EditorComp"
             :item="item"
             :id-personaggio="idPersonaggio"
+            :id-party="idParty"
             @cancel="goBack"
             @saved="onSaved"
         />

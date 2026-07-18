@@ -7,6 +7,7 @@ import {toggleQuestCompletata} from '../../../../../../service/QuestService'
 const props = defineProps<{
   quest: Quest
   idPersonaggio?: number
+  idParty?: number
 }>()
 const emit = defineEmits<{ (e: 'changed'): void }>()
 
@@ -45,7 +46,10 @@ async function onToggle() {
 }
 
 function edit() {
-  const q = props.idPersonaggio ? `?personaggio=${props.idPersonaggio}` : ''
+  const params = new URLSearchParams()
+  if (props.idPersonaggio) params.set('personaggio', String(props.idPersonaggio))
+  else if (props.idParty) params.set('party', String(props.idParty))
+  const q = params.toString() ? `?${params.toString()}` : ''
   router.push(`/itemeditor/${props.quest.id}${q}`)
 }
 </script>
@@ -78,7 +82,8 @@ function edit() {
         </div>
       </div>
       <div v-if="quest.figli.length" class="figli">
-        <QuestNode v-for="f in quest.figli" :key="f.id" :quest="f" :id-personaggio="idPersonaggio" @changed="emit('changed')"/>
+        <QuestNode v-for="f in quest.figli" :key="f.id" :quest="f"
+                   :id-personaggio="idPersonaggio" :id-party="idParty" @changed="emit('changed')"/>
       </div>
     </div>
   </div>
@@ -108,8 +113,8 @@ function edit() {
 .chev.open { transform: rotate(90deg); }
 .nome { font-weight: 600; min-width: 0; word-break: break-word; }
 .progress { display: flex; align-items: center; gap: .4rem; flex-shrink: 0; }
-.bar { width: 4.5rem; height: .45rem; background: #eef2f7; border-radius: 999px; overflow: hidden; }
-.fill { display: block; height: 100%; background: #22c55e; }
+.bar { display: inline-block; width: 4.5rem; height: .45rem; background: #eef2f7; border-radius: 999px; overflow: hidden; }
+.fill { display: block; height: 100%; margin: 0; background: #22c55e; }
 .count { font-size: .72rem; color: #6b7280; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .btn-edit {
   border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8;

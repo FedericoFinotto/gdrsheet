@@ -800,7 +800,8 @@ function onCancel() {
         <span class="chev" :class="{ open: open.children }">▸</span>
       </button>
       <div v-show="open.children" class="fold-body">
-        <SottoQuestEditor v-if="isQuest" v-model="form.children" :disabled="disabledAll" :id-personaggio="props.idPersonaggio"/>
+        <SottoQuestEditor v-if="isQuest" v-model="form.children" :disabled="disabledAll"
+                          :id-personaggio="props.idPersonaggio" :id-party="props.idParty"/>
         <ChildrenEditor v-else v-model="form.children" :disabled="disabledAll" :exclude-id="props.item.id"
                         :exclude-tipo="separateForme ? 'FORMA' : undefined"
                         @create-new="(t, n) => onCreateChild('children', t, n)"/>

@@ -179,26 +179,52 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             """)
     List<Object[]> findIdAndTipoByPersonaggioId(@Param("pgId") Integer pgId);
 
-    /** Quest radice di un personaggio (ambito QUEST_SCOPE=PERSONAGGIO): intestate direttamente a lui. */
-    @Query("SELECT i FROM Item i WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST AND i.personaggio.id = :personaggioId")
+    /**
+     * Quest radice di un personaggio (ambito QUEST_SCOPE=PERSONAGGIO): intestate direttamente a lui.
+     * Esclude le sotto-quest (già collegate come figlie di un'altra QUEST): una quest può avere
+     * mondo/personaggio ereditati dal contesto di creazione senza per questo essere una radice.
+     */
+    @Query("""
+            SELECT i FROM Item i
+            WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
+              AND i.personaggio.id = :personaggioId
+              AND NOT EXISTS (
+                  SELECT 1 FROM Collegamento c
+                  WHERE c.itemTarget = i AND c.itemSource.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
+              )
+            """)
     List<Item> findQuestByPersonaggioId(@Param("personaggioId") Integer personaggioId);
 
-    /** Quest radice di un party (label QUEST_PARTY = id del party). */
+    /** Quest radice di un party (label QUEST_PARTY = id del party). Esclude le sotto-quest. */
     @Query("""
             SELECT i FROM Item i JOIN i.labels il
             WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
               AND i.personaggio IS NULL
               AND il.label = 'QUEST_PARTY' AND il.valore = :partyId
+              AND NOT EXISTS (
+                  SELECT 1 FROM Collegamento c
+                  WHERE c.itemTarget = i AND c.itemSource.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
+              )
             """)
     List<Item> findQuestByPartyId(@Param("partyId") String partyId);
 
-    /** Quest radice di un intero mondo: visibili a tutti i party di quel mondo. */
+    /**
+     * Quest radice di un intero mondo: visibili a tutti i party di quel mondo. Esclude le
+     * sotto-quest — a differenza di PERSONAGGIO/PARTY (marcate da un segnale esplicito solo in
+     * creazione radice), il mondo viene ereditato automaticamente da QUALUNQUE item creato nel
+     * contesto di un personaggio/party, incluse le sotto-quest: senza questa esclusione ogni
+     * sotto-quest di una quest radice apparirebbe anche come quest di mondo indipendente.
+     */
     @Query("""
             SELECT i FROM Item i
             WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
               AND i.personaggio IS NULL
               AND i.mondo.id = :mondoId
               AND NOT EXISTS (SELECT 1 FROM ItemLabel il2 WHERE il2.item = i AND il2.label = 'QUEST_PARTY')
+              AND NOT EXISTS (
+                  SELECT 1 FROM Collegamento c
+                  WHERE c.itemTarget = i AND c.itemSource.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
+              )
             """)
     List<Item> findQuestByMondoId(@Param("mondoId") Integer mondoId);
 }

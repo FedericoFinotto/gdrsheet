@@ -31,6 +31,8 @@ public class ItemService {
     @Autowired
     private PersonaggioRepository personaggioRepository;
     @Autowired
+    private PartyRepository partyRepository;
+    @Autowired
     private ItemLabelRepository itemLabelRepository;
     @Autowired
     EntityManager em;
@@ -293,6 +295,16 @@ public class ItemService {
             }
             if (pg.getParty() != null && pg.getParty().getMondo() != null) {
                 Mondo mondo = pg.getParty().getMondo();
+                itm.setMondo(mondo);
+                itm.setSistema(mondo.getSistema());
+            }
+        } else if (request.getIdParty() != null) {
+            // creazione senza contesto personaggio (es. pagina Quest di un party): eredita
+            // comunque mondo/sistema dal party, altrimenti una QUEST di ambito MONDO creata da
+            // lì non sarebbe mai visibile (Item.mondo resterebbe null).
+            Party party = em.find(Party.class, request.getIdParty());
+            if (party != null && party.getMondo() != null) {
+                Mondo mondo = party.getMondo();
                 itm.setMondo(mondo);
                 itm.setSistema(mondo.getSistema());
             }

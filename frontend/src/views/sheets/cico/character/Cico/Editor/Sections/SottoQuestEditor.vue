@@ -14,6 +14,7 @@ const props = defineProps<{
   modelValue: ChildRef[]
   disabled?: boolean
   idPersonaggio?: number
+  idParty?: number
 }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', v: ChildRef[]): void
@@ -22,8 +23,8 @@ const emit = defineEmits<{
 const router = useRouter()
 const route = useRoute()
 
-// in edit mode idPersonaggio non è passato come prop: recupero dal query param
-// della rotta (presente quando l'editor è aperto dal contesto di un personaggio).
+// in edit mode idPersonaggio/idParty non sono passati come prop: recupero dai query param
+// della rotta (presenti quando l'editor è aperto dal contesto di un personaggio o di un party).
 function resolveIdPersonaggio(): number | undefined {
   if (props.idPersonaggio != null) return props.idPersonaggio
   const q = route.query.personaggio
@@ -31,10 +32,21 @@ function resolveIdPersonaggio(): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
+function resolveIdParty(): number | undefined {
+  if (props.idParty != null) return props.idParty
+  const q = route.query.party
+  const n = Number(Array.isArray(q) ? q[0] : q)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+}
+
 function editSottoQuest(c: ChildRef) {
-  const idPg = route.query.personaggio
-  const path = `/itemeditor/${c.id}` + (idPg ? `?personaggio=${idPg}` : '')
-  router.push(path)
+  const idPg = resolveIdPersonaggio()
+  const idParty = resolveIdParty()
+  const params = new URLSearchParams()
+  if (idPg) params.set('personaggio', String(idPg))
+  else if (idParty) params.set('party', String(idParty))
+  const q = params.toString() ? `?${params.toString()}` : ''
+  router.push(`/itemeditor/${c.id}${q}`)
 }
 
 function remove(idx: number) {
@@ -75,6 +87,7 @@ async function salvaNuova() {
       descrizione: nuovo.descrizione,
       tipo: 'QUEST' as any,
       idPersonaggio: resolveIdPersonaggio(),
+      idParty: resolveIdParty(),
       skipFromCompendio: true,
       labels: nuovo.visibilita ? [{label: 'VISIBILITA', valore: nuovo.visibilita}] : [],
     })

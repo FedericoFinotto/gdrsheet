@@ -57,7 +57,7 @@ onMounted(load)
       <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
       <div v-else-if="loading" class="stato">Caricamento…</div>
       <div v-else-if="!quests.length" class="stato">Nessuna quest.</div>
-      <QuestNode v-for="q in quests" :key="q.id" :quest="q" @changed="load"/>
+      <QuestNode v-for="q in quests" :key="q.id" :quest="q" :id-party="partyId" @changed="load"/>
     </div>
   </section>
 </template>

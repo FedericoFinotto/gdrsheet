@@ -58,6 +58,11 @@ export interface UpdateItemRequest {
     idMondo?: number;         // solo creazione: mondo a cui legare l'item
     idSistema?: number;       // solo creazione: sistema a cui legare l'item
     skipFromCompendio?: boolean; // creazione "al volo" di un figlio: non agganciare al FromCompendio
+    // Solo per tipo QUEST, solo in creazione di una quest RADICE: "PERSONAGGIO" | "PARTY" | "MONDO".
+    questScope?: string;
+    // Solo per tipo QUEST con questScope="PARTY" (o creazione dalla pagina Quest di un party):
+    // party a cui associare/agganciare la quest.
+    idParty?: number;
     labels?: LabelRow[];      // stato completo delle labels
     modificatori?: ModificatoreRow[]; // stato completo dei modificatori
     attacchi?: AttaccoRow[];  // stato completo degli attacchi figli
