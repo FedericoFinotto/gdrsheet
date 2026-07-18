@@ -96,6 +96,8 @@ public class UpdateItemRequest {
         private String scelta;
         /** Se true il collegamento è nascosto (es. una FORMA): non visibile da fuori. Nascondere implica disabilitare. */
         private Boolean nascosto;
+        /** Condizione sotto cui un item collegato di tipo EFFETTO si applica (es. "Indossato"). Null per altri tipi. */
+        private String condizione;
     }
 
     @Getter

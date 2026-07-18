@@ -44,6 +44,7 @@ async function doSearch() {
     if (token !== searchToken) return
     results.value = (res.data ?? []).filter(r =>
         r.tipo !== 'ATTACCO' &&
+        r.tipo !== 'EFFETTO' &&
         r.id !== props.excludeId &&
         !props.modelValue.some(c => c.id === r.id) &&
         (!props.onlyTipo || r.tipo === props.onlyTipo) &&
@@ -79,7 +80,7 @@ function isEffectivelyAll(c: ChildRef): boolean {
 }
 
 function add(item: Item) {
-  emit('update:modelValue', [...props.modelValue, {id: item.id, nome: item.nome, tipo: item.tipo, qty: null, formulaQty: null, scelta: null}])
+  emit('update:modelValue', [...props.modelValue, {id: item.id, nome: item.nome, tipo: item.tipo, qty: null, formulaQty: null, scelta: null, condizione: null}])
   results.value = results.value.filter(r => r.id !== item.id)
 }
 

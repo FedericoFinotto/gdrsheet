@@ -34,4 +34,11 @@ export interface Item {
     descrMagica?: boolean;
     descrSoprannaturale?: boolean;
     descrNaturale?: boolean;
+    descrDivina?: boolean;
+    /** Descrittori Oggetto (label MAGICO/PSIONICO/DIVINO/LEGGENDARIO/UNICO), possono essere true insieme. */
+    magico?: boolean;
+    psionico?: boolean;
+    divino?: boolean;
+    leggendario?: boolean;
+    unico?: boolean;
 }

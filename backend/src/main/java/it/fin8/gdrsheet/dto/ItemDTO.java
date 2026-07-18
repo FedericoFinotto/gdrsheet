@@ -62,4 +62,11 @@ public class ItemDTO {
     private Boolean descrMagica;
     private Boolean descrSoprannaturale;
     private Boolean descrNaturale;
+    private Boolean descrDivina;
+    /** Descrittori Oggetto (label MAGICO/PSIONICO/DIVINO/LEGGENDARIO/UNICO), possono essere true insieme. */
+    private Boolean magico;
+    private Boolean psionico;
+    private Boolean divino;
+    private Boolean leggendario;
+    private Boolean unico;
 }

@@ -52,6 +52,7 @@ const barriera = computed(() =>
 const listaAbilita = ref<ItemDB[]>([]);
 const listaAttacchi = ref<ItemDB[]>([]);
 const listaMaledizioni = ref<ItemDB[]>([]);
+const listaEffetti = ref<{ id: number; nome: string; condizione: string | null }[]>([]);
 const mappaAvanzamenti = ref<Record<number, Avanzamento[]>>({});
 const mappaModificatori = ref<Record<number, Modificatore[]>>({});
 const listaAvanzamenti = ref<Avanzamento[]>([]);
@@ -139,6 +140,13 @@ onMounted(async () => {
     listaMaledizioni.value = children
         .filter(c => c.itemTarget.tipo === TIPO_ITEM.MALEDIZIONE)
         .map(c => c.itemTarget);
+    listaEffetti.value = children
+        .filter(c => c.itemTarget.tipo === TIPO_ITEM.EFFETTO)
+        .map(c => ({
+          id: c.itemTarget.id,
+          nome: c.itemTarget.nome,
+          condizione: c.labels?.find(l => l.label === 'CONDIZIONE')?.valore ?? null,
+        }));
     listaAvanzamenti.value = avanzamenti;
     mappaAvanzamenti.value = buildMappaItemAvanzamenti(avanzamenti)
     mappaModificatori.value = buildMappaModificatoriAvanzamenti(avanzamenti)
@@ -303,6 +311,39 @@ const talentoInfo = computed(() => {
   }
 })
 
+// Descrittori Oggetto/Abilità assegnati nell'editor: mostrati come chip anche nella vista esterna
+// (dettaglio/popup), non solo nel form di modifica.
+const descrittoriOggettoChips = computed(() => {
+  if (!itemDetail.value) return []
+  const d = itemDetail.value
+  const chips: string[] = []
+  if (thereIsValoreLabel(d, LABELS.MAGICO)) chips.push('Magico')
+  if (thereIsValoreLabel(d, LABELS.PSIONICO)) chips.push('Psionico')
+  if (thereIsValoreLabel(d, LABELS.DIVINO)) chips.push('Divino')
+  if (thereIsValoreLabel(d, LABELS.LEGGENDARIO)) chips.push('Leggendario')
+  if (thereIsValoreLabel(d, LABELS.UNICO)) chips.push('Unico')
+  return chips
+})
+const descrittoriAbilitaChips = computed(() => {
+  if (!itemDetail.value) return []
+  const d = itemDetail.value
+  const chips: string[] = []
+  if (thereIsValoreLabel(d, LABELS.DESCR_STRAORDINARIA)) chips.push('Straordinaria')
+  if (thereIsValoreLabel(d, LABELS.DESCR_MAGICA)) chips.push('Magica')
+  if (thereIsValoreLabel(d, LABELS.DESCR_SOPRANNATURALE)) chips.push('Soprannaturale')
+  if (thereIsValoreLabel(d, LABELS.DESCR_NATURALE)) chips.push('Naturale')
+  if (thereIsValoreLabel(d, LABELS.DESCR_DIVINA)) chips.push('Divina')
+  return chips
+})
+const infoOggetto = computed(() => {
+  if (!itemDetail.value) return null
+  const taglia = getItemLabel(itemDetail.value, LABELS.TAGLIA_OGGETTO)
+  const costo = getItemLabel(itemDetail.value, LABELS.COSTO)
+  const materiale = getItemLabel(itemDetail.value, LABELS.MATERIALE)
+  if (!taglia && !costo && !materiale) return null
+  return {taglia, costo, materiale}
+})
+
 function showInfoItemPopup(itm) {
   openPopup(
       Mobile_DettaglioItem,
@@ -314,6 +355,9 @@ function showInfoItemPopup(itm) {
 
 <template>
   <div class="abilita-detail-card" v-if="!loading && itemDetail">
+    <!-- Nome reale dell'item (può differire dall'etichetta mostrata nella riga esterna, es. per gli Effetti) -->
+    <h3 class="item-nome-titolo">{{ itemDetail.nome }}</h3>
+
     <!-- Barra azioni: togli/metti + modifica -->
     <div v-if="!readonly" class="action-bar">
       <button
@@ -486,6 +530,17 @@ function showInfoItemPopup(itm) {
       <span v-for="cat in talentoInfo.categorie" :key="cat" class="talento-categoria">{{ cat }}</span>
     </div>
 
+    <!-- Descrittori Oggetto / Descrittori Abilità: visibili anche da fuori, non solo nell'editor -->
+    <div v-if="descrittoriOggettoChips.length || descrittoriAbilitaChips.length" class="descrittori-row">
+      <span v-for="chip in descrittoriOggettoChips" :key="'do-'+chip" class="descrittore-chip descrittore-oggetto">{{ chip }}</span>
+      <span v-for="chip in descrittoriAbilitaChips" :key="'da-'+chip" class="descrittore-chip descrittore-abilita">{{ chip }}</span>
+    </div>
+    <div v-if="infoOggetto" class="costo-materiale">
+      <span v-if="infoOggetto.taglia"><strong>Taglia:</strong> {{ infoOggetto.taglia }}</span>
+      <span v-if="infoOggetto.costo"><strong>Costo:</strong> {{ infoOggetto.costo }}</span>
+      <span v-if="infoOggetto.materiale"><strong>Materiale:</strong> {{ infoOggetto.materiale }}</span>
+    </div>
+
     <!-- Descrizione -->
     <div v-if="itemDetail.descrizione">
       <strong>Descrizione</strong><br>
@@ -548,6 +603,16 @@ function showInfoItemPopup(itm) {
       <div class="spazietto"></div>
     </div>
 
+
+    <!-- Effetti -->
+    <div v-if="listaEffetti.length">
+      <p><strong>Effetti:</strong></p>
+      <p v-for="eff in listaEffetti" :key="eff.id">
+        {{ eff.condizione ?? 'Sempre' }}: {{ eff.nome }}
+        <Icona name="INFO" @click.stop="showInfoItemPopup({id: eff.id, nome: eff.nome, tipo: 'EFFETTO'})"/>
+      </p>
+      <div class="spazietto"></div>
+    </div>
 
     <!-- Maledizioni -->
     <div v-if="listaMaledizioni.length">
@@ -701,6 +766,28 @@ function showInfoItemPopup(itm) {
   text-transform: uppercase;
   font-size: .7rem;
   letter-spacing: .03em;
+}
+.item-nome-titolo {
+  margin: 0 0 .5rem;
+  font-size: 1rem;
+}
+.descrittori-row {
+  display: flex; flex-wrap: wrap; gap: .35rem;
+  margin-bottom: .5rem;
+}
+.descrittore-chip {
+  border-radius: .4rem;
+  padding: .1rem .5rem;
+  font-weight: 700;
+  font-size: .7rem;
+  letter-spacing: .02em;
+}
+.descrittore-oggetto { background: #ede9fe; color: #5b21b6; }
+.descrittore-abilita { background: #dcfce7; color: #166534; }
+.costo-materiale {
+  display: flex; flex-wrap: wrap; gap: .8rem;
+  font-size: .82rem; color: var(--color-text-secondary, #6b7280);
+  margin-bottom: .5rem;
 }
 .section-card {
   border: 1px solid var(--color-border, #e5e7eb);

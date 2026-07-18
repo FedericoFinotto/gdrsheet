@@ -44,6 +44,14 @@ public interface CollegamentoRepository extends JpaRepository<Collegamento, Inte
                                           @Param("targetIds") List<Integer> targetIds);
 
     /**
+     * Collegamenti verso item di tipo EFFETTO, tra tutti gli item di un personaggio (JOIN FETCH
+     * per leggere nome sorgente/bersaglio e la label CONDIZIONE senza LazyInit fuori transazione).
+     */
+    @Query("SELECT c FROM Collegamento c JOIN FETCH c.itemSource JOIN FETCH c.itemTarget " +
+           "WHERE c.itemSource.id IN :sourceIds AND c.itemTarget.tipo = it.fin8.gdrsheet.def.TipoItem.EFFETTO")
+    List<Collegamento> findEffettiByItemSourceIds(@Param("sourceIds") List<Integer> sourceIds);
+
+    /**
      * Risale il grafo Collegamento da un item toccato fino a tutte le radici (item con
      * personaggio_id valorizzato) raggiungibili, direttamente o indirettamente — un item di
      * compendio condiviso può comparire come figlio sotto le schede di più personaggi. Usata per

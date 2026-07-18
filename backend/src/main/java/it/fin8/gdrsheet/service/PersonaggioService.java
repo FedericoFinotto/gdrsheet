@@ -473,6 +473,19 @@ public class PersonaggioService {
                         ? figliAttacchiMap : figliFruttoMap;
                 target.computeIfAbsent(sourceId, k -> new ArrayList<>()).add(ref);
             }
+            for (Collegamento c : collegamentoRepository.findEffettiByItemSourceIds(allItemIds)) {
+                // Lo stato disabilitato di un EFFETTO viene scritto da switchItemState sul
+                // COLLEGAMENTO (oggetto base -> effetto), non sull'item stesso: va letto da lì.
+                boolean effettoDisabled = utilService.parseBooleanFromString(
+                        c.getLabel(Constants.ITEM_LABEL_DISABILITATO),
+                        Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE,
+                        Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
+                itemsDTO.getEffetti().add(new EffettoDTO(
+                        c.getItemSource().getId(), c.getItemSource().getNome(),
+                        c.getItemTarget().getId(), c.getItemTarget().getNome(),
+                        c.getLabel(Constants.COLLEGAMENTO_LABEL_CONDIZIONE),
+                        effettoDisabled));
+            }
         }
         Stream.of(itemsDTO.getAbilita(), itemsDTO.getTalenti(), itemsDTO.getOggetti(), itemsDTO.getConsumabili(),
                         itemsDTO.getArmi(), itemsDTO.getMunizioni(), itemsDTO.getEquipaggiamento(),

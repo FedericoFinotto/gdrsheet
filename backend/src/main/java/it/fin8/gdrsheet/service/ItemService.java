@@ -743,11 +743,11 @@ public class ItemService {
     private void applyChildren(Item itm, List<UpdateItemRequest.ChildRefDTO> children) {
         if (children == null) return;
 
-        record ChildInfo(Integer qty, String formulaQty, String scelta, boolean nascosto) {
+        record ChildInfo(Integer qty, String formulaQty, String scelta, boolean nascosto, String condizione) {
         }
         Map<Integer, ChildInfo> desiderati = new HashMap<>();
         for (UpdateItemRequest.ChildRefDTO c : children)
-            desiderati.put(c.getId(), new ChildInfo(c.getQty(), c.getFormulaQty(), c.getScelta(), Boolean.TRUE.equals(c.getNascosto())));
+            desiderati.put(c.getId(), new ChildInfo(c.getQty(), c.getFormulaQty(), c.getScelta(), Boolean.TRUE.equals(c.getNascosto()), c.getCondizione()));
 
         List<Collegamento> linkAltri = (itm.getChild() != null ? itm.getChild() : List.<Collegamento>of()).stream()
                 .filter(c -> !TipoItem.ATTACCO.equals(c.getItemTarget().getTipo()))
@@ -769,15 +769,18 @@ public class ItemService {
             if (giaPresenti.containsKey(targetId)) {
                 Collegamento existing = giaPresenti.get(targetId);
                 boolean existingNascosto = Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE.equals(existing.getLabel(Constants.ITEM_LABEL_NASCOSTO));
+                String existingCondizione = existing.getLabel(Constants.COLLEGAMENTO_LABEL_CONDIZIONE);
                 boolean changed = !Objects.equals(existing.getQty(), info.qty())
                         || !Objects.equals(existing.getFormulaQty(), info.formulaQty())
                         || !Objects.equals(existing.getScelta(), info.scelta())
-                        || existingNascosto != info.nascosto();
+                        || existingNascosto != info.nascosto()
+                        || !Objects.equals(existingCondizione, info.condizione());
                 if (changed) {
                     existing.setQty(info.qty());
                     existing.setFormulaQty(info.formulaQty());
                     existing.setScelta(info.scelta());
                     existing.setLabel(Constants.ITEM_LABEL_NASCOSTO, info.nascosto() ? Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE : null);
+                    existing.setLabel(Constants.COLLEGAMENTO_LABEL_CONDIZIONE, info.condizione());
                     collegamentoRepository.save(existing);
                 }
             } else {
@@ -790,6 +793,7 @@ public class ItemService {
                 link.setFormulaQty(info.formulaQty());
                 link.setScelta(info.scelta());
                 if (info.nascosto()) link.setLabel(Constants.ITEM_LABEL_NASCOSTO, Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE);
+                if (info.condizione() != null) link.setLabel(Constants.COLLEGAMENTO_LABEL_CONDIZIONE, info.condizione());
                 collegamentoRepository.save(link);
             }
         }

@@ -21,6 +21,7 @@ import MultiValueField from './Sections/MultiValueField.vue'
 import ModificatoriEditor from './Sections/ModificatoriEditor.vue'
 import AttacchiEditor from './Sections/AttacchiEditor.vue'
 import ChildrenEditor from './Sections/ChildrenEditor.vue'
+import EffettiEditor from './Sections/EffettiEditor.vue'
 
 const props = withDefaults(defineProps<{
   item: ItemDB
@@ -53,13 +54,15 @@ const form = reactive<{
   descrizione: string
   campi: Record<string, string>
   campiMulti: Record<string, string[]>
-  descrOggetto: { magico: boolean; psionico: boolean; divino: boolean; leggendario: boolean; unico: boolean; costo: string; materiale: string }
-  descrAbilita: { straordinaria: boolean; magica: boolean; soprannaturale: boolean; naturale: boolean }
+  descrOggetto: { magico: boolean; psionico: boolean; divino: boolean; leggendario: boolean; unico: boolean }
+  infoOggetto: { taglia: string; costo: string; materiale: string }
+  descrAbilita: { straordinaria: boolean; magica: boolean; soprannaturale: boolean; naturale: boolean; divina: boolean }
   labels: LabelRow[]
   modificatori: ModificatoreRow[]
   attacchi: AttaccoRow[]
   children: ChildRef[]
   forme: ChildRef[]
+  effetti: ChildRef[]
   qta: number
   compendio: boolean
   visibilita: string
@@ -72,13 +75,15 @@ const form = reactive<{
   descrizione: '',
   campi: Object.fromEntries(props.campiLabel.filter(c => !c.multiValore).map(c => [c.key, ''])),
   campiMulti: Object.fromEntries(props.campiLabel.filter(c => c.multiValore).map(c => [c.key, [] as string[]])),
-  descrOggetto: {magico: false, psionico: false, divino: false, leggendario: false, unico: false, costo: '', materiale: ''},
-  descrAbilita: {straordinaria: false, magica: false, soprannaturale: false, naturale: false},
+  descrOggetto: {magico: false, psionico: false, divino: false, leggendario: false, unico: false},
+  infoOggetto: {taglia: '', costo: '', materiale: ''},
+  descrAbilita: {straordinaria: false, magica: false, soprannaturale: false, naturale: false, divina: false},
   labels: [],
   modificatori: [],
   attacchi: [],
   children: [],
   forme: [],
+  effetti: [],
   qta: 1,
   utilizzi: null as number | null,
   compendio: false,
@@ -88,9 +93,24 @@ const form = reactive<{
 })
 
 const open = reactive({
-  labels: false, modificatori: false, attacchi: false, children: false, forme: false,
-  campiLabel: false, descrOggetto: false, descrAbilita: false,
+  labels: false, modificatori: false, attacchi: false, children: false, forme: false, effetti: false,
+  campiLabel: false, descrOggetto: false, infoOggetto: false, descrAbilita: false,
 })
+
+// Taglia fisica dell'oggetto (es. arma taglia Grande): puramente descrittiva, non modifica
+// la taglia del personaggio (a differenza del campo TAGLIA usato altrove per quello scopo).
+const TAGLIE_OGGETTO = [
+  {value: '', label: '— nessuna —'},
+  {value: 'Piccolissima', label: 'Piccolissima'},
+  {value: 'Minuta', label: 'Minuta'},
+  {value: 'Minuscola', label: 'Minuscola'},
+  {value: 'Piccola', label: 'Piccola'},
+  {value: 'Media', label: 'Media'},
+  {value: 'Grande', label: 'Grande'},
+  {value: 'Enorme', label: 'Enorme'},
+  {value: 'Mastodontica', label: 'Mastodontica'},
+  {value: 'Colossale', label: 'Colossale'},
+]
 
 function preload() {
   form.nome = props.item.nome ?? ''
@@ -112,8 +132,9 @@ function preload() {
   form.compendio = props.mode === 'create' && route.query.compendio === '1'
   form.visibilita = ''
   form.labels = []
-  form.descrOggetto = {magico: false, psionico: false, divino: false, leggendario: false, unico: false, costo: '', materiale: ''}
-  form.descrAbilita = {straordinaria: false, magica: false, soprannaturale: false, naturale: false}
+  form.descrOggetto = {magico: false, psionico: false, divino: false, leggendario: false, unico: false}
+  form.infoOggetto = {taglia: '', costo: '', materiale: ''}
+  form.descrAbilita = {straordinaria: false, magica: false, soprannaturale: false, naturale: false, divina: false}
   for (const l of (props.item.labels ?? [])) {
     const key = l.label ?? ''
     const val = l.valore ?? ''
@@ -144,9 +165,11 @@ function preload() {
     } else if (key === 'UNICO') {
       form.descrOggetto.unico = val === '1'
     } else if (key === 'COSTO') {
-      form.descrOggetto.costo = val
+      form.infoOggetto.costo = val
     } else if (key === 'MATERIALE') {
-      form.descrOggetto.materiale = val
+      form.infoOggetto.materiale = val
+    } else if (key === 'TAGLIA_OGGETTO') {
+      form.infoOggetto.taglia = val
     } else if (key === 'DESCR_STR') {
       form.descrAbilita.straordinaria = val === '1'
     } else if (key === 'DESCR_MAG') {
@@ -155,6 +178,8 @@ function preload() {
       form.descrAbilita.soprannaturale = val === '1'
     } else if (key === 'DESCR_NAT') {
       form.descrAbilita.naturale = val === '1'
+    } else if (key === 'DESCR_DIV') {
+      form.descrAbilita.divina = val === '1'
     } else if (campoKeysMulti.has(key)) {
       form.campiMulti[key].push(val)
     } else if (campoKeys.has(key) && !form.campi[key]) {
@@ -184,14 +209,17 @@ function preload() {
     tipoDanni: getItemLabel(c.itemTarget, 'TDANNO' as any) ?? '',
   }))
   const isColNascosto = (c: any) => (c.labels ?? []).some((l: any) => l.label === 'HIDDEN' && l.valore === '1')
-  const toChildRef = (c: any) => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null, nascosto: isColNascosto(c)})
+  const getColLabel = (c: any, key: string) => (c.labels ?? []).find((l: any) => l.label === key)?.valore ?? null
+  const toChildRef = (c: any) => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null, nascosto: isColNascosto(c), condizione: getColLabel(c, 'CONDIZIONE')})
+  const collegamentiNonEffetto = collegamentiNonAttacco.filter(c => c.itemTarget.tipo !== 'EFFETTO')
   if (props.separateForme) {
-    form.forme = collegamentiNonAttacco.filter(c => c.itemTarget.tipo === 'FORMA').map(toChildRef)
-    form.children = collegamentiNonAttacco.filter(c => c.itemTarget.tipo !== 'FORMA').map(toChildRef)
+    form.forme = collegamentiNonEffetto.filter(c => c.itemTarget.tipo === 'FORMA').map(toChildRef)
+    form.children = collegamentiNonEffetto.filter(c => c.itemTarget.tipo !== 'FORMA').map(toChildRef)
   } else {
     form.forme = []
-    form.children = collegamentiNonAttacco.map(toChildRef)
+    form.children = collegamentiNonEffetto.map(toChildRef)
   }
+  form.effetti = collegamentiNonAttacco.filter(c => c.itemTarget.tipo === 'EFFETTO').map(toChildRef)
 }
 
 const router = useRouter()
@@ -221,13 +249,15 @@ function restoreSnapshot(snap: any) {
   form.descrizione = snap.descrizione ?? ''
   form.campi = {...(snap.campi ?? {})}
   form.campiMulti = {...(snap.campiMulti ?? {})}
-  form.descrOggetto = {...(snap.descrOggetto ?? {magico: false, psionico: false, divino: false, leggendario: false, unico: false, costo: '', materiale: ''})}
-  form.descrAbilita = {...(snap.descrAbilita ?? {straordinaria: false, magica: false, soprannaturale: false, naturale: false})}
+  form.descrOggetto = {...(snap.descrOggetto ?? {magico: false, psionico: false, divino: false, leggendario: false, unico: false})}
+  form.infoOggetto = {...(snap.infoOggetto ?? {taglia: '', costo: '', materiale: ''})}
+  form.descrAbilita = {...(snap.descrAbilita ?? {straordinaria: false, magica: false, soprannaturale: false, naturale: false, divina: false})}
   form.labels = snap.labels ?? []
   form.modificatori = snap.modificatori ?? []
   form.attacchi = snap.attacchi ?? []
   form.children = snap.children ?? []
   form.forme = snap.forme ?? []
+  form.effetti = snap.effetti ?? []
   form.qta = snap.qta ?? 1
   form.utilizzi = snap.utilizzi ?? null
   form.compendio = !!snap.compendio
@@ -281,6 +311,8 @@ const sumChildren = computed(() =>
     form.children.map(c => c.nome).join(', ') || '—')
 const sumForme = computed(() =>
     form.forme.map(c => c.nome).join(', ') || '—')
+const sumEffetti = computed(() =>
+    form.effetti.map(c => `${c.condizione ?? 'Sempre'}: ${c.nome}`).join(', ') || '—')
 const sumDescrOggetto = computed(() => {
   const d = form.descrOggetto
   const flags = []
@@ -289,8 +321,14 @@ const sumDescrOggetto = computed(() => {
   if (d.divino) flags.push('Divino')
   if (d.leggendario) flags.push('Leggendario')
   if (d.unico) flags.push('Unico')
-  if (d.costo.trim()) flags.push(`Costo: ${d.costo.trim()}`)
-  if (d.materiale.trim()) flags.push(`Materiale: ${d.materiale.trim()}`)
+  return flags.join(', ') || '—'
+})
+const sumInfoOggetto = computed(() => {
+  const i = form.infoOggetto
+  const flags = []
+  if (i.taglia.trim()) flags.push(`Taglia: ${i.taglia.trim()}`)
+  if (i.costo.trim()) flags.push(`Costo: ${i.costo.trim()}`)
+  if (i.materiale.trim()) flags.push(`Materiale: ${i.materiale.trim()}`)
   return flags.join(', ') || '—'
 })
 const sumDescrAbilita = computed(() => {
@@ -300,6 +338,7 @@ const sumDescrAbilita = computed(() => {
   if (d.magica) flags.push('Mag')
   if (d.soprannaturale) flags.push('Sop')
   if (d.naturale) flags.push('Naturale')
+  if (d.divina) flags.push('Div')
   return flags.join(', ') || '—'
 })
 const sumCampiLabel = computed(() => {
@@ -344,13 +383,16 @@ function buildPayload(): UpdateItemRequest {
   if (form.descrOggetto.divino) labels.push({label: 'DIVINO', valore: '1'})
   if (form.descrOggetto.leggendario) labels.push({label: 'LEGGENDARIO', valore: '1'})
   if (form.descrOggetto.unico) labels.push({label: 'UNICO', valore: '1'})
-  if (form.descrOggetto.costo.trim()) labels.push({label: 'COSTO', valore: form.descrOggetto.costo.trim()})
-  if (form.descrOggetto.materiale.trim()) labels.push({label: 'MATERIALE', valore: form.descrOggetto.materiale.trim()})
+  // Info Oggetto
+  if (form.infoOggetto.taglia.trim()) labels.push({label: 'TAGLIA_OGGETTO', valore: form.infoOggetto.taglia.trim()})
+  if (form.infoOggetto.costo.trim()) labels.push({label: 'COSTO', valore: form.infoOggetto.costo.trim()})
+  if (form.infoOggetto.materiale.trim()) labels.push({label: 'MATERIALE', valore: form.infoOggetto.materiale.trim()})
   // Descrittori Abilità
   if (form.descrAbilita.straordinaria) labels.push({label: 'DESCR_STR', valore: '1'})
   if (form.descrAbilita.magica) labels.push({label: 'DESCR_MAG', valore: '1'})
   if (form.descrAbilita.soprannaturale) labels.push({label: 'DESCR_SOP', valore: '1'})
   if (form.descrAbilita.naturale) labels.push({label: 'DESCR_NAT', valore: '1'})
+  if (form.descrAbilita.divina) labels.push({label: 'DESCR_DIV', valore: '1'})
   // utilizzi massimi (globale sull'item)
   if (form.utilizzi != null && Number.isInteger(form.utilizzi) && form.utilizzi > 0)
     labels.push({label: 'UTILIZZI', valore: String(form.utilizzi)})
@@ -370,7 +412,7 @@ function buildPayload(): UpdateItemRequest {
     labels,
     modificatori: form.modificatori.filter(m => m.statId.trim()),
     attacchi: form.attacchi.filter(a => a.nome.trim()),
-    children: [...form.children, ...form.forme].map(c => ({id: c.id, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null, nascosto: c.nascosto ?? false})),
+    children: [...form.children, ...form.forme, ...form.effetti].map(c => ({id: c.id, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null, nascosto: c.nascosto ?? false, condizione: c.condizione ?? null})),
   })
 }
 
@@ -421,13 +463,15 @@ function resetForNew() {
   form.descrizione = ''
   form.campi = Object.fromEntries(props.campiLabel.filter(c => !c.multiValore).map(c => [c.key, '']))
   form.campiMulti = Object.fromEntries(props.campiLabel.filter(c => c.multiValore).map(c => [c.key, []]))
-  form.descrOggetto = {magico: false, psionico: false, divino: false, leggendario: false, unico: false, costo: '', materiale: ''}
-  form.descrAbilita = {straordinaria: false, magica: false, soprannaturale: false, naturale: false}
+  form.descrOggetto = {magico: false, psionico: false, divino: false, leggendario: false, unico: false}
+  form.infoOggetto = {taglia: '', costo: '', materiale: ''}
+  form.descrAbilita = {straordinaria: false, magica: false, soprannaturale: false, naturale: false, divina: false}
   form.labels = []
   form.modificatori = []
   form.attacchi = []
   form.children = []
   form.forme = []
+  form.effetti = []
   form.qta = 1
 }
 
@@ -519,13 +563,31 @@ function onCancel() {
             <span class="lbl">Unico</span>
             <input type="checkbox" v-model="form.descrOggetto.unico" :disabled="disabledAll"/>
           </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Info Oggetto: taglia fisica dell'oggetto (diversa dalla taglia del personaggio), costo, materiale -->
+    <section v-if="!minimal" class="fold">
+      <button type="button" class="fold-head" @click="open.infoOggetto = !open.infoOggetto"
+              :aria-expanded="open.infoOggetto ? 'true' : 'false'">
+        <span class="fold-title">Info Oggetto</span>
+        <span class="fold-summary">{{ sumInfoOggetto }}</span>
+        <span class="chev" :class="{ open: open.infoOggetto }">▸</span>
+      </button>
+      <div v-show="open.infoOggetto" class="fold-body">
+        <div class="row two">
+          <label class="field">
+            <span class="lbl">Taglia</span>
+            <SearchSelect v-model="form.infoOggetto.taglia" :options="TAGLIE_OGGETTO" placeholder="— nessuna —" :disabled="disabledAll" :sort="false"/>
+          </label>
           <label class="field">
             <span class="lbl">Costo</span>
-            <input v-model.trim="form.descrOggetto.costo" type="text" :disabled="disabledAll" placeholder="es. 150 mo"/>
+            <input v-model.trim="form.infoOggetto.costo" type="text" :disabled="disabledAll" placeholder="es. 150 mo"/>
           </label>
           <label class="field">
             <span class="lbl">Materiale</span>
-            <input v-model.trim="form.descrOggetto.materiale" type="text" :disabled="disabledAll" placeholder="es. Acciaio, mithral"/>
+            <input v-model.trim="form.infoOggetto.materiale" type="text" :disabled="disabledAll" placeholder="es. Acciaio, mithral"/>
           </label>
         </div>
       </div>
@@ -556,6 +618,10 @@ function onCancel() {
           <label class="field field-checkbox">
             <span class="lbl">Naturale</span>
             <input type="checkbox" v-model="form.descrAbilita.naturale" :disabled="disabledAll"/>
+          </label>
+          <label class="field field-checkbox">
+            <span class="lbl">Divina</span>
+            <input type="checkbox" v-model="form.descrAbilita.divina" :disabled="disabledAll"/>
           </label>
         </div>
       </div>
@@ -689,6 +755,19 @@ function onCancel() {
         <ChildrenEditor v-model="form.children" :disabled="disabledAll" :exclude-id="props.item.id"
                         :exclude-tipo="separateForme ? 'FORMA' : undefined"
                         @create-new="(t, n) => onCreateChild('children', t, n)"/>
+      </div>
+    </section>
+
+    <!-- Effetti: sezione dedicata e slegata dagli item collegati generici -->
+    <section v-if="!minimal" class="fold">
+      <button type="button" class="fold-head" @click="open.effetti = !open.effetti"
+              :aria-expanded="open.effetti ? 'true' : 'false'">
+        <span class="fold-title">Effetti</span>
+        <span class="fold-summary">{{ sumEffetti }}</span>
+        <span class="chev" :class="{ open: open.effetti }">▸</span>
+      </button>
+      <div v-show="open.effetti" class="fold-body">
+        <EffettiEditor v-model="form.effetti" :disabled="disabledAll" :id-personaggio="props.idPersonaggio"/>
       </div>
     </section>
 

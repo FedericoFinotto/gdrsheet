@@ -19,6 +19,9 @@ export const LABELS = {
     SPELL_TIRO_SALVEZZA: 'TS_SP',
     SPELL_RESISTENZA: 'RES_SP',
     TAGLIA: 'TAGLIA',
+    // Taglia fisica dell'oggetto (es. arma taglia Grande): puramente descrittiva, diversa da TAGLIA
+    // sopra che invece imposta la taglia del personaggio.
+    TAGLIA_OGGETTO: 'TAGLIA_OGGETTO',
     TIRO_DANNI: 'TPD',
     TIRO_COLPIRE: 'TPC',
     CLASSE_LIVELLO: 'LVL_CLASSE',
@@ -54,12 +57,13 @@ export const LABELS = {
     DESCR_MAGICA: 'DESCR_MAG',
     DESCR_SOPRANNATURALE: 'DESCR_SOP',
     DESCR_NATURALE: 'DESCR_NAT',
+    DESCR_DIVINA: 'DESCR_DIV',
 } as const;
 export type TipoLabels = typeof LABELS[keyof typeof LABELS];
 
 export function thereIsValoreLabel(itemTarget: ItemDB, tipo: TipoLabels): boolean {
     const prova = itemTarget.labels?.find((l: any) => l.label === tipo);
-    return prova !== null;
+    return prova !== undefined;
 }
 
 export function getItemLabels(itm: ItemDB, label: TipoLabels): string[] {

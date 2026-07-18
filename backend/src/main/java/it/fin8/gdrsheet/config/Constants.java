@@ -51,8 +51,11 @@ public final class Constants {
     public static final String ITEM_LABEL_LISTA_COMPETENZE = "COMP";
     public static final String ITEM_LABEL_LISTA_LINGUE = "LINGUE";
     public static final String ITEM_LABEL_COMPETENZA_RICHIESTA = "REQ_COMP";
-    public static final String ITEM_LABEL_TAGLIA = "TAGLIA";       // SET: imposta la taglia a un valore
-    public static final String ITEM_LABEL_ADD_TAGLIA = "ADD_TAGLIA"; // ADD: incrementa/decrementa la taglia base
+    public static final String ITEM_LABEL_TAGLIA = "TAGLIA";       // SET: imposta la taglia del personaggio a un valore
+    public static final String ITEM_LABEL_ADD_TAGLIA = "ADD_TAGLIA"; // ADD: incrementa/decrementa la taglia base del personaggio
+    // Taglia FISICA dell'oggetto stesso (es. un'arma taglia Grande): puramente descrittiva,
+    // non influisce sulla taglia del personaggio (a differenza di ITEM_LABEL_TAGLIA/ADD_TAGLIA sopra).
+    public static final String ITEM_LABEL_TAGLIA_OGGETTO = "TAGLIA_OGGETTO";
     public static final String ITEM_LABEL_SPELL_SLOT = "SP_SLOT";
     public static final String ITEM_LABEL_SPELL_SLOT_BONUS = "SP_SLOT_BONUS";
     public static final String COLLEGAMENTO_LABEL_LIVELLO = "LIVELLO";
@@ -60,6 +63,8 @@ public final class Constants {
     public static final String COLLEGAMENTO_LABEL_N_USATI = "USED";
     public static final String COLLEGAMENTO_LABEL_N_PREPARATI = "PREPARED";
     public static final String COLLEGAMENTO_LABEL_ALWAYS_PREPARED = "ALWAYS";
+    /** Testo libero: condizione sotto cui l'item EFFETTO collegato si applica (es. "Indossato"). */
+    public static final String COLLEGAMENTO_LABEL_CONDIZIONE = "CONDIZIONE";
     public static final String ITEM_LIVELLO_LVL = "LVL";
     public static final String ITEM_LIVELLO_LVL_CLASSE = "LVL_CLASSE";
     public static final String ITEM_LABEL_DADI_VITA = "DV";
@@ -135,6 +140,7 @@ public final class Constants {
     public static final String ITEM_LABEL_DESCR_MAGICA = "DESCR_MAG";
     public static final String ITEM_LABEL_DESCR_SOPRANNATURALE = "DESCR_SOP";
     public static final String ITEM_LABEL_DESCR_NATURALE = "DESCR_NAT";
+    public static final String ITEM_LABEL_DESCR_DIVINA = "DESCR_DIV";
 
     public static final String LABEL_MILESTONE = "MILESTONE";
     public static final String LABEL_MILESTONE_TO = "MILESTONE_TO";

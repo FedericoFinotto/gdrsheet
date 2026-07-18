@@ -9,6 +9,7 @@ import {resetUtilizzi, setUtilizziUsati} from "../../../../../../service/Persona
 import {ItemSearchResult, searchPersonaggioItems} from "../../../../../../service/PartyService";
 import usePopup from "../../../../../../function/usePopup";
 import AggiungiDalCompendioPopup from "./AggiungiDalCompendioPopup.vue";
+import {Effetto} from "../../../../../../models/dto/Items";
 
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore)
@@ -114,6 +115,21 @@ const itemsTalenti = computed(() => wrap(items.value?.talenti));
 const itemsPrivilegi = computed(() => wrap(items.value?.privilegi));
 const itemsMaledizioni = computed(() => wrap(items.value?.maledizioni));
 
+// Effetti: collegamenti verso item EFFETTO aggregati su tutti gli item del personaggio.
+// Riga = "Condizione: Nome oggetto che porta l'effetto"; espandendola si vede l'item EFFETTO
+// vero e proprio (nome reale + descrizione), non l'oggetto che lo concede.
+const itemsEffetti = computed(() => (items.value?.effetti ?? [])
+    .map((e: Effetto) => ({
+      id: e.targetId,
+      nome: `${e.sourceNome} (${e.condizione ?? 'Sempre'}): ${e.targetNome}`,
+      disabled: e.disabled,
+      expandedComponent: markRaw(Mobile_DettaglioItem),
+      expandedProps: {
+        data: {item: {id: e.targetId, nome: e.targetNome, tipo: 'EFFETTO', disabled: e.disabled}, personaggio: cache.value[props.idPersonaggio]},
+      },
+    }))
+    .sort((a, b) => a.nome.localeCompare(b.nome)));
+
 const badgeQta = (row: any) => row.quantita != null && row.quantita !== 1 ? `x${row.quantita}` : null;
 
 // Chip peso: "X.XX kg" — mostrato solo se l'item ha un PESO
@@ -153,20 +169,28 @@ function utilizziCol() {
   }
 }
 
-// chip descrittori (Str/Mag/Sop) prima del nome, per le righe Abilità
-function abilitaChips(row: any): { text: string; class?: string }[] {
+// chip descrittori prima del nome: Abilità (Str/Mag/Sop/Div) + Oggetto (Mag/Psi/Div/Leg/Uni),
+// entrambi i gruppi possono comparire sullo stesso item.
+function descrittoriChips(row: any): { text: string; class?: string }[] {
   const chips: { text: string; class?: string }[] = []
   if (row.descrStraordinaria) chips.push({text: 'Str', class: 'chip-str'})
   if (row.descrMagica) chips.push({text: 'Mag', class: 'chip-mag'})
   if (row.descrSoprannaturale) chips.push({text: 'Sop', class: 'chip-sop'})
+  if (row.descrNaturale) chips.push({text: 'Nat', class: 'chip-nat'})
+  if (row.descrDivina) chips.push({text: 'Div', class: 'chip-div'})
+  if (row.magico) chips.push({text: 'Magico', class: 'chip-o-magico'})
+  if (row.psionico) chips.push({text: 'Psionico', class: 'chip-o-psionico'})
+  if (row.divino) chips.push({text: 'Divino', class: 'chip-o-divino'})
+  if (row.leggendario) chips.push({text: 'Leggendario', class: 'chip-o-leggendario'})
+  if (row.unico) chips.push({text: 'Unico', class: 'chip-o-unico'})
   return chips
 }
 
-const col = (label: string, withBadge = false, prefixChips?: (row: any) => any[]) => [
+const col = (label: string, withBadge = false) => [
   {
     field: 'nome', label, disabled: (row: any) => row.disabled,
     ...(withBadge ? {badge: badgeQta} : {}),
-    ...(prefixChips ? {prefixChips} : {}),
+    prefixChips: descrittoriChips,
   },
   utilizziCol(),
 ];
@@ -182,11 +206,12 @@ const columnsPatti = col('Patti');
 const columnsNotizie = col('Notizie');
 const columnsFrutti = col('Frutti');
 const columnsIdoli = col('Idoli');
-const columnsAbilita = col('Abilità', false, abilitaChips);
-const columnsAbilitaPassive = col('Abilità Passive', false, abilitaChips);
+const columnsAbilita = col('Abilità');
+const columnsAbilitaPassive = col('Abilità Passive');
 const columnsTalenti = col('Talenti');
 const columnsPrivilegi = col('Privilegi di Classe');
 const columnsMaledizioni = col('Maledizioni');
+const columnsEffetti = col('Effetti');
 </script>
 
 <template>
@@ -251,6 +276,8 @@ const columnsMaledizioni = col('Maledizioni');
     <Tabella v-if="itemsPrivilegi.length > 0" :columns="columnsPrivilegi" :expandable="true" :items="itemsPrivilegi"/>
     <div class="spazietto"/>
     <Tabella v-if="itemsMaledizioni.length > 0" :columns="columnsMaledizioni" :expandable="true" :items="itemsMaledizioni"/>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsEffetti.length > 0" :columns="columnsEffetti" :expandable="true" :items="itemsEffetti"/>
     </template>
   </div>
 </template>

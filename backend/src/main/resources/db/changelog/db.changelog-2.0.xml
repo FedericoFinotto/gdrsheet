@@ -550,4 +550,23 @@
         </sql>
     </changeSet>
 
+    <changeSet id="130" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT count(*) FROM stats WHERE id = 'CD'
+            </sqlCheck>
+        </preConditions>
+        <comment>
+            Rimuove la stat 'CD Incantesimi' (id 'CD'): non più utilizzata. Elimina ogni
+            riferimento (modificatori.id_stat, stat_value.stat_id/mod, stat_default.stat_id/
+            default_mod) prima di eliminare la riga da stats.
+        </comment>
+        <sql splitStatements="false">
+            DELETE FROM modificatori WHERE id_stat = 'CD';
+            DELETE FROM stat_value WHERE stat_id = 'CD' OR mod = 'CD';
+            DELETE FROM stat_default WHERE stat_id = 'CD' OR default_mod = 'CD';
+            DELETE FROM stats WHERE id = 'CD';
+        </sql>
+    </changeSet>
+
 </databaseChangeLog>

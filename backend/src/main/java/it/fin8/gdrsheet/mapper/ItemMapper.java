@@ -86,6 +86,19 @@ public class ItemMapper {
             dto.setDescrSoprannaturale(true);
         if ("1".equals(entity.getLabel(Constants.ITEM_LABEL_DESCR_NATURALE)))
             dto.setDescrNaturale(true);
+        if ("1".equals(entity.getLabel(Constants.ITEM_LABEL_DESCR_DIVINA)))
+            dto.setDescrDivina(true);
+
+        if ("1".equals(entity.getLabel(Constants.ITEM_LABEL_MAGICO)))
+            dto.setMagico(true);
+        if ("1".equals(entity.getLabel(Constants.ITEM_LABEL_PSIONICO)))
+            dto.setPsionico(true);
+        if ("1".equals(entity.getLabel(Constants.ITEM_LABEL_DIVINO)))
+            dto.setDivino(true);
+        if ("1".equals(entity.getLabel(Constants.ITEM_LABEL_LEGGENDARIO)))
+            dto.setLeggendario(true);
+        if ("1".equals(entity.getLabel(Constants.ITEM_LABEL_UNICO)))
+            dto.setUnico(true);
     }
 
     private static Integer parseQuantita(String s) {

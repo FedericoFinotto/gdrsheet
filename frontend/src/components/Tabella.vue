@@ -355,5 +355,12 @@ img.row-icon {
 .cell-prefix-chip.chip-str { background: #fef3c7; color: #92400e; }
 .cell-prefix-chip.chip-mag { background: #ede9fe; color: #5b21b6; }
 .cell-prefix-chip.chip-sop { background: #dbeafe; color: #1d4ed8; }
+.cell-prefix-chip.chip-nat { background: #dcfce7; color: #166534; }
+.cell-prefix-chip.chip-div { background: #fce7f3; color: #9d174d; }
+.cell-prefix-chip.chip-o-magico { background: #ede9fe; color: #5b21b6; }
+.cell-prefix-chip.chip-o-psionico { background: #cffafe; color: #155e75; }
+.cell-prefix-chip.chip-o-divino { background: #fce7f3; color: #9d174d; }
+.cell-prefix-chip.chip-o-leggendario { background: #fef3c7; color: #92400e; }
+.cell-prefix-chip.chip-o-unico { background: #fee2e2; color: #991b1b; }
 
 </style>
