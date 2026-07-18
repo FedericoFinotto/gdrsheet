@@ -27,6 +27,12 @@ const idPersonaggio = computed<number | undefined>(() => {
   return Number.isFinite(n) && n > 0 ? n : undefined
 })
 
+// se presente (pagina Quest di un party), il nuovo item viene associato al party
+const idParty = computed<number | undefined>(() => {
+  const n = Number(route.query.party)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+})
+
 function parseTipo(v: unknown): TipoItem | null {
   const s = String(v ?? '').toUpperCase()
   return (Object.values(TIPO_ITEM) as string[]).includes(s) ? (s as TipoItem) : null
@@ -61,6 +67,7 @@ function onTipoChange(v: string) {
   if (route.query.compendio) params.set('compendio', '1') // mantieni il flag "mostra nel compendio"
   if (route.query.nome) params.set('nome', String(route.query.nome)) // mantieni il nome pre-compilato
   if (idPersonaggio.value) params.set('personaggio', String(idPersonaggio.value))
+  if (idParty.value) params.set('party', String(idParty.value))
   const q = params.toString() ? `?${params.toString()}` : ''
   router.replace(v ? `/itemcreate/${v}${q}` : `/itemcreate${q}`)
 }
@@ -114,6 +121,7 @@ function onSavedStay() {
           :item="blankItem"
           mode="create"
           :id-personaggio="idPersonaggio"
+          :id-party="idParty"
           @cancel="goBack"
           @saved="onSaved"
           @saved-stay="onSavedStay"

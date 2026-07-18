@@ -8,6 +8,7 @@ import Mobile_Cico_Info from './Mobile_Cico_1_Info.vue';
 import Mobile_Cico_Abilita from './Mobile_Cico_2_Abilita.vue';
 import Mobile_Cico_Items from './Mobile_Cico_3_Items.vue';
 import Mobile_Cico_SpellBook from './Mobile_Cico_4_SpellBook.vue';
+import Mobile_Cico_Quest from './Mobile_Cico_5_Quest.vue';
 import Mobile_Cico_Attacchi from "./Mobile_Cico_6_Attacchi.vue";
 import Mobile_Cico_Livelli from "./Mobile_Cico_7_Livelli.vue";
 import Mobile_Cico_Soldi from "./Mobile_Cico_8_Soldi.vue";
@@ -24,6 +25,7 @@ const tabs = [
   {label: 'Inventario', comp: Mobile_Cico_Items},
   {label: 'Soldi', comp: Mobile_Cico_Soldi},
   {label: 'Incantesimi', comp: Mobile_Cico_SpellBook},
+  {label: 'Quest', comp: Mobile_Cico_Quest},
   {label: 'Attacchi', comp: Mobile_Cico_Attacchi},
   {label: 'Livelli', comp: Mobile_Cico_Livelli},
   {label: 'Competenze', comp: Mobile_Cico_Competenze}

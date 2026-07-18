@@ -287,7 +287,8 @@ public class ItemService {
         if (request.getIdPersonaggio() != null) {
             pg = personaggioRepository.findPersonaggioById(request.getIdPersonaggio());
             if (pg == null) throw new RuntimeException("Personaggio non trovato: " + request.getIdPersonaggio());
-            if (TipoItem.LIVELLO.equals(request.getTipo())) {
+            if (TipoItem.LIVELLO.equals(request.getTipo())
+                    || (TipoItem.QUEST.equals(request.getTipo()) && "PERSONAGGIO".equals(request.getQuestScope()))) {
                 itm.setPersonaggio(pg);
             }
             if (pg.getParty() != null && pg.getParty().getMondo() != null) {
@@ -305,6 +306,16 @@ public class ItemService {
         if (request.getIdSistema() != null) {
             Sistema sistema = em.find(Sistema.class, request.getIdSistema());
             if (sistema != null) itm.setSistema(sistema);
+        }
+
+        // QUEST radice di ambito PARTY: memorizza l'id del Party come label (nessuna nuova
+        // tabella). L'id esplicito ha precedenza, altrimenti si usa il party del personaggio.
+        if (TipoItem.QUEST.equals(request.getTipo()) && "PARTY".equals(request.getQuestScope())) {
+            Integer partyId = request.getIdParty() != null ? request.getIdParty()
+                    : (pg != null && pg.getParty() != null ? pg.getParty().getId() : null);
+            if (partyId != null) {
+                addLabelRow(itm, Constants.ITEM_LABEL_QUEST_PARTY, String.valueOf(partyId));
+            }
         }
 
         if (request.getLabels() != null) {

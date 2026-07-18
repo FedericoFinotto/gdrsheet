@@ -178,4 +178,27 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             OR i.id IN (SELECT c.itemTarget.id FROM Collegamento c WHERE c.itemSource.personaggio.id = :pgId)
             """)
     List<Object[]> findIdAndTipoByPersonaggioId(@Param("pgId") Integer pgId);
+
+    /** Quest radice di un personaggio (ambito QUEST_SCOPE=PERSONAGGIO): intestate direttamente a lui. */
+    @Query("SELECT i FROM Item i WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST AND i.personaggio.id = :personaggioId")
+    List<Item> findQuestByPersonaggioId(@Param("personaggioId") Integer personaggioId);
+
+    /** Quest radice di un party (label QUEST_PARTY = id del party). */
+    @Query("""
+            SELECT i FROM Item i JOIN i.labels il
+            WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
+              AND i.personaggio IS NULL
+              AND il.label = 'QUEST_PARTY' AND il.valore = :partyId
+            """)
+    List<Item> findQuestByPartyId(@Param("partyId") String partyId);
+
+    /** Quest radice di un intero mondo: visibili a tutti i party di quel mondo. */
+    @Query("""
+            SELECT i FROM Item i
+            WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
+              AND i.personaggio IS NULL
+              AND i.mondo.id = :mondoId
+              AND NOT EXISTS (SELECT 1 FROM ItemLabel il2 WHERE il2.item = i AND il2.label = 'QUEST_PARTY')
+            """)
+    List<Item> findQuestByMondoId(@Param("mondoId") Integer mondoId);
 }

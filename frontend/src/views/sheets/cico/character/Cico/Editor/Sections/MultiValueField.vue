@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import HtmlEditor from '../../../../../../../components/HtmlEditor.vue'
+
 const props = withDefaults(defineProps<{
   modelValue: string[] | undefined
   placeholder?: string
   disabled?: boolean
   textarea?: boolean
+  html?: boolean   // ogni riga editata con l'editor HTML (rich text) invece di una textarea
 }>(), {
   modelValue: () => [],
 })
@@ -27,8 +30,10 @@ function remove(idx: number) {
 <template>
   <div class="multi-value-field">
     <div v-if="!modelValue.length" class="empty">Nessun valore.</div>
-    <div v-for="(v, i) in modelValue" :key="i" class="mv-row">
-      <textarea v-if="textarea" class="val" :value="v" :disabled="disabled" :placeholder="placeholder" rows="2"
+    <div v-for="(v, i) in modelValue" :key="i" class="mv-row" :class="{'mv-row-html': html}">
+      <HtmlEditor v-if="html" class="val" :model-value="v" :rows="4" :disabled="disabled"
+                  @update:model-value="val => update(i, val)"/>
+      <textarea v-else-if="textarea" class="val" :value="v" :disabled="disabled" :placeholder="placeholder" rows="2"
                 @input="update(i, ($event.target as HTMLTextAreaElement).value)"/>
       <input v-else type="text" class="val" :value="v" :disabled="disabled" :placeholder="placeholder"
              @input="update(i, ($event.target as HTMLInputElement).value)"/>

@@ -22,6 +22,8 @@ import ModificatoriEditor from './Sections/ModificatoriEditor.vue'
 import AttacchiEditor from './Sections/AttacchiEditor.vue'
 import ChildrenEditor from './Sections/ChildrenEditor.vue'
 import EffettiEditor from './Sections/EffettiEditor.vue'
+import SottoQuestEditor from './Sections/SottoQuestEditor.vue'
+import NotesEditor, {NotaRow} from './Sections/NotesEditor.vue'
 
 const props = withDefaults(defineProps<{
   item: ItemDB
@@ -32,6 +34,7 @@ const props = withDefaults(defineProps<{
   readonly?: boolean
   mode?: 'edit' | 'create'
   idPersonaggio?: number      // solo create: aggancia l'item al FromCompendio del personaggio
+  idParty?: number            // solo create QUEST di ambito PARTY: party a cui associare la quest (se non in un contesto personaggio)
   separateForme?: boolean     // separa i child FORMA in una sezione dedicata
   minimal?: boolean           // nasconde sezioni avanzate (EN name, manuale, utilizzi, compendio, folds)
 }>(), {
@@ -46,6 +49,16 @@ const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedSt
 // tipi con gestione quantità (label QTA, moltiplica il peso)
 const TIPI_CON_QTA = ['OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO']
 const showQta = computed(() => TIPI_CON_QTA.includes(props.item.tipo))
+
+// QUEST: albero di sotto-quest (child collegati di tipo QUEST). L'ambito (a chi è associata
+// la quest RADICE: personaggio/party/mondo) si sceglie solo in creazione e solo per la radice
+// (le sotto-quest, create dal flusso "crea e collega", non hanno un ambito proprio).
+const isQuest = computed(() => props.item.tipo === 'QUEST')
+const QUEST_SCOPE_OPTS = [
+  {value: 'PERSONAGGIO', label: 'Personaggio'},
+  {value: 'PARTY', label: 'Party'},
+  {value: 'MONDO', label: 'Mondo (visibile a tutti i party)'},
+]
 
 const form = reactive<{
   nome: string
@@ -63,11 +76,14 @@ const form = reactive<{
   children: ChildRef[]
   forme: ChildRef[]
   effetti: ChildRef[]
+  note: NotaRow[]
   qta: number
   compendio: boolean
   visibilita: string
   idMondo: number
   idSistema: number
+  questScope: string
+  completata: boolean
 }>({
   nome: '',
   enName: '',
@@ -84,17 +100,20 @@ const form = reactive<{
   children: [],
   forme: [],
   effetti: [],
+  note: [],
   qta: 1,
   utilizzi: null as number | null,
   compendio: false,
   visibilita: '',
   idMondo: null as number | null,
   idSistema: null as number | null,
+  questScope: '',
+  completata: false,
 })
 
 const open = reactive({
   labels: false, modificatori: false, attacchi: false, children: false, forme: false, effetti: false,
-  campiLabel: false, descrOggetto: false, infoOggetto: false, descrAbilita: false,
+  campiLabel: false, descrOggetto: false, infoOggetto: false, descrAbilita: false, note: false,
 })
 
 // Taglia fisica dell'oggetto (es. arma taglia Grande): puramente descrittiva, non modifica
@@ -135,6 +154,8 @@ function preload() {
   form.descrOggetto = {magico: false, psionico: false, divino: false, leggendario: false, unico: false}
   form.infoOggetto = {taglia: '', costo: '', materiale: ''}
   form.descrAbilita = {straordinaria: false, magica: false, soprannaturale: false, naturale: false, divina: false}
+  form.note = []
+  form.completata = false
   for (const l of (props.item.labels ?? [])) {
     const key = l.label ?? ''
     const val = l.valore ?? ''
@@ -180,6 +201,15 @@ function preload() {
       form.descrAbilita.naturale = val === '1'
     } else if (key === 'DESCR_DIV') {
       form.descrAbilita.divina = val === '1'
+    } else if (key === 'QUEST_COMPLETATA') {
+      form.completata = val === '1'
+    } else if (key === 'NOTA') {
+      try {
+        const parsed = JSON.parse(val)
+        form.note.push({testo: String(parsed.testo ?? ''), visibilita: String(parsed.visibilita ?? '')})
+      } catch {
+        // valore non JSON (dato legacy o corrotto): ignora la nota
+      }
     } else if (campoKeysMulti.has(key)) {
       form.campiMulti[key].push(val)
     } else if (campoKeys.has(key) && !form.campi[key]) {
@@ -258,12 +288,15 @@ function restoreSnapshot(snap: any) {
   form.children = snap.children ?? []
   form.forme = snap.forme ?? []
   form.effetti = snap.effetti ?? []
+  form.note = snap.note ?? []
   form.qta = snap.qta ?? 1
   form.utilizzi = snap.utilizzi ?? null
   form.compendio = !!snap.compendio
   form.visibilita = snap.visibilita ?? ''
   form.idMondo = snap.idMondo ?? null
   form.idSistema = snap.idSistema ?? null
+  form.questScope = snap.questScope ?? ''
+  form.completata = !!snap.completata
 }
 
 // Al mount: se sto tornando da una creazione di figlio (draft pendente e NON sono io
@@ -313,6 +346,8 @@ const sumForme = computed(() =>
     form.forme.map(c => c.nome).join(', ') || '—')
 const sumEffetti = computed(() =>
     form.effetti.map(c => `${c.condizione ?? 'Sempre'}: ${c.nome}`).join(', ') || '—')
+const sumNote = computed(() =>
+    form.note.length ? `${form.note.length} nota${form.note.length > 1 ? 'e' : ''}` : '—')
 const sumDescrOggetto = computed(() => {
   const d = form.descrOggetto
   const flags = []
@@ -393,6 +428,12 @@ function buildPayload(): UpdateItemRequest {
   if (form.descrAbilita.soprannaturale) labels.push({label: 'DESCR_SOP', valore: '1'})
   if (form.descrAbilita.naturale) labels.push({label: 'DESCR_NAT', valore: '1'})
   if (form.descrAbilita.divina) labels.push({label: 'DESCR_DIV', valore: '1'})
+  // Quest: stato di completamento (significativo solo per una quest senza sotto-quest)
+  if (form.completata) labels.push({label: 'QUEST_COMPLETATA', valore: '1'})
+  // Note generiche (qualunque item): ogni riga è un JSON {testo, visibilita}
+  for (const n of form.note) {
+    if (n.testo.trim()) labels.push({label: 'NOTA', valore: JSON.stringify({testo: n.testo, visibilita: n.visibilita})})
+  }
   // utilizzi massimi (globale sull'item)
   if (form.utilizzi != null && Number.isInteger(form.utilizzi) && form.utilizzi > 0)
     labels.push({label: 'UTILIZZI', valore: String(form.utilizzi)})
@@ -409,6 +450,9 @@ function buildPayload(): UpdateItemRequest {
     idSistema: form.idSistema ?? undefined,
     // creazione "al volo" di un figlio: tieni mondo/sistema ma non agganciare al FromCompendio
     skipFromCompendio: isLinkCreate.value ? true : undefined,
+    // QUEST radice (non sotto-quest): ambito a cui associare la quest
+    questScope: (props.mode === 'create' && isQuest.value && !isLinkCreate.value && form.questScope) ? form.questScope : undefined,
+    idParty: (props.mode === 'create' && isQuest.value && !isLinkCreate.value) ? props.idParty : undefined,
     labels,
     modificatori: form.modificatori.filter(m => m.statId.trim()),
     attacchi: form.attacchi.filter(a => a.nome.trim()),
@@ -472,7 +516,9 @@ function resetForNew() {
   form.children = []
   form.forme = []
   form.effetti = []
+  form.note = []
   form.qta = 1
+  form.completata = false
 }
 
 function onCancel() {
@@ -527,8 +573,8 @@ function onCancel() {
       </label>
     </div>
 
-    <!-- descrizione anticipata in modalità minimal -->
-    <label v-if="minimal" class="field">
+    <!-- descrizione anticipata in modalità minimal (non per QUEST: niente descrizione) -->
+    <label v-if="minimal && !isQuest" class="field">
       <span class="lbl">Descrizione</span>
       <HtmlEditor v-model="form.descrizione" :rows="10" :disabled="disabledAll"/>
     </label>
@@ -642,7 +688,7 @@ function onCancel() {
                    :class="{ full: c.textarea || c.multiValore, 'field-checkbox': c.tipo === 'checkbox' }">
               <template v-if="c.multiValore">
                 <span class="lbl">{{ c.label }}</span>
-                <MultiValueField v-model="form.campiMulti[c.key]" :textarea="c.textarea"
+                <MultiValueField v-model="form.campiMulti[c.key]" :textarea="c.textarea" :html="c.html"
                                   :disabled="disabledAll" :placeholder="c.placeholder"/>
               </template>
               <template v-else-if="c.tipo === 'checkbox'">
@@ -691,7 +737,9 @@ function onCancel() {
     </template>
 
     <!-- slot per estensioni specifiche del tipo -->
-    <slot name="specifico" :disabled="disabledAll"/>
+    <slot name="specifico" :disabled="disabledAll"
+          :quest-scope="form.questScope" :set-quest-scope="(v: string) => form.questScope = v"
+          :completata="form.completata" :set-completata="(v: boolean) => form.completata = v"/>
 
     <!-- mondo / sistema + visibilità: in non-minimal restano qui, in minimal vanno in fondo -->
     <template v-if="!minimal">
@@ -743,16 +791,17 @@ function onCancel() {
       </div>
     </section>
 
-    <!-- Item collegati (child) -->
-    <section v-if="!minimal" class="fold">
+    <!-- Item collegati (child) — per una QUEST, solo altre QUEST (sotto-quest): resta visibile anche in minimal -->
+    <section v-if="!minimal || isQuest" class="fold">
       <button type="button" class="fold-head" @click="open.children = !open.children"
               :aria-expanded="open.children ? 'true' : 'false'">
-        <span class="fold-title">Item collegati</span>
+        <span class="fold-title">{{ isQuest ? 'Sotto-quest' : 'Item collegati' }}</span>
         <span class="fold-summary">{{ sumChildren }}</span>
         <span class="chev" :class="{ open: open.children }">▸</span>
       </button>
       <div v-show="open.children" class="fold-body">
-        <ChildrenEditor v-model="form.children" :disabled="disabledAll" :exclude-id="props.item.id"
+        <SottoQuestEditor v-if="isQuest" v-model="form.children" :disabled="disabledAll" :id-personaggio="props.idPersonaggio"/>
+        <ChildrenEditor v-else v-model="form.children" :disabled="disabledAll" :exclude-id="props.item.id"
                         :exclude-tipo="separateForme ? 'FORMA' : undefined"
                         @create-new="(t, n) => onCreateChild('children', t, n)"/>
       </div>
@@ -768,6 +817,19 @@ function onCancel() {
       </button>
       <div v-show="open.effetti" class="fold-body">
         <EffettiEditor v-model="form.effetti" :disabled="disabledAll" :id-personaggio="props.idPersonaggio"/>
+      </div>
+    </section>
+
+    <!-- Note: generiche, disponibili su qualunque tipo di item, ognuna con una propria visibilità -->
+    <section class="fold">
+      <button type="button" class="fold-head" @click="open.note = !open.note"
+              :aria-expanded="open.note ? 'true' : 'false'">
+        <span class="fold-title">Note</span>
+        <span class="fold-summary">{{ sumNote }}</span>
+        <span class="chev" :class="{ open: open.note }">▸</span>
+      </button>
+      <div v-show="open.note" class="fold-body">
+        <NotesEditor v-model="form.note" :disabled="disabledAll"/>
       </div>
     </section>
 
@@ -797,7 +859,7 @@ function onCancel() {
       </div>
     </section>
 
-    <label v-if="!minimal" class="field">
+    <label v-if="!minimal && !isQuest" class="field">
       <span class="lbl">Descrizione</span>
       <HtmlEditor v-model="form.descrizione" :rows="10" :disabled="disabledAll"/>
     </label>

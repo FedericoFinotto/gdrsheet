@@ -4,6 +4,7 @@ import Login from '@/views/Login.vue';
 import Party from '@/views/Party.vue';
 import PartyItems from '@/views/PartyItems.vue';
 import PartyBanche from '@/views/PartyBanche.vue';
+import PartyQuests from '@/views/PartyQuests.vue';
 import BancaDetail from '@/views/BancaDetail.vue';
 import Compendio from '@/views/Compendio.vue';
 import Users from '@/views/Users.vue';
@@ -23,6 +24,7 @@ const routes = [
   {path: '/party/:id', name: 'Party', component: Party},
   {path: '/party/:id/items', name: 'PartyItems', component: PartyItems},
   {path: '/party/:id/banche', name: 'PartyBanche', component: PartyBanche},
+  {path: '/party/:id/quests', name: 'PartyQuests', component: PartyQuests},
   {path: '/party/:id/gruppi', name: 'GestisciGruppi', component: GestisciGruppi},
   {path: '/party/:id/gruppo/:gruppoId/milestone', name: 'MilestoneGruppo', component: MilestoneGruppo},
   {path: '/banca/:id', name: 'BancaDetail', component: BancaDetail},

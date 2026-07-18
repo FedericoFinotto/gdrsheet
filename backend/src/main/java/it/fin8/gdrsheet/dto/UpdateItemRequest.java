@@ -60,6 +60,20 @@ public class UpdateItemRequest {
     private Boolean skipFromCompendio;
 
     /**
+     * Solo per tipo QUEST, solo in creazione di una quest RADICE (non di una sotto-quest
+     * collegata come figlia di un'altra quest): "PERSONAGGIO" | "PARTY" | "MONDO". Determina
+     * a chi è associata la quest. Null/assente = nessun ambito root (usato per le sotto-quest,
+     * raggiungibili solo tramite il collegamento dalla quest padre).
+     */
+    private String questScope;
+
+    /**
+     * Solo per tipo QUEST con questScope="PARTY": id del Party a cui associare la quest.
+     * Se assente ma la richiesta ha idPersonaggio, si usa il party del personaggio.
+     */
+    private Integer idParty;
+
+    /**
      * Stato completo delle labels (chiave/valore, chiavi ripetibili).
      */
     private List<LabelRowDTO> labels;

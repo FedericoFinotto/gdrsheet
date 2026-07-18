@@ -298,6 +298,7 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
       </div>
       <button v-if="party" class="btn" @click="router.push(`/party/${party.id}/items`)">Item</button>
       <button v-if="party" class="btn" @click="router.push(`/party/${party.id}/banche`)">Banche</button>
+      <button v-if="party" class="btn" @click="router.push(`/party/${party.id}/quests`)">Quest</button>
       <button v-if="party" class="btn" @click="router.push(`/party/${party.id}/gruppi`)">Gestisci gruppi</button>
       <button v-if="isMaster" class="btn" @click="apriGestione">Gestione</button>
     </header>

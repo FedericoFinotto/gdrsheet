@@ -25,6 +25,8 @@ export interface CampoLabel {
     tipo?: 'text' | 'checkbox' | 'datetime-local'; // default: text
     // se true, la key ammette più righe (es. CATEGORY): editor a lista invece di singolo campo
     multiValore?: boolean;
+    // solo con multiValore: ogni riga è editata con l'editor HTML (rich text) invece di una textarea
+    html?: boolean;
 }
 
 // Attacco figlio (item ATTACCO) gestito inline dall'editor

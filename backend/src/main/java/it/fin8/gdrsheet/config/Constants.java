@@ -142,6 +142,18 @@ public final class Constants {
     public static final String ITEM_LABEL_DESCR_NATURALE = "DESCR_NAT";
     public static final String ITEM_LABEL_DESCR_DIVINA = "DESCR_DIV";
 
+    // QUEST: stato di completamento (solo per quest foglia, senza sotto-quest), ambito party
+    // (id del Party a cui è associata, quando non è né di un personaggio né di un intero mondo)
+    // e note libere (multi-valore: una riga per nota).
+    public static final String ITEM_LABEL_QUEST_COMPLETATA = "QUEST_COMPLETATA";
+    public static final String ITEM_LABEL_QUEST_PARTY = "QUEST_PARTY";
+
+    // Note: generiche, disponibili su qualunque tipo di item (non solo QUEST). Ogni riga
+    // ItemLabel (chiave NOTA, multi-valore) contiene un JSON {testo, visibilita} — stessa
+    // convenzione di ITEM_LABEL_VISIBILITA sopra (vuoto/OWNER/MASTER) ma per-nota anziché
+    // per l'intero item.
+    public static final String ITEM_LABEL_NOTA = "NOTA";
+
     public static final String LABEL_MILESTONE = "MILESTONE";
     public static final String LABEL_MILESTONE_TO = "MILESTONE_TO";
     public static final String LABEL_NOTIZIA_DATA_INIZIO = "DATA_INIZIO";
