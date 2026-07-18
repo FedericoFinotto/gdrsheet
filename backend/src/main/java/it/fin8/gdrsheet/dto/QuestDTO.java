@@ -27,4 +27,8 @@ public class QuestDTO {
     private Integer totali;
     private List<NotaDTO> note;
     private List<QuestDTO> figli;
+    /** Solo per le quest radice: "PARTY" | "MONDO" | "PERSONAGGIO". Null per le sotto-quest. */
+    private String ambito;
+    /** Solo per le quest radice di ambito PERSONAGGIO: nome del personaggio a cui è associata. */
+    private String personaggioNome;
 }

@@ -16,7 +16,6 @@ import it.fin8.gdrsheet.repository.PersonaggioRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -47,41 +46,59 @@ public class QuestService {
         this.objectMapper = objectMapper;
     }
 
-    /** Quest visibili a un personaggio: le sue proprie + quelle del suo party + quelle del mondo del party. */
+    /** Quest visibili a un personaggio: prima quelle del party, poi quelle del mondo, poi le proprie. */
     public List<QuestDTO> getQuestPersonaggio(Integer idPersonaggio, Utente utente) {
         Personaggio pg = personaggioRepository.findPersonaggioById(idPersonaggio);
         if (pg == null) throw new RuntimeException("Personaggio non trovato: " + idPersonaggio);
 
-        // radice -> personaggio "proprietario" ai fini del filtro sulle note (null = party/mondo, nessun proprietario)
-        Map<Item, Personaggio> roots = new LinkedHashMap<>();
-        itemRepository.findQuestByPersonaggioId(idPersonaggio).forEach(i -> roots.put(i, pg));
+        List<QuestDTO> result = new ArrayList<>();
         if (pg.getParty() != null) {
-            itemRepository.findQuestByPartyId(String.valueOf(pg.getParty().getId())).forEach(i -> roots.put(i, null));
+            for (Item i : itemRepository.findQuestByPartyId(String.valueOf(pg.getParty().getId()))) {
+                result.add(tagRoot(buildDTO(i, null, utente), "PARTY", null));
+            }
             if (pg.getParty().getMondo() != null) {
-                itemRepository.findQuestByMondoId(pg.getParty().getMondo().getId()).forEach(i -> roots.put(i, null));
+                for (Item i : itemRepository.findQuestByMondoId(pg.getParty().getMondo().getId())) {
+                    result.add(tagRoot(buildDTO(i, null, utente), "MONDO", null));
+                }
             }
         }
-        return roots.entrySet().stream().map(e -> buildDTO(e.getKey(), e.getValue(), utente)).toList();
+        for (Item i : itemRepository.findQuestByPersonaggioId(idPersonaggio)) {
+            result.add(tagRoot(buildDTO(i, pg, utente), "PERSONAGGIO", pg));
+        }
+        return result;
     }
 
     /**
-     * Quest visibili a un party: le sue proprie + quelle del mondo del party + le quest
-     * personali di OGNI personaggio del party (visibili qui in sola lettura: le note con
-     * visibilità OWNER restano filtrate in base a chi sta effettivamente guardando).
+     * Quest visibili a un party: prima quelle del party, poi quelle del mondo, poi le quest
+     * personali di OGNI personaggio del party (in ordine alfabetico di personaggio) — visibili
+     * qui in sola lettura: le note con visibilità OWNER restano filtrate in base a chi sta
+     * effettivamente guardando.
      */
     public List<QuestDTO> getQuestParty(Integer idParty, Utente utente) {
         Party party = partyRepository.findById(idParty)
                 .orElseThrow(() -> new RuntimeException("Party non trovato: " + idParty));
 
-        Map<Item, Personaggio> roots = new LinkedHashMap<>();
-        itemRepository.findQuestByPartyId(String.valueOf(idParty)).forEach(i -> roots.put(i, null));
+        List<QuestDTO> result = new ArrayList<>();
+        for (Item i : itemRepository.findQuestByPartyId(String.valueOf(idParty))) {
+            result.add(tagRoot(buildDTO(i, null, utente), "PARTY", null));
+        }
         if (party.getMondo() != null) {
-            itemRepository.findQuestByMondoId(party.getMondo().getId()).forEach(i -> roots.put(i, null));
+            for (Item i : itemRepository.findQuestByMondoId(party.getMondo().getId())) {
+                result.add(tagRoot(buildDTO(i, null, utente), "MONDO", null));
+            }
         }
         for (Personaggio membro : personaggioRepository.findAllByParty_IdOrderByNomeAsc(idParty)) {
-            itemRepository.findQuestByPersonaggioId(membro.getId()).forEach(i -> roots.put(i, membro));
+            for (Item i : itemRepository.findQuestByPersonaggioId(membro.getId())) {
+                result.add(tagRoot(buildDTO(i, membro, utente), "PERSONAGGIO", membro));
+            }
         }
-        return roots.entrySet().stream().map(e -> buildDTO(e.getKey(), e.getValue(), utente)).toList();
+        return result;
+    }
+
+    private QuestDTO tagRoot(QuestDTO dto, String ambito, Personaggio personaggio) {
+        dto.setAmbito(ambito);
+        dto.setPersonaggioNome(personaggio != null ? personaggio.getNome() : null);
+        return dto;
     }
 
     private QuestDTO buildDTO(Item item, Personaggio rootOwner, Utente utente) {
@@ -107,7 +124,7 @@ public class QuestService {
                 .filter(n -> authzService.canViewVisibilita(utente, rootOwner, n.getVisibilita()))
                 .toList();
 
-        return new QuestDTO(item.getId(), item.getNome(), item.getDescrizione(), completata, completati, totali, note, figliDTO);
+        return new QuestDTO(item.getId(), item.getNome(), item.getDescrizione(), completata, completati, totali, note, figliDTO, null, null);
     }
 
     /** Ogni riga ItemLabel NOTA contiene un JSON {testo, visibilita}; righe malformate vengono ignorate. */

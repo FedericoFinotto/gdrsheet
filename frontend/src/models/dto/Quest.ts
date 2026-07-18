@@ -17,4 +17,8 @@ export interface Quest {
     // già filtrate lato server in base a chi guarda: solo le note effettivamente visibili.
     note: Nota[];
     figli: Quest[];
+    // Solo per le quest radice: "PARTY" | "MONDO" | "PERSONAGGIO". Assente/null per le sotto-quest.
+    ambito: string | null;
+    // Solo per le quest radice di ambito PERSONAGGIO: nome del personaggio a cui è associata.
+    personaggioNome: string | null;
 }

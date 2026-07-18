@@ -17,6 +17,14 @@ const busy = ref(false)
 const isLeaf = computed(() => !props.quest.figli.length)
 const pct = computed(() => props.quest.totali > 0 ? Math.round(props.quest.completati * 100 / props.quest.totali) : 0)
 
+// Chip ambito: solo per le quest radice (le sotto-quest non hanno un proprio ambito).
+const ambitoLabel = computed(() => {
+  if (props.quest.ambito === 'PARTY') return 'Party'
+  if (props.quest.ambito === 'MONDO') return 'Mondo'
+  if (props.quest.ambito === 'PERSONAGGIO') return `Personaggio: ${props.quest.personaggioNome ?? '?'}`
+  return null
+})
+
 const VISIBILITA_LABELS: Record<string, string> = {
   OWNER: 'Visibile solo al proprietario del personaggio',
   MASTER: 'Visibile solo al Master',
@@ -45,13 +53,16 @@ function edit() {
 <template>
   <div class="quest-node" :class="{completa: pct === 100}">
     <div class="quest-head" @click="open = !open">
-      <span class="chev" :class="{open}">▸</span>
-      <span class="nome">{{ quest.nome }}</span>
-      <span class="progress">
-        <span class="bar"><span class="fill" :style="{width: pct + '%'}"/></span>
-        <span class="count">{{ quest.completati }}/{{ quest.totali }} ({{ pct }}%)</span>
-      </span>
-      <button type="button" class="btn-edit" @click.stop="edit" title="Modifica">✎</button>
+      <span v-if="ambitoLabel" class="ambito-chip" :class="'chip-' + quest.ambito?.toLowerCase()">{{ ambitoLabel }}</span>
+      <div class="quest-head-main">
+        <span class="chev" :class="{open}">▸</span>
+        <span class="nome">{{ quest.nome }}</span>
+        <span class="progress">
+          <span class="bar"><span class="fill" :style="{width: pct + '%'}"/></span>
+          <span class="count">{{ quest.completati }}/{{ quest.totali }} ({{ pct }}%)</span>
+        </span>
+        <button type="button" class="btn-edit" @click.stop="edit" title="Modifica">✎</button>
+      </div>
     </div>
     <div v-if="open" class="quest-body">
       <div v-if="quest.descrizione" class="descrizione" v-safe-html="quest.descrizione"></div>
@@ -79,9 +90,20 @@ function edit() {
 }
 .quest-node.completa { border-color: #bbf7d0; background: #f0fdf4; }
 .quest-head {
-  display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: .5rem;
+  display: flex; flex-direction: column; gap: .3rem;
   padding: .5rem .65rem; cursor: pointer;
 }
+.quest-head-main {
+  display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: .5rem;
+}
+.ambito-chip {
+  align-self: flex-start;
+  font-size: .68rem; font-weight: 700; letter-spacing: .02em;
+  border-radius: .35rem; padding: .1rem .45rem;
+}
+.ambito-chip.chip-party { background: #ede9fe; color: #5b21b6; }
+.ambito-chip.chip-mondo { background: #dbeafe; color: #1d4ed8; }
+.ambito-chip.chip-personaggio { background: #dcfce7; color: #166534; }
 .chev { transition: transform .15s ease; flex-shrink: 0; }
 .chev.open { transform: rotate(90deg); }
 .nome { font-weight: 600; min-width: 0; word-break: break-word; }
