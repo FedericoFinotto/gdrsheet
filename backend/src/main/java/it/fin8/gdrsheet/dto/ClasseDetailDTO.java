@@ -29,6 +29,14 @@ public class ClasseDetailDTO {
     private Integer idSistema;     // solo in creazione
     private String descrizione;
 
+    // Info Razza: campi puramente descrittivi, valorizzati solo per tipo RAZZA.
+    private String razzaTaglia;
+    private String razzaVelocita;
+    private String razzaCaratteristiche;
+    private String razzaLap;          // LAP = Level Adjustment
+    private String razzaSpazio;
+    private String razzaPortata;
+
     /**
      * Stat id delle abilità di classe (label ABCLASSE, comma-separated).
      */

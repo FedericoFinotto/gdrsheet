@@ -100,6 +100,7 @@ const itemsMunizioni = computed(() => wrap(items.value?.munizioni));
 const itemsContenitori = computed(() => wrap(items.value?.contenitori));
 const itemsFrutti = computed(() => wrap(items.value?.frutti));
 const itemsIdoli = computed(() => wrap(items.value?.idoli));
+const itemsVeicoli = computed(() => wrap(items.value?.veicoli));
 
 // Abilità attive = hanno utilizziTotale visibile (> 0); passive = tutto il resto
 const itemsAbilita = computed(() =>
@@ -169,10 +170,30 @@ function utilizziCol() {
   }
 }
 
+// Colori dei chip prefisso: assegnati in modo deterministico in base al testo del prefisso
+// (di norma un prefisso diverso = un oggetto genitore diverso), così prefissi diversi
+// risultano visivamente distinguibili nell'elenco.
+const PALETTE_PREFISSO = [
+  {background: '#e0e7ff', color: '#3730a3'},
+  {background: '#fce7f3', color: '#9d174d'},
+  {background: '#dcfce7', color: '#166534'},
+  {background: '#fef3c7', color: '#92400e'},
+  {background: '#cffafe', color: '#155e75'},
+  {background: '#fee2e2', color: '#991b1b'},
+  {background: '#ede9fe', color: '#5b21b6'},
+  {background: '#dbeafe', color: '#1d4ed8'},
+]
+function colorePrefisso(testo: string): { background: string; color: string } {
+  let hash = 0
+  for (let i = 0; i < testo.length; i++) hash = (hash * 31 + testo.charCodeAt(i)) | 0
+  return PALETTE_PREFISSO[Math.abs(hash) % PALETTE_PREFISSO.length]
+}
+
 // chip descrittori prima del nome: Abilità (Str/Mag/Sop/Div) + Oggetto (Mag/Psi/Div/Leg/Uni),
 // entrambi i gruppi possono comparire sullo stesso item.
-function descrittoriChips(row: any): { text: string; class?: string }[] {
-  const chips: { text: string; class?: string }[] = []
+function descrittoriChips(row: any): { text: string; class?: string; style?: Record<string, string> }[] {
+  const chips: { text: string; class?: string; style?: Record<string, string> }[] = []
+  if (row.prefissoOggetti) chips.push({text: row.prefissoOggetti, style: colorePrefisso(row.prefissoOggetti)})
   if (row.descrStraordinaria) chips.push({text: 'Str', class: 'chip-str'})
   if (row.descrMagica) chips.push({text: 'Mag', class: 'chip-mag'})
   if (row.descrSoprannaturale) chips.push({text: 'Sop', class: 'chip-sop'})
@@ -202,6 +223,7 @@ const columnsConsumabili = col('Consumabili', true);
 const columnsMunizioni = col('Munizioni', true);
 const columnsContenitori = col('Contenitori', true);
 const columnsAltro = col('Altro', true);
+const columnsVeicoli = col('Veicoli');
 const columnsPatti = col('Patti');
 const columnsNotizie = col('Notizie');
 const columnsFrutti = col('Frutti');
@@ -255,6 +277,8 @@ const columnsEffetti = col('Effetti');
     <Tabella v-if="itemsContenitori.length > 0" :columns="columnsContenitori" :expandable="true" :items="itemsContenitori"/>
     <div class="spazietto"/>
     <Tabella v-if="itemsAltro.length > 0" :columns="columnsAltro" :expandable="true" :items="itemsAltro"/>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsVeicoli.length > 0" :columns="columnsVeicoli" :expandable="true" :items="itemsVeicoli"/>
     <div class="spazietto"/>
     <Tabella v-if="itemsPatti.length > 0" :columns="columnsPatti" :expandable="true" :items="itemsPatti"/>
     <div class="spazietto"/>

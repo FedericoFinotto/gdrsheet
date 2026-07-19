@@ -66,6 +66,13 @@ const form = reactive({
   sezioni: [] as Array<{ liste: string[]; progressione: string; bonus: string; slot: string[] }>,
   rank1: '',
   rank: '',
+  // Info Razza (solo tipo RAZZA): campi puramente descrittivi.
+  razzaTaglia: '',
+  razzaVelocita: '',
+  razzaCaratteristiche: '',
+  razzaLap: '',
+  razzaSpazio: '',
+  razzaPortata: '',
   numLivelli: 20,
   dv: '',
   livelli: Array.from({length: 20}, (_, i) => ({
@@ -79,6 +86,20 @@ watch([autoMondo, autoSistema], ([m, s]) => {
   if (m !== null && form.idMondo === null) form.idMondo = m
   if (s !== null && form.idSistema === null) form.idSistema = s
 }, {immediate: true})
+
+const isRazza = computed(() => props.item.tipo === 'RAZZA')
+const TAGLIE_RAZZA = [
+  {value: '', label: '— nessuna —'},
+  {value: 'Piccolissima', label: 'Piccolissima'},
+  {value: 'Minuta', label: 'Minuta'},
+  {value: 'Minuscola', label: 'Minuscola'},
+  {value: 'Piccola', label: 'Piccola'},
+  {value: 'Media', label: 'Media'},
+  {value: 'Grande', label: 'Grande'},
+  {value: 'Enorme', label: 'Enorme'},
+  {value: 'Mastodontica', label: 'Mastodontica'},
+  {value: 'Colossale', label: 'Colossale'},
+]
 
 const loading = ref(props.mode !== 'create')
 const busy = ref(false)
@@ -110,6 +131,12 @@ onMounted(async () => {
     form.nome = d.nome ?? ''
     form.enName = d.enName ?? ''
     form.manuale = d.manuale ?? ''
+    form.razzaTaglia = d.razzaTaglia ?? ''
+    form.razzaVelocita = d.razzaVelocita ?? ''
+    form.razzaCaratteristiche = d.razzaCaratteristiche ?? ''
+    form.razzaLap = d.razzaLap ?? ''
+    form.razzaSpazio = d.razzaSpazio ?? ''
+    form.razzaPortata = d.razzaPortata ?? ''
     form.idMondo = d.idMondo ?? null
     form.idSistema = d.idSistema ?? null
     form.descrizione = d.descrizione ?? ''
@@ -341,6 +368,12 @@ function buildClassePayload() {
     nome: form.nome.trim(),
     enName: form.enName.trim() || null,
     manuale: form.manuale.trim() || null,
+    razzaTaglia: form.razzaTaglia.trim() || null,
+    razzaVelocita: form.razzaVelocita.trim() || null,
+    razzaCaratteristiche: form.razzaCaratteristiche.trim() || null,
+    razzaLap: form.razzaLap.trim() || null,
+    razzaSpazio: form.razzaSpazio.trim() || null,
+    razzaPortata: form.razzaPortata.trim() || null,
     idMondo: form.idMondo ?? null,
     idSistema: form.idSistema ?? null,
     descrizione: form.descrizione || null,
@@ -478,7 +511,14 @@ function lpClick() {
 }
 
 /* sezioni richiudibili */
-const open = reactive({abilita: false, incantesimi: false, tabella: false, concesse: false})
+const open = reactive({abilita: false, incantesimi: false, tabella: false, concesse: false, infoRazza: false})
+const sumInfoRazza = computed(() => {
+  const flags = []
+  if (form.razzaTaglia.trim()) flags.push(`Taglia: ${form.razzaTaglia.trim()}`)
+  if (form.razzaVelocita.trim()) flags.push(`Velocità: ${form.razzaVelocita.trim()}`)
+  if (form.razzaLap.trim()) flags.push(`LAP: ${form.razzaLap.trim()}`)
+  return flags.join(', ') || '—'
+})
 </script>
 
 <template>
@@ -522,6 +562,45 @@ const open = reactive({abilita: false, incantesimi: false, tabella: false, conce
         <span class="lbl">Descrizione</span>
         <HtmlEditor v-model="form.descrizione" :rows="4" :disabled="disabledAll"/>
       </label>
+
+      <!-- Info Razza (solo tipo RAZZA): campi puramente descrittivi -->
+      <section v-if="isRazza" class="fold">
+        <button type="button" class="fold-head" @click="open.infoRazza = !open.infoRazza">
+          <span class="fold-title">Info Razza</span>
+          <span class="fold-summary">{{ sumInfoRazza }}</span>
+          <span class="chev" :class="{ open: open.infoRazza }">▸</span>
+        </button>
+        <div v-show="open.infoRazza" class="fold-body">
+          <div class="rank-grid">
+            <label class="field">
+              <span class="lbl">Taglia</span>
+              <SearchSelect v-model="form.razzaTaglia" :options="TAGLIE_RAZZA" :disabled="disabledAll" :sort="false"/>
+            </label>
+            <label class="field">
+              <span class="lbl">Velocità</span>
+              <input v-model.trim="form.razzaVelocita" type="text" placeholder="Es.: 9 m" :disabled="disabledAll"/>
+            </label>
+          </div>
+          <label class="field">
+            <span class="lbl">Caratteristiche</span>
+            <input v-model.trim="form.razzaCaratteristiche" type="text" placeholder="Es.: +2 Destrezza, -2 Forza" :disabled="disabledAll"/>
+          </label>
+          <div class="rank-grid">
+            <label class="field">
+              <span class="lbl">LAP (Level Adjustment)</span>
+              <input v-model.trim="form.razzaLap" type="text" placeholder="Es.: +0" :disabled="disabledAll"/>
+            </label>
+            <label class="field">
+              <span class="lbl">Spazio</span>
+              <input v-model.trim="form.razzaSpazio" type="text" placeholder="Es.: 1,5 m" :disabled="disabledAll"/>
+            </label>
+          </div>
+          <label class="field">
+            <span class="lbl">Portata</span>
+            <input v-model.trim="form.razzaPortata" type="text" placeholder="Es.: 1,5 m" :disabled="disabledAll"/>
+          </label>
+        </div>
+      </section>
 
       <!-- Abilità di classe -->
       <section class="fold">

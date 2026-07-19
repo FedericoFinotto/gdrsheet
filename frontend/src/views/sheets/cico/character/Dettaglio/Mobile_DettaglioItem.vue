@@ -53,6 +53,9 @@ const listaAbilita = ref<ItemDB[]>([]);
 const listaAttacchi = ref<ItemDB[]>([]);
 const listaMaledizioni = ref<ItemDB[]>([]);
 const listaEffetti = ref<{ id: number; nome: string; condizione: string | null }[]>([]);
+// Item collegati di una TRASFORMAZIONE, di qualunque tipo non già mostrato in una sezione
+// dedicata (Abilità/Attacchi/Maledizioni/Effetti sopra).
+const listaAltriCollegati = ref<ItemDB[]>([]);
 const mappaAvanzamenti = ref<Record<number, Avanzamento[]>>({});
 const mappaModificatori = ref<Record<number, Modificatore[]>>({});
 const listaAvanzamenti = ref<Avanzamento[]>([]);
@@ -147,6 +150,12 @@ onMounted(async () => {
           nome: c.itemTarget.nome,
           condizione: c.labels?.find(l => l.label === 'CONDIZIONE')?.valore ?? null,
         }));
+    if (item.tipo === TIPO_ITEM.TRASFORMAZIONE) {
+      const ESCLUSI = new Set([TIPO_ITEM.ABILITA, TIPO_ITEM.ATTACCO, TIPO_ITEM.MALEDIZIONE, TIPO_ITEM.EFFETTO]);
+      listaAltriCollegati.value = children
+          .filter(c => !ESCLUSI.has(c.itemTarget.tipo))
+          .map(c => c.itemTarget);
+    }
     listaAvanzamenti.value = avanzamenti;
     mappaAvanzamenti.value = buildMappaItemAvanzamenti(avanzamenti)
     mappaModificatori.value = buildMappaModificatoriAvanzamenti(avanzamenti)
@@ -342,6 +351,23 @@ const infoOggetto = computed(() => {
   const materiale = getItemLabel(itemDetail.value, LABELS.MATERIALE)
   if (!taglia && !costo && !materiale) return null
   return {taglia, costo, materiale}
+})
+const infoRazza = computed(() => {
+  if (!itemDetail.value || itemDetail.value.tipo !== TIPO_ITEM.RAZZA) return null
+  const taglia = getItemLabel(itemDetail.value, LABELS.RAZZA_TAGLIA)
+  const velocita = getItemLabel(itemDetail.value, LABELS.RAZZA_VELOCITA)
+  const caratteristiche = getItemLabel(itemDetail.value, LABELS.RAZZA_CARATTERISTICHE)
+  const lap = getItemLabel(itemDetail.value, LABELS.RAZZA_LAP)
+  const spazio = getItemLabel(itemDetail.value, LABELS.RAZZA_SPAZIO)
+  const portata = getItemLabel(itemDetail.value, LABELS.RAZZA_PORTATA)
+  if (!taglia && !velocita && !caratteristiche && !lap && !spazio && !portata) return null
+  return {taglia, velocita, caratteristiche, lap, spazio, portata}
+})
+const infoVeicolo = computed(() => {
+  if (!itemDetail.value || itemDetail.value.tipo !== TIPO_ITEM.VEICOLO) return null
+  const velocita = getItemLabel(itemDetail.value, LABELS.VEICOLO_VELOCITA)
+  if (!velocita) return null
+  return {velocita}
 })
 
 function showInfoItemPopup(itm) {
@@ -540,6 +566,17 @@ function showInfoItemPopup(itm) {
       <span v-if="infoOggetto.costo"><strong>Costo:</strong> {{ infoOggetto.costo }}</span>
       <span v-if="infoOggetto.materiale"><strong>Materiale:</strong> {{ infoOggetto.materiale }}</span>
     </div>
+    <div v-if="infoRazza" class="costo-materiale">
+      <span v-if="infoRazza.taglia"><strong>Taglia:</strong> {{ infoRazza.taglia }}</span>
+      <span v-if="infoRazza.velocita"><strong>Velocità:</strong> {{ infoRazza.velocita }}</span>
+      <span v-if="infoRazza.caratteristiche"><strong>Caratteristiche:</strong> {{ infoRazza.caratteristiche }}</span>
+      <span v-if="infoRazza.lap"><strong>LAP:</strong> {{ infoRazza.lap }}</span>
+      <span v-if="infoRazza.spazio"><strong>Spazio:</strong> {{ infoRazza.spazio }}</span>
+      <span v-if="infoRazza.portata"><strong>Portata:</strong> {{ infoRazza.portata }}</span>
+    </div>
+    <div v-if="infoVeicolo" class="costo-materiale">
+      <span><strong>Velocità:</strong> {{ infoVeicolo.velocita }}</span>
+    </div>
 
     <!-- Descrizione -->
     <div v-if="itemDetail.descrizione">
@@ -619,6 +656,16 @@ function showInfoItemPopup(itm) {
       <p><strong>Maledizioni:</strong></p>
       <p v-for="mal in listaMaledizioni" :key="mal.id">
         {{ mal.nome }}
+      </p>
+      <div class="spazietto"/>
+    </div>
+
+    <!-- Item collegati (trasformazioni: qualunque item collegato non già mostrato sopra) -->
+    <div v-if="listaAltriCollegati.length">
+      <p><strong>Item collegati:</strong></p>
+      <p v-for="itm in listaAltriCollegati" :key="itm.id">
+        {{ itm.nome }}
+        <Icona name="INFO" @click.stop="showInfoItemPopup(itm)"/>
       </p>
       <div class="spazietto"/>
     </div>

@@ -39,6 +39,7 @@ public class ItemsDTO {
     private List<ItemDTO> patti;
     /** Collegamenti verso item EFFETTO, aggregati su tutti gli item del personaggio. */
     private List<EffettoDTO> effetti;
+    private List<ItemDTO> veicoli;
 
     public ItemsDTO() {
         abilita = new ArrayList<>();
@@ -66,5 +67,6 @@ public class ItemsDTO {
         notizie = new ArrayList<>();
         patti = new ArrayList<>();
         effetti = new ArrayList<>();
+        veicoli = new ArrayList<>();
     }
 }

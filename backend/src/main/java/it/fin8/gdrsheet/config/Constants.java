@@ -56,6 +56,13 @@ public final class Constants {
     // Taglia FISICA dell'oggetto stesso (es. un'arma taglia Grande): puramente descrittiva,
     // non influisce sulla taglia del personaggio (a differenza di ITEM_LABEL_TAGLIA/ADD_TAGLIA sopra).
     public static final String ITEM_LABEL_TAGLIA_OGGETTO = "TAGLIA_OGGETTO";
+    // Prefisso mostrato come chip prima del nome, nell'inventario, sugli item collegati
+    // (child) di QUESTO oggetto — es. una faretra con prefisso "Freccia" mostra le sue
+    // frecce come "Freccia: Freccia +1" nell'elenco oggetti.
+    public static final String ITEM_LABEL_PREFISSO_OGGETTI = "PREFISSO_OGGETTI";
+
+    // Info Veicolo: campi descrittivi (solo tipo VEICOLO).
+    public static final String ITEM_LABEL_VEICOLO_VELOCITA = "VEICOLO_VELOCITA";
     public static final String ITEM_LABEL_SPELL_SLOT = "SP_SLOT";
     public static final String ITEM_LABEL_SPELL_SLOT_BONUS = "SP_SLOT_BONUS";
     public static final String COLLEGAMENTO_LABEL_LIVELLO = "LIVELLO";
@@ -113,6 +120,14 @@ public final class Constants {
     public static final String ITEM_LABEL_VISIBILITA = "VISIBILITA";   // visibilità item: vuoto=tutti, OWNER, MASTER
     public static final String ITEM_VISIBILITA_OWNER = "OWNER";        // solo proprietario + master + admin
     public static final String ITEM_VISIBILITA_MASTER = "MASTER";      // solo master + admin
+
+    // Info Razza: campi descrittivi (solo tipo RAZZA), puramente informativi come EN_NAME/MANUALE_SP.
+    public static final String ITEM_LABEL_RAZZA_TAGLIA = "RAZZA_TAGLIA";
+    public static final String ITEM_LABEL_RAZZA_VELOCITA = "RAZZA_VELOCITA";
+    public static final String ITEM_LABEL_RAZZA_CARATTERISTICHE = "RAZZA_CARATTERISTICHE";
+    public static final String ITEM_LABEL_RAZZA_LAP = "RAZZA_LAP";
+    public static final String ITEM_LABEL_RAZZA_SPAZIO = "RAZZA_SPAZIO";
+    public static final String ITEM_LABEL_RAZZA_PORTATA = "RAZZA_PORTATA";
 
     // Label da import bulk di compendio (es. Talenti da dndtools.org, vedi scripts/dndtools-scraper).
     // ITEM_LABEL_MANUALE (sopra) è riusata per il manuale di provenienza.

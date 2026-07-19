@@ -22,6 +22,18 @@ export const LABELS = {
     // Taglia fisica dell'oggetto (es. arma taglia Grande): puramente descrittiva, diversa da TAGLIA
     // sopra che invece imposta la taglia del personaggio.
     TAGLIA_OGGETTO: 'TAGLIA_OGGETTO',
+    // Prefisso mostrato come chip prima del nome nell'inventario, sugli item collegati (child)
+    // di questo oggetto (es. una faretra con prefisso "Freccia" sulle sue frecce).
+    PREFISSO_OGGETTI: 'PREFISSO_OGGETTI',
+    // Info Veicolo: campi descrittivi, valorizzati solo per item di tipo VEICOLO.
+    VEICOLO_VELOCITA: 'VEICOLO_VELOCITA',
+    // Info Razza: campi puramente descrittivi, valorizzati solo per item di tipo RAZZA.
+    RAZZA_TAGLIA: 'RAZZA_TAGLIA',
+    RAZZA_VELOCITA: 'RAZZA_VELOCITA',
+    RAZZA_CARATTERISTICHE: 'RAZZA_CARATTERISTICHE',
+    RAZZA_LAP: 'RAZZA_LAP',
+    RAZZA_SPAZIO: 'RAZZA_SPAZIO',
+    RAZZA_PORTATA: 'RAZZA_PORTATA',
     TIRO_DANNI: 'TPD',
     TIRO_COLPIRE: 'TPC',
     CLASSE_LIVELLO: 'LVL_CLASSE',

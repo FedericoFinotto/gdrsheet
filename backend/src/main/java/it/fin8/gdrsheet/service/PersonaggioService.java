@@ -356,6 +356,9 @@ public class PersonaggioService {
             if (TipoItem.MALEDIZIONE.equals(itm.getTipo())) {
                 itemsDTO.getMaledizioni().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
+            if (TipoItem.VEICOLO.equals(itm.getTipo())) {
+                itemsDTO.getVeicoli().add(itemMapper.toDTO(itm, uTotale, uUsati));
+            }
             if (TipoItem.TRASFORMAZIONE.equals(itm.getTipo())) {
                 flatTrasformazioni.add(itemMapper.toTrasformazioneDTO(itm));
             }
@@ -492,7 +495,7 @@ public class PersonaggioService {
                         itemsDTO.getClassi(), itemsDTO.getRazze(), itemsDTO.getMaledizioni(), itemsDTO.getCompetenze(),
                         itemsDTO.getLingue(), itemsDTO.getIdoli(), itemsDTO.getContenitori(),
                         itemsDTO.getForme(), itemsDTO.getPrivilegi(), itemsDTO.getAltro(), itemsDTO.getNotizie(),
-                        itemsDTO.getPatti())
+                        itemsDTO.getPatti(), itemsDTO.getVeicoli())
                 .flatMap(List::stream)
                 .forEach(dto -> dto.setFigliAttacchi(figliAttacchiMap.getOrDefault(dto.getId(), List.of())));
         // I FRUTTO sono List<FruttoDTO> (tipo diverso da List<ItemDTO>): gestiti a parte.

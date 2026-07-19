@@ -69,4 +69,7 @@ public class ItemDTO {
     private Boolean divino;
     private Boolean leggendario;
     private Boolean unico;
+    /** Prefisso (label PREFISSO_OGGETTI) di un item GENITORE di questo item, se presente:
+     *  mostrato come chip prima del nome nell'inventario. Null se nessun genitore lo ha impostato. */
+    private String prefissoOggetti;
 }

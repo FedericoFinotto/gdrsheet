@@ -49,4 +49,5 @@ export interface Items {
     notizie: Item[];
     patti: Item[];
     effetti: Effetto[];
+    veicoli: Item[];
 }

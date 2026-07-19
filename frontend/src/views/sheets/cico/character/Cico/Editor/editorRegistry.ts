@@ -60,6 +60,7 @@ export const EDITOR_BY_TYPE: Record<TipoItem, Component> = {
     [TIPO_ITEM.NOTIZIA]: NotiziaEditor,
     [TIPO_ITEM.EFFETTO]: BaseItemEditor,
     [TIPO_ITEM.QUEST]: QuestEditor,
+    [TIPO_ITEM.VEICOLO]: BaseItemEditor,
 }
 
 // Fallback per eventuali tipi non mappati
@@ -100,6 +101,7 @@ export const TIPO_ITEM_LABELS: Record<TipoItem, string> = {
     [TIPO_ITEM.NOTIZIA]: 'Notizia',
     [TIPO_ITEM.EFFETTO]: 'Effetto',
     [TIPO_ITEM.QUEST]: 'Quest',
+    [TIPO_ITEM.VEICOLO]: 'Veicolo',
 }
 
 // Tipi creabili dalla pagina di creazione.

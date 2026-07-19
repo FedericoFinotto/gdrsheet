@@ -15,6 +15,23 @@ function onInput() {
   if (el.value) emit('update:modelValue', el.value.innerHTML)
 }
 
+// Modalità sorgente: mostra/modifica l'HTML grezzo (per incollare HTML già pronto).
+const sourceMode = ref(false)
+const sourceText = ref('')
+
+function toggleSource() {
+  if (props.disabled) return
+  if (sourceMode.value) {
+    // torno alla vista normale: applico l'HTML digitato/incollato
+    if (el.value) el.value.innerHTML = sourceText.value
+    emit('update:modelValue', sourceText.value)
+    sourceMode.value = false
+  } else {
+    sourceText.value = el.value?.innerHTML ?? props.modelValue ?? ''
+    sourceMode.value = true
+  }
+}
+
 // true durante un exec() lanciato dalla toolbar: il focus() qui sotto è "nostro" e non deve
 // far scattare il reset di onFocus (altrimenti annullerebbe il toggle appena richiesto dall'utente)
 let programmatic = false
@@ -62,18 +79,30 @@ watch(() => props.modelValue, (v) => {
 <template>
   <div class="html-editor" :class="{ disabled }">
     <div class="he-toolbar">
-      <button type="button" :disabled="disabled" title="Grassetto" @click="exec('bold')"><b>B</b></button>
-      <button type="button" :disabled="disabled" title="Corsivo" @click="exec('italic')"><i>I</i></button>
-      <button type="button" :disabled="disabled" title="Sottolineato" @click="exec('underline')"><u>U</u></button>
+      <button type="button" :disabled="disabled || sourceMode" title="Grassetto" @click="exec('bold')"><b>B</b></button>
+      <button type="button" :disabled="disabled || sourceMode" title="Corsivo" @click="exec('italic')"><i>I</i></button>
+      <button type="button" :disabled="disabled || sourceMode" title="Sottolineato" @click="exec('underline')"><u>U</u></button>
       <span class="he-sep"/>
-      <button type="button" :disabled="disabled" title="Elenco puntato" @click="exec('insertUnorderedList')">•</button>
-      <button type="button" :disabled="disabled" title="Elenco numerato" @click="exec('insertOrderedList')">1.</button>
+      <button type="button" :disabled="disabled || sourceMode" title="Elenco puntato" @click="exec('insertUnorderedList')">•</button>
+      <button type="button" :disabled="disabled || sourceMode" title="Elenco numerato" @click="exec('insertOrderedList')">1.</button>
       <span class="he-sep"/>
-      <button type="button" :disabled="disabled" title="Titolo" @click="exec('formatBlock', 'H3')">H</button>
-      <button type="button" :disabled="disabled" title="Paragrafo" @click="exec('formatBlock', 'P')">¶</button>
-      <button type="button" :disabled="disabled" title="Rimuovi formattazione" @click="exec('removeFormat')">⌫</button>
+      <button type="button" :disabled="disabled || sourceMode" title="Titolo" @click="exec('formatBlock', 'H3')">H</button>
+      <button type="button" :disabled="disabled || sourceMode" title="Paragrafo" @click="exec('formatBlock', 'P')">¶</button>
+      <button type="button" :disabled="disabled || sourceMode" title="Rimuovi formattazione" @click="exec('removeFormat')">⌫</button>
+      <span class="he-sep"/>
+      <button type="button" :disabled="disabled" class="he-source-btn" :class="{active: sourceMode}"
+              title="Vedi/modifica il codice HTML" @click="toggleSource">&lt;/&gt;</button>
     </div>
+    <textarea
+        v-if="sourceMode"
+        v-model="sourceText"
+        class="he-source"
+        :disabled="disabled"
+        :style="{ minHeight: (rows * 1.4) + 'rem' }"
+        spellcheck="false"
+    />
     <div
+        v-else
         ref="el"
         class="he-content"
         :contenteditable="!disabled"
@@ -120,6 +149,8 @@ watch(() => props.modelValue, (v) => {
 
 .he-toolbar button:hover { background: #e5e7eb; }
 .he-toolbar button:disabled { opacity: .5; cursor: default; }
+.he-source-btn { font-family: monospace; font-size: .8rem; }
+.he-source-btn.active { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
 
 .he-sep {
   width: 1px;
@@ -147,4 +178,18 @@ watch(() => props.modelValue, (v) => {
 .he-content :deep(h3) { margin: .4rem 0 .2rem; font-size: 1rem; }
 
 .he-content :deep(p) { margin: .3rem 0; }
+
+.he-source {
+  display: block;
+  width: 100%;
+  padding: .5rem .6rem;
+  border: 0;
+  outline: none;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  resize: vertical;
+  overflow-y: auto;
+  max-height: 30rem;
+  box-sizing: border-box;
+}
+.he-source:disabled { opacity: .6; }
 </style>

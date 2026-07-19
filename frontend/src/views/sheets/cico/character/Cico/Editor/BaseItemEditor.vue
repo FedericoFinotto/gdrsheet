@@ -54,6 +54,7 @@ const showQta = computed(() => TIPI_CON_QTA.includes(props.item.tipo))
 // la quest RADICE: personaggio/party/mondo) si sceglie solo in creazione e solo per la radice
 // (le sotto-quest, create dal flusso "crea e collega", non hanno un ambito proprio).
 const isQuest = computed(() => props.item.tipo === 'QUEST')
+const isVeicolo = computed(() => props.item.tipo === 'VEICOLO')
 const QUEST_SCOPE_OPTS = [
   {value: 'PERSONAGGIO', label: 'Personaggio'},
   {value: 'PARTY', label: 'Party'},
@@ -68,7 +69,8 @@ const form = reactive<{
   campi: Record<string, string>
   campiMulti: Record<string, string[]>
   descrOggetto: { magico: boolean; psionico: boolean; divino: boolean; leggendario: boolean; unico: boolean }
-  infoOggetto: { taglia: string; costo: string; materiale: string }
+  infoOggetto: { taglia: string; costo: string; materiale: string; prefisso: string }
+  infoVeicolo: { velocita: string }
   descrAbilita: { straordinaria: boolean; magica: boolean; soprannaturale: boolean; naturale: boolean; divina: boolean }
   labels: LabelRow[]
   modificatori: ModificatoreRow[]
@@ -92,7 +94,8 @@ const form = reactive<{
   campi: Object.fromEntries(props.campiLabel.filter(c => !c.multiValore).map(c => [c.key, ''])),
   campiMulti: Object.fromEntries(props.campiLabel.filter(c => c.multiValore).map(c => [c.key, [] as string[]])),
   descrOggetto: {magico: false, psionico: false, divino: false, leggendario: false, unico: false},
-  infoOggetto: {taglia: '', costo: '', materiale: ''},
+  infoOggetto: {taglia: '', costo: '', materiale: '', prefisso: ''},
+  infoVeicolo: {velocita: ''},
   descrAbilita: {straordinaria: false, magica: false, soprannaturale: false, naturale: false, divina: false},
   labels: [],
   modificatori: [],
@@ -113,7 +116,7 @@ const form = reactive<{
 
 const open = reactive({
   labels: false, modificatori: false, attacchi: false, children: false, forme: false, effetti: false,
-  campiLabel: false, descrOggetto: false, infoOggetto: false, descrAbilita: false, note: false,
+  campiLabel: false, descrOggetto: false, infoOggetto: false, infoVeicolo: false, descrAbilita: false, note: false,
 })
 
 // Taglia fisica dell'oggetto (es. arma taglia Grande): puramente descrittiva, non modifica
@@ -152,7 +155,8 @@ function preload() {
   form.visibilita = ''
   form.labels = []
   form.descrOggetto = {magico: false, psionico: false, divino: false, leggendario: false, unico: false}
-  form.infoOggetto = {taglia: '', costo: '', materiale: ''}
+  form.infoOggetto = {taglia: '', costo: '', materiale: '', prefisso: ''}
+  form.infoVeicolo = {velocita: ''}
   form.descrAbilita = {straordinaria: false, magica: false, soprannaturale: false, naturale: false, divina: false}
   form.note = []
   form.completata = false
@@ -191,6 +195,10 @@ function preload() {
       form.infoOggetto.materiale = val
     } else if (key === 'TAGLIA_OGGETTO') {
       form.infoOggetto.taglia = val
+    } else if (key === 'PREFISSO_OGGETTI') {
+      form.infoOggetto.prefisso = val
+    } else if (key === 'VEICOLO_VELOCITA') {
+      form.infoVeicolo.velocita = val
     } else if (key === 'DESCR_STR') {
       form.descrAbilita.straordinaria = val === '1'
     } else if (key === 'DESCR_MAG') {
@@ -280,7 +288,8 @@ function restoreSnapshot(snap: any) {
   form.campi = {...(snap.campi ?? {})}
   form.campiMulti = {...(snap.campiMulti ?? {})}
   form.descrOggetto = {...(snap.descrOggetto ?? {magico: false, psionico: false, divino: false, leggendario: false, unico: false})}
-  form.infoOggetto = {...(snap.infoOggetto ?? {taglia: '', costo: '', materiale: ''})}
+  form.infoOggetto = {...(snap.infoOggetto ?? {taglia: '', costo: '', materiale: '', prefisso: ''})}
+  form.infoVeicolo = {...(snap.infoVeicolo ?? {velocita: ''})}
   form.descrAbilita = {...(snap.descrAbilita ?? {straordinaria: false, magica: false, soprannaturale: false, naturale: false, divina: false})}
   form.labels = snap.labels ?? []
   form.modificatori = snap.modificatori ?? []
@@ -364,8 +373,11 @@ const sumInfoOggetto = computed(() => {
   if (i.taglia.trim()) flags.push(`Taglia: ${i.taglia.trim()}`)
   if (i.costo.trim()) flags.push(`Costo: ${i.costo.trim()}`)
   if (i.materiale.trim()) flags.push(`Materiale: ${i.materiale.trim()}`)
+  if (i.prefisso.trim()) flags.push(`Prefisso: ${i.prefisso.trim()}`)
   return flags.join(', ') || '—'
 })
+const sumInfoVeicolo = computed(() =>
+    form.infoVeicolo.velocita.trim() ? `Velocità: ${form.infoVeicolo.velocita.trim()}` : '—')
 const sumDescrAbilita = computed(() => {
   const d = form.descrAbilita
   const flags = []
@@ -422,6 +434,9 @@ function buildPayload(): UpdateItemRequest {
   if (form.infoOggetto.taglia.trim()) labels.push({label: 'TAGLIA_OGGETTO', valore: form.infoOggetto.taglia.trim()})
   if (form.infoOggetto.costo.trim()) labels.push({label: 'COSTO', valore: form.infoOggetto.costo.trim()})
   if (form.infoOggetto.materiale.trim()) labels.push({label: 'MATERIALE', valore: form.infoOggetto.materiale.trim()})
+  if (form.infoOggetto.prefisso.trim()) labels.push({label: 'PREFISSO_OGGETTI', valore: form.infoOggetto.prefisso.trim()})
+  // Info Veicolo
+  if (form.infoVeicolo.velocita.trim()) labels.push({label: 'VEICOLO_VELOCITA', valore: form.infoVeicolo.velocita.trim()})
   // Descrittori Abilità
   if (form.descrAbilita.straordinaria) labels.push({label: 'DESCR_STR', valore: '1'})
   if (form.descrAbilita.magica) labels.push({label: 'DESCR_MAG', valore: '1'})
@@ -508,7 +523,8 @@ function resetForNew() {
   form.campi = Object.fromEntries(props.campiLabel.filter(c => !c.multiValore).map(c => [c.key, '']))
   form.campiMulti = Object.fromEntries(props.campiLabel.filter(c => c.multiValore).map(c => [c.key, []]))
   form.descrOggetto = {magico: false, psionico: false, divino: false, leggendario: false, unico: false}
-  form.infoOggetto = {taglia: '', costo: '', materiale: ''}
+  form.infoOggetto = {taglia: '', costo: '', materiale: '', prefisso: ''}
+  form.infoVeicolo = {velocita: ''}
   form.descrAbilita = {straordinaria: false, magica: false, soprannaturale: false, naturale: false, divina: false}
   form.labels = []
   form.modificatori = []
@@ -635,7 +651,27 @@ function onCancel() {
             <span class="lbl">Materiale</span>
             <input v-model.trim="form.infoOggetto.materiale" type="text" :disabled="disabledAll" placeholder="es. Acciaio, mithral"/>
           </label>
+          <label class="field">
+            <span class="lbl">Prefisso oggetti</span>
+            <input v-model.trim="form.infoOggetto.prefisso" type="text" :disabled="disabledAll" placeholder="es. Freccia"/>
+          </label>
         </div>
+      </div>
+    </section>
+
+    <!-- Info Veicolo (solo tipo VEICOLO) -->
+    <section v-if="isVeicolo" class="fold">
+      <button type="button" class="fold-head" @click="open.infoVeicolo = !open.infoVeicolo"
+              :aria-expanded="open.infoVeicolo ? 'true' : 'false'">
+        <span class="fold-title">Info Veicolo</span>
+        <span class="fold-summary">{{ sumInfoVeicolo }}</span>
+        <span class="chev" :class="{ open: open.infoVeicolo }">▸</span>
+      </button>
+      <div v-show="open.infoVeicolo" class="fold-body">
+        <label class="field">
+          <span class="lbl">Velocità</span>
+          <input v-model.trim="form.infoVeicolo.velocita" type="text" :disabled="disabledAll" placeholder="es. 12 m"/>
+        </label>
       </div>
     </section>
 

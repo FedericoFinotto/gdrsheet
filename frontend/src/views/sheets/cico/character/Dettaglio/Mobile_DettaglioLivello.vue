@@ -10,6 +10,7 @@ import {useRouter} from "vue-router";
 import usePopup from "../../../../../function/usePopup";
 import Mobile_DettaglioItem from "./Mobile_DettaglioItem.vue";
 import {Item} from "../../../../../models/dto/Item";
+import {getItemLabel, LABELS} from "../../../../../models/entity/ItemLabel";
 
 const router = useRouter()
 const {openPopup} = usePopup()
@@ -64,11 +65,24 @@ const disableLabel = computed(() => {
 
 // -- Computed sezioni --
 
-const listaClassi = computed(() =>
-    (itemDetail.value?.child ?? [])
-        .filter(c => c.itemTarget.tipo === TIPO_ITEM.CLASSE || c.itemTarget.tipo === TIPO_ITEM.RAZZA)
-        .map(c => c.itemTarget)
-)
+// La Classe/Razza di un Livello NON è un child collegato: è referenziata tramite un id
+// (classeId, dalla label CLASSE dell'item Livello) e va recuperata a parte (vedi
+// onMounted), non tramite itemDetail.child come le altre sezioni qui sotto.
+const razzaItem = ref<ItemDB | null>(null)
+const listaClassi = computed(() => razzaItem.value ? [razzaItem.value] : [])
+
+const infoRazzaDiLivello = computed(() => {
+  const item = razzaItem.value
+  if (!item || item.tipo !== TIPO_ITEM.RAZZA) return null
+  const taglia = getItemLabel(item, LABELS.RAZZA_TAGLIA)
+  const velocita = getItemLabel(item, LABELS.RAZZA_VELOCITA)
+  const caratteristiche = getItemLabel(item, LABELS.RAZZA_CARATTERISTICHE)
+  const lap = getItemLabel(item, LABELS.RAZZA_LAP)
+  const spazio = getItemLabel(item, LABELS.RAZZA_SPAZIO)
+  const portata = getItemLabel(item, LABELS.RAZZA_PORTATA)
+  if (!taglia && !velocita && !caratteristiche && !lap && !spazio && !portata) return null
+  return {nome: item.nome, taglia, velocita, caratteristiche, lap, spazio, portata}
+})
 
 const listaMaledizioni = computed(() =>
     (itemDetail.value?.child ?? [])
@@ -125,6 +139,15 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+
+  const classeId = (itemInfo as any).classeId;
+  if (classeId) {
+    try {
+      razzaItem.value = (await getItem(classeId)).data;
+    } catch (e) {
+      console.error('Errore caricamento razza/classe del livello:', e);
+    }
+  }
 });
 
 function showInfoAbilitaPopup(itm) {
@@ -166,6 +189,19 @@ function showInfoAbilitaPopup(itm) {
           <span class="item-nome">{{ item.nome }}</span>
           <Icona name="INFO" class="item-info-ico"/>
         </div>
+      </div>
+    </div>
+
+    <!-- Info Razza (della razza referenziata da questo livello, es. il Livello 0) -->
+    <div v-if="infoRazzaDiLivello" class="detail-section">
+      <div class="section-title">Info Razza</div>
+      <div class="mod-grid">
+        <span v-if="infoRazzaDiLivello.taglia" class="mod-chip"><strong>Taglia:</strong>&nbsp;{{ infoRazzaDiLivello.taglia }}</span>
+        <span v-if="infoRazzaDiLivello.velocita" class="mod-chip"><strong>Velocità:</strong>&nbsp;{{ infoRazzaDiLivello.velocita }}</span>
+        <span v-if="infoRazzaDiLivello.caratteristiche" class="mod-chip"><strong>Caratteristiche:</strong>&nbsp;{{ infoRazzaDiLivello.caratteristiche }}</span>
+        <span v-if="infoRazzaDiLivello.lap" class="mod-chip"><strong>LAP:</strong>&nbsp;{{ infoRazzaDiLivello.lap }}</span>
+        <span v-if="infoRazzaDiLivello.spazio" class="mod-chip"><strong>Spazio:</strong>&nbsp;{{ infoRazzaDiLivello.spazio }}</span>
+        <span v-if="infoRazzaDiLivello.portata" class="mod-chip"><strong>Portata:</strong>&nbsp;{{ infoRazzaDiLivello.portata }}</span>
       </div>
     </div>
 

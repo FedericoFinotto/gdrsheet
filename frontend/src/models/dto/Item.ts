@@ -41,4 +41,6 @@ export interface Item {
     divino?: boolean;
     leggendario?: boolean;
     unico?: boolean;
+    /** Prefisso (label PREFISSO_OGGETTI) di un item genitore di questo item, se presente. */
+    prefissoOggetti?: string;
 }

@@ -39,7 +39,7 @@ interface ColumnDef {
   badge?: Fn<string | null | undefined>;
 
   // chip opzionali PRIMA del testo (es. descrittori Str/Mag/Sop di un'abilità)
-  prefixChips?: Fn<{ text: string; class?: string }[] | null | undefined>;
+  prefixChips?: Fn<{ text: string; class?: string; style?: Record<string, string> }[] | null | undefined>;
 
   type?: 'text' | 'counter' | 'icons';
 
@@ -215,7 +215,7 @@ function clickIcon(ic: RowIcon, row: any) {
             >
               <div class="primary">
                 <span v-for="(chip, ci) in (col.prefixChips ? col.prefixChips(row) : [])" :key="ci"
-                      class="cell-prefix-chip" :class="chip.class">{{ chip.text }}</span>
+                      class="cell-prefix-chip" :class="chip.class" :style="chip.style">{{ chip.text }}</span>
                 {{ row[col.field] }}
                 <span v-if="col.badge && col.badge(row)" class="cell-badge">{{ col.badge(row) }}</span>
               </div>

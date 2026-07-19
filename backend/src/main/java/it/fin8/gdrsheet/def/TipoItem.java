@@ -31,7 +31,8 @@ public enum TipoItem {
     PATTO("Patto"),
     NOTIZIA("Notizia"),
     EFFETTO("Effetto"),
-    QUEST("Quest")
+    QUEST("Quest"),
+    VEICOLO("Veicolo")
     ;
 
     private final String label;

@@ -99,6 +99,19 @@ public class ItemMapper {
             dto.setLeggendario(true);
         if ("1".equals(entity.getLabel(Constants.ITEM_LABEL_UNICO)))
             dto.setUnico(true);
+
+        // Prefisso ereditato da un item genitore (label PREFISSO_OGGETTI): mostrato come chip
+        // prima del nome nell'inventario sui suoi item collegati (child).
+        if (entity.getParent() != null) {
+            for (Collegamento p : entity.getParent()) {
+                Item source = p.getItemSource();
+                String prefisso = source != null ? source.getLabel(Constants.ITEM_LABEL_PREFISSO_OGGETTI) : null;
+                if (prefisso != null && !prefisso.isBlank()) {
+                    dto.setPrefissoOggetti(prefisso.trim());
+                    break;
+                }
+            }
+        }
     }
 
     private static Integer parseQuantita(String s) {

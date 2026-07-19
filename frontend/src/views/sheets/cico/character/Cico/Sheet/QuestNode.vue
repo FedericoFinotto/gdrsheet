@@ -17,6 +17,9 @@ const busy = ref(false)
 
 const isLeaf = computed(() => !props.quest.figli.length)
 const pct = computed(() => props.quest.totali > 0 ? Math.round(props.quest.completati * 100 / props.quest.totali) : 0)
+const ringStyle = computed(() => ({
+  background: `conic-gradient(#22c55e ${pct.value}%, #e5e7eb ${pct.value}%)`,
+}))
 
 // Chip ambito: solo per le quest radice (le sotto-quest non hanno un proprio ambito).
 const ambitoLabel = computed(() => {
@@ -61,9 +64,8 @@ function edit() {
       <div class="quest-head-main">
         <span class="chev" :class="{open}">▸</span>
         <span class="nome">{{ quest.nome }}</span>
-        <span class="progress">
-          <span class="bar"><span class="fill" :style="{width: pct + '%'}"/></span>
-          <span class="count">{{ quest.completati }}/{{ quest.totali }} ({{ pct }}%)</span>
+        <span class="ring" :style="ringStyle">
+          <span class="ring-count">{{ quest.completati }}/{{ quest.totali }}</span>
         </span>
         <button type="button" class="btn-edit" @click.stop="edit" title="Modifica">✎</button>
       </div>
@@ -112,15 +114,25 @@ function edit() {
 .chev { transition: transform .15s ease; flex-shrink: 0; }
 .chev.open { transform: rotate(90deg); }
 .nome { font-weight: 600; min-width: 0; word-break: break-word; }
-.progress { display: flex; align-items: center; gap: .4rem; flex-shrink: 0; }
-.bar { display: inline-block; width: 4.5rem; height: .45rem; background: #eef2f7; border-radius: 999px; overflow: hidden; }
-.fill { display: block; height: 100%; margin: 0; background: #22c55e; }
-.count { font-size: .72rem; color: #6b7280; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ring {
+  position: relative; flex-shrink: 0;
+  width: 2.1rem; height: 2.1rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.ring::before {
+  content: ''; position: absolute; inset: .2rem; border-radius: 50%; background: #fff;
+}
+.quest-node.completa .ring::before { background: #f0fdf4; }
+.ring-count {
+  position: relative; z-index: 1;
+  font-size: .58rem; font-weight: 700; color: #166534;
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
 .btn-edit {
   border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8;
   border-radius: .4rem; padding: .2rem .45rem; cursor: pointer; font-size: .8rem;
 }
-.quest-body { padding: 0 .65rem .65rem 1.9rem; display: grid; gap: .5rem; }
+.quest-body { padding: 0 .65rem .5rem .65rem; display: grid; gap: .5rem; }
 .descrizione { font-size: .85rem; white-space: pre-wrap; }
 .completata-toggle { display: inline-flex; align-items: center; gap: .4rem; font-size: .85rem; cursor: pointer; width: fit-content; }
 .completata-toggle input { width: auto; }
@@ -131,5 +143,5 @@ function edit() {
   color: #9a3412; background: #fff7ed; border: 1px solid #fed7aa; border-radius: .35rem; padding: .05rem .4rem;
 }
 .nota-html { margin: .2rem 0; font-size: .85rem; }
-.figli { display: grid; gap: 0; margin-top: .2rem; }
+.figli { display: grid; gap: .3rem; margin-top: .2rem; padding: 0 1mm; }
 </style>

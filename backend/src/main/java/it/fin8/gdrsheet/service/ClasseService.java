@@ -61,6 +61,12 @@ public class ClasseService {
         dto.setEnName(classe.getLabel(Constants.ITEM_LABEL_EN_NAME));
         dto.setManuale(classe.getLabel(Constants.ITEM_LABEL_MANUALE));
         dto.setDescrizione(classe.getDescrizione());
+        dto.setRazzaTaglia(classe.getLabel(Constants.ITEM_LABEL_RAZZA_TAGLIA));
+        dto.setRazzaVelocita(classe.getLabel(Constants.ITEM_LABEL_RAZZA_VELOCITA));
+        dto.setRazzaCaratteristiche(classe.getLabel(Constants.ITEM_LABEL_RAZZA_CARATTERISTICHE));
+        dto.setRazzaLap(classe.getLabel(Constants.ITEM_LABEL_RAZZA_LAP));
+        dto.setRazzaSpazio(classe.getLabel(Constants.ITEM_LABEL_RAZZA_SPAZIO));
+        dto.setRazzaPortata(classe.getLabel(Constants.ITEM_LABEL_RAZZA_PORTATA));
 
         String abClasse = classe.getLabel(Constants.ITEM_LABEL_ABILITA_CLASSE);
         dto.setAbilitaClasse(abClasse == null || abClasse.isBlank()
@@ -184,6 +190,12 @@ public class ClasseService {
         classe.setDescrizione(dto.getDescrizione());
         putSingleLabel(classe, Constants.ITEM_LABEL_EN_NAME, dto.getEnName());
         putSingleLabel(classe, Constants.ITEM_LABEL_MANUALE, dto.getManuale());
+        putSingleLabel(classe, Constants.ITEM_LABEL_RAZZA_TAGLIA, dto.getRazzaTaglia());
+        putSingleLabel(classe, Constants.ITEM_LABEL_RAZZA_VELOCITA, dto.getRazzaVelocita());
+        putSingleLabel(classe, Constants.ITEM_LABEL_RAZZA_CARATTERISTICHE, dto.getRazzaCaratteristiche());
+        putSingleLabel(classe, Constants.ITEM_LABEL_RAZZA_LAP, dto.getRazzaLap());
+        putSingleLabel(classe, Constants.ITEM_LABEL_RAZZA_SPAZIO, dto.getRazzaSpazio());
+        putSingleLabel(classe, Constants.ITEM_LABEL_RAZZA_PORTATA, dto.getRazzaPortata());
 
         String abClasse = dto.getAbilitaClasse() == null || dto.getAbilitaClasse().isEmpty()
                 ? null
