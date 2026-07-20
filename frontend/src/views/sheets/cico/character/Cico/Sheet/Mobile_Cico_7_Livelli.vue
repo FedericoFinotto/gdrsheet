@@ -63,7 +63,7 @@ async function aggiungiLivello() {
       labels: [{label: 'LVL', valore: String(prossimo)}],
     });
     await characterStore.fetchCharacter(props.idPersonaggio, true);
-    router.push(`/itemeditor/${res.data.id}`);
+    router.push(`/itemeditor/${res.data.id}?personaggio=${props.idPersonaggio}`);
   } catch (e) {
     console.error('Errore creazione livello:', e);
   } finally {

@@ -8,6 +8,9 @@ import useDiceRoll from "../function/useDiceRoll";
 import {useAuthStore} from '../stores/auth'
 import {getNotizieAttive, type NotiziaDTO} from '../service/NotizieService'
 import NotiziePopup from './NotiziePopup.vue'
+import {catturaScreenshot} from '../function/reportScreenshot'
+import {listaSegnalazioni} from '../service/SegnalazioniService'
+import {contaNonLette} from '../function/segnalazioniNotifiche'
 
 const DiceRollerPopup = defineAsyncComponent(() => import('./DiceRollerPopup.vue'))
 const DiceForcePopup = defineAsyncComponent(() => import('./DiceForcePopup.vue'))
@@ -114,6 +117,27 @@ onMounted(caricaNotizie)
 function apriNotizie() {
   notizieAperte.value = true
 }
+
+// Segnalazioni: cattura uno screenshot della pagina corrente "sottobanco" prima di navigare via,
+// e mostra un badge se ci sono variazioni non ancora viste sulle proprie segnalazioni
+const segnalazioniNonLette = ref(0)
+
+async function caricaSegnalazioniNonLette() {
+  if (!localStorage.getItem('auth_token')) return
+  try {
+    const res = await listaSegnalazioni(false)
+    segnalazioniNonLette.value = contaNonLette(res.data)
+  } catch {
+    segnalazioniNonLette.value = 0
+  }
+}
+
+onMounted(caricaSegnalazioniNonLette)
+
+async function apriSegnalazioni() {
+  await catturaScreenshot()
+  router.push('/segnalazioni')
+}
 </script>
 
 <template>
@@ -147,8 +171,12 @@ function apriNotizie() {
       <slot/>
     </div>
 
-    <!-- destra: campanella notizie + hamburger -->
+    <!-- destra: segnalazioni + campanella notizie + hamburger -->
     <div class="bar-right">
+      <button class="bell-btn" title="Segnalazioni" @click="apriSegnalazioni">
+        <i class="fa-solid fa-bug"></i>
+        <span v-if="segnalazioniNonLette > 0" class="bell-badge">{{ segnalazioniNonLette }}</span>
+      </button>
       <button v-if="notizie.length > 0" class="bell-btn" title="Notizie" @click="apriNotizie">
         <i class="fa-solid fa-bell"></i>
         <span class="bell-badge">{{ notizie.length }}</span>

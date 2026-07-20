@@ -17,6 +17,7 @@ import GestisciGradi from "../views/sheets/cico/character/Cico/Editor/GestisciGr
 import Account from "@/views/Account.vue";
 import GestisciGruppi from "@/views/GestisciGruppi.vue";
 import MilestoneGruppo from "@/views/MilestoneGruppo.vue";
+import Segnalazioni from "@/views/Segnalazioni.vue";
 
 const routes = [
   {path: '/', component: Home},
@@ -33,6 +34,7 @@ const routes = [
   {path: '/stats-admin', name: 'StatsAdmin', component: StatsAdmin},
   {path: '/set-password', name: 'SetPassword', component: SetPassword},
   {path: '/account', name: 'Account', component: Account},
+  {path: '/segnalazioni', name: 'Segnalazioni', component: Segnalazioni},
   {
     path: '/scheda/:id',
     name: 'Scheda',
