@@ -24,17 +24,19 @@ const segnalazioni = ref<Segnalazione[]>([])
 const loading = ref(true)
 const errorMsg = ref<string | null>(null)
 const mostraTutte = ref(false)
+const mostraArchiviate = ref(false)
 
 // segnalazioni con variazioni non ancora viste dall'utente (per il puntino rosso in lista)
 const nonVisti = reactive<Record<number, boolean>>({})
 
-// ordine di visualizzazione: In corso, poi Nuove, poi Concluse, poi Deployate; il resto (es.
-// eventuali stati sconosciuti) resta in fondo, nell'ordine restituito da Taiga
+// ordine di visualizzazione: In corso, poi Nuove, poi Concluse, poi Deployate, poi Archiviate;
+// il resto (es. eventuali stati sconosciuti) resta in fondo, nell'ordine restituito da Taiga
 const ORDINE_STATO: Record<string, number> = {
   'in corso': 0,
   nuovo: 1, new: 1,
   concluso: 2,
   deployato: 3,
+  archiviato: 4, archived: 4,
 }
 function prioritaStato(stato: string | null): number {
   const key = (stato ?? '').trim().toLowerCase()
@@ -46,7 +48,7 @@ async function carica() {
   errorMsg.value = null
   try {
     await caricaViste()
-    segnalazioni.value = (await listaSegnalazioni(mostraTutte.value)).data
+    segnalazioni.value = (await listaSegnalazioni(mostraTutte.value, mostraArchiviate.value)).data
         .sort((a, b) => prioritaStato(a.stato) - prioritaStato(b.stato))
     for (const s of segnalazioni.value) nonVisti[s.id] = segnalazioneNonVista(s)
   } catch (e) {
@@ -59,6 +61,11 @@ async function carica() {
 
 function toggleMostraTutte() {
   mostraTutte.value = !mostraTutte.value
+  carica()
+}
+
+function toggleMostraArchiviate() {
+  mostraArchiviate.value = !mostraArchiviate.value
   carica()
 }
 
@@ -231,6 +238,9 @@ async function invia(s: Segnalazione) {
       <button class="btn primary aggiungi" @click="apriCreazione">+ Aggiungi segnalazione</button>
       <button class="btn ghost" @click="toggleMostraTutte">
         {{ mostraTutte ? 'Mostra solo le mie' : 'Mostra tutte' }}
+      </button>
+      <button class="btn ghost" @click="toggleMostraArchiviate">
+        {{ mostraArchiviate ? 'Nascondi archiviate' : 'Mostra archiviate' }}
       </button>
     </div>
 

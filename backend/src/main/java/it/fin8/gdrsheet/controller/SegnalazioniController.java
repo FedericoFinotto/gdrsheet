@@ -44,13 +44,14 @@ public class SegnalazioniController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "Segnalazioni: dell'utente corrente, o tutte se all=true. Gli archiviati non sono mai inclusi.")
+    @Operation(summary = "Segnalazioni: dell'utente corrente, o tutte se all=true. Gli archiviati sono inclusi solo se archiviate=true.")
     @GetMapping
     public ResponseEntity<List<SegnalazioneDTO>> getSegnalazioni(@RequestParam(required = false, defaultValue = "false") boolean all,
+                                                                   @RequestParam(required = false, defaultValue = "false") boolean archiviate,
                                                                    @AuthenticationPrincipal Utente utente) throws IOException, InterruptedException {
         List<TaigaClient.Segnalazione> segnalazioni = all
-                ? taigaClient.listAllUserStories()
-                : taigaClient.listUserStoriesByTag(utente.getUsername());
+                ? taigaClient.listAllUserStories(archiviate)
+                : taigaClient.listUserStoriesByTag(utente.getUsername(), archiviate);
         List<SegnalazioneDTO> out = segnalazioni.stream()
                 .map(s -> toDTO(s, utente))
                 .toList();

@@ -73,26 +73,28 @@ public class TaigaClient {
         return out;
     }
 
-    public List<Segnalazione> listUserStoriesByTag(String tag) throws IOException, InterruptedException {
+    public List<Segnalazione> listUserStoriesByTag(String tag, boolean includiArchiviate) throws IOException, InterruptedException {
         int project = getProjectId();
         String url = baseUrl + "/api/v1/userstories?project=" + project + "&tags=" + urlEncode(tag);
-        return parseUserStories(requestJson("GET", url, null, true));
+        return parseUserStories(requestJson("GET", url, null, true), includiArchiviate);
     }
 
-    /** Tutte le user story del progetto (non solo quelle etichettate con l'utente), sempre escludendo gli archiviati. */
-    public List<Segnalazione> listAllUserStories() throws IOException, InterruptedException {
+    /** Tutte le user story del progetto (non solo quelle etichettate con l'utente). */
+    public List<Segnalazione> listAllUserStories(boolean includiArchiviate) throws IOException, InterruptedException {
         int project = getProjectId();
         String url = baseUrl + "/api/v1/userstories?project=" + project;
-        return parseUserStories(requestJson("GET", url, null, true));
+        return parseUserStories(requestJson("GET", url, null, true), includiArchiviate);
     }
 
-    private List<Segnalazione> parseUserStories(JsonNode arr) {
+    private List<Segnalazione> parseUserStories(JsonNode arr, boolean includiArchiviate) {
         List<Segnalazione> out = new ArrayList<>();
         for (JsonNode n : arr) {
-            // Solo lo stato "Archiviato/Archived" va escluso sempre: gli altri stati chiusi
-            // (In corso, Concluso, Deployato, ...) restano visibili, is_closed non basta a distinguerli.
+            // Lo stato "Archiviato/Archived" è escluso di default (richiede il toggle "mostra
+            // archiviate" in UI): gli altri stati chiusi (In corso, Concluso, Deployato, ...)
+            // restano sempre visibili, is_closed non basta a distinguerli.
             String stato = n.path("status_extra_info").path("name").asText("");
-            if (stato.toLowerCase().contains("archivi") || stato.toLowerCase().contains("archive")) continue;
+            boolean archiviata = stato.toLowerCase().contains("archivi") || stato.toLowerCase().contains("archive");
+            if (archiviata && !includiArchiviate) continue;
             out.add(new Segnalazione(
                     n.path("id").asInt(),
                     n.path("ref").asInt(),

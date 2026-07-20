@@ -2,8 +2,8 @@ import api from './api'
 import {AxiosResponse} from 'axios'
 import {Allegato, Comento, Segnalazione} from '../models/dto/Segnalazione'
 
-export function listaSegnalazioni(all: boolean = false): Promise<AxiosResponse<Segnalazione[]>> {
-    return api.get<Segnalazione[]>('/segnalazioni', {params: {all}})
+export function listaSegnalazioni(all: boolean = false, archiviate: boolean = false): Promise<AxiosResponse<Segnalazione[]>> {
+    return api.get<Segnalazione[]>('/segnalazioni', {params: {all, archiviate}})
 }
 
 export function dettaglioSegnalazione(id: number): Promise<AxiosResponse<Segnalazione>> {

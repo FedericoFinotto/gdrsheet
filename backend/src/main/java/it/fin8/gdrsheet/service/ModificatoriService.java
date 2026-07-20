@@ -278,7 +278,13 @@ public class ModificatoriService {
             }
         }
         int formulaBase = 0;
-        if (stat.getFormula() != null && !stat.getFormula().isBlank()) {
+        // guard "Formula" già presente: quando questo metodo viene richiamato una seconda volta sullo
+        // stesso modsDto già calcolato (es. applicaSinergie ricalcola l'abilità passando la sua stessa
+        // lista di modificatori finale), senza questo controllo la formula verrebbe riaggiunta e il suo
+        // valore sommato due volte.
+        boolean formulaGiaPresente = mods.stream()
+                .anyMatch(m -> "Formula".equals(m.getItem()) && stat.getStat().getId().equals(m.getStatId()));
+        if (!formulaGiaPresente && stat.getFormula() != null && !stat.getFormula().isBlank()) {
             try {
                 mods.add(new ModificatoreDTO(null, stat.getStat().getId(), 0, stat.getFormula(), null, null, true, "Formula", null, null));
             } catch (Exception ignored) {}
@@ -365,7 +371,7 @@ public class ModificatoriService {
         List<ModificatoreDTO> valoreCA = modsCADto.stream().filter(x -> x.getNota() == null && (TipoModificatore.VALORE.equals(x.getTipo()) || TipoModificatore.CA_DEVIAZIONE.equals(x.getTipo()))).toList();
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(valore);
         if (taglia != 0) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null, null));
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), sizeModCaAttacco(taglia), "TAGLIA", null, null, true, "Taglia", null, null));
         }
 
         ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
@@ -456,7 +462,7 @@ public class ModificatoriService {
             modificatoriAttivi.addAll(valoreBAB);
             modificatoriAttivi.add(baseMod);
             if (taglia != 0)
-                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null, null));
+                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), sizeModCaAttacco(taglia), "TAGLIA", null, null, true, "Taglia", null, null));
             modificatore = Optional.of(modificatoriAttivi)
                     .map(list -> list.stream()
                             .mapToInt(ModificatoreDTO::getValore)
@@ -467,7 +473,7 @@ public class ModificatoriService {
             modificatoriAttivi.addAll(valoreBAB);
             modificatoriAttivi.add(baseMod);
             if (taglia != 0)
-                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), -1 * taglia, "-1*TAGLIA", null, null, true, "Taglia", null, null));
+                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), sizeModCaAttacco(taglia), "TAGLIA", null, null, true, "Taglia", null, null));
             modificatore = Optional.of(modificatoriAttivi)
                     .map(list -> list.stream()
                             .mapToInt(ModificatoreDTO::getValore)
@@ -789,6 +795,18 @@ public class ModificatoriService {
      * Un item con label TAGLIA SOSTITUISCE la base. Infine le label ADD_TAGLIA
      * sommano/sottraggono alla taglia effettiva.
      */
+    // Modificatore di taglia per CA e attacco (mischia/gittata), tabella SRD indicizzata da taglia+4
+    // (taglia da -4 Piccolissima a +4 Colossale): NON è lineare oltre Grande/Piccola, raddoppia agli
+    // estremi (Mastodontica -4, Colossale -8, Minuta +4, Piccolissima +8) invece di continuare a scalare
+    // di 1 per passo. Diverso dal modificatore di Lotta/Presa, che è lineare (vedi uso diretto di
+    // "4*taglia" per LTT) e non va toccato.
+    private static final int[] SIZE_MOD_CA_ATTACCO = {8, 4, 2, 1, 0, -1, -2, -4, -8};
+
+    private int sizeModCaAttacco(int taglia) {
+        int idx = Math.max(0, Math.min(SIZE_MOD_CA_ATTACCO.length - 1, taglia + 4));
+        return SIZE_MOD_CA_ATTACCO[idx];
+    }
+
     public Integer getTaglia(List<ItemLabel> taglia) {
         try {
             List<ItemLabel> set = taglia.stream()
