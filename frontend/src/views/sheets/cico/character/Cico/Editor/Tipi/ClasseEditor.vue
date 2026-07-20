@@ -145,9 +145,13 @@ onMounted(async () => {
     form.idSistema = d.idSistema ?? null
     form.descrizione = d.descrizione ?? ''
     const tokensAb: string[] = d.abilitaClasse ?? []
-    form.abilitaClasse = tokensAb.map(t => t.replace('!', '').trim()).filter(Boolean)
+    const spogliaToken = (t: string) => t.replace('!', '').replace('?', '').trim()
+    form.abilitaClasse = tokensAb.map(spogliaToken).filter(Boolean)
     abPersonaggio.value = new Set(
-        tokensAb.filter(t => t.includes('!')).map(t => t.replace('!', '').trim()).filter(Boolean)
+        tokensAb.filter(t => t.includes('!')).map(spogliaToken).filter(Boolean)
+    )
+    abEsclusaCap.value = new Set(
+        tokensAb.filter(t => t.includes('?')).map(spogliaToken).filter(Boolean)
     )
     form.spellList = d.spellList ?? ''
     form.spellSlotBonus = d.spellSlotBonus ?? ''
@@ -190,6 +194,11 @@ const filtroAbilita = ref('')
 // id abilità marcate come "abilità personaggio" (serializzate con "!"):
 // valgono anche nei livelli che non usano questa classe
 const abPersonaggio = ref<Set<string>>(new Set())
+// id abilità marcate come "esclusa dal limite gradi" (serializzate con "?", componibile con "!"):
+// resta selezionabile/spendibile ma come se fosse cross-class ai fini del limite gradi massimi —
+// a meno che la stessa abilità non sia comunque di classe per un altro motivo (altra classe/token
+// senza "?"), nel qual caso vale comunque il limite pieno (l'esclusione non sopprime altre fonti)
+const abEsclusaCap = ref<Set<string>>(new Set())
 
 async function loadStats() {
   try {
@@ -226,11 +235,16 @@ function isPersonaggio(id: string): boolean {
   return abPersonaggio.value.has(id)
 }
 
+function isEsclusaCap(id: string): boolean {
+  return abEsclusaCap.value.has(id)
+}
+
 function toggleAbilita(id: string) {
   const i = form.abilitaClasse.indexOf(id)
   if (i >= 0) {
     form.abilitaClasse.splice(i, 1)
-    abPersonaggio.value.delete(id) // deselezionando, perde anche il flag personaggio
+    abPersonaggio.value.delete(id) // deselezionando, perde anche i flag PG ed esclusione cap
+    abEsclusaCap.value.delete(id)
   } else {
     form.abilitaClasse.push(id)
   }
@@ -240,6 +254,12 @@ function togglePersonaggio(id: string) {
   if (!isSelected(id)) return
   if (abPersonaggio.value.has(id)) abPersonaggio.value.delete(id)
   else abPersonaggio.value.add(id)
+}
+
+function toggleEsclusaCap(id: string) {
+  if (!isSelected(id)) return
+  if (abEsclusaCap.value.has(id)) abEsclusaCap.value.delete(id)
+  else abEsclusaCap.value.add(id)
 }
 
 function statLabel(id: string): string {
@@ -383,7 +403,8 @@ function buildClassePayload() {
     idMondo: form.idMondo ?? null,
     idSistema: form.idSistema ?? null,
     descrizione: form.descrizione || null,
-    abilitaClasse: form.abilitaClasse.map(id => abPersonaggio.value.has(id) ? `${id}!` : id),
+    abilitaClasse: form.abilitaClasse.map(id =>
+        id + (abPersonaggio.value.has(id) ? '!' : '') + (abEsclusaCap.value.has(id) ? '?' : '')),
     spellList: null,
     spellSlotBonus: null,
     sezioniIncantesimi: form.sezioni
@@ -519,6 +540,7 @@ function selezionaTuttePg() {
 function deselezionaTutteAbilita() {
   form.abilitaClasse = []
   abPersonaggio.value = new Set()
+  abEsclusaCap.value = new Set()
 }
 
 // long-press sul pulsante "Tutte": click = solo abilità, hold = anche PG
@@ -660,6 +682,11 @@ const sumInfoRazza = computed(() => {
                       title="Abilità personaggio: vale anche nei livelli di altre classi">
                 PG
               </button>
+              <button v-if="isSelected(f.id)" type="button" class="ab-cap" :class="{ on: isEsclusaCap(f.id) }"
+                      :disabled="disabledAll" @click="toggleEsclusaCap(f.id)"
+                      title="Esclusa dal limite gradi: resta spendibile ma non alza il limite massimo (come cross-class), a meno che non sia di classe anche per un altro motivo">
+                ?
+              </button>
             </div>
           </div>
 
@@ -674,6 +701,8 @@ const sumInfoRazza = computed(() => {
           </div>
           <p class="muted hint-pg">
             <strong>PG</strong> = abilità personaggio: vale anche nei livelli che non usano questa classe.
+            <strong>?</strong> = esclusa dal limite gradi: resta spendibile ma non alza il limite massimo
+            (come cross-class), a meno che non sia di classe anche per un altro motivo.
           </p>
           <div class="ab-list">
             <div v-for="s in abilitaDisponibili" :key="s.id" class="ab-riga" :class="{ sel: isSelected(s.id) }">
@@ -685,6 +714,11 @@ const sumInfoRazza = computed(() => {
                       :disabled="disabledAll" @click="togglePersonaggio(s.id)"
                       title="Abilità personaggio: vale anche nei livelli di altre classi">
                 PG
+              </button>
+              <button v-if="isSelected(s.id)" type="button" class="ab-cap" :class="{ on: isEsclusaCap(s.id) }"
+                      :disabled="disabledAll" @click="toggleEsclusaCap(s.id)"
+                      title="Esclusa dal limite gradi: resta spendibile ma non alza il limite massimo (come cross-class), a meno che non sia di classe anche per un altro motivo">
+                ?
               </button>
             </div>
           </div>
@@ -1040,7 +1074,12 @@ textarea { resize: vertical; }
   border-radius: 1rem; padding: .1rem .55rem; font-size: .75rem; font-weight: 700; cursor: pointer;
 }
 .ab-pg.on { background: #4338ca; border-color: #4338ca; color: #fff; }
-.ab-toggle:disabled, .ab-pg:disabled { opacity: .6; cursor: default; }
+.ab-cap {
+  flex: 0 0 auto; border: 1px solid #fbcfe8; background: #fff; color: #9d174d;
+  border-radius: 1rem; padding: .1rem .55rem; font-size: .75rem; font-weight: 700; cursor: pointer;
+}
+.ab-cap.on { background: #9d174d; border-color: #9d174d; color: #fff; }
+.ab-toggle:disabled, .ab-pg:disabled, .ab-cap:disabled { opacity: .6; cursor: default; }
 
 /* generatore */
 .gen { display: grid; gap: .5rem; border: 1px dashed #cbd5e1; border-radius: .5rem; padding: .5rem; background: #f8fafc; }

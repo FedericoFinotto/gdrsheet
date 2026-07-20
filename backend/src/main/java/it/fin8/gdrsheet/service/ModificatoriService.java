@@ -1057,8 +1057,14 @@ public class ModificatoriService {
                     .filter(s -> !s.isEmpty())
                     .forEach(tok -> {
                         boolean all = tok.contains("!");
+                        // "?" (componibile con "!"): questo token da solo non deve alzare il limite
+                        // gradi (resta spendibile come cross-class) — ma se la stessa abilità è
+                        // comunque di classe per un altro motivo (altro token/altra classe senza
+                        // "?"), quell'altra fonte imposta comunque dto.setAll/setDiClasse più sotto
+                        // nello stesso indice, quindi il limite pieno si applica lo stesso.
+                        boolean escludiCap = tok.contains("?");
                         boolean classeRichiesta = cl.getId().equals(idClasse);
-                        String idAb = tok.replace("!", "").trim().toUpperCase();
+                        String idAb = tok.replace("!", "").replace("?", "").trim().toUpperCase();
 
                         String prefissoFamiglia = FAMIGLIA_GENERICA.get(idAb);
                         List<String> idsDaMarcare = prefissoFamiglia == null
