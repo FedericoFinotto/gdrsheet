@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import {ref} from 'vue'
+import {computed, ref} from 'vue'
 import type {NotiziaDTO} from '../service/NotizieService'
 
-defineProps<{ notizie: NotiziaDTO[] }>()
+const props = defineProps<{ notizie: NotiziaDTO[] }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
+
+const attive = computed(() => props.notizie.filter(n => !n.archiviata))
+const archiviate = computed(() => props.notizie.filter(n => n.archiviata))
+const mostraArchiviate = ref(false)
 
 const aperta = ref<number | null>(null)
 
@@ -34,7 +38,7 @@ function formattaData(s?: string) {
       <div v-if="notizie.length === 0" class="notizie-empty">
         Nessuna notizia disponibile.
       </div>
-      <div v-for="n in notizie" :key="n.id" class="notizia-card">
+      <div v-for="n in attive" :key="n.id" class="notizia-card">
         <button class="notizia-toggle" @click="toggle(n.id)">
           <span class="notizia-nome">{{ n.nome }}</span>
           <i class="fa-solid" :class="aperta === n.id ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
@@ -47,6 +51,27 @@ function formattaData(s?: string) {
           </div>
         </div>
       </div>
+
+      <button v-if="archiviate.length > 0" class="archiviate-toggle" @click="mostraArchiviate = !mostraArchiviate">
+        <i class="fa-solid fa-box-archive"></i> Archiviate ({{ archiviate.length }})
+        <i class="fa-solid" :class="mostraArchiviate ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+      </button>
+
+      <template v-if="mostraArchiviate">
+        <div v-for="n in archiviate" :key="n.id" class="notizia-card archiviata">
+          <button class="notizia-toggle" @click="toggle(n.id)">
+            <span class="notizia-nome">{{ n.nome }}</span>
+            <i class="fa-solid" :class="aperta === n.id ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+          </button>
+          <div v-if="aperta === n.id" class="notizia-body">
+            <div v-if="n.descrizione" class="notizia-desc" v-html="n.descrizione"/>
+            <div v-if="n.dataInizio || n.dataFine" class="notizia-date">
+              <span v-if="n.dataInizio">Dal {{ formattaData(n.dataInizio) }}</span>
+              <span v-if="n.dataFine">al {{ formattaData(n.dataFine) }}</span>
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -116,6 +141,26 @@ function formattaData(s?: string) {
   border-radius: .5rem;
   overflow: hidden;
 }
+.notizia-card.archiviata { border-color: #e5e7eb; opacity: .75; }
+.notizia-card.archiviata .notizia-toggle { background: #f9fafb; }
+.notizia-card.archiviata .notizia-nome { color: #4b5563; }
+
+.archiviate-toggle {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  padding: .6rem 1rem;
+  margin-top: .25rem;
+  background: transparent;
+  border: 1px dashed #d1d5db;
+  border-radius: .5rem;
+  cursor: pointer;
+  font-size: .85rem;
+  color: #6b7280;
+}
+.archiviate-toggle:hover { background: #f9fafb; }
+.archiviate-toggle i:last-child { margin-left: auto; }
 
 .notizia-toggle {
   width: 100%;

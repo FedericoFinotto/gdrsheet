@@ -26,6 +26,7 @@ import it.fin8.gdrsheet.service.AuthzService;
 import it.fin8.gdrsheet.service.ClasseService;
 import it.fin8.gdrsheet.service.ItemImportService;
 import it.fin8.gdrsheet.service.ItemService;
+import it.fin8.gdrsheet.service.NotiziaVisteService;
 import it.fin8.gdrsheet.service.PartyService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -37,6 +38,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/item")
@@ -51,8 +53,9 @@ public class ItemController {
     private final MondoRepository mondoRepository;
     private final SistemaRepository sistemaRepository;
     private final PartyService partyService;
+    private final NotiziaVisteService notiziaVisteService;
 
-    public ItemController(ItemRepository repo, ItemService itemService, ItemImportService itemImportService, ItemMapper itemMapper, AuthzService authzService, ClasseService classeService, MondoRepository mondoRepository, SistemaRepository sistemaRepository, PartyService partyService) {
+    public ItemController(ItemRepository repo, ItemService itemService, ItemImportService itemImportService, ItemMapper itemMapper, AuthzService authzService, ClasseService classeService, MondoRepository mondoRepository, SistemaRepository sistemaRepository, PartyService partyService, NotiziaVisteService notiziaVisteService) {
         this.repo = repo;
         this.itemService = itemService;
         this.itemImportService = itemImportService;
@@ -62,6 +65,7 @@ public class ItemController {
         this.mondoRepository = mondoRepository;
         this.sistemaRepository = sistemaRepository;
         this.partyService = partyService;
+        this.notiziaVisteService = notiziaVisteService;
     }
 
     @Operation(
@@ -264,13 +268,23 @@ public class ItemController {
         return ResponseEntity.ok(classeService.getClasse(saved.getId()));
     }
 
-    @Operation(
-            summary = "Crea un nuovo item",
-            description = "Crea un nuovo item generico con labels e modificatori"
-    )
+    @Operation(summary = "Notizie abilitate (le scadute sono incluse, marcate come 'archiviata')")
     @GetMapping("/notizie")
-    public ResponseEntity<List<NotiziaDTO>> getNotizieAttive() {
-        return ResponseEntity.ok(itemService.getNotizieAttive());
+    public ResponseEntity<List<NotiziaDTO>> getNotizie() {
+        return ResponseEntity.ok(itemService.getNotizie());
+    }
+
+    @Operation(summary = "Id delle notizie già viste dall'utente corrente, con timestamp")
+    @GetMapping("/notizie/viste")
+    public ResponseEntity<Map<String, String>> getViste(@AuthenticationPrincipal Utente utente) {
+        return ResponseEntity.ok(notiziaVisteService.getViste(utente.getUsername()));
+    }
+
+    @Operation(summary = "Segna una o più notizie come viste dall'utente corrente")
+    @PutMapping("/notizie/viste")
+    public ResponseEntity<Void> segnaViste(@RequestBody List<Integer> ids, @AuthenticationPrincipal Utente utente) {
+        notiziaVisteService.segnaViste(utente.getUsername(), ids);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/create")

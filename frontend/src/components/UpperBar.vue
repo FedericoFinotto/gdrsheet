@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import {computed, defineAsyncComponent, onMounted, ref} from 'vue'
+import {computed, defineAsyncComponent, onMounted, onUnmounted, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import Icona from "./Icona/Icona.vue";
 import DiceD20Overlay from "./DiceD20Overlay.vue";
 import usePopup from "../function/usePopup";
 import useDiceRoll from "../function/useDiceRoll";
 import {useAuthStore} from '../stores/auth'
-import {getNotizieAttive, type NotiziaDTO} from '../service/NotizieService'
+import {getNotizie, getViste as getVisteNotizie, segnaViste as segnaVisteNotizie, type NotiziaDTO} from '../service/NotizieService'
 import NotiziePopup from './NotiziePopup.vue'
 import {catturaScreenshot} from '../function/reportScreenshot'
 import {listaSegnalazioni} from '../service/SegnalazioniService'
@@ -14,10 +14,11 @@ import {contaNonLette} from '../function/segnalazioniNotifiche'
 
 const DiceRollerPopup = defineAsyncComponent(() => import('./DiceRollerPopup.vue'))
 const DiceForcePopup = defineAsyncComponent(() => import('./DiceForcePopup.vue'))
+const SegnalazioneCreatePopup = defineAsyncComponent(() => import('./SegnalazioneCreatePopup.vue'))
 
 const router = useRouter()
 const auth = useAuthStore()
-const {openPopup} = usePopup()
+const {openPopup, isVisible: popupAperto} = usePopup()
 const {risultato, mostraOverlay, lanciaD20, annulla} = useDiceRoll()
 
 const apriDadi = () => openPopup(DiceRollerPopup, {}, {closable: true, autoClose: 0})
@@ -101,12 +102,18 @@ function naviga(path: string) {
 // Notizie
 const notizie = ref<NotiziaDTO[]>([])
 const notizieAperte = ref(false)
+const notizieViste = ref<Set<number>>(new Set())
+
+const notizieNonViste = computed(() =>
+    notizie.value.filter(n => !n.archiviata && !notizieViste.value.has(n.id)).length
+)
 
 async function caricaNotizie() {
   if (!localStorage.getItem('auth_token')) return
   try {
-    const res = await getNotizieAttive()
-    notizie.value = res.data
+    const [resNotizie, resViste] = await Promise.all([getNotizie(), getVisteNotizie()])
+    notizie.value = resNotizie.data
+    notizieViste.value = new Set(Object.keys(resViste.data ?? {}).map(Number))
   } catch {
     notizie.value = []
   }
@@ -116,6 +123,10 @@ onMounted(caricaNotizie)
 
 function apriNotizie() {
   notizieAperte.value = true
+  const idsDaSegnare = notizie.value.map(n => n.id).filter(id => !notizieViste.value.has(id))
+  if (idsDaSegnare.length === 0) return
+  for (const id of idsDaSegnare) notizieViste.value.add(id)
+  segnaVisteNotizie(idsDaSegnare).catch(e => console.error('Errore salvataggio viste notizie:', e))
 }
 
 // Segnalazioni: cattura uno screenshot della pagina corrente "sottobanco" prima di navigare via,
@@ -138,6 +149,35 @@ async function apriSegnalazioni() {
   await catturaScreenshot()
   router.push('/segnalazioni')
 }
+
+function apriNotizieDaMenu() {
+  chiudiMenu()
+  apriNotizie()
+}
+
+function apriSegnalazioniDaMenu() {
+  chiudiMenu()
+  apriSegnalazioni()
+}
+
+// Scorciatoia globale (Ctrl+Shift+S): apre direttamente il form di creazione segnalazione con
+// uno screenshot del momento esatto in cui viene premuta, anche se in quel momento è già aperto
+// un altro popup (che sostituisce, dato che il sistema di popup è un singleton) — serve a poter
+// segnalare un problema anche quando un popup bloccherebbe l'accesso ai tastini della barra.
+async function apriSegnalazioneRapida() {
+  await catturaScreenshot()
+  openPopup(SegnalazioneCreatePopup, {}, {closable: true, autoClose: 0})
+}
+
+function onKeydownGlobale(e: KeyboardEvent) {
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
+    e.preventDefault()
+    apriSegnalazioneRapida()
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydownGlobale))
+onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
 </script>
 
 <template>
@@ -173,19 +213,28 @@ async function apriSegnalazioni() {
 
     <!-- destra: segnalazioni + campanella notizie + hamburger -->
     <div class="bar-right">
-      <button class="bell-btn" title="Segnalazioni" @click="apriSegnalazioni">
+      <button v-if="segnalazioniNonLette > 0" class="bell-btn" title="Segnalazioni" @click="apriSegnalazioni">
         <i class="fa-solid fa-bug"></i>
-        <span v-if="segnalazioniNonLette > 0" class="bell-badge">{{ segnalazioniNonLette }}</span>
+        <span class="bell-badge">{{ segnalazioniNonLette }}</span>
       </button>
-      <button v-if="notizie.length > 0" class="bell-btn" title="Notizie" @click="apriNotizie">
+      <button v-if="notizieNonViste > 0" class="bell-btn" title="Notizie" @click="apriNotizie">
         <i class="fa-solid fa-bell"></i>
-        <span class="bell-badge">{{ notizie.length }}</span>
+        <span class="bell-badge">{{ notizieNonViste }}</span>
       </button>
       <Icona name="HAMBURGER" title="Menu" @click="apriMenu"/>
     </div>
   </header>
 
   <DiceD20Overlay/>
+
+  <!-- tastino segnalazione: visibile solo mentre un popup è aperto (altrimenti coprirebbe
+       il resto della barra senza motivo), sopra a qualunque popup/overlay -->
+  <Teleport to="body">
+    <button v-if="popupAperto" class="fab-segnalazione" data-screenshot-ignore="true"
+            title="Segnala un problema (Ctrl+Shift+S)" @click="apriSegnalazioneRapida">
+      <i class="fa-solid fa-bug"></i>
+    </button>
+  </Teleport>
 
   <!-- popup notizie -->
   <Teleport to="body">
@@ -194,7 +243,7 @@ async function apriSegnalazioni() {
 
   <!-- menu slide-in -->
   <Teleport to="body">
-    <div v-if="menuAperto" class="menu-overlay" @click.self="chiudiMenu">
+    <div v-if="menuAperto" class="menu-overlay" data-screenshot-ignore="true" @click.self="chiudiMenu">
       <div class="menu-panel">
         <div class="menu-header">
           <span class="menu-title">Menu</span>
@@ -203,6 +252,14 @@ async function apriSegnalazioni() {
         <nav class="menu-nav">
           <button class="menu-item" @click="naviga('/account')">
             <i class="fa-solid fa-user menu-icon"></i> Account
+          </button>
+          <button class="menu-item" @click="apriNotizieDaMenu">
+            <i class="fa-solid fa-bell menu-icon"></i> Notizie
+            <span v-if="notizieNonViste > 0" class="menu-badge">{{ notizieNonViste }}</span>
+          </button>
+          <button class="menu-item" @click="apriSegnalazioniDaMenu">
+            <i class="fa-solid fa-bug menu-icon"></i> Segnalazioni
+            <span v-if="segnalazioniNonLette > 0" class="menu-badge">{{ segnalazioniNonLette }}</span>
           </button>
 
           <!-- Toggle modalità admin (solo per utenti con ruolo ADMIN/SUPERUSER) -->
@@ -313,6 +370,26 @@ async function apriSegnalazioni() {
   padding: 0 .2rem;
   line-height: 1;
 }
+
+.fab-segnalazione {
+  position: fixed;
+  top: .6rem;
+  right: .6rem;
+  z-index: 10050;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  border: 0;
+  background: #dc2626;
+  color: #fff;
+  font-size: 1.15rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,.35);
+}
+.fab-segnalazione:hover { background: #b91c1c; }
 
 .d20-trigger {
   display: inline-flex;
@@ -427,6 +504,22 @@ async function apriSegnalazioni() {
   text-align: center;
   flex-shrink: 0;
   opacity: .75;
+}
+
+.menu-badge {
+  margin-left: auto;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  background: #dc2626;
+  color: #fff;
+  font-size: .7rem;
+  font-weight: 700;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 .3rem;
+  line-height: 1;
 }
 
 .menu-sep { border: 0; border-top: 1px solid #e5e7eb; margin: .35rem 0; }

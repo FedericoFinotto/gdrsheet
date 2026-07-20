@@ -7,7 +7,11 @@ export const pendingScreenshot = ref<Blob | null>(null)
 export async function catturaScreenshot(): Promise<void> {
     try {
         const {default: html2canvas} = await import('html2canvas')
-        const canvas = await html2canvas(document.body)
+        // elementi marcati con data-screenshot-ignore (es. il menu hamburger) non devono
+        // comparire nello screenshot, anche se ancora presenti nel DOM al momento della cattura
+        const canvas = await html2canvas(document.body, {
+            ignoreElements: el => el.hasAttribute('data-screenshot-ignore'),
+        })
         pendingScreenshot.value = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
     } catch (e) {
         console.error('Errore cattura screenshot:', e)

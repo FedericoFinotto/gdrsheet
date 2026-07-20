@@ -11,4 +11,5 @@ public class NotiziaDTO {
     private String descrizione;
     private String dataInizio;
     private String dataFine;
+    private boolean archiviata;
 }

@@ -660,26 +660,38 @@ public class ItemService {
         return byId.values().stream().map(itemMapper::toDTO).toList();
     }
 
-    public List<NotiziaDTO> getNotizieAttive() {
+    /**
+     * Le notizie disabilitate non si vedono mai. Quelle abilitate ma non ancora iniziate
+     * (dataInizio futura) restano escluse. Quelle abilitate con dataFine passata NON vengono
+     * più escluse: sono "archiviata" (il frontend le mostra in una sezione separata) invece
+     * di sparire del tutto.
+     */
+    public List<NotiziaDTO> getNotizie() {
         LocalDateTime ora = LocalDateTime.now();
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
         return itemRepository.findAllNotizie().stream()
                 .filter(n -> "1".equals(n.getLabel(Constants.LABEL_NOTIZIA_ABILITATA)))
                 .filter(n -> {
                     String inizio = n.getLabel(Constants.LABEL_NOTIZIA_DATA_INIZIO);
-                    String fine = n.getLabel(Constants.LABEL_NOTIZIA_DATA_FINE);
                     try {
                         if (inizio != null && !inizio.isBlank() && ora.isBefore(LocalDateTime.parse(inizio, fmt))) return false;
-                        if (fine != null && !fine.isBlank() && ora.isAfter(LocalDateTime.parse(fine, fmt))) return false;
                     } catch (Exception ignored) {}
                     return true;
                 })
-                .map(n -> new NotiziaDTO(
-                        n.getId(),
-                        n.getNome(),
-                        n.getDescrizione(),
-                        n.getLabel(Constants.LABEL_NOTIZIA_DATA_INIZIO),
-                        n.getLabel(Constants.LABEL_NOTIZIA_DATA_FINE)))
+                .map(n -> {
+                    String fine = n.getLabel(Constants.LABEL_NOTIZIA_DATA_FINE);
+                    boolean archiviata = false;
+                    try {
+                        archiviata = fine != null && !fine.isBlank() && ora.isAfter(LocalDateTime.parse(fine, fmt));
+                    } catch (Exception ignored) {}
+                    return new NotiziaDTO(
+                            n.getId(),
+                            n.getNome(),
+                            n.getDescrizione(),
+                            n.getLabel(Constants.LABEL_NOTIZIA_DATA_INIZIO),
+                            fine,
+                            archiviata);
+                })
                 .toList();
     }
 
