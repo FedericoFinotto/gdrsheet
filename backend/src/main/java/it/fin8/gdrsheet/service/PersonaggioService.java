@@ -429,7 +429,7 @@ public class PersonaggioService {
                     }
 
                     SpellBookDTO sb = generateSpellBookSezione(
-                            classe.getClasse(), baseTot + extraTot, baseEff + extraEff, id, sez);
+                            classe.getClasse(), baseTot + extraTot, baseEff + extraEff, id, sez, false);
                     if (sb != null && !sb.getLivelli().isEmpty()) itemsDTO.getSpellbooks().add(sb);
                 }
                 itemsDTO.getClassi().add(itemMapper.toClasseDTO(classe));
@@ -458,6 +458,19 @@ public class PersonaggioService {
                 }
             }
             itemsDTO.getClassi().add(itemMapper.toClasseDTO(classe));
+        }
+
+        // Spellbook da item generici (non CLASSE/RAZZA): stesse label SPELL_<n>* delle classi, ma
+        // slot/conosciuti sono un numero fisso (l'item non ha livelli), niente progressione.
+        for (Item itm : allPersonaggioItems.getItems()) {
+            if (TipoItem.CLASSE.equals(itm.getTipo()) || TipoItem.RAZZA.equals(itm.getTipo())) continue;
+            if (itemMapper.isDisabled(itm)) continue;
+            for (SezioneIncantesimi sez : parseSezioniIncantesimi(itm)) {
+                // sezione personalizzata: liste vuota è normale (nessun filtro per lista), non va saltata
+                if (!sez.personalizzata() && sez.liste().stream().allMatch(l -> l != null && l.startsWith("+"))) continue;
+                SpellBookDTO sb = generateSpellBookSezione(itm, 0, 0, id, sez, true);
+                if (sb != null && !sb.getLivelli().isEmpty()) itemsDTO.getSpellbooks().add(sb);
+            }
         }
 
         // Arricchisce ogni ItemDTO con i suoi figli ATTACCO (es. armi) e raggruppa le trasformazioni
@@ -1454,7 +1467,8 @@ public class PersonaggioService {
      * (preset standard o CUSTOM = slot dagli avanzamenti) e la formula degli slot bonus.
      */
     public record SezioneIncantesimi(List<String> liste, String progressione, String bonus, List<String> slot,
-                                      boolean conosciutiSeparati, List<String> conosciuti) {}
+                                      boolean conosciutiSeparati, List<String> conosciuti,
+                                      boolean personalizzata, List<String> incantesimiCustom) {}
 
     /**
      * Legge le sezioni incantatore "nuove" di un item dalle label indicizzate:
@@ -1463,21 +1477,27 @@ public class PersonaggioService {
      */
     private List<SezioneIncantesimi> parseSezioniIncantesimi(Item item) {
         if (item.getLabels() == null) return List.of();
-        // indici presenti: label che matchano SPELL_<n> (n numerico), escluse le _PROG/_BONUS/_SLOT...
+        // indici presenti: label che matchano SPELL_<n> o SPELL_<n>_<qualcosa> (es. _CUSTOM, _SLOT...).
+        // Una sezione personalizzata non scrive mai la label base SPELL_<n> (non ha liste), quindi
+        // l'indice va scoperto da QUALSIASI label della sezione, non solo da quella base.
         java.util.TreeSet<Integer> indici = new java.util.TreeSet<>();
+        java.util.regex.Pattern idxPattern = java.util.regex.Pattern.compile("^SPELL_(\\d+)(_.*)?$");
         for (ItemLabel l : item.getLabels()) {
             String k = l.getLabel();
-            if (k == null || !k.startsWith("SPELL_")) continue;
-            String rest = k.substring("SPELL_".length());
-            if (rest.matches("\\d+")) indici.add(Integer.parseInt(rest));
+            if (k == null) continue;
+            java.util.regex.Matcher m = idxPattern.matcher(k);
+            if (m.matches()) indici.add(Integer.parseInt(m.group(1)));
         }
         List<SezioneIncantesimi> out = new ArrayList<>();
         for (Integer n : indici) {
+            boolean personalizzata = "1".equals(item.getLabel("SPELL_" + n + "_CUSTOM"));
             String liste = item.getLabel("SPELL_" + n);
-            if (liste == null || liste.isBlank()) continue;
-            List<String> listeArr = Arrays.stream(liste.split(","))
+            // sezione standard: senza liste non ha senso (non filtrerebbe nulla); una sezione
+            // personalizzata invece non usa liste, gli incantesimi sono agganciati direttamente
+            if (!personalizzata && (liste == null || liste.isBlank())) continue;
+            List<String> listeArr = liste == null ? List.of() : Arrays.stream(liste.split(","))
                     .map(String::trim).filter(s -> !s.isEmpty()).toList();
-            if (listeArr.isEmpty()) continue;
+            if (!personalizzata && listeArr.isEmpty()) continue;
             String prog = item.getLabel("SPELL_" + n + "_PROG");
             String bonus = item.getLabel("SPELL_" + n + "_BONUS");
             String slotRaw = item.getLabel("SPELL_" + n + "_SLOT");
@@ -1489,7 +1509,12 @@ public class PersonaggioService {
             List<String> conosciuti = (conosciutiRaw == null || conosciutiRaw.isBlank())
                     ? List.of()
                     : Arrays.stream(conosciutiRaw.split(";")).map(String::trim).toList();
-            out.add(new SezioneIncantesimi(listeArr, prog, bonus, slot, conosciutiSeparati, conosciuti));
+            String incantesimiRaw = item.getLabel("SPELL_" + n + "_INCANTESIMI");
+            List<String> incantesimiCustom = (incantesimiRaw == null || incantesimiRaw.isBlank())
+                    ? List.of()
+                    : Arrays.stream(incantesimiRaw.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
+            out.add(new SezioneIncantesimi(listeArr, prog, bonus, slot, conosciutiSeparati, conosciuti,
+                    personalizzata, incantesimiCustom));
         }
         return out;
     }
@@ -1511,22 +1536,35 @@ public class PersonaggioService {
      * sulle liste della sezione.
      */
     private SpellBookDTO generateSpellBookSezione(Item classe, int livelloTotale, int livelloEffettivo,
-                                                  Integer idPersonaggio, SezioneIncantesimi sez) {
+                                                  Integer idPersonaggio, SezioneIncantesimi sez, boolean fisso) {
         SpellBookDTO spellBook = new SpellBookDTO();
         spellBook.setIdClasse(classe.getId());
         spellBook.setNomeClasse(classe.getNome());
+        spellBook.setFonteTipo(classe.getTipo() != null ? classe.getTipo().name() : null);
         spellBook.setSpellList(String.join(",", sez.liste()));
+        spellBook.setSpurii(generateSpurii(classe, idPersonaggio));
 
-        Item preparedSpell = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_INCANTESIMI_PREPARATI, idPersonaggio);
-        List<SpellBookIncantesimoDTO> incantesimi = (preparedSpell == null || preparedSpell.getChild() == null)
-                ? new ArrayList<>()
-                : preparedSpell.getChild().stream().map(x -> itemMapper.toIncantesimoDTO(classe, x)).toList();
+        List<SpellBookIncantesimoDTO> incantesimi;
+        if (sez.personalizzata()) {
+            // Sezione personalizzata: incantesimi agganciati direttamente (id:livello), niente
+            // filtro per lista/preparazione — sono sempre disponibili (come i domini di dominio).
+            incantesimi = resolveIncantesimiCustom(sez);
+        } else {
+            Item preparedSpell = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_INCANTESIMI_PREPARATI, idPersonaggio);
+            incantesimi = (preparedSpell == null || preparedSpell.getChild() == null)
+                    ? new ArrayList<>()
+                    : preparedSpell.getChild().stream().map(x -> itemMapper.toIncantesimoDTO(classe, x)).toList();
+        }
 
         Set<String> liste = new HashSet<>(sez.liste());
 
         int[] slots;
         int[] slotsMax;
-        if (it.fin8.gdrsheet.def.ProgressioneIncantesimi.isPreset(sez.progressione())) {
+        if (fisso) {
+            // Item (non classe): un numero fisso di slot, nessuna progressione per livello.
+            slots = sez.slot() != null && !sez.slot().isEmpty() ? parseSlotRow(sez.slot().get(0)) : new int[0];
+            slotsMax = slots;
+        } else if (it.fin8.gdrsheet.def.ProgressioneIncantesimi.isPreset(sez.progressione())) {
             slots = it.fin8.gdrsheet.def.ProgressioneIncantesimi.slotsPerLivello(sez.progressione(), livelloEffettivo);
             slotsMax = it.fin8.gdrsheet.def.ProgressioneIncantesimi.slotsPerLivello(sez.progressione(), livelloTotale);
         } else if (sez.slot() != null && !sez.slot().isEmpty()) {
@@ -1540,7 +1578,10 @@ public class PersonaggioService {
         }
         if (slots.length == 0 || slotsMax.length == 0) return spellBook;
 
-        int[] conosciutiMax = sez.conosciutiSeparati() ? conosciutiArrayDaSezione(sez, livelloTotale) : new int[0];
+        int[] conosciutiMax = !sez.conosciutiSeparati() ? new int[0]
+                : fisso
+                    ? (sez.conosciuti() != null && !sez.conosciuti().isEmpty() ? parseSlotRow(sez.conosciuti().get(0)) : new int[0])
+                    : conosciutiArrayDaSezione(sez, livelloTotale);
 
         for (int i = 0; i < slotsMax.length; i++) {
             // "dash" (nessun accesso, mai): solo per righe CUSTOM col sentinel; nei preset la riga
@@ -1560,7 +1601,7 @@ public class PersonaggioService {
             }
             int fi = i;
             liv.getIncantesimi().addAll(incantesimi.stream()
-                    .filter(x -> x.getLivello() == fi && liste.contains(x.getSpellList()))
+                    .filter(x -> x.getLivello() == fi && (sez.personalizzata() || liste.contains(x.getSpellList())))
                     .toList());
             spellBook.getLivelli().add(liv);
         }
@@ -1613,13 +1654,80 @@ public class PersonaggioService {
         return parseSlotRow(sp.getValore());
     }
 
+    /**
+     * Incantesimi spurii (non da lista/catalogo) di una fonte (classe o item): item figli marcati
+     * con label SPURIO=1, ognuno coi propri utilizzi (UTILIZZI/UTILIZZI_USATI, stesso meccanismo
+     * generico già usato per ogni altro item). Un "gruppo" con pool condiviso è semplicemente un
+     * unico figlio spurio i cui incantesimi sono elencati nella sua descrizione.
+     */
+    private List<SpellBookIncantesimoDTO> generateSpurii(Item fonte, Integer idPersonaggio) {
+        List<SpellBookIncantesimoDTO> out = new ArrayList<>();
+        if (fonte.getChild() == null) return out;
+        for (Collegamento c : fonte.getChild()) {
+            Item entity = c.getItemTarget();
+            if (entity == null || !"1".equals(entity.getLabel(Constants.ITEM_LABEL_SPURIO))) continue;
+            if (itemMapper.isDisabled(entity)) continue;
+
+            Integer uTotale = parseIntOrNull(entity.getLabel(Constants.LABEL_UTILIZZI));
+            Integer uUsati = 0;
+            List<ItemLabel> usatiRows = itemLabelRepository.findByLabelAndItem_IdInAndPersonaggio_Id(
+                    Constants.LABEL_UTILIZZI_USATI, List.of(entity.getId()), idPersonaggio);
+            if (!usatiRows.isEmpty()) {
+                try { uUsati = Integer.parseInt(usatiRows.get(0).getValore()); } catch (Exception ignored) {}
+            }
+
+            SpellBookIncantesimoDTO dto = new SpellBookIncantesimoDTO();
+            dto.setId(entity.getId());
+            dto.setNome(entity.getNome());
+            dto.setTipo(entity.getTipo());
+            if (uTotale != null) {
+                dto.setUtilizziTotale(uTotale);
+                dto.setUtilizziUsati(uUsati);
+            }
+            out.add(dto);
+        }
+        return out;
+    }
+
+    /**
+     * Incantesimi di una sezione personalizzata (item): elenco esplicito "id:livello" (label
+     * SPELL_&lt;n&gt;_INCANTESIMI), incantesimi specifici cercati e aggiunti uno a uno invece di
+     * riferirsi a una lista standard. Sempre disponibili (nessuna preparazione richiesta).
+     */
+    private List<SpellBookIncantesimoDTO> resolveIncantesimiCustom(SezioneIncantesimi sez) {
+        List<SpellBookIncantesimoDTO> out = new ArrayList<>();
+        if (sez.incantesimiCustom() == null) return out;
+        for (String token : sez.incantesimiCustom()) {
+            String[] parts = token.split(":");
+            if (parts.length != 2) continue;
+            try {
+                int itemId = Integer.parseInt(parts[0].trim());
+                int livello = Integer.parseInt(parts[1].trim());
+                Item entity = itemRepository.findById(itemId).orElse(null);
+                if (entity == null) continue;
+                SpellBookIncantesimoDTO dto = new SpellBookIncantesimoDTO();
+                dto.setId(entity.getId());
+                dto.setNome(entity.getNome());
+                dto.setTipo(entity.getTipo());
+                dto.setLivello(livello);
+                dto.setAlwaysPrep(true);
+                dto.setComponenti(utilService.getItemLabels(entity, Constants.ITEM_LABEL_COMPONENTE));
+                dto.setScuola(utilService.getItemLabel(entity, Constants.ITEM_LABEL_SCUOLA_SP));
+                out.add(dto);
+            } catch (Exception ignored) {}
+        }
+        return out;
+    }
+
     private SpellBookDTO generateSpellBook(Item classe, Integer lvl, Integer livelloEffettivo, Integer idPersonaggio) {
         ItemLabel spellList = classe.getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_LISTA_INCANTESIMI)).findFirst().orElse(null);
         if (spellList == null) return null;
         SpellBookDTO spellBook = new SpellBookDTO();
         spellBook.setIdClasse(classe.getId());
         spellBook.setNomeClasse(classe.getNome());
+        spellBook.setFonteTipo(classe.getTipo() != null ? classe.getTipo().name() : null);
         spellBook.setSpellList(spellList.getValore());
+        spellBook.setSpurii(generateSpurii(classe, idPersonaggio));
         String slotBonus = utilService.getItemLabel(classe, Constants.ITEM_LABEL_SPELL_SLOT_BONUS);
 
         Avanzamento avanzamentoTotale = findAvanzamentoPerLivello(classe, Math.toIntExact(lvl));

@@ -10,7 +10,8 @@ import {
   ModificatoreRow,
   UpdateItemRequest
 } from '../../../../../../models/dto/UpdateItemRequest'
-import {createItem, updateItem} from '../../../../../../service/PersonaggioService'
+import {createItem, getItem, searchItems, updateItem} from '../../../../../../service/PersonaggioService'
+import {Item} from '../../../../../../models/dto/Item'
 import {getItemLabel} from '../../../../../../models/entity/ItemLabel'
 import useChildCreate from '../../../../../../function/useChildCreate'
 import {useMondoSistema} from '../../../../../../function/useMondoSistema'
@@ -24,6 +25,7 @@ import ChildrenEditor from './Sections/ChildrenEditor.vue'
 import EffettiEditor from './Sections/EffettiEditor.vue'
 import SottoQuestEditor from './Sections/SottoQuestEditor.vue'
 import NotesEditor, {NotaRow} from './Sections/NotesEditor.vue'
+import {SPELL_LIST_CODES, spellListLabel} from '../../../../../../function/spellLists'
 
 const props = withDefaults(defineProps<{
   item: ItemDB
@@ -55,6 +57,10 @@ const showQta = computed(() => TIPI_CON_QTA.includes(props.item.tipo))
 // (le sotto-quest, create dal flusso "crea e collega", non hanno un ambito proprio).
 const isQuest = computed(() => props.item.tipo === 'QUEST')
 const isVeicolo = computed(() => props.item.tipo === 'VEICOLO')
+// Sezione "Incantesimi" su item generico (non classe): stessa lettura SPELL_<n>* del backend,
+// ma slot/conosciuti sono un valore fisso (una riga), non una progressione a 20 livelli.
+const TIPI_CON_INCANTESIMI = ['OGGETTO', 'EQUIPAGGIAMENTO', 'CONSUMABILE', 'ALTRO']
+const canHaveSpells = computed(() => TIPI_CON_INCANTESIMI.includes(props.item.tipo))
 const QUEST_SCOPE_OPTS = [
   {value: 'PERSONAGGIO', label: 'Personaggio'},
   {value: 'PARTY', label: 'Party'},
@@ -78,6 +84,10 @@ const form = reactive<{
   children: ChildRef[]
   forme: ChildRef[]
   effetti: ChildRef[]
+  sezioniIncantesimi: Array<{
+    liste: string[]; bonus: string; slot: string; conosciutiSeparati: boolean; conosciuti: string
+    personalizzata: boolean; incantesimiCustom: Array<{ id: number; nome: string; livello: number }>
+  }>
   note: NotaRow[]
   qta: number
   compendio: boolean
@@ -103,6 +113,7 @@ const form = reactive<{
   children: [],
   forme: [],
   effetti: [],
+  sezioniIncantesimi: [],
   note: [],
   qta: 1,
   utilizzi: null as number | null,
@@ -117,6 +128,7 @@ const form = reactive<{
 const open = reactive({
   labels: false, modificatori: false, attacchi: false, children: false, forme: false, effetti: false,
   campiLabel: false, descrOggetto: false, infoOggetto: false, infoVeicolo: false, descrAbilita: false, note: false,
+  incantesimi: false,
 })
 
 // Taglia fisica dell'oggetto (es. arma taglia Grande): puramente descrittiva, non modifica
@@ -134,7 +146,7 @@ const TAGLIE_OGGETTO = [
   {value: 'Colossale', label: 'Colossale'},
 ]
 
-function preload() {
+async function preload() {
   form.nome = props.item.nome ?? ''
   form.descrizione = props.item.descrizione ?? ''
 
@@ -160,6 +172,13 @@ function preload() {
   form.descrAbilita = {straordinaria: false, magica: false, soprannaturale: false, naturale: false, divina: false}
   form.note = []
   form.completata = false
+  form.sezioniIncantesimi = []
+  // righe SPELL_<n>* raccolte durante il giro delle label, riassemblate in sezioni a fine ciclo
+  // (l'ordine delle label non è garantito, es. _SLOT potrebbe comparire prima di SPELL_<n> stesso)
+  const spellRaw: Record<number, {
+    liste?: string; bonus?: string; slot?: string; haConosciuti?: string; conosciuti?: string
+    personalizzata?: string; incantesimi?: string
+  }> = {}
   for (const l of (props.item.labels ?? [])) {
     const key = l.label ?? ''
     const val = l.valore ?? ''
@@ -222,10 +241,43 @@ function preload() {
       form.campiMulti[key].push(val)
     } else if (campoKeys.has(key) && !form.campi[key]) {
       form.campi[key] = val
+    } else if (/^SPELL_\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_CUSTOM|_INCANTESIMI)?$/.test(key)) {
+      const m = key.match(/^SPELL_(\d+)(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_CUSTOM|_INCANTESIMI)?$/)!
+      const n = Number(m[1])
+      const suffix = m[2] ?? ''
+      const row = (spellRaw[n] ??= {})
+      if (suffix === '') row.liste = val
+      else if (suffix === '_BONUS') row.bonus = val
+      else if (suffix === '_SLOT') row.slot = val
+      else if (suffix === '_HA_CONOSCIUTI') row.haConosciuti = val
+      else if (suffix === '_CONOSCIUTI') row.conosciuti = val
+      else if (suffix === '_CUSTOM') row.personalizzata = val
+      else if (suffix === '_INCANTESIMI') row.incantesimi = val
+      // _PROG: ignorata, gli item non hanno progressione (sempre a slot fisso)
     } else {
       form.labels.push({label: key, valore: val})
     }
   }
+  form.sezioniIncantesimi = Object.keys(spellRaw).map(Number).sort((a, b) => a - b).map(n => {
+    const r = spellRaw[n]
+    const incantesimiCustom = (r.incantesimi ?? '').split(',').map(s => s.trim()).filter(Boolean).map(tok => {
+      const [idStr, livStr] = tok.split(':')
+      return {id: Number(idStr), nome: `#${idStr}`, livello: Number(livStr) || 0}
+    })
+    return {
+      liste: (r.liste ?? '').split(',').map(s => s.trim()).filter(Boolean),
+      bonus: r.bonus ?? '',
+      slot: r.slot ?? '',
+      conosciutiSeparati: r.haConosciuti === '1',
+      conosciuti: r.conosciuti ?? '',
+      personalizzata: r.personalizzata === '1',
+      incantesimiCustom,
+    }
+  })
+  // il label salva solo "id:livello": recupera i nomi per mostrarli nell'editor
+  await Promise.all(form.sezioniIncantesimi.flatMap(s => s.incantesimiCustom.map(async c => {
+    try { c.nome = (await getItem(c.id)).data?.nome ?? c.nome } catch { /* item non trovato: resta il placeholder #id */ }
+  })))
 
   form.modificatori = (props.item.modificatori ?? []).map(m => ({
     id: m.id,
@@ -258,6 +310,79 @@ function preload() {
     form.children = collegamentiNonEffetto.map(toChildRef)
   }
   form.effetti = collegamentiNonAttacco.filter(c => c.itemTarget.tipo === 'EFFETTO').map(toChildRef)
+}
+
+// Sezioni incantesimi (item generico): stesso pattern liste/bonus di ClasseEditor.vue, ma slot/
+// conosciuti sono una riga sola (nessuna progressione, l'item non ha livelli).
+function addSezioneIncantesimi() {
+  form.sezioniIncantesimi.push({
+    liste: [], bonus: '', slot: '', conosciutiSeparati: false, conosciuti: '',
+    personalizzata: false, incantesimiCustom: [],
+  })
+}
+function removeSezioneIncantesimi(i: number) {
+  form.sezioniIncantesimi.splice(i, 1)
+}
+function addListaIncantesimi(s: { liste: string[] }, code: string) {
+  if (code && !s.liste.includes(code)) s.liste.push(code)
+}
+function removeListaIncantesimi(s: { liste: string[] }, code: string) {
+  const i = s.liste.indexOf(code)
+  if (i >= 0) s.liste.splice(i, 1)
+}
+function listeIncantesimiDisponibili(s: { liste: string[] }): string[] {
+  return SPELL_LIST_CODES.filter(c => !s.liste.includes(c))
+}
+// codice libero (non nel catalogo SPELL_LIST_CODES), indicizzato per sezione
+const customListaCode = reactive<string[]>([])
+function confirmCustomLista(s: { liste: string[] }, i: number) {
+  const code = (customListaCode[i] ?? '').trim().toUpperCase()
+  if (!code) return
+  addListaIncantesimi(s, code)
+  customListaCode[i] = ''
+}
+
+// Sezione personalizzata: ricerca e aggiunta di incantesimi specifici uno a uno (invece di una
+// lista standard). Stato indicizzato per sezione (i = indice in form.sezioniIncantesimi).
+const queryIncCustom = reactive<Record<number, string>>({})
+const livelloIncCustom = reactive<Record<number, number>>({})
+const risultatiIncCustom = reactive<Record<number, Item[]>>({})
+const searchingIncCustom = reactive<Record<number, boolean>>({})
+let debounceIncTimer: ReturnType<typeof setTimeout> | null = null
+let searchIncToken = 0
+
+function onQueryIncCustom(i: number) {
+  if (debounceIncTimer) clearTimeout(debounceIncTimer)
+  debounceIncTimer = setTimeout(async () => {
+    const q = (queryIncCustom[i] ?? '').trim()
+    if (q.length < 2) {
+      risultatiIncCustom[i] = []
+      return
+    }
+    const token = ++searchIncToken
+    searchingIncCustom[i] = true
+    try {
+      const res = await searchItems(q, 'INCANTESIMO')
+      if (token !== searchIncToken) return
+      risultatiIncCustom[i] = res.data ?? []
+    } catch (e) {
+      console.error('Errore ricerca incantesimi:', e)
+    } finally {
+      if (token === searchIncToken) searchingIncCustom[i] = false
+    }
+  }, 250)
+}
+
+function aggiungiIncantesimoCustom(s: { incantesimiCustom: Array<{ id: number; nome: string; livello: number }> }, i: number, itm: Item) {
+  const l = Math.min(9, Math.max(0, Math.floor(Number(livelloIncCustom[i] ?? 0))))
+  if (s.incantesimiCustom.some(c => c.id === itm.id)) return
+  s.incantesimiCustom.push({id: itm.id, nome: itm.nome, livello: l})
+  s.incantesimiCustom.sort((a, b) => a.livello - b.livello || a.nome.localeCompare(b.nome))
+  risultatiIncCustom[i] = []
+  queryIncCustom[i] = ''
+}
+function rimuoviIncantesimoCustom(s: { incantesimiCustom: any[] }, idx: number) {
+  s.incantesimiCustom.splice(idx, 1)
 }
 
 const router = useRouter()
@@ -297,6 +422,7 @@ function restoreSnapshot(snap: any) {
   form.children = snap.children ?? []
   form.forme = snap.forme ?? []
   form.effetti = snap.effetti ?? []
+  form.sezioniIncantesimi = snap.sezioniIncantesimi ?? []
   form.note = snap.note ?? []
   form.qta = snap.qta ?? 1
   form.utilizzi = snap.utilizzi ?? null
@@ -353,6 +479,8 @@ const sumChildren = computed(() =>
     form.children.map(c => c.nome).join(', ') || '—')
 const sumForme = computed(() =>
     form.forme.map(c => c.nome).join(', ') || '—')
+const sumSezioniIncantesimi = computed(() =>
+    form.sezioniIncantesimi.length > 0 ? `${form.sezioniIncantesimi.length} sezioni` : 'nessuno')
 const sumEffetti = computed(() =>
     form.effetti.map(c => `${c.condizione ?? 'Sempre'}: ${c.nome}`).join(', ') || '—')
 const sumNote = computed(() =>
@@ -456,6 +584,29 @@ function buildPayload(): UpdateItemRequest {
   if (form.compendio) labels.push({label: 'COMPENDIO', valore: 'true'})
   // visibilità item (vuoto = visibile a tutti)
   if (form.visibilita) labels.push({label: 'VISIBILITA', valore: form.visibilita})
+  // Incantesimi (item generico): stesse label SPELL_<n>* delle classi, slot/conosciuti a riga fissa.
+  // Sezione personalizzata: niente liste, incantesimi agganciati direttamente uno a uno.
+  if (canHaveSpells.value) {
+    let n = 0
+    for (const s of form.sezioniIncantesimi) {
+      const liste = (s.liste ?? []).map(x => x.trim()).filter(Boolean)
+      const custom = s.personalizzata ? (s.incantesimiCustom ?? []).filter(c => c.id) : []
+      if (!s.personalizzata && liste.length === 0) continue
+      if (s.personalizzata && custom.length === 0) continue
+      if (liste.length > 0) labels.push({label: `SPELL_${n}`, valore: liste.join(',')})
+      if (s.bonus.trim()) labels.push({label: `SPELL_${n}_BONUS`, valore: s.bonus.trim()})
+      if (s.slot.trim()) labels.push({label: `SPELL_${n}_SLOT`, valore: s.slot.trim()})
+      if (s.conosciutiSeparati) {
+        labels.push({label: `SPELL_${n}_HA_CONOSCIUTI`, valore: '1'})
+        if (s.conosciuti.trim()) labels.push({label: `SPELL_${n}_CONOSCIUTI`, valore: s.conosciuti.trim()})
+      }
+      if (s.personalizzata) {
+        labels.push({label: `SPELL_${n}_CUSTOM`, valore: '1'})
+        labels.push({label: `SPELL_${n}_INCANTESIMI`, valore: custom.map(c => `${c.id}:${c.livello}`).join(',')})
+      }
+      n++
+    }
+  }
   return toRaw({
     nome: form.nome.trim(),
     descrizione: form.descrizione,
@@ -870,6 +1021,102 @@ function onCancel() {
       </div>
     </section>
 
+    <!-- Incantesimi (item generico): liste + slot/conosciuti a valore fisso, niente progressione -->
+    <section v-if="!minimal && canHaveSpells" class="fold">
+      <button type="button" class="fold-head" @click="open.incantesimi = !open.incantesimi"
+              :aria-expanded="open.incantesimi ? 'true' : 'false'">
+        <span class="fold-title">Incantesimi</span>
+        <span class="fold-summary">{{ sumSezioniIncantesimi }}</span>
+        <span class="chev" :class="{ open: open.incantesimi }">▸</span>
+      </button>
+      <div v-show="open.incantesimi" class="fold-body">
+        <p class="muted">
+          Slot/conosciuti sono un numero fisso (l'oggetto non ha livelli), sempre disponibile.
+          Per tenere liste separate, crea più sezioni.
+        </p>
+
+        <div v-for="(s, i) in form.sezioniIncantesimi" :key="i" class="sez-card">
+          <div class="sez-head">
+            <span class="sez-title">Sezione {{ i + 1 }}</span>
+            <button type="button" class="btn-del" :disabled="disabledAll" @click="removeSezioneIncantesimi(i)" title="Rimuovi">✕</button>
+          </div>
+
+          <label class="field checkbox-field">
+            <input type="checkbox" v-model="s.personalizzata" :disabled="disabledAll"/>
+            <span class="lbl">Sezione personalizzata (cerca e aggiungi incantesimi uno a uno, invece di una lista standard)</span>
+          </label>
+
+          <div v-if="!s.personalizzata" class="field">
+            <span class="lbl">Liste incantesimi (unite in questa sezione)</span>
+            <div v-if="s.liste.length" class="chips">
+              <span v-for="code in s.liste" :key="code" class="chip">
+                {{ spellListLabel(code) }}
+                <button type="button" class="chip-x" :disabled="disabledAll" @click="removeListaIncantesimi(s, code)">✕</button>
+              </span>
+            </div>
+            <SearchSelect :model-value="''" :disabled="disabledAll" placeholder="+ Aggiungi lista…"
+                          :options="listeIncantesimiDisponibili(s).map(c => ({value: c, label: `${spellListLabel(c)} (${c})`}))"
+                          @update:model-value="addListaIncantesimi(s, $event as string)"/>
+            <div class="custom-lista-row">
+              <input v-model.trim="customListaCode[i]" type="text" placeholder="Codice personalizzato, es. SP_ANELLO_CUSTOM"
+                     :disabled="disabledAll" @keydown.enter.prevent="confirmCustomLista(s, i)"/>
+              <button type="button" class="btn ghost" :disabled="disabledAll || !customListaCode[i]?.trim()"
+                      @click="confirmCustomLista(s, i)">Aggiungi</button>
+            </div>
+          </div>
+
+          <div v-else class="field">
+            <span class="lbl">Incantesimi di questa sezione</span>
+            <div v-if="s.incantesimiCustom.length" class="chips">
+              <span v-for="(c, ci) in s.incantesimiCustom" :key="c.id" class="chip">
+                {{ c.nome }} (liv. {{ c.livello }})
+                <button type="button" class="chip-x" :disabled="disabledAll" @click="rimuoviIncantesimoCustom(s, ci)">✕</button>
+              </span>
+            </div>
+            <div class="conc-add">
+              <label class="field liv-input">
+                <span class="lbl">Liv</span>
+                <input v-model.number="livelloIncCustom[i]" type="number" min="0" max="9" :disabled="disabledAll"/>
+              </label>
+              <input class="grow" :value="queryIncCustom[i]" type="text" placeholder="Cerca incantesimo…"
+                     :disabled="disabledAll" @input="queryIncCustom[i] = ($event.target as HTMLInputElement).value; onQueryIncCustom(i)"/>
+            </div>
+            <div v-if="searchingIncCustom[i]" class="muted">Ricerca…</div>
+            <ul v-else-if="risultatiIncCustom[i]?.length" class="results">
+              <li v-for="r in risultatiIncCustom[i]" :key="r.id">
+                <button type="button" class="result" :disabled="disabledAll" @click="aggiungiIncantesimoCustom(s, i, r)">
+                  <span class="nome">{{ r.nome }}</span>
+                  <span class="plus">+</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <div class="rank-grid">
+            <label class="field">
+              <span class="lbl">Slot per livello — formato "2,1,-,-,-,-,-,-,-,-" dal liv. 0 al 9 ("-" = nessun accesso)</span>
+              <input v-model.trim="s.slot" type="text" placeholder="2,1,-,-,-,-,-,-,-,-" :disabled="disabledAll"/>
+            </label>
+            <label class="field">
+              <span class="lbl">Formula slot bonus</span>
+              <input v-model.trim="s.bonus" type="text" placeholder="Es.: 1+(@SAG-#L)/4)" :disabled="disabledAll"/>
+            </label>
+          </div>
+
+          <label class="field checkbox-field">
+            <input type="checkbox" v-model="s.conosciutiSeparati" :disabled="disabledAll"/>
+            <span class="lbl">Traccia incantesimi conosciuti separatamente dagli slot</span>
+          </label>
+          <div v-if="s.conosciutiSeparati" class="field">
+            <span class="lbl">Incantesimi conosciuti — stesso formato degli slot</span>
+            <input v-model.trim="s.conosciuti" type="text" placeholder="2,1,-,-,-,-,-,-,-,-" :disabled="disabledAll"/>
+          </div>
+        </div>
+
+        <button type="button" class="btn outline" :disabled="disabledAll" @click="addSezioneIncantesimi">+ Aggiungi sezione</button>
+      </div>
+    </section>
+
     <!-- Labels generiche -->
     <section v-if="!minimal" class="fold">
       <button type="button" class="fold-head" @click="open.labels = !open.labels"
@@ -984,6 +1231,41 @@ textarea { resize: vertical; }
 .btn.outline { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
 .btn.primary { background: #2563eb; color: white; }
 .btn:disabled { opacity: .6; cursor: default; }
+.btn-del {
+  border: 1px solid #fecaca; background: #fef2f2; color: #991b1b;
+  border-radius: .5rem; padding: .25rem .5rem; cursor: pointer;
+}
+
+.rank-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+@media (max-width: 700px) { .rank-grid { grid-template-columns: 1fr; } }
+
+.sez-card { border: 1px solid #e5e7eb; border-radius: .5rem; padding: .5rem; display: grid; gap: .5rem; margin-bottom: .4rem; background: #fafafa; }
+.sez-head { display: flex; align-items: center; justify-content: space-between; }
+.sez-title { font-weight: 700; font-size: .9rem; }
+.chips { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .3rem; }
+.chip { display: inline-flex; align-items: center; gap: .3rem; background: #eef2ff; color: #3730a3; border-radius: 1rem; padding: .1rem .5rem; font-size: .8rem; font-weight: 600; }
+.chip-x { border: 0; background: transparent; color: #6366f1; cursor: pointer; font-size: .75rem; padding: 0; }
+.custom-lista-row { display: flex; gap: .4rem; margin-top: .35rem; }
+.custom-lista-row input { flex: 1; padding: .4rem .5rem; border: 1px solid #d0d5dd; border-radius: .4rem; }
+
+.conc-add { display: grid; grid-template-columns: 5rem 1fr; gap: .4rem; align-items: end; }
+.conc-add .grow { min-width: 0; padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; }
+.liv-input { max-width: 6rem; }
+.results {
+  list-style: none; margin: 0; padding: 0;
+  border: 1px solid #e5e7eb; border-radius: .5rem; overflow: hidden;
+  max-height: 14rem; overflow-y: auto;
+}
+.results li + li { border-top: 1px solid #f3f4f6; }
+.result {
+  width: 100%; display: grid; grid-template-columns: 1fr auto; gap: .4rem; align-items: center;
+  padding: .4rem .5rem; background: #fff; border: 0; cursor: pointer; text-align: left;
+}
+.result:hover { background: #f9fafb; }
+.result .nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plus { color: #2563eb; font-weight: 700; }
+.checkbox-field { grid-auto-flow: column; justify-content: start; align-items: center; gap: .5rem; }
+.checkbox-field input[type="checkbox"] { width: auto; }
 
 /* nome + quantità */
 .nome-qta { display: grid; grid-template-columns: 1fr auto; gap: .5rem; align-items: end; }

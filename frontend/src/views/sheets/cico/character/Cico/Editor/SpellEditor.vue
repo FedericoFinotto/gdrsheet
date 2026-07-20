@@ -105,6 +105,7 @@ type SpellDraft = {
   ts: string
   comp: Record<ComponentKey, boolean>
   classi: Record<string, string>
+  classiCustom: Array<{ codice: string; livello: string }>  // liste/classi non nel catalogo preimpostato
 }
 function emptyBoolMap(list: string[]): BoolMap {
   return Object.fromEntries(list.map(s => [s, false])) as BoolMap
@@ -136,7 +137,8 @@ function emptyDraft(): SpellDraft {
       FROSTFELL: false,
       B: false
     },
-    classi: emptyClassLevels()
+    classi: emptyClassLevels(),
+    classiCustom: []
   }
 }
 const form = reactive<SpellDraft>(emptyDraft())
@@ -521,12 +523,18 @@ onMounted(() => {
   parsed.subs.forEach(s => form.subscuole[s] = true)
   parsed.desc.forEach(d => form.descrittori[d] = true)
 
-  // Classi/Domini SP_*
+  // Classi/Domini SP_*: catalogo preimpostato + codici personalizzati (liberi, non nel catalogo)
+  form.classiCustom = []
   for (const l of (props.item.labels ?? [])) {
     if (!/^SP_[A-Z_]+$/.test(l.label)) continue
-    if (!(l.label in CLASS_LABELS)) continue
     const n = Number((l.valore ?? '').trim())
-    form.classi[l.label] = Number.isFinite(n) && n >= 0 && n <= 9 ? String(n) : ''
+    const livello = Number.isFinite(n) && n >= 0 && n <= 9 ? String(n) : ''
+    if (!livello) continue
+    if (l.label in CLASS_LABELS) {
+      form.classi[l.label] = livello
+    } else {
+      form.classiCustom.push({codice: l.label, livello})
+    }
   }
 })
 
@@ -550,8 +558,18 @@ const sumClassi = computed(() => {
     const v = form.classi[code]
     if (v !== '' && v != null) items.push(`${friendlyNameFromCode(code)} ${v}`)
   }
+  for (const c of form.classiCustom) {
+    if (c.codice.trim() && c.livello !== '') items.push(`${c.codice.trim()} ${c.livello}`)
+  }
   return items.join(', ') || '—'
 })
+
+function addClasseCustom() {
+  form.classiCustom.push({codice: '', livello: ''})
+}
+function removeClasseCustom(i: number) {
+  form.classiCustom.splice(i, 1)
+}
 
 /* ========= Salvataggio ========= */
 const busy = ref(false)
@@ -577,6 +595,13 @@ async function onSave() {
       if (v === '' || v == null) continue
       const n = Number(v)
       if (Number.isFinite(n) && n >= 0 && n <= 9) classi.push({classe: code, livello: n})
+    }
+    // codici personalizzati (liste non nel catalogo preimpostato)
+    for (const c of form.classiCustom) {
+      const codice = c.codice.trim().toUpperCase()
+      if (!codice || c.livello === '') continue
+      const n = Number(c.livello)
+      if (Number.isFinite(n) && n >= 0 && n <= 9) classi.push({classe: codice, livello: n})
     }
 
     const payload: UpdateSpellRequest = toRaw({
@@ -750,6 +775,24 @@ function onCancel() { emit('cancel') }
             </label>
           </div>
         </fieldset>
+
+        <fieldset class="components custom-classi">
+          <legend class="sr-only">Liste personalizzate</legend>
+          <p class="muted">
+            Liste/classi non nel catalogo qui sopra (es. per un oggetto con una lista incantesimi
+            propria): il codice va scritto come lo useresti nella sezione "Liste incantesimi"
+            dell'oggetto o della classe.
+          </p>
+          <div v-for="(c, i) in form.classiCustom" :key="i" class="class-row custom-row">
+            <input v-model.trim="c.codice" type="text" placeholder="Es. SP_ANELLO_CUSTOM" :disabled="disabledAll" class="custom-code"/>
+            <select v-model="c.livello" :disabled="disabledAll" class="level-select">
+              <option value="">—</option>
+              <option v-for="n in 10" :key="n-1" :value="String(n-1)">{{ n - 1 }}</option>
+            </select>
+            <button type="button" class="btn-del" :disabled="disabledAll" @click="removeClasseCustom(i)" title="Rimuovi">✕</button>
+          </div>
+          <button type="button" class="btn outline" :disabled="disabledAll" @click="addClasseCustom">+ Aggiungi lista personalizzata</button>
+        </fieldset>
       </div>
     </section>
 
@@ -829,6 +872,14 @@ textarea { resize: vertical; min-height: 16rem; }
 .class-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .level-select { width: 100%; }
 
+.custom-classi { margin-top: .75rem; padding-top: .6rem; border-top: 1px dashed #e5e7eb; display: grid; gap: .5rem; }
+.custom-row { grid-template-columns: 1fr 5rem auto; }
+.custom-code { width: 100%; padding: .35rem .5rem; border: 1px solid #d0d5dd; border-radius: .4rem; }
+.btn-del {
+  border: 1px solid #fecaca; background: #fef2f2; color: #991b1b;
+  border-radius: .5rem; padding: .25rem .5rem; cursor: pointer;
+}
+
 /* actions sticky */
 .actions {
   position: sticky; bottom: 0; background: #fff;
@@ -839,6 +890,7 @@ textarea { resize: vertical; min-height: 16rem; }
 
 .btn { padding: .5rem .9rem; border-radius: .5rem; border: 1px solid transparent; cursor: pointer; }
 .btn.ghost { border-color: #d0d5dd; background: #fff; }
+.btn.outline { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
 .btn.primary { background: #2563eb; color: white; }
 .btn:disabled { opacity: .6; cursor: default; }
 

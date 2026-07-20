@@ -92,6 +92,9 @@ public final class Constants {
     public static final String LABEL_INCLUDI_TUTTI_ABILITATI = "INCLUDI_TUTTI_ABILITATI";
     public static final String LABEL_UTILIZZI = "UTILIZZI";           // max utilizzi (globale sull'item)
     public static final String LABEL_UTILIZZI_USATI = "UTILIZZI_USATI"; // utilizzi consumati (per-personaggio)
+    // "1" sull'item figlio = incantesimo spurio (non da lista/catalogo) di una sezione incantatore:
+    // individuale (utilizzi propri) o gruppo (un unico figlio con contatore condiviso, nomi in descrizione)
+    public static final String ITEM_LABEL_SPURIO = "SPURIO";
     public static final String LABEL_CC = "CC";     // conto corrente banca: G<idPersonaggio> | P<idParty>
     public static final String ITEM_LABEL_COMPENDIO = "COMPENDIO"; // visibilità nel compendio
     public static final String ITEM_LABEL_TIPO = "TIPO";           // tipo specifico item (es. BARRIERA)

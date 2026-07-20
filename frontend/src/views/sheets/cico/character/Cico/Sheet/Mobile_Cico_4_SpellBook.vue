@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed, defineProps, markRaw, reactive, ref, watch} from 'vue';
 import Tabella from '../../../../../../components/Tabella.vue';
+import UtilizziBadge from '../../../../../../components/UtilizziBadge.vue';
 import Mobile_DettaglioItem from '../../Dettaglio/Mobile_DettaglioItem.vue';
 import {useCharacterStore} from '../../../../../../stores/personaggio';
 import {storeToRefs} from 'pinia';
@@ -68,11 +69,17 @@ const groupedByClassLevel = computed(() => {
       .map((sb: any) => ({
         classe: sb?.nomeClasse ?? 'Sconosciuta',
         idClasse: sb?.idClasse,
+        fonteTipo: sb?.fonteTipo,
         spellList: sb?.spellList,
-        levels: normalizeLevels(sb?.livelli)
+        levels: normalizeLevels(sb?.livelli),
+        spurii: sb?.spurii ?? []
       }))
       .sort((a: any, b: any) => (a.classe ?? '').localeCompare(b.classe ?? ''));
 });
+
+function fonteTipoLabel(fonteTipo?: string): string {
+  return fonteTipo === 'CLASSE' ? 'Classe' : 'Oggetto';
+}
 
 /* ----------------- Calcolo async BONUS slot ----------------- */
 const slotBonusMap = ref<Record<string, number>>({});
@@ -286,6 +293,7 @@ function showPopup(opts: ShowPopupOpts) {
     <section v-for="group in groupedByClassLevel" :key="group.classe" class="mb-4">
       <h3 class="classe-title">
         {{ group.classe }}
+        <span class="muted fonte-tipo">Da: {{ fonteTipoLabel(group.fonteTipo) }}</span>
       </h3>
 
       <div v-for="lv in group.levels" :key="`${group.idClasse ?? group.classe}-${lv.livello}`" class="level-block">
@@ -310,6 +318,22 @@ function showPopup(opts: ShowPopupOpts) {
             :expandable="true"
             :items="lv.incantesimi"
         />
+      </div>
+
+      <div v-if="group.spurii?.length" class="level-block">
+        <div class="level-header">
+          <div class="level-title">Incantesimi extra</div>
+        </div>
+        <div v-for="s in group.spurii" :key="s.id" class="spurio-row">
+          <span class="spurio-nome">{{ s.nome }}</span>
+          <UtilizziBadge
+              v-if="s.utilizziTotale != null"
+              :item-id="s.id"
+              :personaggio-id="idPersonaggio"
+              :usati="s.utilizziUsati ?? 0"
+              :totale="s.utilizziTotale"
+          />
+        </div>
       </div>
     </section>
   </div>

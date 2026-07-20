@@ -474,6 +474,14 @@ function removeLista(s: { liste: string[] }, code: string) {
 function listeDisponibili(s: { liste: string[] }): string[] {
   return SPELL_LIST_CODES.filter(c => !s.liste.includes(c))
 }
+// codice libero (non nel catalogo SPELL_LIST_CODES), indicizzato per sezione
+const customListaCode = reactive<string[]>([])
+function confirmCustomLista(s: { liste: string[] }, i: number) {
+  const code = (customListaCode[i] ?? '').trim().toUpperCase()
+  if (!code) return
+  addLista(s, code)
+  customListaCode[i] = ''
+}
 // assicura la riga slot per il livello di classe (1-based)
 function slotDi(s: { slot: string[] }, livello: number): string {
   return s.slot[livello - 1] ?? ''
@@ -713,6 +721,12 @@ const sumInfoRazza = computed(() => {
               <SearchSelect :model-value="''" :disabled="disabledAll" placeholder="+ Aggiungi lista…"
                             :options="listeDisponibili(s).map(c => ({value: c, label: `${spellListLabel(c)} (${c})`}))"
                             @update:model-value="addLista(s, $event as string)"/>
+              <div class="custom-lista-row">
+                <input v-model.trim="customListaCode[i]" type="text" placeholder="Codice personalizzato, es. SP_MIA_LISTA"
+                       :disabled="disabledAll" @keydown.enter.prevent="confirmCustomLista(s, i)"/>
+                <button type="button" class="btn ghost" :disabled="disabledAll || !customListaCode[i]?.trim()"
+                        @click="confirmCustomLista(s, i)">Aggiungi</button>
+              </div>
             </div>
 
             <div class="rank-grid">
@@ -959,6 +973,8 @@ const sumInfoRazza = computed(() => {
 .chips { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .3rem; }
 .chip { display: inline-flex; align-items: center; gap: .3rem; background: #eef2ff; color: #3730a3; border-radius: 1rem; padding: .1rem .5rem; font-size: .8rem; font-weight: 600; }
 .chip-x { border: 0; background: transparent; color: #6366f1; cursor: pointer; font-size: .75rem; padding: 0; }
+.custom-lista-row { display: flex; gap: .4rem; margin-top: .35rem; }
+.custom-lista-row input { flex: 1; padding: .4rem .5rem; border: 1px solid #d0d5dd; border-radius: .4rem; }
 .slot-list { display: grid; gap: .25rem; max-height: 16rem; overflow-y: auto; }
 .slot-row { display: grid; grid-template-columns: 2rem 1fr; gap: .4rem; align-items: center; }
 .slot-liv { font-weight: 700; font-size: .8rem; color: #3730a3; text-align: center; }

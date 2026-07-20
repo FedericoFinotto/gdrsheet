@@ -26,8 +26,10 @@ export interface SpellBookLivello {
 export interface SpellBook {
     idClasse: number;
     nomeClasse: string;
+    fonteTipo?: string;                // TipoItem della fonte (CLASSE, OGGETTO, ...)
     spellList: string;                // codice lista (es. "SP_DRUID")
     livelli: SpellBookLivello[];   // inizializzato a []
+    spurii?: SpellBookIncantesimo[];   // incantesimi non da lista/catalogo, utilizzi propri o di gruppo
 }
 
 
