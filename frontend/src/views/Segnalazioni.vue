@@ -28,12 +28,26 @@ const mostraTutte = ref(false)
 // segnalazioni con variazioni non ancora viste dall'utente (per il puntino rosso in lista)
 const nonVisti = reactive<Record<number, boolean>>({})
 
+// ordine di visualizzazione: In corso, poi Nuove, poi Concluse, poi Deployate; il resto (es.
+// eventuali stati sconosciuti) resta in fondo, nell'ordine restituito da Taiga
+const ORDINE_STATO: Record<string, number> = {
+  'in corso': 0,
+  nuovo: 1, new: 1,
+  concluso: 2,
+  deployato: 3,
+}
+function prioritaStato(stato: string | null): number {
+  const key = (stato ?? '').trim().toLowerCase()
+  return ORDINE_STATO[key] ?? 99
+}
+
 async function carica() {
   loading.value = true
   errorMsg.value = null
   try {
     await caricaViste()
     segnalazioni.value = (await listaSegnalazioni(mostraTutte.value)).data
+        .sort((a, b) => prioritaStato(a.stato) - prioritaStato(b.stato))
     for (const s of segnalazioni.value) nonVisti[s.id] = segnalazioneNonVista(s)
   } catch (e) {
     console.error('Errore caricamento segnalazioni:', e)
