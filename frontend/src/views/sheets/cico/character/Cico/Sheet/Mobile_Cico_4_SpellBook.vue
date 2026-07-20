@@ -22,7 +22,7 @@ const {openPopup} = usePopup();
 /* ----------------- Normalizzazione (sincrona) ----------------- */
 /** ATTENZIONE: qui rendiamo ogni riga REATTIVA con reactive(...) */
 function normalizeLevels(livelli: any): Array<{
-  livello: number; slot?: number; bonus?: any[]; incantesimi: any[];
+  livello: number; slot?: number; conosciuti?: number; bonus?: any[]; incantesimi: any[];
 }> {
   if (!livelli) return [];
   const arr = Array.isArray(livelli) ? livelli : Object.values(livelli);
@@ -30,6 +30,7 @@ function normalizeLevels(livelli: any): Array<{
       .map((lv: any) => ({
         livello: Number(lv?.livello ?? 0),
         slot: Number(lv?.slot ?? 0),        // base; i bonus arrivano async
+        conosciuti: lv?.conosciuti == null ? undefined : Number(lv.conosciuti),
         bonus: Array.isArray(lv?.bonus) ? lv.bonus : [],
         incantesimi: (lv?.incantesimi ?? []).map((itm: any) => {
           const nprepared = Number(itm?.nprepared ?? 0);
@@ -292,6 +293,7 @@ function showPopup(opts: ShowPopupOpts) {
           <div class="level-title">
             {{ lv.livello === 0 ? 'Cantrip' : `Livello ${lv.livello}` }}
             <span class="muted"> · slot: {{ getSlotDisplay(group.idClasse, lv.livello, lv.slot) }}</span>
+            <span v-if="lv.conosciuti != null" class="muted"> · conosciuti: {{ lv.conosciuti }}</span>
           </div>
           <button
               class="prepare-btn"

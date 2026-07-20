@@ -144,6 +144,11 @@ public class ClasseService {
             s.setSlot(slotRaw == null || slotRaw.isBlank()
                     ? List.of()
                     : Arrays.stream(slotRaw.split(";")).map(String::trim).toList());
+            s.setConosciutiSeparati("1".equals(classe.getLabel("SPELL_" + n + "_HA_CONOSCIUTI")));
+            String conosciutiRaw = classe.getLabel("SPELL_" + n + "_CONOSCIUTI");
+            s.setConosciuti(conosciutiRaw == null || conosciutiRaw.isBlank()
+                    ? List.of()
+                    : Arrays.stream(conosciutiRaw.split(";")).map(String::trim).toList());
             out.add(s);
         }
         if (out.isEmpty()) {
@@ -209,7 +214,7 @@ public class ClasseService {
                 String k = l.getLabel();
                 return k != null && (k.equals(Constants.ITEM_LABEL_LISTA_INCANTESIMI)
                         || k.equals(Constants.ITEM_LABEL_SPELL_SLOT_BONUS)
-                        || k.matches("SPELL_\\d+(_PROG|_BONUS|_SLOT)?"));
+                        || k.matches("SPELL_\\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI)?"));
             });
         }
         List<ClasseDetailDTO.SezioneSpellDTO> sezioni = dto.getSezioniIncantesimi();
@@ -237,6 +242,18 @@ public class ClasseService {
                             .collect(Collectors.joining(";"));
                     if (!slotJoined.replace(";", "").isBlank()) {
                         putSingleLabel(classe, "SPELL_" + n + "_SLOT", slotJoined);
+                    }
+                }
+                // incantesimi conosciuti: separati dagli slot, opzionali (flag per sezione)
+                if (s.isConosciutiSeparati()) {
+                    putSingleLabel(classe, "SPELL_" + n + "_HA_CONOSCIUTI", "1");
+                    if (s.getConosciuti() != null && !s.getConosciuti().isEmpty()) {
+                        String conosciutiJoined = s.getConosciuti().stream()
+                                .map(x -> x == null ? "" : x.trim())
+                                .collect(Collectors.joining(";"));
+                        if (!conosciutiJoined.replace(";", "").isBlank()) {
+                            putSingleLabel(classe, "SPELL_" + n + "_CONOSCIUTI", conosciutiJoined);
+                        }
                     }
                 }
                 if (representativeList == null) representativeList = liste.get(0);

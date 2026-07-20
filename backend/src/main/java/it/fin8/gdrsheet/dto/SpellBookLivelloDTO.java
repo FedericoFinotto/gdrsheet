@@ -13,6 +13,7 @@ import java.util.List;
 public class SpellBookLivelloDTO {
     Integer livello;
     Integer slot;
+    Integer conosciuti;  // null = la sezione non traccia gli incantesimi conosciuti separatamente
     List<String> bonus;
     List<SpellBookIncantesimoDTO> incantesimi;
 

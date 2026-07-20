@@ -93,6 +93,15 @@ public class ClasseDetailDTO {
         private String progressione;      // MAGO/CHIERICO/.../CUSTOM
         private String bonus;             // formula slot bonus
         private List<String> slot;        // CUSTOM: tabella slot per livello di classe (una riga "4,2,1,…" per livello)
+
+        /**
+         * Incantesimi conosciuti: concetto separato dagli slot/giorno (rilevante per incantatori
+         * spontanei come Bardo/Stregone). Opzionale/flaggabile: se conosciutiSeparati è false,
+         * conosciuti è ignorato. Nessuna formula di bonus: il bonus da caratteristica si applica
+         * solo agli slot, mai al numero di incantesimi conosciuti.
+         */
+        private boolean conosciutiSeparati;
+        private List<String> conosciuti;  // stesso formato/dash di "slot" (una riga "4,2,1,-,…" per livello)
     }
 
     @Getter

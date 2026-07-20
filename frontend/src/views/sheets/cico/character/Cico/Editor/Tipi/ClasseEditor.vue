@@ -63,7 +63,11 @@ const form = reactive({
   spellList: '',
   spellSlotBonus: '',
   // sezioni incantatore: ognuna 1..N liste (unite) + progressione + formula bonus + slot custom
-  sezioni: [] as Array<{ liste: string[]; progressione: string; bonus: string; slot: string[] }>,
+  // + incantesimi conosciuti (opzionale/flaggabile, indipendente dalla progressione slot)
+  sezioni: [] as Array<{
+    liste: string[]; progressione: string; bonus: string; slot: string[]
+    conosciutiSeparati: boolean; conosciuti: string[]
+  }>,
   rank1: '',
   rank: '',
   // Info Razza (solo tipo RAZZA): campi puramente descrittivi.
@@ -152,6 +156,8 @@ onMounted(async () => {
       progressione: s.progressione ?? 'CUSTOM',
       bonus: s.bonus ?? '',
       slot: Array.isArray(s.slot) ? s.slot.slice() : [],
+      conosciutiSeparati: !!s.conosciutiSeparati,
+      conosciuti: Array.isArray(s.conosciuti) ? s.conosciuti.slice() : [],
     }))
     form.rank1 = d.rank1 ?? ''
     form.rank = d.rank ?? ''
@@ -386,11 +392,16 @@ function buildClassePayload() {
           const slot = prog === 'CUSTOM'
               ? s.slot.slice(0, form.numLivelli).map(x => (x ?? '').trim())
               : []
+          const conosciuti = s.conosciutiSeparati
+              ? s.conosciuti.slice(0, form.numLivelli).map(x => (x ?? '').trim())
+              : []
           return {
             liste: (s.liste ?? []).map(x => x.trim()).filter(Boolean),
             progressione: prog,
             bonus: s.bonus.trim() || null,
             slot: slot.some(x => x) ? slot : null,
+            conosciutiSeparati: s.conosciutiSeparati,
+            conosciuti: conosciuti.some(x => x) ? conosciuti : null,
           }
         })
         .filter(s => s.liste.length > 0),
@@ -447,7 +458,7 @@ async function salvaRigaAvanzata(a: AbilitaConcessa) {
 const PROGRESSIONI = ['CUSTOM', 'MAGO', 'STREGONE', 'CHIERICO', 'DRUIDO', 'BARDO', 'RANGER', 'PALADINO']
 
 function addSezione() {
-  form.sezioni.push({liste: [], progressione: 'CUSTOM', bonus: '', slot: []})
+  form.sezioni.push({liste: [], progressione: 'CUSTOM', bonus: '', slot: [], conosciutiSeparati: false, conosciuti: []})
 }
 function removeSezione(i: number) {
   form.sezioni.splice(i, 1)
@@ -470,6 +481,14 @@ function slotDi(s: { slot: string[] }, livello: number): string {
 function setSlot(s: { slot: string[] }, livello: number, val: string) {
   while (s.slot.length < livello) s.slot.push('')
   s.slot[livello - 1] = val
+}
+// riga incantesimi conosciuti (opzionale, indipendente dalla progressione slot)
+function conosciutiDi(s: { conosciuti: string[] }, livello: number): string {
+  return s.conosciuti[livello - 1] ?? ''
+}
+function setConosciuti(s: { conosciuti: string[] }, livello: number, val: string) {
+  while (s.conosciuti.length < livello) s.conosciuti.push('')
+  s.conosciuti[livello - 1] = val
 }
 
 const incantatore = computed(() => form.sezioni.some(s => s.liste.length > 0))
@@ -709,12 +728,34 @@ const sumInfoRazza = computed(() => {
             </div>
 
             <div v-if="(s.progressione || 'CUSTOM') === 'CUSTOM'" class="field">
-              <span class="lbl">Slot per livello (CUSTOM) — formato "4,2,1,…" dal liv. 0 al 9</span>
+              <span class="lbl">
+                Slot per livello (CUSTOM) — formato "4,2,1,-,…" dal liv. 0 al 9.
+                Usa <strong>-</strong> (o lascia vuoto) per "nessun accesso" (—), e <strong>0</strong>
+                per "accesso ma 0 slot base" (es. slot bonus da caratteristica alta).
+              </span>
               <div class="slot-list">
                 <div v-for="l in form.numLivelli" :key="l" class="slot-row">
                   <span class="slot-liv">{{ l }}</span>
                   <input type="text" :value="slotDi(s, l)" placeholder="4,2,1,0,0,0,0,0,0,0"
                          :disabled="disabledAll" @input="setSlot(s, l, ($event.target as HTMLInputElement).value)"/>
+                </div>
+              </div>
+            </div>
+
+            <label class="field checkbox-field">
+              <input type="checkbox" v-model="s.conosciutiSeparati" :disabled="disabledAll"/>
+              <span class="lbl">Traccia incantesimi conosciuti separatamente dagli slot</span>
+            </label>
+            <div v-if="s.conosciutiSeparati" class="field">
+              <span class="lbl">
+                Incantesimi conosciuti per livello — stesso formato degli slot ("-" = nessun accesso).
+                Nessun bonus da formula: il bonus da caratteristica si applica solo agli slot.
+              </span>
+              <div class="slot-list">
+                <div v-for="l in form.numLivelli" :key="l" class="slot-row">
+                  <span class="slot-liv">{{ l }}</span>
+                  <input type="text" :value="conosciutiDi(s, l)" placeholder="4,2,1,-,-,-,-,-,-,-"
+                         :disabled="disabledAll" @input="setConosciuti(s, l, ($event.target as HTMLInputElement).value)"/>
                 </div>
               </div>
             </div>
@@ -931,6 +972,8 @@ const sumInfoRazza = computed(() => {
 
 .field { display: grid; gap: .3rem; }
 .lbl { font-size: .8rem; font-weight: 600; opacity: .85; }
+.checkbox-field { grid-auto-flow: column; justify-content: start; align-items: center; gap: .5rem; }
+.checkbox-field input[type="checkbox"] { width: auto; }
 
 input[type="text"], input[type="number"], input:not([type]), textarea, select {
   width: 100%; min-width: 0; padding: .5rem .6rem;

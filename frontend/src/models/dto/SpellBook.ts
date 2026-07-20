@@ -17,6 +17,7 @@ export interface SpellBookIncantesimo extends Item {
 export interface SpellBookLivello {
     livello: number;                         // 0..9
     slot: number;                            // slot disponibili per il livello
+    conosciuti?: number;                     // incantesimi conosciuti per il livello, se la sezione li traccia separatamente
     bonus: string[];                         // note/bonus (es. domini, oggetti)
     incantesimi: SpellBookIncantesimo[];  // incantesimi del livello
 }

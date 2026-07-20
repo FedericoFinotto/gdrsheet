@@ -1453,7 +1453,8 @@ public class PersonaggioService {
      * Sezione incantatore di un item: 1..N liste (sempre unite), una progressione
      * (preset standard o CUSTOM = slot dagli avanzamenti) e la formula degli slot bonus.
      */
-    public record SezioneIncantesimi(List<String> liste, String progressione, String bonus, List<String> slot) {}
+    public record SezioneIncantesimi(List<String> liste, String progressione, String bonus, List<String> slot,
+                                      boolean conosciutiSeparati, List<String> conosciuti) {}
 
     /**
      * Legge le sezioni incantatore "nuove" di un item dalle label indicizzate:
@@ -1483,7 +1484,12 @@ public class PersonaggioService {
             List<String> slot = (slotRaw == null || slotRaw.isBlank())
                     ? List.of()
                     : Arrays.stream(slotRaw.split(";")).map(String::trim).toList();
-            out.add(new SezioneIncantesimi(listeArr, prog, bonus, slot));
+            boolean conosciutiSeparati = "1".equals(item.getLabel("SPELL_" + n + "_HA_CONOSCIUTI"));
+            String conosciutiRaw = item.getLabel("SPELL_" + n + "_CONOSCIUTI");
+            List<String> conosciuti = (conosciutiRaw == null || conosciutiRaw.isBlank())
+                    ? List.of()
+                    : Arrays.stream(conosciutiRaw.split(";")).map(String::trim).toList();
+            out.add(new SezioneIncantesimi(listeArr, prog, bonus, slot, conosciutiSeparati, conosciuti));
         }
         return out;
     }
@@ -1534,39 +1540,67 @@ public class PersonaggioService {
         }
         if (slots.length == 0 || slotsMax.length == 0) return spellBook;
 
+        int[] conosciutiMax = sez.conosciutiSeparati() ? conosciutiArrayDaSezione(sez, livelloTotale) : new int[0];
+
         for (int i = 0; i < slotsMax.length; i++) {
+            // "dash" (nessun accesso, mai): solo per righe CUSTOM col sentinel; nei preset la riga
+            // è già strutturalmente più corta e il loop non arriva a questo indice.
+            if (slotsMax[i] == SLOT_DASH) continue;
             int slot = i < slots.length ? slots[i] : 0;
-            if (slot > 0) {
-                SpellBookLivelloDTO liv = new SpellBookLivelloDTO();
-                liv.setLivello(i);
-                liv.setSlot(slot);
-                if (sez.bonus() != null && !sez.bonus().isBlank() && i > 0) {
-                    liv.getBonus().add(sez.bonus());
-                }
-                int fi = i;
-                liv.getIncantesimi().addAll(incantesimi.stream()
-                        .filter(x -> x.getLivello() == fi && liste.contains(x.getSpellList()))
-                        .toList());
-                spellBook.getLivelli().add(liv);
+            if (slot == SLOT_DASH) slot = 0;
+
+            SpellBookLivelloDTO liv = new SpellBookLivelloDTO();
+            liv.setLivello(i);
+            liv.setSlot(slot);
+            if (i < conosciutiMax.length && conosciutiMax[i] != SLOT_DASH) {
+                liv.setConosciuti(conosciutiMax[i]);
             }
+            if (sez.bonus() != null && !sez.bonus().isBlank() && i > 0) {
+                liv.getBonus().add(sez.bonus());
+            }
+            int fi = i;
+            liv.getIncantesimi().addAll(incantesimi.stream()
+                    .filter(x -> x.getLivello() == fi && liste.contains(x.getSpellList()))
+                    .toList());
+            spellBook.getLivelli().add(liv);
         }
         return spellBook;
+    }
+
+    /** Sentinel per una cella "—" (nessun accesso, mai) nelle righe CUSTOM inserite a mano. */
+    private static final int SLOT_DASH = Integer.MIN_VALUE;
+
+    /** Un token CSV: "-"/vuoto = dash (nessun accesso), altrimenti il numero di slot/conosciuti. */
+    private static int parseSlotToken(String raw) {
+        String t = raw == null ? "" : raw.trim();
+        if (t.isEmpty() || t.equals("-")) return SLOT_DASH;
+        return Integer.parseInt(t);
+    }
+
+    private static int[] parseSlotRow(String riga) {
+        if (riga == null || riga.isBlank()) return new int[0];
+        try {
+            String[] parts = riga.split(",");
+            int[] r = new int[parts.length];
+            for (int i = 0; i < parts.length; i++) r[i] = parseSlotToken(parts[i]);
+            return r;
+        } catch (Exception e) {
+            return new int[0];
+        }
     }
 
     /** Array slot dalla tabella custom della sezione per il dato livello di classe (1-based). */
     private int[] slotArrayDaSezione(SezioneIncantesimi sez, int livelloClasse) {
         int idx = livelloClasse - 1;
         if (idx < 0 || idx >= sez.slot().size()) return new int[0];
-        String riga = sez.slot().get(idx);
-        if (riga == null || riga.isBlank()) return new int[0];
-        try {
-            String[] parts = riga.split(",");
-            int[] r = new int[parts.length];
-            for (int i = 0; i < parts.length; i++) r[i] = Integer.parseInt(parts[i].trim());
-            return r;
-        } catch (Exception e) {
-            return new int[0];
-        }
+        return parseSlotRow(sez.slot().get(idx));
+    }
+
+    /** Array incantesimi conosciuti dalla tabella custom della sezione per il dato livello di classe (1-based). */
+    private int[] conosciutiArrayDaSezione(SezioneIncantesimi sez, int livelloClasse) {
+        int idx = livelloClasse - 1;
+        if (sez.conosciuti() == null || idx < 0 || idx >= sez.conosciuti().size()) return new int[0];
+        return parseSlotRow(sez.conosciuti().get(idx));
     }
 
     /** Array slot per livello incantesimo letto dall'avanzamento SP_SLOT della classe al dato livello. */
@@ -1576,14 +1610,7 @@ public class PersonaggioService {
         ItemLabel sp = av.getItemTarget().getLabels().stream()
                 .filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_SPELL_SLOT)).findFirst().orElse(null);
         if (sp == null || sp.getValore() == null) return new int[0];
-        try {
-            String[] parts = sp.getValore().split(",");
-            int[] r = new int[parts.length];
-            for (int i = 0; i < parts.length; i++) r[i] = Integer.parseInt(parts[i].trim());
-            return r;
-        } catch (Exception e) {
-            return new int[0];
-        }
+        return parseSlotRow(sp.getValore());
     }
 
     private SpellBookDTO generateSpellBook(Item classe, Integer lvl, Integer livelloEffettivo, Integer idPersonaggio) {
@@ -1605,29 +1632,23 @@ public class PersonaggioService {
             ItemLabel spellSlot = avanzamento.getItemTarget().getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_SPELL_SLOT)).findFirst().orElse(null);
             ItemLabel spellSlotTotali = avanzamentoTotale.getItemTarget().getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_SPELL_SLOT)).findFirst().orElse(null);
             if (spellSlot != null && spellSlotTotali != null) {
-                List<Integer> slots = Arrays.stream(spellSlot.getValore().split(","))
-                        .map(String::trim)
-                        .map(Integer::parseInt)
-                        .toList();
+                int[] slots = parseSlotRow(spellSlot.getValore());
+                int[] slotsMaxLvl = parseSlotRow(spellSlotTotali.getValore());
 
-                List<Integer> slotsMaxLvl = Arrays.stream(spellSlotTotali.getValore().split(","))
-                        .map(String::trim)
-                        .map(Integer::parseInt)
-                        .toList();
+                for (int i = 0; i < slotsMaxLvl.length; i++) {
+                    if (slotsMaxLvl[i] == SLOT_DASH) continue;
+                    int slot = i < slots.length ? slots[i] : 0;
+                    if (slot == SLOT_DASH) slot = 0;
 
-
-                for (int i = 0; i < slotsMaxLvl.size(); i++) {
-                    if (slots.get(i) > 0) {
-                        SpellBookLivelloDTO spellBookLivello = new SpellBookLivelloDTO();
-                        spellBookLivello.setLivello(i);
-                        spellBookLivello.setSlot(slots.get(i));
-                        if (slotBonus != null && i > 0) {
-                            spellBookLivello.getBonus().add(slotBonus);
-                        }
-                        int finalI = i;
-                        spellBookLivello.getIncantesimi().addAll(incantesimi.stream().filter(x -> x.getLivello() == finalI && x.getSpellList().equals(spellList.getValore())).toList());
-                        spellBook.getLivelli().add(spellBookLivello);
+                    SpellBookLivelloDTO spellBookLivello = new SpellBookLivelloDTO();
+                    spellBookLivello.setLivello(i);
+                    spellBookLivello.setSlot(slot);
+                    if (slotBonus != null && i > 0) {
+                        spellBookLivello.getBonus().add(slotBonus);
                     }
+                    int finalI = i;
+                    spellBookLivello.getIncantesimi().addAll(incantesimi.stream().filter(x -> x.getLivello() == finalI && x.getSpellList().equals(spellList.getValore())).toList());
+                    spellBook.getLivelli().add(spellBookLivello);
                 }
 
             }
