@@ -377,6 +377,17 @@ function showInfoItemPopup(itm) {
       {closable: true, autoClose: 0}
   )
 }
+
+// Accordion per le liste di item nel dettaglio (Attacchi/Abilità/Effetti/Maledizioni/Collegati):
+// dato che questo popup può già trovarsi dentro un altro popup, evitiamo di impilarne un altro
+// e mostriamo il dettaglio in linea, espandendo la riga cliccata.
+const expandedRows = ref<Set<string>>(new Set())
+
+function toggleExpand(key: string) {
+  const next = new Set(expandedRows.value);
+  if (next.has(key)) next.delete(key); else next.add(key);
+  expandedRows.value = next;
+}
 </script>
 
 <template>
@@ -618,55 +629,103 @@ function showInfoItemPopup(itm) {
     </template>
 
     <!-- Attacchi -->
-    <div v-if="listaAttacchi.length">
-      <p><strong>Attacco:</strong></p>
-      <p v-for="atk in listaAttacchi" :key="atk.id">
-        {{ atk.nome }}
-        <span v-if="tpcMap[atk.id]">(TPC: {{ tpcMap[atk.id] }})</span>
-        <span v-if="tpdMap[atk.id]">(TPD: {{ tpdMap[atk.id] }})</span>
-      </p>
+    <div v-if="listaAttacchi.length" class="item-group">
+      <p class="item-group-title"><strong>Attacco</strong></p>
+      <div class="item-list">
+        <div v-for="atk in listaAttacchi" :key="atk.id" class="item-list-group">
+          <button type="button" class="item-list-row" @click="toggleExpand('att-'+atk.id)">
+            <div class="item-list-main">
+              <span class="item-list-name">{{ atk.nome }}</span>
+              <span v-if="tpcMap[atk.id] || tpdMap[atk.id]" class="item-list-sub">
+                <span v-if="tpcMap[atk.id]">TPC: {{ tpcMap[atk.id] }}</span>
+                <span v-if="tpdMap[atk.id]">TPD: {{ tpdMap[atk.id] }}</span>
+              </span>
+            </div>
+            <span class="item-list-chevron" :class="{open: expandedRows.has('att-'+atk.id)}">▾</span>
+          </button>
+          <div v-if="expandedRows.has('att-'+atk.id)" class="item-list-accordion-body">
+            <Mobile_DettaglioItem :data="{item: {...atk}, personaggio: props.data.personaggio}" :readonly="true"/>
+          </div>
+        </div>
+      </div>
       <div class="spazietto"/>
     </div>
 
     <!-- Abilità -->
-    <div v-if="listaAbilita && listaAbilita.length">
-      <p><strong>Abilità:</strong></p>
-
-      <p v-for="ability in listaAbilita" :key="ability.id">
-        {{ ability.nome }}
-        <Icona name="INFO" @click.stop="showInfoItemPopup(ability)"/>
-      </p>
-
+    <div v-if="listaAbilita && listaAbilita.length" class="item-group">
+      <p class="item-group-title"><strong>Abilità</strong></p>
+      <div class="item-list">
+        <div v-for="ability in listaAbilita" :key="ability.id" class="item-list-group">
+          <button type="button" class="item-list-row" @click="toggleExpand('ab-'+ability.id)">
+            <div class="item-list-main">
+              <span class="item-list-name">{{ ability.nome }}</span>
+            </div>
+            <span class="item-list-chevron" :class="{open: expandedRows.has('ab-'+ability.id)}">▾</span>
+          </button>
+          <div v-if="expandedRows.has('ab-'+ability.id)" class="item-list-accordion-body">
+            <Mobile_DettaglioItem :data="{item: {...ability}, personaggio: props.data.personaggio}" :readonly="true"/>
+          </div>
+        </div>
+      </div>
       <div class="spazietto"></div>
     </div>
 
 
     <!-- Effetti -->
-    <div v-if="listaEffetti.length">
-      <p><strong>Effetti:</strong></p>
-      <p v-for="eff in listaEffetti" :key="eff.id">
-        {{ eff.condizione ?? 'Sempre' }}: {{ eff.nome }}
-        <Icona name="INFO" @click.stop="showInfoItemPopup({id: eff.id, nome: eff.nome, tipo: 'EFFETTO'})"/>
-      </p>
+    <div v-if="listaEffetti.length" class="item-group">
+      <p class="item-group-title"><strong>Effetti</strong></p>
+      <div class="item-list">
+        <div v-for="eff in listaEffetti" :key="eff.id" class="item-list-group">
+          <button type="button" class="item-list-row" @click="toggleExpand('eff-'+eff.id)">
+            <div class="item-list-main">
+              <span class="item-list-name">{{ eff.nome }}</span>
+              <span class="item-list-sub">{{ eff.condizione ?? 'Sempre' }}</span>
+            </div>
+            <span class="item-list-chevron" :class="{open: expandedRows.has('eff-'+eff.id)}">▾</span>
+          </button>
+          <div v-if="expandedRows.has('eff-'+eff.id)" class="item-list-accordion-body">
+            <Mobile_DettaglioItem :data="{item: {id: eff.id, nome: eff.nome, tipo: 'EFFETTO'}, personaggio: props.data.personaggio}" :readonly="true"/>
+          </div>
+        </div>
+      </div>
       <div class="spazietto"></div>
     </div>
 
     <!-- Maledizioni -->
-    <div v-if="listaMaledizioni.length">
-      <p><strong>Maledizioni:</strong></p>
-      <p v-for="mal in listaMaledizioni" :key="mal.id">
-        {{ mal.nome }}
-      </p>
+    <div v-if="listaMaledizioni.length" class="item-group">
+      <p class="item-group-title"><strong>Maledizioni</strong></p>
+      <div class="item-list">
+        <div v-for="mal in listaMaledizioni" :key="mal.id" class="item-list-group">
+          <button type="button" class="item-list-row" @click="toggleExpand('mal-'+mal.id)">
+            <div class="item-list-main">
+              <span class="item-list-name">{{ mal.nome }}</span>
+            </div>
+            <span class="item-list-chevron" :class="{open: expandedRows.has('mal-'+mal.id)}">▾</span>
+          </button>
+          <div v-if="expandedRows.has('mal-'+mal.id)" class="item-list-accordion-body">
+            <Mobile_DettaglioItem :data="{item: {...mal}, personaggio: props.data.personaggio}" :readonly="true"/>
+          </div>
+        </div>
+      </div>
       <div class="spazietto"/>
     </div>
 
     <!-- Item collegati (trasformazioni: qualunque item collegato non già mostrato sopra) -->
-    <div v-if="listaAltriCollegati.length">
-      <p><strong>Item collegati:</strong></p>
-      <p v-for="itm in listaAltriCollegati" :key="itm.id">
-        {{ itm.nome }}
-        <Icona name="INFO" @click.stop="showInfoItemPopup(itm)"/>
-      </p>
+    <div v-if="listaAltriCollegati.length" class="item-group">
+      <p class="item-group-title"><strong>Item collegati</strong></p>
+      <div class="item-list">
+        <div v-for="itm in listaAltriCollegati" :key="itm.id" class="item-list-group">
+          <button type="button" class="item-list-row" @click="toggleExpand('col-'+itm.id)">
+            <div class="item-list-main">
+              <span class="item-list-name">{{ itm.nome }}</span>
+            </div>
+            <span class="item-list-chevron" :class="{open: expandedRows.has('col-'+itm.id)}">▾</span>
+          </button>
+          <div v-if="expandedRows.has('col-'+itm.id)" class="item-list-accordion-body">
+            <Mobile_DettaglioItem :data="{item: {...itm}, personaggio: props.data.personaggio}" :readonly="true"/>
+          </div>
+        </div>
+      </div>
       <div class="spazietto"/>
     </div>
 
@@ -858,4 +917,56 @@ function showInfoItemPopup(itm) {
 }
 .talento-link { margin: .5rem 0; font-size: .85rem; }
 .talento-link a { color: #1d4ed8; }
+
+/* Liste di item (attacchi/abilità/effetti/maledizioni/collegati): accordion, click sulla riga
+   espande il dettaglio in linea (niente popup annidati quando il componente è già in un popup) */
+.item-group-title { margin: 0 0 .3rem; font-size: .85rem; }
+.item-list {
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: .5rem;
+  overflow: hidden;
+}
+.item-list-group:not(:last-child) { border-bottom: 1px solid var(--color-border, #e5e7eb); }
+.item-list-group:nth-child(even) .item-list-row { background: var(--color-surface-1, #fafafa); }
+.item-list-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .4rem .6rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.item-list-main {
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+  min-width: 0;
+  flex: 1;
+}
+.item-list-name { font-size: .88rem; font-weight: 600; overflow-wrap: anywhere; }
+.item-list-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  font-size: .75rem;
+  color: var(--color-text-secondary, #6b7280);
+}
+.item-list-chevron {
+  flex: 0 0 auto;
+  color: var(--color-text-secondary, #6b7280);
+  transition: transform .15s ease;
+  font-size: .8rem;
+}
+.item-list-chevron.open { transform: rotate(-180deg); }
+.item-list-accordion-body {
+  padding: .5rem .6rem .75rem;
+  border-top: 1px solid var(--color-border, #e5e7eb);
+  background: var(--color-surface-1, #fafafa);
+}
 </style>
