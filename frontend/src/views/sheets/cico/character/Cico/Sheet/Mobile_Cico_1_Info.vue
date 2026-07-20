@@ -309,6 +309,9 @@ async function salvaInfo() {
           :id-stat="stat.id" :id-personaggio="idPersonaggio"
       />
     </div>
+    <div v-if="cache[idPersonaggio]?.modificatori" class="stat-block">
+      <Mobile_Stat id="DV" :id-personaggio="idPersonaggio" label="Dadi Vita"/>
+    </div>
     <div class="spazietto"/>
 
     <!-- Frutti: card apribile/chiudibile -->

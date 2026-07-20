@@ -84,6 +84,14 @@ const infoRazzaDiLivello = computed(() => {
   return {nome: item.nome, taglia, velocita, caratteristiche, lap, spazio, portata}
 })
 
+// Gradi congelati su questo livello + modificatore di Intelligenza equivalente
+// (reverse-solve lato backend sulla formula RANK/RANK_1 della classe).
+const gradiInfo = computed(() => {
+  const gradi = (itemInfo as any).gradi
+  if (gradi == null) return null
+  return {gradi, intMod: (itemInfo as any).intModEquivalente ?? null}
+})
+
 const listaMaledizioni = computed(() =>
     (itemDetail.value?.child ?? [])
         .filter(c => c.itemTarget.tipo === TIPO_ITEM.MALEDIZIONE)
@@ -178,6 +186,16 @@ function showInfoAbilitaPopup(itm) {
     <div v-if="labelEntries.length" class="detail-section">
       <div v-for="entry in labelEntries" :key="entry.key">
         <strong>{{ entry.resolved.label }}:</strong> {{ entry.resolved.value }}
+      </div>
+    </div>
+
+    <!-- Gradi assegnabili a questo livello + Intelligenza necessaria (reverse-solve) -->
+    <div v-if="gradiInfo" class="detail-section">
+      <div>
+        <strong>Gradi:</strong> {{ gradiInfo.gradi }}
+      </div>
+      <div v-if="gradiInfo.intMod != null">
+        <strong>Intelligenza necessaria:</strong> {{ testoModificatore(gradiInfo.intMod) }}
       </div>
     </div>
 

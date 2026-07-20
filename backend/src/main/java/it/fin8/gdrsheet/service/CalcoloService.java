@@ -112,7 +112,6 @@ public class CalcoloService {
         return calcola(formula, valori);
     }
 
-
     /**
      * Overload per DTO personaggio
      */

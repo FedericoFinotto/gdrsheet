@@ -54,6 +54,9 @@ const stat = computed(() => {
     const tiroSalvezza = statistiche.tiriSalvezza.find(x => x.id === props.id);
     const bonusAttacco = statistiche.bonusAttacco.find(x => x.id === props.id);
     const attributo = statistiche.attributi.find(x => x.id === props.id);
+    // Dadi Vita: DTO a parte (id/label/totale/totaleStringa/modificatori/modPF), non dentro
+    // "attributi" — normalizzato qui sulla stessa forma {modificatore, valore} delle altre stat.
+    const dadiVita = statistiche.dadiVita && statistiche.dadiVita.id === props.id ? statistiche.dadiVita : null;
 
     if (caratteristica) {
       return caratteristica;
@@ -91,6 +94,12 @@ const stat = computed(() => {
       return {
         ...attributo,
         modificatore: mod
+      };
+    }
+    if (dadiVita) {
+      return {
+        ...dadiVita,
+        modificatore: dadiVita.totaleStringa ?? String(dadiVita.totale ?? '')
       };
     }
     return null;

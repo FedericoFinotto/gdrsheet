@@ -497,7 +497,15 @@ public class PersonaggioService {
                         itemsDTO.getForme(), itemsDTO.getPrivilegi(), itemsDTO.getAltro(), itemsDTO.getNotizie(),
                         itemsDTO.getPatti(), itemsDTO.getVeicoli())
                 .flatMap(List::stream)
-                .forEach(dto -> dto.setFigliAttacchi(figliAttacchiMap.getOrDefault(dto.getId(), List.of())));
+                .forEach(dto -> {
+                    dto.setFigliAttacchi(figliAttacchiMap.getOrDefault(dto.getId(), List.of()));
+                    // Item concessi da ADD_CLASSE_<n>_ITEMS: nessun vero Collegamento parent, quindi
+                    // il prefisso (se il carrier lo imposta) va applicato qui, non da ItemMapper.
+                    if (dto.getPrefissoOggetti() == null) {
+                        String prefissoVirtuale = allPersonaggioItems.getPrefissoVirtualeById().get(dto.getId());
+                        if (prefissoVirtuale != null) dto.setPrefissoOggetti(prefissoVirtuale);
+                    }
+                });
         // I FRUTTO sono List<FruttoDTO> (tipo diverso da List<ItemDTO>): gestiti a parte.
         itemsDTO.getFrutti().forEach(dto -> dto.setFigliAttacchi(figliAttacchiMap.getOrDefault(dto.getId(), List.of())));
 
@@ -671,21 +679,35 @@ public class PersonaggioService {
 
     /**
      * Aggiunge alle classi i livelli extra concessi dagli item del personaggio.
-     * Le label sono indicizzate a coppie per indice {@code <n>}:
+     * Le label sono indicizzate a triplette per indice {@code <n>}:
      * <ul>
      *   <li>{@code ADD_CLASSE_<n>} = id della classe;</li>
-     *   <li>{@code ADD_CLASSE_<n>_VALORE} = numero di livelli da aggiungere (default 1).</li>
+     *   <li>{@code ADD_CLASSE_<n>_VALUE} = numero di livelli da aggiungere;</li>
+     *   <li>{@code ADD_CLASSE_<n>_ITEMS} = "1": concede anche i Privilegi di Classe (Avanzamento
+     *       CLASSE->item, esclusi i template AVANZAMENTO) dei livelli virtuali aggiunti — calcolo a
+     *       runtime, mai persistito, appaiono nell'inventario come item veri;</li>
+     *   <li>{@code ADD_CLASSE_<n>_BONUS} = "1": concede anche BAB/Tempra/Riflessi/Volontà dei
+     *       livelli virtuali aggiunti, leggendo gli item template AVANZAMENTO della classe
+     *       (stessa fonte della Tabella livelli), cappati al numero di livelli reale della classe.</li>
      * </ul>
-     * Gli item disabilitati non concedono livelli. I livelli aggiunti contano come
-     * non maledetti (validi per gli incantesimi). Se la classe esiste già, i livelli
-     * vengono aggiunti dopo il più alto presente; altrimenti viene creata una classe nuova.
+     * Gli item disabilitati non concedono livelli. I livelli aggiunti contano come non maledetti
+     * (validi per gli incantesimi). Più item possono aggiungere livelli alla stessa classe: si
+     * sommano, ognuno sul range di livelli subito successivo a quello già raggiunto.
      */
     private void applyAddClasseLevels(AllPersonaggioItems result) {
         final String prefix = Constants.ITEM_LABEL_ADD_CLASSE_PREFIX;
         final String suffixValore = Constants.ITEM_LABEL_ADD_CLASSE_VALUE_SUFFIX;
+        final String suffixValoreAlias = Constants.ITEM_LABEL_ADD_CLASSE_VALUE_SUFFIX_ALIAS;
+        final String suffixItems = Constants.ITEM_LABEL_ADD_CLASSE_ITEMS_SUFFIX;
+        final String suffixBonus = Constants.ITEM_LABEL_ADD_CLASSE_BONUS_SUFFIX;
 
-        // conteggio livelli extra per id classe
-        Map<Integer, Integer> extraPerClasse = new LinkedHashMap<>();
+        List<InfoClasseDTO> classi = new ArrayList<>(result.getLivelli().getClassi());
+        // "prossimo livello libero" per classe: parte dal max reale, cresce con ogni item che
+        // aggiunge livelli virtuali (così più item sulla stessa classe si sommano su range distinti)
+        Map<Integer, Integer> prossimoLivello = new HashMap<>();
+        List<Item> daAggiungereAlFlatten = new ArrayList<>();
+        boolean trovatoAlmenoUno = false;
+
         for (Item itm : result.getItems()) {
             if (itm == null || itm.getLabels() == null) continue;
             boolean disabled = utilService.parseBooleanFromString(
@@ -694,62 +716,96 @@ public class PersonaggioService {
                     Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
             if (disabled) continue;
 
-            // accoppia per indice le label ADD_CLASSE_<n> (id classe) e ADD_CLASSE_<n>_VALORE (n. livelli)
             for (ItemLabel l : itm.getLabels()) {
                 String key = l.getLabel();
                 if (key == null || !key.startsWith(prefix)) continue;
                 String rest = key.substring(prefix.length());
-                if (!rest.endsWith(suffixValore)) {
-                    Integer classId = parseIntOrNull(l.getValore());
-                    if (classId != null) {
-                        String livelliString = itm.getLabel(prefix + rest + suffixValore);
-                        if (livelliString != null) {
-                            Integer livelli = parseIntOrNull(livelliString);
-                            if (livelli != null) {
-                                extraPerClasse.put(classId, livelli);
+                if (rest.endsWith(suffixValore) || rest.endsWith(suffixValoreAlias)
+                        || rest.endsWith(suffixItems) || rest.endsWith(suffixBonus)) continue;
+
+                Integer idClasse = parseIntOrNull(l.getValore());
+                if (idClasse == null) continue;
+                String livelliString = itm.getLabel(prefix + rest + suffixValore);
+                if (livelliString == null) livelliString = itm.getLabel(prefix + rest + suffixValoreAlias);
+                Integer extra = livelliString != null ? parseIntOrNull(livelliString) : null;
+                if (extra == null || extra <= 0) continue;
+                trovatoAlmenoUno = true;
+
+                InfoClasseDTO info = classi.stream()
+                        .filter(c -> c.getClasse() != null && idClasse.equals(c.getClasse().getId()))
+                        .findFirst()
+                        .orElse(null);
+                if (info == null) {
+                    // la classe non ha ancora livelli base: creane una nuova
+                    Item classe = itemRepository.findItemById(idClasse);
+                    if (classe == null) continue;
+                    info = new InfoClasseDTO();
+                    info.setClasse(classe);
+                    info.setLivelli(new HashSet<>());
+                    info.setLivelloTotale(0);
+                    info.setLivelloNonMaledetto(0);
+                    info.setLivelloMax(0);
+                    info.setLivelloMaxNonMaledetto(0);
+                    classi.add(info);
+                }
+
+                int start = prossimoLivello.getOrDefault(idClasse, info.getLivelloMax() != null ? info.getLivelloMax() : 0) + 1;
+                int end = start + extra - 1;
+                prossimoLivello.put(idClasse, end);
+
+                Set<Integer> livelli = info.getLivelli() != null ? new HashSet<>(info.getLivelli()) : new HashSet<>();
+                for (int lv = start; lv <= end; lv++) livelli.add(lv);
+                info.setLivelli(livelli);
+                info.setLivelloTotale((info.getLivelloTotale() != null ? info.getLivelloTotale() : 0) + extra);
+                info.setLivelloNonMaledetto((info.getLivelloNonMaledetto() != null ? info.getLivelloNonMaledetto() : 0) + extra);
+                info.setLivelloMax(end);
+                info.setLivelloMaxNonMaledetto((info.getLivelloMaxNonMaledetto() != null ? info.getLivelloMaxNonMaledetto() : 0) + extra);
+
+                boolean grantItems = "1".equals(itm.getLabel(prefix + rest + suffixItems));
+                boolean grantBonus = "1".equals(itm.getLabel(prefix + rest + suffixBonus));
+                if (!grantItems && !grantBonus) continue;
+
+                Item classe = info.getClasse();
+                if (classe == null || classe.getAvanzamento() == null) continue;
+                Integer numLivelliClasse = parseIntOrNull(classe.getLabel(Constants.ITEM_LABEL_NUM_LIVELLI_CLASSE));
+                int cappedEnd = Math.min(end, numLivelliClasse != null ? numLivelliClasse : 20);
+
+                if (grantItems) {
+                    // Privilegi: si accumulano un livello alla volta, vanno concessi tutti quelli
+                    // nel range (a differenza di BAB/TS sotto, non sono valori cumulativi).
+                    // L'item carrier "diventa" il genitore virtuale ai fini del chip prefisso.
+                    String prefissoCarrier = itm.getLabel(Constants.ITEM_LABEL_PREFISSO_OGGETTI);
+                    for (Avanzamento av : classe.getAvanzamento()) {
+                        int lv = av.getLivello();
+                        if (lv < start || lv > cappedEnd) continue;
+                        Item target = av.getItemTarget();
+                        if (target != null && !TipoItem.AVANZAMENTO.equals(target.getTipo())) {
+                            daAggiungereAlFlatten.add(target);
+                            if (prefissoCarrier != null && !prefissoCarrier.isBlank()) {
+                                result.getPrefissoVirtualeById().put(target.getId(), prefissoCarrier.trim());
                             }
                         }
                     }
                 }
+                if (grantBonus) {
+                    // BAB/Tempra/Riflessi/Volontà sono valori CUMULATIVI per livello (la riga del
+                    // livello N contiene già il totale fino a N, non un incremento): va preso solo
+                    // il template del livello più alto nel range concesso, non la somma di tutti.
+                    Item migliore = classe.getAvanzamento().stream()
+                            .filter(av -> av.getLivello() >= start && av.getLivello() <= cappedEnd)
+                            .filter(av -> av.getItemTarget() != null && TipoItem.AVANZAMENTO.equals(av.getItemTarget().getTipo()))
+                            .max(Comparator.comparingInt(Avanzamento::getLivello))
+                            .map(Avanzamento::getItemTarget)
+                            .orElse(null);
+                    if (migliore != null) daAggiungereAlFlatten.add(migliore);
+                }
             }
         }
-        if (extraPerClasse.isEmpty()) return;
 
-        List<InfoClasseDTO> classi = new ArrayList<>(result.getLivelli().getClassi());
-
-        for (Map.Entry<Integer, Integer> e : extraPerClasse.entrySet()) {
-            Integer idClasse = e.getKey();
-            int extra = e.getValue();
-
-            InfoClasseDTO info = classi.stream()
-                    .filter(c -> c.getClasse() != null && idClasse.equals(c.getClasse().getId()))
-                    .findFirst()
-                    .orElse(null);
-
-            if (info == null) {
-                // la classe non ha ancora livelli base: creane una nuova
-                Item classe = itemRepository.findItemById(idClasse);
-                if (classe == null) continue;
-                info = new InfoClasseDTO();
-                info.setClasse(classe);
-                info.setLivelli(new HashSet<>());
-                info.setLivelloTotale(0);
-                info.setLivelloNonMaledetto(0);
-                info.setLivelloMax(0);
-                info.setLivelloMaxNonMaledetto(0);
-                classi.add(info);
-            }
-
-            int baseMax = info.getLivelloMax() != null ? info.getLivelloMax() : 0;
-            Set<Integer> livelli = info.getLivelli() != null ? new HashSet<>(info.getLivelli()) : new HashSet<>();
-            for (int i = 1; i <= extra; i++) livelli.add(baseMax + i);
-            info.setLivelli(livelli);
-
-            info.setLivelloTotale((info.getLivelloTotale() != null ? info.getLivelloTotale() : 0) + extra);
-            info.setLivelloNonMaledetto((info.getLivelloNonMaledetto() != null ? info.getLivelloNonMaledetto() : 0) + extra);
-            info.setLivelloMax(baseMax + extra);
-            info.setLivelloMaxNonMaledetto((info.getLivelloMaxNonMaledetto() != null ? info.getLivelloMaxNonMaledetto() : 0) + extra);
+        if (!daAggiungereAlFlatten.isEmpty()) {
+            result.getItems().addAll(daAggiungereAlFlatten);
         }
+        if (!trovatoAlmenoUno) return;
 
         // riordina per nome classe, coerente con CalcoloService.getLivelli
         classi.sort(Comparator.comparing(
@@ -1085,7 +1141,7 @@ public class PersonaggioService {
                                     sv,
                                     modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
                                     modsDtoByStat.getOrDefault("CA", Collections.emptyList()),
-                                    carList, taglia
+                                    carList, taglia, itemCounterList
                             ))
                             .toList()
             ).get();

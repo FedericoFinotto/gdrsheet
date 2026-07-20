@@ -30,9 +30,34 @@ const props = defineProps({
   }
 });
 
+// Raggruppa item identici (stesso nome) in una sola riga con qta = quante volte compaiono:
+// più oggetti distinti aggiunti singolarmente (invece che con un unico item + qty) finiscono
+// così mostrati come un'unica riga con il contatore, invece che ripetuti.
+function raggruppaDuplicati(list: any[]): any[] {
+  const grouped = new Map<string, any>()
+  const ordine: string[] = []
+  for (const itm of list) {
+    const key = itm.nome
+    const esistente = grouped.get(key)
+    if (!esistente) {
+      grouped.set(key, {...itm, quantita: itm.quantita ?? 1})
+      ordine.push(key)
+    } else {
+      esistente.quantita = (esistente.quantita ?? 1) + (itm.quantita ?? 1)
+      if (esistente.utilizziTotale != null || itm.utilizziTotale != null) {
+        esistente.utilizziTotale = (esistente.utilizziTotale ?? 0) + (itm.utilizziTotale ?? 0)
+        esistente.utilizziUsati = (esistente.utilizziUsati ?? 0) + (itm.utilizziUsati ?? 0)
+      }
+      // la riga unita è disabilitata solo se lo sono TUTTE le copie
+      esistente.disabled = !!esistente.disabled && !!itm.disabled
+    }
+  }
+  return ordine.map(k => grouped.get(k))
+}
+
 // Avvolge una lista di item col componente di dettaglio espandibile e ordina per nome.
 function wrap(list: any[] | undefined) {
-  return (list ?? [])
+  return raggruppaDuplicati(list ?? [])
       .map(itm => ({
         ...itm,
         // utilizziTotale === 0 → formula esiste ma dà 0: mostra come disabilitato
@@ -207,22 +232,24 @@ function descrittoriChips(row: any): { text: string; class?: string; style?: Rec
   return chips
 }
 
-const col = (label: string, withBadge = false) => [
+// Il badge qta (xN) si mostra sempre quando gli item duplicati vengono raggruppati
+// (raggruppaDuplicati/wrap): badgeQta stesso resta muto (null) quando la qty è 1.
+const col = (label: string) => [
   {
     field: 'nome', label, disabled: (row: any) => row.disabled,
-    ...(withBadge ? {badge: badgeQta} : {}),
+    badge: badgeQta,
     prefixChips: descrittoriChips,
   },
   utilizziCol(),
 ];
 
-const columnsOggetti = col('Oggetti', true);
-const columnsArmi = col('Armi', true);
-const columnsEquipaggiamento = col('Equipaggiamento', true);
-const columnsConsumabili = col('Consumabili', true);
-const columnsMunizioni = col('Munizioni', true);
-const columnsContenitori = col('Contenitori', true);
-const columnsAltro = col('Altro', true);
+const columnsOggetti = col('Oggetti');
+const columnsArmi = col('Armi');
+const columnsEquipaggiamento = col('Equipaggiamento');
+const columnsConsumabili = col('Consumabili');
+const columnsMunizioni = col('Munizioni');
+const columnsContenitori = col('Contenitori');
+const columnsAltro = col('Altro');
 const columnsVeicoli = col('Veicoli');
 const columnsPatti = col('Patti');
 const columnsNotizie = col('Notizie');

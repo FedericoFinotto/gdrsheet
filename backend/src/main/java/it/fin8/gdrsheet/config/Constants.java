@@ -104,6 +104,17 @@ public final class Constants {
     public static final String ITEM_LABEL_FORMA_MOD_MOLT = "$M_P_MOLTIPLICATORE"; // forma: imposta il moltiplicatore del frutto padre
     public static final String ITEM_LABEL_ADD_CLASSE_PREFIX = "ADD_CLASSE_"; // ADD_CLASSE_<n> = +1 livello (valore = idClasse)
     public static final String ITEM_LABEL_ADD_CLASSE_VALUE_SUFFIX = "_VALUE";
+    // Alias italiano accettato in lettura per lo stesso suffisso sopra (facile da digitare per errore).
+    public static final String ITEM_LABEL_ADD_CLASSE_VALUE_SUFFIX_ALIAS = "_VALORE";
+    // ADD_CLASSE_<n>_ITEMS = "1": concede anche i Privilegi di Classe (Talenti/Abilità/Privilegi/etc,
+    // dagli Avanzamento CLASSE->item) dei livelli virtuali aggiunti da questo indice <n>. Calcolo a
+    // runtime, mai persistito: gli item concessi appaiono nell'inventario come se fossero
+    // virtualmente collegati all'item che porta la label.
+    public static final String ITEM_LABEL_ADD_CLASSE_ITEMS_SUFFIX = "_ITEMS";
+    // ADD_CLASSE_<n>_BONUS = "1": concede anche BAB/Tempra/Riflessi/Volontà dei livelli virtuali
+    // aggiunti da questo indice <n>, leggendo la Tabella livelli della classe (cappata al numero
+    // di livelli reale della classe).
+    public static final String ITEM_LABEL_ADD_CLASSE_BONUS_SUFFIX = "_BONUS";
     public static final String LABEL_CC_GIOCATORE_PREFIX = "G";
     public static final String LABEL_CC_PARTY_PREFIX = "P";
     public static final String TIPO_PERSONAGGIO_BANCA = "BANCA";

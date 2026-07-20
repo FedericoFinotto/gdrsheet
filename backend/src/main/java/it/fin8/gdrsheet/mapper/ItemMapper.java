@@ -5,6 +5,7 @@ import it.fin8.gdrsheet.dto.*;
 import it.fin8.gdrsheet.entity.Collegamento;
 import it.fin8.gdrsheet.entity.Item;
 import it.fin8.gdrsheet.repository.ItemRepository;
+import it.fin8.gdrsheet.service.CalcoloService;
 import it.fin8.gdrsheet.service.UtilService;
 import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Component;
@@ -19,10 +20,12 @@ public class ItemMapper {
 
     private final UtilService utilService;
     private final ItemRepository itemRepository;
+    private final CalcoloService calcoloService;
 
-    public ItemMapper(UtilService utilService, ItemRepository itemRepository) {
+    public ItemMapper(UtilService utilService, ItemRepository itemRepository, CalcoloService calcoloService) {
         this.utilService = utilService;
         this.itemRepository = itemRepository;
+        this.calcoloService = calcoloService;
     }
 
     public ItemDTO toDTO(Item entity) {
@@ -152,9 +155,10 @@ public class ItemMapper {
         String classeString = entity.getLabel(Constants.ITEM_LABEL_CLASSE);
         String maledizioneString = entity.getLabel(Constants.ITEM_LABEL_MALEDIZIONE);
 
+        Item classeItem = null;
         if (classeString != null) {
             Integer classeId = Integer.valueOf(classeString);
-            Item classeItem = itemRepository.findItemById(classeId);
+            classeItem = itemRepository.findItemById(classeId);
             dto.setClasse(classeItem.getNome());
             dto.setClasseId(classeId);
         }
@@ -169,7 +173,74 @@ public class ItemMapper {
             } catch (NumberFormatException ignored) {
             }
         }
+        if (classeItem != null && dto.getGradi() != null) {
+            int numLivelliClasse = dto.getLivelliClasse() != null && !dto.getLivelliClasse().isEmpty()
+                    ? dto.getLivelliClasse().size() : 1;
+            dto.setIntModEquivalente(risolviModIntPerGradi(classeItem, dto.getLivello(), numLivelliClasse, dto.getGradi()));
+        }
         return dto;
+    }
+
+    /**
+     * Reverse-solve ESATTO (non a tentativi): quale modificatore di Intelligenza, dato in pasto
+     * alle formule RANK_1/RANK della classe, produce esattamente {@code gradiTarget}? Rispecchia
+     * la logica di {@code PersonaggioService.computeGradi} (stesso branch primo-livello vs altri,
+     * stesso moltiplicatore per il numero di livelli-classe combinati in questo Livello).
+     * <p>
+     * Il "totale gradi" in funzione del modificatore INT è quasi sempre LINEARE (la stragrande
+     * maggioranza delle formule è "@INT + N" o "k*(@INT + N)"): valutando la formula in due punti
+     * qualsiasi (0 e 1) si ricavano coefficiente angolare e intercetta, e si risolve l'equazione
+     * algebricamente — nessun limite/range di ricerca, funziona per qualunque modificatore, anche
+     * enormi. Il risultato viene poi RIVERIFICATO valutando la formula col modificatore trovato:
+     * se non torna esatto (formula non lineare, es. arrotondamenti asimmetrici o dadi), niente
+     * scorciatoie sbagliate — si prova comunque una scansione ad ampio raggio come ultima risorsa.
+     */
+    private Integer risolviModIntPerGradi(Item classe, Integer livello, int numLivelliClasse, int gradiTarget) {
+        String fRank = classe.getLabel(Constants.ITEM_LABEL_RANK);
+        String fRank1 = classe.getLabel(Constants.ITEM_LABEL_RANK_PRIMO);
+        if ((fRank == null || fRank.isBlank()) && (fRank1 == null || fRank1.isBlank())) return null;
+
+        boolean primoLivello = livello != null && livello == 1;
+        int n = Math.max(1, numLivelliClasse);
+        java.util.function.IntUnaryOperator totale = mod -> {
+            List<CaratteristicaDTO> car = List.of(new CaratteristicaDTO("INT", "INT", null, mod, null, null));
+            Integer rank = valutaFormulaOrNull(fRank, car);
+            Integer rank1 = valutaFormulaOrNull(fRank1, car);
+            if (primoLivello) {
+                int primo = rank1 != null ? rank1 : (rank != null ? rank : 0);
+                int altri = rank != null ? rank * (n - 1) : 0;
+                return primo + altri;
+            }
+            return rank != null ? rank * n : Integer.MIN_VALUE;
+        };
+
+        // 1) risoluzione algebrica esatta (nessun limite): assume linearità, verificata dopo.
+        int y0 = totale.applyAsInt(0);
+        int y1 = totale.applyAsInt(1);
+        if (y0 != Integer.MIN_VALUE && y1 != Integer.MIN_VALUE) {
+            int slope = y1 - y0;
+            if (slope != 0 && (gradiTarget - y0) % slope == 0) {
+                int candidato = (gradiTarget - y0) / slope;
+                if (totale.applyAsInt(candidato) == gradiTarget) return candidato;
+            } else if (slope == 0 && y0 == gradiTarget) {
+                return 0; // formula costante (non dipende da INT) e già combacia
+            }
+        }
+
+        // 2) fallback per formule non lineari (arrotondamenti, dadi, ecc.): scansione ad ampio raggio.
+        for (int mod = -50; mod <= 1000; mod++) {
+            if (totale.applyAsInt(mod) == gradiTarget) return mod;
+        }
+        return null;
+    }
+
+    private Integer valutaFormulaOrNull(String formula, List<CaratteristicaDTO> caratteristiche) {
+        if (formula == null || formula.isBlank()) return null;
+        try {
+            return Integer.parseInt(calcoloService.calcola(formula, caratteristiche));
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     public SpellBookIncantesimoDTO toIncantesimoDTO(Item classe, ItemLivelloDTO itemLivelloDTO) {

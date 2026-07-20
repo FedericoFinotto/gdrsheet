@@ -25,7 +25,9 @@ export const LABEL_CATALOG: VoceInfo[] = [
     {nome: 'MLDZN', descrizione: 'Marca il livello/oggetto come derivante da una maledizione.'},
     {nome: 'GRP_TRASF', descrizione: 'Gruppo di trasformazione (per la mutua esclusione tra trasformazioni/forme).'},
     {nome: 'ADD_CLASSE_<n>', descrizione: 'Aggiunge livelli alla N-esima classe: il valore è l’id della classe da aggiungere. <n> distingue più classi sullo stesso item.'},
-    {nome: 'ADD_CLASSE_<n>_VALUE', descrizione: 'Numero di livelli da aggiungere alla N-esima classe (abbinata a ADD_CLASSE_<n>).'},
+    {nome: 'ADD_CLASSE_<n>_VALUE', descrizione: 'Numero di livelli da aggiungere alla N-esima classe (abbinata a ADD_CLASSE_<n>). Accettato anche come alias ADD_CLASSE_<n>_VALORE.'},
+    {nome: 'ADD_CLASSE_<n>_ITEMS', descrizione: 'Valore "1": concede anche i Privilegi di Classe (Talenti/Abilità/Privilegi/etc.) dei livelli virtuali aggiunti da ADD_CLASSE_<n> — calcolati a runtime, non persistiti, appaiono nell’inventario.'},
+    {nome: 'ADD_CLASSE_<n>_BONUS', descrizione: 'Valore "1": concede anche BAB/Tempra/Riflessi/Volontà dei livelli virtuali aggiunti da ADD_CLASSE_<n>, dalla Tabella livelli della classe (cappati al numero di livelli reale della classe).'},
 ]
 
 // Variabili utilizzabili nelle formule di modificatori e attacchi.

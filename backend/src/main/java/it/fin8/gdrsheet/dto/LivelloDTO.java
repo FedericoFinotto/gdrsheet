@@ -18,4 +18,7 @@ public class LivelloDTO extends ItemDTO {
     String maledizione;
     List<Integer> livelliClasse;
     Integer gradi; // valore congelato GRADI_LIVELLO (punti assegnabili a questo livello), null se non impostato
+    // Modificatore di Intelligenza che, nella formula RANK/RANK_1 della classe, produrrebbe
+    // esattamente "gradi" (reverse-solve): null se manca la classe/formula o nessun match esatto.
+    Integer intModEquivalente;
 }
