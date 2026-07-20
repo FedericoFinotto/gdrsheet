@@ -15,4 +15,5 @@ public class SegnalazioneDTO {
     private String stato;
     private String dataCreazione;
     private String dataModifica;
+    private boolean mia;
 }

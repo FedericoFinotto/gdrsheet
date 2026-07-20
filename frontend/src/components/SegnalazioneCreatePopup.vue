@@ -21,7 +21,7 @@ async function salva() {
   errore.value = null
   try {
     const creata = (await creaSegnalazione(t, descrizione.value.trim(), pendingScreenshot.value)).data
-    segnaVista(creata.id, creata.dataModifica)
+    segnaVista(creata.id)
     scartaScreenshotPendente()
     emit('created')
     closePopup()

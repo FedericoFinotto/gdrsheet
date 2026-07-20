@@ -126,7 +126,7 @@ async function caricaSegnalazioniNonLette() {
   if (!localStorage.getItem('auth_token')) return
   try {
     const res = await listaSegnalazioni(false)
-    segnalazioniNonLette.value = contaNonLette(res.data)
+    segnalazioniNonLette.value = await contaNonLette(res.data)
   } catch {
     segnalazioniNonLette.value = 0
   }

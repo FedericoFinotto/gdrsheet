@@ -1,6 +1,6 @@
 import api from './api'
 import {AxiosResponse} from 'axios'
-import {Comento, Segnalazione} from '../models/dto/Segnalazione'
+import {Allegato, Comento, Segnalazione} from '../models/dto/Segnalazione'
 
 export function listaSegnalazioni(all: boolean = false): Promise<AxiosResponse<Segnalazione[]>> {
     return api.get<Segnalazione[]>('/segnalazioni', {params: {all}})
@@ -24,4 +24,24 @@ export function listaCommenti(id: number): Promise<AxiosResponse<Comento[]>> {
 
 export function aggiungiCommento(id: number, testo: string): Promise<AxiosResponse<Comento>> {
     return api.post<Comento>(`/segnalazioni/${id}/commenti`, {testo})
+}
+
+export function modificaSegnalazione(id: number, titolo: string, descrizione: string): Promise<AxiosResponse<Segnalazione>> {
+    return api.patch<Segnalazione>(`/segnalazioni/${id}`, {titolo, descrizione})
+}
+
+export function listaAllegati(id: number): Promise<AxiosResponse<Allegato[]>> {
+    return api.get<Allegato[]>(`/segnalazioni/${id}/allegati`)
+}
+
+export function scaricaAllegato(id: number, allegatoId: number): Promise<AxiosResponse<Blob>> {
+    return api.get<Blob>(`/segnalazioni/${id}/allegati/${allegatoId}/contenuto`, {responseType: 'blob'})
+}
+
+export function listaViste(): Promise<AxiosResponse<Record<number, string>>> {
+    return api.get<Record<number, string>>('/segnalazioni/viste')
+}
+
+export function segnaVistaServer(id: number): Promise<AxiosResponse<void>> {
+    return api.put<void>(`/segnalazioni/${id}/vista`)
 }

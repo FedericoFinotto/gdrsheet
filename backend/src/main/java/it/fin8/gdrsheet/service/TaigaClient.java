@@ -56,8 +56,22 @@ public class TaigaClient {
         this.botPassword = botPassword;
     }
 
-    public record Segnalazione(Integer id, Integer ref, String titolo, String descrizione, String stato, String dataCreazione, String dataModifica) {}
+    public record Segnalazione(Integer id, Integer ref, String titolo, String descrizione, String stato,
+                               String dataCreazione, String dataModifica, List<String> tags) {
+    }
     public record Commento(String autore, String testo, String data) {}
+
+    public record Allegato(Integer id, String nome, String url) {
+    }
+
+    private static List<String> parseTags(JsonNode tagsNode) {
+        List<String> out = new ArrayList<>();
+        for (JsonNode t : tagsNode) {
+            if (t.isTextual()) out.add(t.asText());
+            else if (t.isArray() && t.size() > 0) out.add(t.get(0).asText());
+        }
+        return out;
+    }
 
     public List<Segnalazione> listUserStoriesByTag(String tag) throws IOException, InterruptedException {
         int project = getProjectId();
@@ -86,7 +100,8 @@ public class TaigaClient {
                     n.path("description").asText(null),
                     n.path("status_extra_info").path("name").asText(null),
                     n.path("created_date").asText(null),
-                    n.path("modified_date").asText(null)
+                    n.path("modified_date").asText(null),
+                    parseTags(n.path("tags"))
             ));
         }
         return out;
@@ -102,8 +117,110 @@ public class TaigaClient {
                 n.path("description").asText(null),
                 n.path("status_extra_info").path("name").asText(null),
                 n.path("created_date").asText(null),
-                n.path("modified_date").asText(null)
+                n.path("modified_date").asText(null),
+                parseTags(n.path("tags"))
         );
+    }
+
+    /**
+     * Modifica titolo/descrizione: il chiamante deve aver già verificato che l'utente sia il proprietario.
+     */
+    public Segnalazione updateUserStory(Integer id, String titolo, String descrizione) throws IOException, InterruptedException {
+        JsonNode current = requestJson("GET", baseUrl + "/api/v1/userstories/" + id, null, true);
+        int version = current.path("version").asInt();
+
+        ObjectNode body = mapper.createObjectNode();
+        body.put("version", version);
+        body.put("subject", titolo);
+        body.put("description", descrizione == null ? "" : descrizione);
+
+        JsonNode updated = requestJson("PATCH", baseUrl + "/api/v1/userstories/" + id, body.toString(), true);
+        return new Segnalazione(
+                updated.path("id").asInt(),
+                updated.path("ref").asInt(),
+                updated.path("subject").asText(null),
+                updated.path("description").asText(null),
+                updated.path("status_extra_info").path("name").asText(null),
+                updated.path("created_date").asText(null),
+                updated.path("modified_date").asText(null),
+                parseTags(updated.path("tags"))
+        );
+    }
+
+    private static final java.util.Set<String> ESTENSIONI_IMMAGINE =
+            java.util.Set.of("png", "jpg", "jpeg", "gif", "webp", "bmp");
+
+    private static boolean isImage(String nome) {
+        if (nome == null) return false;
+        int punto = nome.lastIndexOf('.');
+        if (punto < 0) return false;
+        return ESTENSIONI_IMMAGINE.contains(nome.substring(punto + 1).toLowerCase());
+    }
+
+    /**
+     * Solo le immagini: è l'unico tipo di allegato previsto e mostrato dall'app.
+     */
+    public List<Allegato> getAttachments(Integer userStoryId) throws IOException, InterruptedException {
+        int project = getProjectId();
+        String url = baseUrl + "/api/v1/userstories/attachments?project=" + project + "&object_id=" + userStoryId;
+        JsonNode arr = requestJson("GET", url, null, true);
+        List<Allegato> out = new ArrayList<>();
+        for (JsonNode n : arr) {
+            String nome = n.path("name").asText(null);
+            if (!isImage(nome)) continue;
+            // "url" è già assoluto e firmato con un token temporaneo richiesto da taiga-protected
+            // per servire l'allegato: "attached_file" è solo il path grezzo, senza firma, e da
+            // solo restituisce 403 (il controllo non si basa sull'header Authorization).
+            String fileUrl = n.path("url").asText(null);
+            if (fileUrl == null || fileUrl.isBlank()) fileUrl = assolutizza(n.path("attached_file").asText(null));
+            out.add(new Allegato(n.path("id").asInt(), nome, fileUrl));
+        }
+        return out;
+    }
+
+    /**
+     * Taiga a volte restituisce "attached_file" come path relativo invece di URL assoluto,
+     * e su questa installazione manca anche il prefisso "/media/" richiesto da nginx per
+     * instradare la richiesta al servizio protetto degli allegati (MEDIA_URL mal configurato
+     * lato Taiga): senza quel prefisso la richiesta cade nel catch-all della SPA.
+     */
+    private String assolutizza(String url) {
+        if (url == null || url.isBlank()) return null;
+        String assoluto = (url.startsWith("http://") || url.startsWith("https://"))
+                ? url
+                : baseUrl + (url.startsWith("/") ? url : "/" + url);
+        if (assoluto.contains("/attachments/") && !assoluto.contains("/media/attachments/")) {
+            assoluto = assoluto.replace("/attachments/", "/media/attachments/");
+        }
+        return assoluto;
+    }
+
+    public record Contenuto(byte[] bytes, String contentType) {
+    }
+
+    /**
+     * Scarica i byte di un allegato autenticandosi con il token del bot (l'URL da solo non basta se Taiga richiede auth).
+     */
+    public Contenuto scaricaAllegato(String fileUrl) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(fileUrl))
+                .header("Authorization", "Bearer " + getAuthToken(false))
+                .GET()
+                .build();
+        HttpResponse<byte[]> response = http.send(request, HttpResponse.BodyHandlers.ofByteArray());
+        if (response.statusCode() == 401) {
+            request = HttpRequest.newBuilder()
+                    .uri(URI.create(fileUrl))
+                    .header("Authorization", "Bearer " + getAuthToken(true))
+                    .GET()
+                    .build();
+            response = http.send(request, HttpResponse.BodyHandlers.ofByteArray());
+        }
+        if (response.statusCode() >= 300) {
+            throw new IOException("Download allegato fallito: HTTP " + response.statusCode());
+        }
+        String contentType = response.headers().firstValue("Content-Type").orElse("application/octet-stream");
+        return new Contenuto(response.body(), contentType);
     }
 
     public Segnalazione createUserStory(String titolo, String descrizione, String tag) throws IOException, InterruptedException {
@@ -125,7 +242,8 @@ public class TaigaClient {
                 created.path("description").asText(null),
                 created.path("status_extra_info").path("name").asText(null),
                 created.path("created_date").asText(null),
-                created.path("modified_date").asText(null)
+                created.path("modified_date").asText(null),
+                parseTags(created.path("tags"))
         );
     }
 
@@ -271,6 +389,7 @@ public class TaigaClient {
                 .header("Content-Type", "application/json");
         builder = switch (method) {
             case "POST" -> builder.POST(HttpRequest.BodyPublishers.ofString(jsonBody == null ? "" : jsonBody, StandardCharsets.UTF_8));
+            case "PATCH" -> builder.method("PATCH", HttpRequest.BodyPublishers.ofString(jsonBody == null ? "" : jsonBody, StandardCharsets.UTF_8));
             default -> builder.GET();
         };
         HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
