@@ -52,10 +52,12 @@ const canCreateParty = computed(() => {
   return r === 'MASTER' || r === 'ADMIN'
 })
 
+// I preferiti (VISUALIZZATORE marcato con la stellina in scheda) compaiono assieme ai propri,
+// non nella sezione "visualizzabili": è esattamente lo scopo della stellina.
 const personaggiProprietario = computed(() =>
-    home.value?.personaggi.filter(p => p.permesso === 'PROPRIETARIO') ?? [])
+    home.value?.personaggi.filter(p => p.permesso === 'PROPRIETARIO' || p.preferito) ?? [])
 const personaggiVisualizzatore = computed(() =>
-    home.value?.personaggi.filter(p => p.permesso === 'VISUALIZZATORE') ?? [])
+    home.value?.personaggi.filter(p => p.permesso === 'VISUALIZZATORE' && !p.preferito) ?? [])
 
 onMounted(async () => {
   try {

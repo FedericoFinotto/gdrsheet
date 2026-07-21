@@ -41,5 +41,6 @@ public class HomeDTO {
         private Integer partyId;
         private String partyNome;
         private String tipoPersonaggio; // label TIPO_PERSONAGGIO (NAVE, STELLA), null se normale
+        private boolean preferito; // per-utente: mostralo assieme a "I tuoi personaggi" anche se VISUALIZZATORE
     }
 }

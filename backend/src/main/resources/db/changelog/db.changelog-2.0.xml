@@ -569,4 +569,21 @@
         </sql>
     </changeSet>
 
+    <changeSet id="131" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="permessi_personaggi" columnName="preferito"/>
+            </not>
+        </preConditions>
+        <comment>
+            Preferito: flag per-utente (non per-personaggio) che fa comparire il personaggio
+            assieme a quelli di proprietà nella home, anche se il permesso è VISUALIZZATORE.
+        </comment>
+        <addColumn tableName="permessi_personaggi">
+            <column name="preferito" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>

@@ -224,7 +224,37 @@ public class AuthService {
                 p.getPermesso() != null ? p.getPermesso().name() : null,
                 party != null ? party.getId() : null,
                 party != null ? party.getNome() : null,
-                PartyService.tipoPersonaggio(pg)
+                PartyService.tipoPersonaggio(pg),
+                p.isPreferito()
         );
+    }
+
+    /** Preferito per l'utente corrente: null (no permesso ancora) conta come false. */
+    public boolean getPreferito(Utente utente, Integer idPersonaggio) {
+        return permessiPersonaggiRepository.findByIdUtente_IdAndIdPersonaggio_Id(utente.getId(), idPersonaggio)
+                .map(PermessiPersonaggi::isPreferito)
+                .orElse(false);
+    }
+
+    /**
+     * Segna/rimuove il personaggio come preferito per l'utente corrente. Se l'utente non ha
+     * ancora un permesso su questo personaggio (es. lo vede solo perché è nel party), gliene
+     * crea uno da VISUALIZZATORE al volo: mettere la stellina non deve richiedere di passare
+     * prima da un invito esplicito.
+     */
+    @Transactional
+    public void setPreferito(Utente utente, Integer idPersonaggio, boolean preferito) {
+        PermessiPersonaggi p = permessiPersonaggiRepository.findByIdUtente_IdAndIdPersonaggio_Id(utente.getId(), idPersonaggio)
+                .orElseGet(() -> {
+                    var pg = personaggioRepository.findPersonaggioById(idPersonaggio);
+                    if (pg == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Personaggio non trovato");
+                    PermessiPersonaggi nuovo = new PermessiPersonaggi();
+                    nuovo.setIdUtente(utente);
+                    nuovo.setIdPersonaggio(pg);
+                    nuovo.setPermesso(TipoPermessoPersonaggio.VISUALIZZATORE);
+                    return nuovo;
+                });
+        p.setPreferito(preferito);
+        permessiPersonaggiRepository.save(p);
     }
 }

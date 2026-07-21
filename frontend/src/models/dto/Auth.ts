@@ -34,6 +34,7 @@ export interface PersonaggioHome {
     partyId?: number;
     partyNome?: string;
     tipoPersonaggio?: string | null; // NAVE, STELLA, null
+    preferito: boolean; // per-utente: mostralo assieme a "I tuoi personaggi" anche se VISUALIZZATORE
 }
 
 export interface Home {

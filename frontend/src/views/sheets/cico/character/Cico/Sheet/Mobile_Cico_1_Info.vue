@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import {computed, markRaw, ref, watch} from 'vue';
+import {computed, markRaw, onMounted, ref, watch} from 'vue';
 import {storeToRefs} from "pinia";
 import {useCharacterStore} from "../../../../../../stores/personaggio";
 import Mobile_Stat from "../../Shared/Mobile_Stat.vue";
 import Mobile_HP from "../../Shared/Mobile_HP.vue";
 import Mobile_Contatore from "../../Shared/Mobile_Contatore.vue";
 import Mobile_DettaglioItem from "../../Dettaglio/Mobile_DettaglioItem.vue";
-import {switchItemState, updatePersonaggioInfo} from "../../../../../../service/PersonaggioService";
+import {getPreferito, setPreferito, switchItemState, updatePersonaggioInfo} from "../../../../../../service/PersonaggioService";
 import usePopup from "../../../../../../function/usePopup";
 import useDiceRoll from "../../../../../../function/useDiceRoll";
 import {testoTaglia} from "../../../../../../function/Utils";
@@ -205,6 +205,33 @@ const tagliaAttuale = computed(() => {
   return t != null ? testoTaglia(t) : null
 })
 
+// ── Preferito: aggiunge/rimuove una label personale (legata all'account, non al
+// personaggio) che fa comparire questo personaggio assieme ai propri in home. ──
+const preferito = ref(false)
+const salvandoPreferito = ref(false)
+
+onMounted(async () => {
+  try {
+    preferito.value = (await getPreferito(props.idPersonaggio)).data
+  } catch (e) {
+    console.error('Errore caricamento preferito:', e)
+  }
+})
+
+async function togglePreferito() {
+  if (salvandoPreferito.value) return
+  salvandoPreferito.value = true
+  const nuovo = !preferito.value
+  try {
+    await setPreferito(props.idPersonaggio, nuovo)
+    preferito.value = nuovo
+  } catch (e) {
+    console.error('Errore salvataggio preferito:', e)
+  } finally {
+    salvandoPreferito.value = false
+  }
+}
+
 async function salvaInfo() {
   if (savingInfo.value) return
   savingInfo.value = true
@@ -227,6 +254,9 @@ async function salvaInfo() {
     <div class="info-card">
       <button type="button" class="info-head" @click="toggleInfoOpen">
         <span class="chev" :class="{open: infoOpen}">▸</span>
+        <button type="button" class="btn-preferito" :class="{on: preferito}" :disabled="salvandoPreferito"
+                :title="preferito ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti (comparirà in home assieme ai tuoi personaggi)'"
+                @click.stop="togglePreferito">★</button>
         <h2 class="info-nome">{{ cache[idPersonaggio]?.modificatori?.nome ?? "" }}</h2>
         <span v-if="pesoTotale != null" class="info-peso-badge"
               @click.stop="openPesoDettaglio">{{ pesoTotale }} kg</span>
@@ -433,6 +463,18 @@ async function salvaInfo() {
 }
 .info-head:hover { background: #f3f4f6; }
 .info-nome { margin: 0; font-size: 1.2rem; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.btn-preferito {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: .1rem .2rem;
+  color: #d1d5db;
+}
+.btn-preferito.on { color: #f59e0b; }
+.btn-preferito:disabled { opacity: .6; cursor: default; }
 .info-peso-badge {
   font-size: .75rem;
   font-weight: 600;

@@ -9,6 +9,7 @@ import it.fin8.gdrsheet.mapper.ItemMapper;
 import it.fin8.gdrsheet.repository.PersonaggioRepository;
 import it.fin8.gdrsheet.entity.Utente;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import it.fin8.gdrsheet.service.AuthService;
 import it.fin8.gdrsheet.service.AuthzService;
 import it.fin8.gdrsheet.service.ItemService;
 import it.fin8.gdrsheet.service.ModificatoriService;
@@ -35,8 +36,9 @@ public class PersonaggioController {
     private final PartyService partyService;
     private final ItemService itemService;
     private final AuthzService authzService;
+    private final AuthService authService;
 
-    public PersonaggioController(PersonaggioRepository repo, PersonaggioService personaggioService, ItemMapper itemMapper, ModificatoriService modificatoriService, PartyService partyService, ItemService itemService, AuthzService authzService) {
+    public PersonaggioController(PersonaggioRepository repo, PersonaggioService personaggioService, ItemMapper itemMapper, ModificatoriService modificatoriService, PartyService partyService, ItemService itemService, AuthzService authzService, AuthService authService) {
         this.repo = repo;
         this.personaggioService = personaggioService;
         this.itemMapper = itemMapper;
@@ -44,6 +46,7 @@ public class PersonaggioController {
         this.partyService = partyService;
         this.authzService = authzService;
         this.itemService = itemService;
+        this.authService = authService;
     }
 
     @Operation(
@@ -60,6 +63,22 @@ public class PersonaggioController {
 
         return ResponseEntity.ok(p);
     }
+
+    @Operation(summary = "Preferito dell'utente corrente su questo personaggio (per mostrarlo assieme ai propri in home)")
+    @GetMapping("/{id}/preferito")
+    public ResponseEntity<Boolean> getPreferito(@PathVariable Integer id, @AuthenticationPrincipal Utente utente) {
+        return ResponseEntity.ok(authService.getPreferito(utente, id));
+    }
+
+    @Operation(summary = "Segna/rimuove il personaggio come preferito per l'utente corrente")
+    @PutMapping("/{id}/preferito")
+    public ResponseEntity<Void> setPreferito(@PathVariable Integer id, @RequestBody PreferitoRequest request,
+                                              @AuthenticationPrincipal Utente utente) {
+        authService.setPreferito(utente, id, request.preferito());
+        return ResponseEntity.noContent().build();
+    }
+
+    public record PreferitoRequest(boolean preferito) {}
 
     @Operation(
             summary = "Recupera un personaggio per ID",

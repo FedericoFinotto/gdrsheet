@@ -373,16 +373,16 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
 
 .fab-segnalazione {
   position: fixed;
-  top: .6rem;
-  right: .6rem;
+  top: .4rem;
+  left: .4rem;
   z-index: 10050;
-  width: 2.6rem;
-  height: 2.6rem;
+  width: 1.9rem;
+  height: 1.9rem;
   border-radius: 50%;
   border: 0;
   background: #dc2626;
   color: #fff;
-  font-size: 1.15rem;
+  font-size: .9rem;
   cursor: pointer;
   display: flex;
   align-items: center;

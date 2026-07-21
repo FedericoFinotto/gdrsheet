@@ -20,6 +20,10 @@ export function flattenTrasformazioni(items: Items | undefined | null): Trasform
 }
 
 export function testoModificatoreConTipo(mod: number | string, tipo?: string): string {
+    // SBLOCCA/NEGA sono flag booleani senza un valore numerico sensato: il "valore" allegato
+    // (spesso 0) non va mostrato, altrimenti si legge "+0" senza capire cosa significhi.
+    if (tipo === 'SBLOCCA') return 'Sblocca';
+    if (tipo === 'NEGA') return 'Nega';
     if (tipo === 'MOLTIPLICA') return `×${mod}`;
     if (tipo === 'DIVIDI') return `/${mod}`;
     return testoModificatore(mod);

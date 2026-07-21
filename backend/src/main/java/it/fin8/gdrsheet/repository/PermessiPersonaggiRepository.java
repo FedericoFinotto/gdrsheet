@@ -5,10 +5,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PermessiPersonaggiRepository extends JpaRepository<PermessiPersonaggi, Integer> {
     List<PermessiPersonaggi> findAllByIdUtente_Id(Integer idUtente);
 
     List<PermessiPersonaggi> findAllByIdPersonaggio_Id(Integer idPersonaggio);
+
+    Optional<PermessiPersonaggi> findByIdUtente_IdAndIdPersonaggio_Id(Integer idUtente, Integer idPersonaggio);
 }

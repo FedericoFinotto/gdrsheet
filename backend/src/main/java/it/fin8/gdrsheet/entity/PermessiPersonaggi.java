@@ -39,6 +39,13 @@ public class PermessiPersonaggi {
     @Column(name = "tipo")
     private String tipo = TipoPermessoPersonaggio.PROPRIETARIO.name();
 
+    /**
+     * Preferito: per-utente, non per-personaggio. Fa comparire il personaggio assieme a
+     * quelli di proprietà nella home anche quando il permesso è VISUALIZZATORE.
+     */
+    @Column(name = "preferito", nullable = false)
+    private boolean preferito = false;
+
     public void setPermesso(TipoPermessoPersonaggio permesso) {
         this.permesso = permesso;
         this.tipo = permesso != null ? permesso.name() : null;

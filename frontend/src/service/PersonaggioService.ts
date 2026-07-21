@@ -29,6 +29,14 @@ export function updatePersonaggioInfo(id: number, nome: string, info: Record<str
     return api.post<DatiPersonaggio>(`/personaggi/${id}/info`, {nome, info});
 }
 
+export function getPreferito(id: number): Promise<AxiosResponse<boolean>> {
+    return api.get<boolean>(`/personaggi/${id}/preferito`);
+}
+
+export function setPreferito(id: number, preferito: boolean): Promise<AxiosResponse<void>> {
+    return api.put<void>(`/personaggi/${id}/preferito`, {preferito});
+}
+
 export function getAllPersonaggioItemsDTOByIdPersonaggio(id: number): Promise<AxiosResponse<Items>> {
     return api.get(`/personaggi/items/${id}`);
 }
