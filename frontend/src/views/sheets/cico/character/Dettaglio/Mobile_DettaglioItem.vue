@@ -360,8 +360,22 @@ const infoRazza = computed(() => {
   const lap = getItemLabel(itemDetail.value, LABELS.RAZZA_LAP)
   const spazio = getItemLabel(itemDetail.value, LABELS.RAZZA_SPAZIO)
   const portata = getItemLabel(itemDetail.value, LABELS.RAZZA_PORTATA)
-  if (!taglia && !velocita && !caratteristiche && !lap && !spazio && !portata) return null
-  return {taglia, velocita, caratteristiche, lap, spazio, portata}
+  const lingueAutomatiche = getItemLabel(itemDetail.value, LABELS.RAZZA_LINGUE_AUTOMATICHE)
+  const classePreferita = getItemLabel(itemDetail.value, LABELS.RAZZA_CLASSE_PREFERITA)
+  const lingueBonus = getItemLabel(itemDetail.value, LABELS.RAZZA_LINGUE_BONUS)
+  const extra = getItemLabels(itemDetail.value, 'EXTRA') ?? []
+  if (!taglia && !velocita && !caratteristiche && !lap && !spazio && !portata
+      && !lingueAutomatiche && !classePreferita && !lingueBonus && !extra.length) return null
+  return {taglia, velocita, caratteristiche, lap, spazio, portata, lingueAutomatiche, classePreferita, lingueBonus, extra}
+})
+// Classe/Razza: manuale/link di provenienza (import bulk da dndtools.org, vedi
+// scripts/dndtools-scraper), stessa label MANUALE_SP/LINK già usata per i Talenti.
+const classeInfo = computed(() => {
+  if (!itemDetail.value || (itemDetail.value.tipo !== TIPO_ITEM.CLASSE && itemDetail.value.tipo !== TIPO_ITEM.RAZZA)) return null
+  const manuale = getItemLabel(itemDetail.value, LABELS.MANUALE)
+  const link = getItemLabel(itemDetail.value, LABELS.LINK)
+  if (!manuale && !link) return null
+  return {manuale, link}
 })
 const infoVeicolo = computed(() => {
   if (!itemDetail.value || itemDetail.value.tipo !== TIPO_ITEM.VEICOLO) return null
@@ -559,6 +573,14 @@ function toggleExpand(key: string) {
       <div v-else class="contenitore-empty muted">Vuoto</div>
     </div>
 
+    <!-- Classe: manuale/link di provenienza (solo se presenti, es. import bulk da dndtools.org) -->
+    <div v-if="classeInfo" class="talento-header">
+      <span v-if="classeInfo.manuale" class="talento-manuale">({{ classeInfo.manuale }})</span>
+    </div>
+    <div v-if="classeInfo?.link" class="talento-link">
+      <a :href="classeInfo.link" target="_blank" rel="noopener noreferrer">Fonte ↗</a>
+    </div>
+
     <!-- Talento: header manuale/pagina/categorie in stile dndtools -->
     <div v-if="talentoInfo && (talentoInfo.manuale || talentoInfo.categorie.length)" class="talento-header">
       <span v-if="talentoInfo.manuale" class="talento-manuale">
@@ -584,6 +606,10 @@ function toggleExpand(key: string) {
       <span v-if="infoRazza.lap"><strong>LAP:</strong> {{ infoRazza.lap }}</span>
       <span v-if="infoRazza.spazio"><strong>Spazio:</strong> {{ infoRazza.spazio }}</span>
       <span v-if="infoRazza.portata"><strong>Portata:</strong> {{ infoRazza.portata }}</span>
+      <span v-if="infoRazza.lingueAutomatiche"><strong>Lingue automatiche:</strong> {{ infoRazza.lingueAutomatiche }}</span>
+      <span v-if="infoRazza.classePreferita"><strong>Classe preferita:</strong> {{ infoRazza.classePreferita }}</span>
+      <span v-if="infoRazza.lingueBonus"><strong>Lingue bonus:</strong> {{ infoRazza.lingueBonus }}</span>
+      <span v-for="ex in infoRazza.extra" :key="ex">{{ ex }}</span>
     </div>
     <div v-if="infoVeicolo" class="costo-materiale">
       <span><strong>Velocità:</strong> {{ infoVeicolo.velocita }}</span>

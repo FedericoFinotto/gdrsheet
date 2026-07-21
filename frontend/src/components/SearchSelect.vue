@@ -11,6 +11,13 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   // ordina alfabeticamente per label (default true); metti false per ordini semantici (taglia, livelli…)
   sort?: boolean
+  // Modalità ricerca remota: se presente, sostituisce il filtro locale su "options" con una
+  // chiamata debounced a questa funzione (niente ricerca finché l'input è vuoto — pensata per
+  // elenchi troppo grandi da precaricare per intero, es. il compendio classi/razze).
+  onSearch?: (query: string) => Promise<Opt[]>
+  // Label del valore selezionato quando non è tra "options" (perché in modalità remota non
+  // viene precaricato l'elenco intero): se assente si ricade sulla ricerca in "options".
+  selectedLabel?: string
 }>(), {
   placeholder: 'Seleziona…',
   disabled: false,
@@ -33,14 +40,38 @@ const opzioni = computed<Opt[]>(() => {
 })
 
 const selected = computed(() => opzioni.value.find(o => o.value === props.modelValue) ?? null)
-const selectedLabel = computed(() => selected.value?.label ?? '')
+const displayLabel = computed(() => selected.value?.label ?? props.selectedLabel ?? '')
 
 const open = ref(false)
 const query = ref('')
 const root = ref<HTMLElement | null>(null)
 const inputEl = ref<HTMLInputElement | null>(null)
 
+// Modalità remota: niente filtro locale, un risultato per chiamata (debounced), vuoto se
+// l'input è vuoto — "interrompi" la ricerca finché non c'è un valore da cercare.
+const remoteResults = ref<Opt[]>([])
+const remoteLoading = ref(false)
+let remoteTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(query, (q) => {
+  if (!props.onSearch) return
+  if (remoteTimer) clearTimeout(remoteTimer)
+  const term = q.trim()
+  if (!term) { remoteResults.value = []; remoteLoading.value = false; return }
+  remoteLoading.value = true
+  remoteTimer = setTimeout(async () => {
+    try {
+      remoteResults.value = await props.onSearch!(term)
+    } catch {
+      remoteResults.value = []
+    } finally {
+      remoteLoading.value = false
+    }
+  }, 300)
+})
+
 const filtrate = computed(() => {
+  if (props.onSearch) return remoteResults.value
   const q = query.value.trim().toLowerCase()
   if (!q) return opzioni.value
   return opzioni.value.filter(o => o.label.toLowerCase().includes(q))
@@ -51,6 +82,7 @@ function toggle() {
   open.value = !open.value
   if (open.value) {
     query.value = ''
+    remoteResults.value = []
     requestAnimationFrame(() => inputEl.value?.focus())
   }
 }
@@ -74,7 +106,7 @@ watch(() => props.disabled, d => { if (d) open.value = false })
 <template>
   <div class="search-select" ref="root" :class="{ disabled }">
     <button type="button" class="ss-control" :disabled="disabled" @click="toggle">
-      <span class="ss-value" :class="{ placeholder: !selectedLabel }">{{ selectedLabel || placeholder }}</span>
+      <span class="ss-value" :class="{ placeholder: !displayLabel }">{{ displayLabel || placeholder }}</span>
       <span v-if="selected?.hint" class="ss-hint"
             :style="selected.hintColor ? {background: selected.hintColor, color: '#fff'} : undefined">{{ selected.hint }}</span>
       <span class="ss-caret" :class="{ open }">▾</span>
@@ -86,12 +118,14 @@ watch(() => props.disabled, d => { if (d) open.value = false })
           v-model="query"
           type="text"
           class="ss-search"
-          placeholder="Cerca…"
+          :placeholder="onSearch ? 'Digita per cercare…' : 'Cerca…'"
           @keydown.enter.prevent="filtrate.length && scegli(filtrate[0])"
           @keydown.esc.prevent="open = false"
       />
       <ul class="ss-list">
-        <li v-if="!filtrate.length" class="ss-empty">Nessun risultato</li>
+        <li v-if="onSearch && remoteLoading" class="ss-empty">Ricerca…</li>
+        <li v-else-if="onSearch && !query.trim()" class="ss-empty">Digita per cercare…</li>
+        <li v-else-if="!filtrate.length" class="ss-empty">Nessun risultato</li>
         <li
             v-for="o in filtrate"
             :key="String(o.value)"

@@ -73,8 +73,22 @@ const canSave = computed(() =>
     !busy.value && !props.readonly && !!form.classeId && livelliSelezionati.value.length > 0)
 
 /* Liste base */
-const classi = ref<Classe[]>([])
 const abilita = ref<Abilita[]>([])
+
+// Ricerca remota classi/razze: il compendio ha ormai centinaia di classi (import bulk),
+// caricarle tutte ad ogni apertura dell'editor sarebbe troppo lento — si cerca solo quando
+// l'utente digita qualcosa (vedi SearchSelect "onSearch").
+async function searchClassi(q: string) {
+  if (personaggioId.value == null) return []
+  const res = await getListaClassiPerPersonaggio(personaggioId.value, q)
+  const list = unwrap<Classe[]>(res) ?? []
+  return list.map((c: any) => ({
+    value: c.id,
+    label: c.nome,
+    hint: c.tipo === 'RAZZA' ? 'Razza' : 'Classe',
+    hintColor: c.tipo === 'RAZZA' ? '#15803d' : '#4338ca',
+  }))
+}
 
 /* Helpers */
 const abilUid = (a: Abilita) => String((a as any)?.abilita?.id ?? '')
@@ -361,11 +375,7 @@ onMounted(async () => {
 
     const pid = unwrap<Id>(await getIdPersonaggioFromLivello(props.item.id))
     personaggioId.value = pid
-    const [cls, abi] = await Promise.all([
-      getListaClassiPerPersonaggio(pid),
-      getListaAbilitaPerPersonaggio(pid)
-    ])
-    classi.value = unwrap<Classe[]>(cls) ?? []
+    const abi = await getListaAbilitaPerPersonaggio(pid)
     abilita.value = unwrap<Abilita[]>(abi) ?? []
 
     preloadAttualiDaStats()
@@ -573,9 +583,7 @@ const sumCar = computed(() => {
   })
   return parts.join(', ') || '—'
 })
-const classeSelezionata = computed(
-    () => classi.value.find(c => c.id === form.classeId)?.nome || '—'
-)
+const classeSelezionata = computed(() => classeDetail.value?.nome || '—')
 const sumClasseMaledizione = computed(() =>
     `Classe: ${classeSelezionata.value}${form.maledizioneNome ? ` | Maledizione: ${form.maledizioneNome}` : ''}`
 )
@@ -593,7 +601,7 @@ const sumClasseMaledizione = computed(() =>
 
     <TabClasseMaledizione
         :disabled="disabledAll"
-        :classi="classi"
+        :search-classi="searchClassi"
         :classe-detail="classeDetail"
         :livelli-disponibili="livelliDisponibili"
         v-model:classe-id="form.classeId"

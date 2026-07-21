@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.dto.ClasseDetailDTO;
+import it.fin8.gdrsheet.dto.ClassImportResultDTO;
 import it.fin8.gdrsheet.dto.ImportJsonlResultDTO;
 import it.fin8.gdrsheet.dto.ItemDTO;
 import it.fin8.gdrsheet.dto.MondoDTO;
@@ -23,6 +24,7 @@ import it.fin8.gdrsheet.repository.ItemRepository;
 import it.fin8.gdrsheet.repository.MondoRepository;
 import it.fin8.gdrsheet.repository.SistemaRepository;
 import it.fin8.gdrsheet.service.AuthzService;
+import it.fin8.gdrsheet.service.ClassImportService;
 import it.fin8.gdrsheet.service.ClasseService;
 import it.fin8.gdrsheet.service.ItemImportService;
 import it.fin8.gdrsheet.service.ItemService;
@@ -47,6 +49,7 @@ public class ItemController {
     private final ItemRepository repo;
     private final ItemService itemService;
     private final ItemImportService itemImportService;
+    private final ClassImportService classImportService;
     private final ItemMapper itemMapper;
     private final AuthzService authzService;
     private final ClasseService classeService;
@@ -55,10 +58,11 @@ public class ItemController {
     private final PartyService partyService;
     private final NotiziaVisteService notiziaVisteService;
 
-    public ItemController(ItemRepository repo, ItemService itemService, ItemImportService itemImportService, ItemMapper itemMapper, AuthzService authzService, ClasseService classeService, MondoRepository mondoRepository, SistemaRepository sistemaRepository, PartyService partyService, NotiziaVisteService notiziaVisteService) {
+    public ItemController(ItemRepository repo, ItemService itemService, ItemImportService itemImportService, ClassImportService classImportService, ItemMapper itemMapper, AuthzService authzService, ClasseService classeService, MondoRepository mondoRepository, SistemaRepository sistemaRepository, PartyService partyService, NotiziaVisteService notiziaVisteService) {
         this.repo = repo;
         this.itemService = itemService;
         this.itemImportService = itemImportService;
+        this.classImportService = classImportService;
         this.itemMapper = itemMapper;
         this.authzService = authzService;
         this.classeService = classeService;
@@ -353,6 +357,23 @@ public class ItemController {
         if (!authzService.isAdmin(utente))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo un admin può importare dati in blocco");
         return ResponseEntity.ok(itemImportService.importJsonl(file, mapping, tipo));
+    }
+
+    @Operation(
+            summary = "Import bulk di Classi da un file JSONL (classes.jsonl di scripts/dndtools-scraper)",
+            description = "Un oggetto JSON per riga (stessa struttura di classes.jsonl): crea l'item CLASSE, " +
+                    "un item AVANZAMENTO per livello con i modificatori BAB/TS e (per gli incantatori) la label " +
+                    "SP_SLOT, e un item ABILITA per ogni capacità di classe individuata, agganciata ai livelli in " +
+                    "cui viene ottenuta. Le classi già presenti (stesso nome) vengono saltate. Riservato agli admin."
+    )
+    @PostMapping(value = "/import-classes-jsonl", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ClassImportResultDTO> importClassesJsonl(
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        if (!authzService.isAdmin(utente))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo un admin può importare dati in blocco");
+        return ResponseEntity.ok(classImportService.importClassesJsonl(file));
     }
 
     @Operation(

@@ -34,6 +34,10 @@ export const LABELS = {
     RAZZA_LAP: 'RAZZA_LAP',
     RAZZA_SPAZIO: 'RAZZA_SPAZIO',
     RAZZA_PORTATA: 'RAZZA_PORTATA',
+    // Razza (import bulk da dndtools.org, vedi scripts/dndtools-scraper/scrape_races.py)
+    RAZZA_LINGUE_AUTOMATICHE: 'RAZZA_LINGUE_AUTOMATICHE',
+    RAZZA_CLASSE_PREFERITA: 'RAZZA_CLASSE_PREFERITA',
+    RAZZA_LINGUE_BONUS: 'RAZZA_LINGUE_BONUS',
     TIRO_DANNI: 'TPD',
     TIRO_COLPIRE: 'TPC',
     CLASSE_LIVELLO: 'LVL_CLASSE',

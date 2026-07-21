@@ -1868,8 +1868,24 @@ public class PersonaggioService {
     }
 
     public List<Item> getItemAssociabili(Integer idPersonaggio, TipoItem tipoItem) {
+        return getItemAssociabili(idPersonaggio, tipoItem, null);
+    }
+
+    /**
+     * Classi/razze associabili filtrate per nome: con un compendio di centinaia di classi
+     * (import bulk da dndtools.org) restituire tutto senza filtro sarebbe troppo pesante da
+     * mappare (labels/modificatori per ogni item) ad ogni apertura dell'editor livello.
+     * q null/vuoto = comportamento storico, nessun filtro (usato da maledizioni/frutti,
+     * compendi piccoli dove il filtro non serve).
+     */
+    public List<Item> getItemAssociabili(Integer idPersonaggio, TipoItem tipoItem, String q) {
         Personaggio personaggio = personaggioRepository.findById(idPersonaggio).orElseThrow(() -> new RuntimeException("Personaggio non trovato"));
-        return personaggio.getParty().getMondo().getItems().stream().filter(x -> x.getTipo().equals(tipoItem)).toList();
+        String needle = q == null ? "" : q.trim().toLowerCase();
+        var stream = personaggio.getParty().getMondo().getItems().stream()
+                .filter(x -> x.getTipo().equals(tipoItem))
+                .filter(x -> needle.isEmpty() || x.getNome() != null && x.getNome().toLowerCase().contains(needle));
+        if (!needle.isEmpty()) stream = stream.limit(50);
+        return stream.toList();
     }
 
     public GradiDTO getGradi(Integer idPersonaggio, Integer livello, Integer idClasse, String livelli) {

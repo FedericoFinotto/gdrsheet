@@ -142,6 +142,10 @@ public final class Constants {
     public static final String ITEM_LABEL_RAZZA_LAP = "RAZZA_LAP";
     public static final String ITEM_LABEL_RAZZA_SPAZIO = "RAZZA_SPAZIO";
     public static final String ITEM_LABEL_RAZZA_PORTATA = "RAZZA_PORTATA";
+    // Razza (import bulk da dndtools.org, vedi scripts/dndtools-scraper/scrape_races.py)
+    public static final String ITEM_LABEL_RAZZA_LINGUE_AUTOMATICHE = "RAZZA_LINGUE_AUTOMATICHE";
+    public static final String ITEM_LABEL_RAZZA_CLASSE_PREFERITA = "RAZZA_CLASSE_PREFERITA";
+    public static final String ITEM_LABEL_RAZZA_LINGUE_BONUS = "RAZZA_LINGUE_BONUS";
 
     // Label da import bulk di compendio (es. Talenti da dndtools.org, vedi scripts/dndtools-scraper).
     // ITEM_LABEL_MANUALE (sopra) è riusata per il manuale di provenienza.

@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import {computed, ref} from 'vue'
-import {Classe} from '../../../../../../models/dto/Classe'
 import TabExpandable from "../../../../../../../components/TabExpandable.vue";
 import SearchSelect from "../../../../../../../components/SearchSelect.vue";
 
 const props = defineProps<{
   disabled: boolean
   summary: string
-  classi: Classe[]
+  searchClassi: (q: string) => Promise<Array<{ value: number; label: string; hint: string; hintColor: string }>>
   classeDetail: any | null
   livelliDisponibili: number[]
   classeId: number | null
@@ -43,16 +42,18 @@ const FILTRO_OPT = [
   {value: 'CLASSE', label: 'Classe'},
   {value: 'RAZZA', label: 'Razza'},
 ]
-const opzioniClasse = computed(() =>
-    props.classi
-        .filter((c: any) => !filtroTipo.value || c.tipo === filtroTipo.value)
-        .map((c: any) => ({
-          value: c.id,
-          label: c.nome,
-          hint: c.tipo === 'RAZZA' ? 'Razza' : 'Classe',
-          hintColor: c.tipo === 'RAZZA' ? '#15803d' : '#4338ca',
-        }))
-)
+
+async function cercaClasseORazza(q: string) {
+  const risultati = await props.searchClassi(q)
+  if (!filtroTipo.value) return risultati
+  const tipoAtteso = filtroTipo.value === 'RAZZA' ? 'Razza' : 'Classe'
+  return risultati.filter(r => r.hint === tipoAtteso)
+}
+
+// Label della classe/razza attualmente selezionata: in modalità ricerca remota l'elenco
+// intero non è precaricato, quindi va presa da classeDetail (già disponibile) invece che
+// cercata in una lista locale.
+const classeDetailLabel = computed(() => props.classeDetail?.nome ?? '')
 </script>
 
 <template>
@@ -68,7 +69,7 @@ const opzioniClasse = computed(() =>
         <label class="field grow">
           <span class="lbl">Classe / Razza <span class="required">*</span></span>
           <SearchSelect v-model="classeIdLocal" :disabled="disabled" placeholder="— Seleziona —"
-                        :options="opzioniClasse"/>
+                        :options="[]" :on-search="cercaClasseORazza" :selected-label="classeDetailLabel"/>
         </label>
       </div>
 

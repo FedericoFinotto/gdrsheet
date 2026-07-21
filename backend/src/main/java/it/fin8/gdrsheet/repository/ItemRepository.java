@@ -15,6 +15,8 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
 
     List<Item> findItemsByTipo(TipoItem tipo);
 
+    boolean existsByNomeIgnoreCaseAndTipoAndPersonaggioIsNull(String nome, TipoItem tipo);
+
     Item findItemById(Integer id);
 
     @Query("""

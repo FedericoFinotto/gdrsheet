@@ -122,8 +122,8 @@ export function getListaAbilitaPerPersonaggio(id: number): Promise<AxiosResponse
     return api.get(`/personaggi/stats/${id}`);
 }
 
-export function getListaClassiPerPersonaggio(id: number): Promise<AxiosResponse<Item[]>> {
-    return api.get(`/personaggi/classi-associabili/${id}`);
+export function getListaClassiPerPersonaggio(id: number, q?: string): Promise<AxiosResponse<Item[]>> {
+    return api.get(`/personaggi/classi-associabili/${id}`, {params: q ? {q} : {}});
 }
 
 export function getListaMaledizioniPerPersonaggio(id: number): Promise<AxiosResponse<Item[]>> {

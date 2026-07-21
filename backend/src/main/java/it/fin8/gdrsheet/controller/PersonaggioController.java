@@ -260,16 +260,22 @@ public class PersonaggioController {
 
     @Operation(
             summary = "Restituisce le classi e razze associabili a un personaggio",
-            description = "Restituisce le classi e razze associabili a un personaggio (gestite con lo stesso editor)"
+            description = "Restituisce le classi e razze associabili a un personaggio (gestite con lo stesso editor). " +
+                    "Senza 'q' non restituisce nulla: con un compendio di centinaia di classi la lista intera è troppo " +
+                    "pesante da caricare e mappare ad ogni apertura dell'editor livello — la ricerca va lanciata solo " +
+                    "quando l'utente digita qualcosa."
     )
     @GetMapping("/classi-associabili/{id}")
     public ResponseEntity<List<ItemDTO>> getClassiAssociabiliPersonaggio(
             @Parameter(description = "ID Personaggio", required = true)
-            @PathVariable Integer id
+            @PathVariable Integer id,
+            @RequestParam(required = false) String q
     ) {
+        if (q == null || q.isBlank()) return ResponseEntity.ok(List.of());
+
         List<ItemDTO> result = new ArrayList<>();
-        result.addAll(personaggioService.getItemAssociabili(id, TipoItem.CLASSE).stream().map(itemMapper::toDTO).toList());
-        result.addAll(personaggioService.getItemAssociabili(id, TipoItem.RAZZA).stream().map(itemMapper::toDTO).toList());
+        result.addAll(personaggioService.getItemAssociabili(id, TipoItem.CLASSE, q).stream().map(itemMapper::toDTO).toList());
+        result.addAll(personaggioService.getItemAssociabili(id, TipoItem.RAZZA, q).stream().map(itemMapper::toDTO).toList());
 
         return ResponseEntity.ok(result);
     }
