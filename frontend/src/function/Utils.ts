@@ -84,7 +84,7 @@ export function risolviFormulaDanno(formula: string, stats: DatiPersonaggio): st
 
     return formula
         .replace(/@/g, '')
-        .replace(/\*/g, '')
+        .replace(/\*/g, 'x')
         .replace(/0\.5/g, '½')
         .replace(/[A-Z]{2,}/g, match => {
             const val = vars[match]
@@ -95,7 +95,8 @@ export function risolviFormulaDanno(formula: string, stats: DatiPersonaggio): st
 export function testoFormula(formula: string): string {
     return formula
         .replace(/@/g, '')        // rimuove tutte le @
-        .replace(/\*/g, '')      // sostituisce tutti i * con 'x'
+        .replace(/\$/g, '')       // rimuove tutti i $
+        .replace(/\*/g, 'x')     // sostituisce tutti i * con 'x'
         .replace(/0\.5/g, '½')   // sostituisce tutti i 0.5 con ½
         .replace('MSC', 'Mischia')
         .replace('GTT', 'Distanza')

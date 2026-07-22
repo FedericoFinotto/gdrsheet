@@ -742,32 +742,64 @@ public class ItemService {
         for (UpdateItemRequest.AttaccoRowDTO r : rows) {
             if (r.getNome() == null || r.getNome().trim().isEmpty()) continue;
 
+            // un attacco risolve o con TPC o con TS, mai entrambi: pulisci l'altro set di label
+            // in base a tipoRisoluzione, così cambiare modalità nell'editor non lascia residui.
+            boolean isTs = "TS".equals(r.getTipoRisoluzione());
+            String tpcVal = isTs ? null : r.getTpc();
+            String ttsVal = isTs ? r.getTiroSalvezza() : null;
+            String ttsCdVal = isTs ? r.getTiroSalvezzaCd() : null;
+
+            Item attacco;
             if (r.getId() != null) {
                 // aggiorna attacco esistente
-                Item attacco = esistentiById.get(r.getId());
+                attacco = esistentiById.get(r.getId());
                 if (attacco == null) continue; // id non figlio di questo item: ignora
                 attacco.setNome(r.getNome().trim());
-                putSingleLabel(attacco, Constants.ITEM_LABEL_ATTACCO_TIRO_PER_COLPIRE, r.getTpc());
-                putSingleLabel(attacco, Constants.ITEM_LABEL_ATTACCO_DANNI, r.getTpd());
-                putSingleLabel(attacco, Constants.ITEM_LABEL_ATTACCO_TIPO_DANNI, r.getTipoDanni());
-                itemRepository.save(attacco);
             } else {
                 // crea nuovo attacco + collegamento
-                Item attacco = new Item();
+                attacco = new Item();
                 attacco.setNome(r.getNome().trim());
                 attacco.setTipo(TipoItem.ATTACCO);
                 attacco.setLabels(new ArrayList<>());
-                addLabelRow(attacco, Constants.ITEM_LABEL_ATTACCO_TIRO_PER_COLPIRE, r.getTpc());
-                addLabelRow(attacco, Constants.ITEM_LABEL_ATTACCO_DANNI, r.getTpd());
-                addLabelRow(attacco, Constants.ITEM_LABEL_ATTACCO_TIPO_DANNI, r.getTipoDanni());
-                Item savedAttacco = itemRepository.save(attacco);
+            }
 
+            putSingleLabel(attacco, Constants.ITEM_LABEL_ATTACCO_TIPO_RISOLUZIONE, r.getTipoRisoluzione());
+            putSingleLabel(attacco, Constants.ITEM_LABEL_ATTACCO_TIRO_PER_COLPIRE, tpcVal);
+            putSingleLabel(attacco, Constants.ITEM_LABEL_ATTACCO_TIRO_SALVEZZA, ttsVal);
+            putSingleLabel(attacco, Constants.ITEM_LABEL_ATTACCO_TIRO_SALVEZZA_CD, ttsCdVal);
+            // legacy: un attacco creato/salvato con questo nuovo modello non usa più TPD/TDANNO singoli
+            attacco.removeLabel(Constants.ITEM_LABEL_ATTACCO_DANNI);
+            attacco.removeLabel(Constants.ITEM_LABEL_ATTACCO_TIPO_DANNI);
+            replaceMultiLabel(attacco, Constants.ITEM_LABEL_ATTACCO_DANNO, encodeDanni(r.getDanni()));
+
+            if (r.getId() != null) {
+                itemRepository.save(attacco);
+            } else {
+                Item savedAttacco = itemRepository.save(attacco);
                 Collegamento link = new Collegamento();
                 link.setItemSource(itm);
                 link.setItemTarget(savedAttacco);
                 collegamentoRepository.save(link);
             }
         }
+    }
+
+    private static final String DANNO_SEP = "␞"; // separatore invisibile, non capita mai in una formula/nome tipo
+
+    private List<String> encodeDanni(List<UpdateItemRequest.DannoRowDTO> danni) {
+        if (danni == null) return List.of();
+        List<String> out = new ArrayList<>();
+        for (UpdateItemRequest.DannoRowDTO d : danni) {
+            if (d == null || d.getFormula() == null || d.getFormula().isBlank()) continue;
+            out.add(d.getFormula().trim() + DANNO_SEP + (d.getTipo() == null ? "" : d.getTipo().trim()));
+        }
+        return out;
+    }
+
+    /** Sostituisce integralmente tutte le righe label con questa chiave con i nuovi valori (in ordine). */
+    private void replaceMultiLabel(Item item, String key, List<String> values) {
+        item.removeLabel(key);
+        for (String v : values) addLabelRow(item, key, v);
     }
 
     /**

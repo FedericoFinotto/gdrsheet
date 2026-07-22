@@ -10,6 +10,7 @@ import {
   listaSegnalazioni,
   modificaSegnalazione,
   scaricaAllegato,
+  scaricaImmagineCommento,
 } from '../service/SegnalazioniService'
 import {Allegato, Comento, Segnalazione} from '../models/dto/Segnalazione'
 import {caricaViste, segnaVista, segnalazioneNonVista, ultimaVistaDi} from '../function/segnalazioniNotifiche'
@@ -119,6 +120,39 @@ const allegati = reactive<Record<number, Allegato[]>>({})
 // commenti sono arrivati dopo, per evidenziarli come "nuovo" invece di mostrarli tutti uguali
 const sogliaCommentiNuovi = reactive<Record<number, string | null>>({})
 
+// immagini incorporate nel testo (sintassi markdown ![](url) di Taiga) di descrizione/commenti:
+// cache url originale -> blob url, così un'immagine già vista non viene riscaricata
+const immaginiCache = reactive<Record<string, string>>({})
+interface Segmento { tipo: 'testo' | 'immagine'; valore: string }
+
+function parseSegmenti(testo: string | null | undefined): Segmento[] {
+  if (!testo) return []
+  const out: Segmento[] = []
+  const re = /!\[[^\]]*]\(([^)]+)\)/g
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = re.exec(testo)) !== null) {
+    if (match.index > lastIndex) out.push({tipo: 'testo', valore: testo.slice(lastIndex, match.index)})
+    out.push({tipo: 'immagine', valore: match[1]})
+    lastIndex = match.index + match[0].length
+  }
+  if (lastIndex < testo.length) out.push({tipo: 'testo', valore: testo.slice(lastIndex)})
+  return out
+}
+
+async function caricaImmaginiDi(idSegnalazione: number, testo: string | null | undefined) {
+  const immagini = parseSegmenti(testo).filter(seg => seg.tipo === 'immagine')
+  await Promise.all(immagini.map(async seg => {
+    if (immaginiCache[seg.valore]) return
+    try {
+      const blob = (await scaricaImmagineCommento(idSegnalazione, seg.valore)).data
+      immaginiCache[seg.valore] = URL.createObjectURL(blob)
+    } catch (e) {
+      console.error('Errore download immagine incorporata:', e)
+    }
+  }))
+}
+
 function commentoNuovo(s: Segnalazione, c: Comento): boolean {
   const soglia = sogliaCommentiNuovi[s.id]
   if (!soglia || !c.data) return false
@@ -144,6 +178,7 @@ async function toggleAperto(s: Segnalazione) {
     promesse.push(
         dettaglioSegnalazione(s.id)
             .then(res => { s.descrizione = res.data.descrizione })
+            .then(() => caricaImmaginiDi(s.id, s.descrizione))
             .catch(e => console.error('Errore caricamento descrizione:', e))
     )
     promesse.push(
@@ -158,6 +193,7 @@ async function toggleAperto(s: Segnalazione) {
   promesse.push(
       listaCommenti(s.id)
           .then(res => { commenti[s.id].lista = res.data })
+          .then(() => Promise.all(commenti[s.id].lista.map(c => caricaImmaginiDi(s.id, c.testo))))
           .catch(e => console.error('Errore caricamento commenti:', e))
           .finally(() => { commenti[s.id].loading = false })
   )
@@ -216,6 +252,7 @@ async function invia(s: Segnalazione) {
     const c = (await aggiungiCommento(s.id, testo)).data
     st.lista.push(c)
     st.nuovo = ''
+    await caricaImmaginiDi(s.id, c.testo)
     // il commento appena scritto aggiorna dataModifica su Taiga: segna comunque come vista
     // adesso, altrimenti il proprio commento risulterebbe come "notifica non letta"
     segnaVista(s.id)
@@ -278,7 +315,12 @@ async function invia(s: Segnalazione) {
             </button>
           </div>
         </div>
-        <p v-else-if="s.descrizione" class="seg-descrizione">{{ s.descrizione }}</p>
+        <div v-else-if="s.descrizione" class="seg-descrizione">
+          <template v-for="(seg, si) in parseSegmenti(s.descrizione)" :key="si">
+            <span v-if="seg.tipo === 'testo'">{{ seg.valore }}</span>
+            <img v-else-if="immaginiCache[seg.valore]" :src="immaginiCache[seg.valore]" class="img-inline" alt=""/>
+          </template>
+        </div>
 
         <div v-if="allegati[s.id]?.length" class="allegati">
           <button v-for="a in allegati[s.id]" :key="a.id" class="allegato" @click="apriImmagine(s, a)">
@@ -291,7 +333,12 @@ async function invia(s: Segnalazione) {
           <template v-else>
             <div v-for="(c, i) in commenti[s.id]?.lista ?? []" :key="i" class="commento" :class="{nuovo: commentoNuovo(s, c)}">
               <span class="commento-autore">{{ c.autore ?? '—' }}<span v-if="commentoNuovo(s, c)" class="badge-nuovo">nuovo</span></span>
-              <span class="commento-testo">{{ c.testo }}</span>
+              <span class="commento-testo">
+                <template v-for="(seg, si) in parseSegmenti(c.testo)" :key="si">
+                  <span v-if="seg.tipo === 'testo'">{{ seg.valore }}</span>
+                  <img v-else-if="immaginiCache[seg.valore]" :src="immaginiCache[seg.valore]" class="img-inline" alt=""/>
+                </template>
+              </span>
             </div>
             <div v-if="!(commenti[s.id]?.lista?.length)" class="state small">Nessun commento.</div>
           </template>
@@ -372,6 +419,7 @@ async function invia(s: Segnalazione) {
 .commento.nuovo { background: #eff6ff; border-left: 3px solid #2563eb; padding-left: .5rem; }
 .commento-autore { font-weight: 700; color: #1f2937; display: flex; align-items: center; gap: .4rem; }
 .commento-testo { white-space: pre-wrap; }
+.img-inline { max-width: 100%; height: auto; display: block; margin: .3rem 0; border-radius: .4rem; }
 .badge-nuovo {
   font-size: .65rem; font-weight: 700; text-transform: uppercase; color: #fff;
   background: #2563eb; border-radius: 999px; padding: .05rem .4rem;

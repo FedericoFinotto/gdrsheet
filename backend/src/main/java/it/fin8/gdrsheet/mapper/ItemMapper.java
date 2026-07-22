@@ -294,13 +294,39 @@ public class ItemMapper {
         dto.setNome(entity.getNome());
         dto.setTipo(entity.getTipo());
         dto.setNomeItem(nomeItemParent);
+        dto.setTipoRisoluzione(entity.getLabel(Constants.ITEM_LABEL_ATTACCO_TIPO_RISOLUZIONE));
         dto.setAttacco(entity.getLabel(Constants.ITEM_LABEL_ATTACCO_TIRO_PER_COLPIRE));
-        dto.setColpo(entity.getLabel(Constants.ITEM_LABEL_ATTACCO_DANNI));
         dto.setTiroSalvezza(entity.getLabel(Constants.ITEM_LABEL_ATTACCO_TIRO_SALVEZZA));
-        dto.setTipoDanno(entity.getLabel(Constants.ITEM_LABEL_ATTACCO_TIPO_DANNI));
+        dto.setTiroSalvezzaCd(entity.getLabel(Constants.ITEM_LABEL_ATTACCO_TIRO_SALVEZZA_CD));
         dto.setRange(entity.getLabel(Constants.ITEM_LABEL_ATTACCO_RANGE));
+        dto.setDanni(readDanni(entity));
 
         return dto;
+    }
+
+    private static final String DANNO_SEP = "␞";
+
+    /** Righe ATK_DANNO ("formula␞tipo"), oppure — dati vecchi salvati col modello a un solo
+     * danno per attacco — un'unica riga sintetizzata da TPD/TDANNO. */
+    private List<AttaccoDTO.DannoDTO> readDanni(Item entity) {
+        List<AttaccoDTO.DannoDTO> out = new ArrayList<>();
+        if (entity.getLabels() != null) {
+            for (var l : entity.getLabels()) {
+                if (!Constants.ITEM_LABEL_ATTACCO_DANNO.equals(l.getLabel()) || l.getValore() == null) continue;
+                String[] parts = l.getValore().split(DANNO_SEP, 2);
+                String formula = parts.length > 0 ? parts[0] : "";
+                String tipo = parts.length > 1 ? parts[1] : "";
+                if (!formula.isBlank()) out.add(new AttaccoDTO.DannoDTO(formula, tipo));
+            }
+        }
+        if (out.isEmpty()) {
+            String legacyFormula = entity.getLabel(Constants.ITEM_LABEL_ATTACCO_DANNI);
+            if (legacyFormula != null && !legacyFormula.isBlank()) {
+                String legacyTipo = entity.getLabel(Constants.ITEM_LABEL_ATTACCO_TIPO_DANNI);
+                out.add(new AttaccoDTO.DannoDTO(legacyFormula, legacyTipo == null ? "" : legacyTipo));
+            }
+        }
+        return out;
     }
 
     public Boolean isDisabled(Item entity) {

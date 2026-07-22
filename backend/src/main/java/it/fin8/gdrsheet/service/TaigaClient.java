@@ -64,6 +64,12 @@ public class TaigaClient {
     public record Allegato(Integer id, String nome, String url) {
     }
 
+    /** true se l'url punta a questa stessa installazione Taiga (evita che il proxy immagini
+     *  diventi un fetch generico verso host arbitrari). */
+    public boolean isOwnUrl(String url) {
+        return url != null && !baseUrl.isBlank() && url.startsWith(baseUrl);
+    }
+
     private static List<String> parseTags(JsonNode tagsNode) {
         List<String> out = new ArrayList<>();
         for (JsonNode t : tagsNode) {

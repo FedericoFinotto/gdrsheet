@@ -135,9 +135,26 @@ public class UpdateItemRequest {
          */
         private Integer id;
         private String nome;
+        /** "TPC" o "TS": un attacco si risolve con uno o con l'altro, mai entrambi. */
+        private String tipoRisoluzione;
+        /** Formula del tiro per colpire; valorizzato solo se tipoRisoluzione = "TPC". */
         private String tpc;
-        private String tpd;
-        private String tipoDanni;
+        /** Tipo di tiro salvezza (Tempra/Riflessi/Volontà); valorizzato solo se tipoRisoluzione = "TS". */
+        private String tiroSalvezza;
+        /** Formula della CD del tiro salvezza; valorizzato solo se tipoRisoluzione = "TS". */
+        private String tiroSalvezzaCd;
+        /** Danni multipli dello stesso attacco (es. base + fuoco), ognuno con formula e tipo propri. */
+        private List<DannoRowDTO> danni;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class DannoRowDTO {
+        private String formula;
+        private String tipo;
     }
 
     @Getter

@@ -34,11 +34,19 @@ public final class Constants {
     public static final String ITEM_FROM_COMPENDIO = "FromCompendio";
     public static final String ITEM_LABEL_LIVELLO_INCANTESIMO = "CLIVELLO";
     public static final String ITEM_LABEL_CLASSE_INCANTESIMO = "CCLASSE";
-    public static final String ITEM_LABEL_ATTACCO_TIRO_PER_COLPIRE = "TPC";
+    // legacy (un solo danno per attacco): tenute solo per leggere dati vecchi, non più scritte
     public static final String ITEM_LABEL_ATTACCO_DANNI = "TPD";
-    public static final String ITEM_LABEL_ATTACCO_TIRO_SALVEZZA = "TTS";
-    public static final String ITEM_LABEL_ATTACCO_RANGE = "TRANGE";
     public static final String ITEM_LABEL_ATTACCO_TIPO_DANNI = "TDANNO";
+
+    public static final String ITEM_LABEL_ATTACCO_TIRO_PER_COLPIRE = "TPC";
+    public static final String ITEM_LABEL_ATTACCO_TIRO_SALVEZZA = "TTS";               // tipo di TS (Tempra/Riflessi/Volontà)
+    public static final String ITEM_LABEL_ATTACCO_TIRO_SALVEZZA_CD = "TTS_CD";         // formula della CD, indipendente dal TPC
+    public static final String ITEM_LABEL_ATTACCO_RANGE = "TRANGE";
+    // Un attacco risolve o con TPC o con TS, mai entrambi: quale dei due è attivo.
+    public static final String ITEM_LABEL_ATTACCO_TIPO_RISOLUZIONE = "ATK_TIPO"; // "TPC" | "TS"
+    // Danni multipli per lo stesso attacco (es. spada fiammeggiante: base + fuoco): una riga per
+    // danno, ciascuna "formula||tipo" (tipo può essere vuoto). Ordine = ordine di inserimento.
+    public static final String ITEM_LABEL_ATTACCO_DANNO = "ATK_DANNO";
     public static final String ITEM_LABEL_DISABILITATO = "DISABLED";
     public static final String ITEM_LABEL_DISABILITATO_VALORE_TRUE = "1";
     public static final String ITEM_LABEL_DISABILITATO_VALORE_FALSE = "0";

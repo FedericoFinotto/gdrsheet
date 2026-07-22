@@ -38,6 +38,13 @@ export function scaricaAllegato(id: number, allegatoId: number): Promise<AxiosRe
     return api.get<Blob>(`/segnalazioni/${id}/allegati/${allegatoId}/contenuto`, {responseType: 'blob'})
 }
 
+// Immagine incorporata nel testo di un commento (sintassi markdown ![](url) di Taiga): il token
+// firmato nell'url incorporato nel testo scade/ruota nel tempo, quindi il backend lo risolve a un
+// url fresco cercando tra gli allegati della segnalazione (da qui serve anche l'id).
+export function scaricaImmagineCommento(idSegnalazione: number, url: string): Promise<AxiosResponse<Blob>> {
+    return api.get<Blob>(`/segnalazioni/${idSegnalazione}/immagine-commento`, {params: {url}, responseType: 'blob'})
+}
+
 export function listaViste(): Promise<AxiosResponse<Record<number, string>>> {
     return api.get<Record<number, string>>('/segnalazioni/viste')
 }

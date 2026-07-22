@@ -29,13 +29,22 @@ export interface CampoLabel {
     html?: boolean;
 }
 
-// Attacco figlio (item ATTACCO) gestito inline dall'editor
+// Un danno di un attacco: formula + tipo, un attacco può averne N
+export interface DannoRow {
+    formula: string;
+    tipo?: string;
+}
+
+// Attacco figlio (item ATTACCO) gestito inline dall'editor. Si risolve o con TPC o con
+// Tiro Salvezza, mai entrambi (vedi tipoRisoluzione), e ha N danni propri.
 export interface AttaccoRow {
     id?: number;     // id dell'item ATTACCO esistente; assente per i nuovi
     nome: string;
-    tpc?: string;
-    tpd?: string;
-    tipoDanni?: string;
+    tipoRisoluzione?: string; // "TPC" | "TS"
+    tpc?: string;             // formula, solo se tipoRisoluzione = "TPC"
+    tiroSalvezza?: string;    // tipo di TS (Tempra/Riflessi/Volontà), solo se tipoRisoluzione = "TS"
+    tiroSalvezzaCd?: string;  // formula della CD, solo se tipoRisoluzione = "TS"
+    danni: DannoRow[];
 }
 
 // Riferimento a un item collegato come child

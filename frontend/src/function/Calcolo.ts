@@ -3,7 +3,7 @@ import {calcolaFormula} from "../service/PersonaggioService";
 import {DatiPersonaggio} from "../models/dto/DatiPersonaggio";
 import {Items} from "../models/dto/Items";
 import {Attacco} from "../models/dto/Attacco";
-import {applicaBonusDado, removePlus, risolviFormulaDanno, testoFormula, testoModificatore} from "./Utils";
+import {applicaBonusDado, risolviFormulaDanno, testoFormula, testoModificatore} from "./Utils";
 
 // const REGEX_DADI = /^\d+d\d+([+-]\d+)?$/;
 // const REGEX_NUMERO = /^[+-]?\d+$/;
@@ -21,14 +21,19 @@ export function getValoreFormula(personaggio: DatiPersonaggio, formula: string) 
     return calcolaFormula(formula, personaggioPerFormula);
 }
 
+export interface DannoRisolto {
+    valore: string
+    tipo: string
+    formula: string // formula originale "ripulita" (senza @/$), sotto-testo come per il TPC
+}
+
 export interface AttaccoCalcolatoRow {
     id: any
     nome: string
     nomeItem: string
     atk: string | null
-    dmg: string | null
-    attacco: string
-    colpo: string
+    attacco: string        // sotto-testo di "Colpire": formula del TPC, o tipo di TS (es. "Riflessi")
+    danniRisolti: DannoRisolto[] // un elemento per ogni danno: NON vanno accodati, una riga ciascuno
     [key: string]: any
 }
 
@@ -44,23 +49,37 @@ export async function calcolaAttacchi(items: Items | null | undefined, modificat
     return Promise.all(
         sorted.map(async (itm: any) => {
             let atkVal: string | null = null
-            let dannoVal: string | null = null
+            let cdVal: string | null = null
 
-            if (itm.attacco) {
+            const isTs = itm.tipoRisoluzione === 'TS'
+            if (!isTs && itm.attacco) {
                 const resp = await getValoreFormula(modificatori, itm.attacco)
                 atkVal = testoModificatore(resp.data.risultato)
             }
-            if (itm.colpo) {
-                const resp = await getValoreFormula(modificatori, itm.colpo)
-                dannoVal = risolviFormulaDanno(resp.data.formula, modificatori)
+            if (isTs && itm.tiroSalvezza && itm.tiroSalvezzaCd) {
+                const resp = await getValoreFormula(modificatori, itm.tiroSalvezzaCd)
+                cdVal = String(resp.data.risultato)
             }
+
+            // ogni danno ha la propria formula e il proprio tipo, e resta una riga a sé — non
+            // vanno accodati in un'unica stringa (un attacco può avere N danni indipendenti).
+            const danni: {formula: string; tipo?: string}[] = itm.danni ?? []
+            const dannoRisolti = await Promise.all(danni.map(async d => {
+                if (!d.formula) return null
+                const resp = await getValoreFormula(modificatori, d.formula)
+                return {
+                    valore: risolviFormulaDanno(resp.data.formula, modificatori),
+                    tipo: d.tipo ?? '',
+                    formula: testoFormula(d.formula),
+                }
+            }))
+            const danniRisolti: DannoRisolto[] = dannoRisolti.filter((d): d is DannoRisolto => d !== null)
 
             return {
                 ...itm,
-                atk: itm.tiroSalvezza ? `CD ${removePlus(atkVal)} ${itm.tiroSalvezza}` : atkVal,
-                dmg: dannoVal,
-                attacco: itm.attacco ? testoFormula(itm.attacco) : '',
-                colpo: itm.colpo ? testoFormula(itm.colpo) : '',
+                atk: isTs ? `CD ${cdVal}` : atkVal,
+                attacco: isTs ? (itm.tiroSalvezza ?? '') : (itm.attacco ? testoFormula(itm.attacco) : ''),
+                danniRisolti,
             }
         })
     )

@@ -114,6 +114,31 @@ public class SegnalazioniController {
                 .body(contenuto.bytes());
     }
 
+    @Operation(summary = "Scarica un'immagine incorporata nel testo di un commento (sintassi markdown ![](url) di Taiga)",
+            description = "L'url deve puntare a questa stessa installazione Taiga: qualunque altro host viene rifiutato. " +
+                    "Il token firmato incorporato nel testo del commento scade/ruota nel tempo: viene quindi " +
+                    "risolto a un url fresco cercando tra gli allegati della segnalazione prima di scaricare.")
+    @GetMapping("/{id}/immagine-commento")
+    public ResponseEntity<byte[]> getImmagineCommento(@PathVariable Integer id, @RequestParam String url) throws IOException, InterruptedException {
+        if (!taigaClient.isOwnUrl(url)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "URL non consentito");
+        }
+        String urlFresco = taigaClient.getAttachments(id).stream()
+                .map(TaigaClient.Allegato::url)
+                .filter(u -> percorso(u).equals(percorso(url)))
+                .findFirst()
+                .orElse(url);
+        TaigaClient.Contenuto contenuto = taigaClient.scaricaAllegato(urlFresco);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contenuto.contentType()))
+                .body(contenuto.bytes());
+    }
+
+    private static String percorso(String url) {
+        int i = url.indexOf('?');
+        return i < 0 ? url : url.substring(0, i);
+    }
+
     private static SegnalazioneDTO toDTO(TaigaClient.Segnalazione s, Utente utente) {
         boolean mia = s.tags() != null && s.tags().contains(utente.getUsername());
         return new SegnalazioneDTO(s.id(), s.ref(), s.titolo(), s.descrizione(), s.stato(), s.dataCreazione(), s.dataModifica(), mia);

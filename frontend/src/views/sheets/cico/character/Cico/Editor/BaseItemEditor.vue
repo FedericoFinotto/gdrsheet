@@ -12,7 +12,7 @@ import {
 } from '../../../../../../models/dto/UpdateItemRequest'
 import {createItem, getItem, searchItems, updateItem} from '../../../../../../service/PersonaggioService'
 import {Item} from '../../../../../../models/dto/Item'
-import {getItemLabel} from '../../../../../../models/entity/ItemLabel'
+import {getItemLabel, getItemLabels} from '../../../../../../models/entity/ItemLabel'
 import useChildCreate from '../../../../../../function/useChildCreate'
 import {useMondoSistema} from '../../../../../../function/useMondoSistema'
 import HtmlEditor from '../../../../../../components/HtmlEditor.vue'
@@ -291,13 +291,28 @@ async function preload() {
   // child: ATTACCO -> sezione attacchi, FORMA (se separateForme) -> forme, il resto -> item collegati
   const collegamentiNonAttacco = (props.item.child ?? []).filter(c => c.itemTarget?.tipo !== 'ATTACCO')
   const attacchi = (props.item.child ?? []).filter(c => c.itemTarget?.tipo === 'ATTACCO')
-  form.attacchi = attacchi.map(c => ({
-    id: c.itemTarget.id,
-    nome: c.itemTarget.nome,
-    tpc: getItemLabel(c.itemTarget, 'TPC') ?? '',
-    tpd: getItemLabel(c.itemTarget, 'TPD') ?? '',
-    tipoDanni: getItemLabel(c.itemTarget, 'TDANNO' as any) ?? '',
-  }))
+  form.attacchi = attacchi.map(c => {
+    const dannoRows = getItemLabels(c.itemTarget, 'ATK_DANNO' as any) ?? []
+    const danni = dannoRows.length
+        ? dannoRows.map(v => {
+          const [formula, tipo] = v.split('␞')
+          return {formula: formula ?? '', tipo: tipo ?? ''}
+        })
+        // dati vecchi: un solo danno, ricavato da TPD/TDANNO
+        : (getItemLabel(c.itemTarget, 'TPD') ? [{
+          formula: getItemLabel(c.itemTarget, 'TPD') ?? '',
+          tipo: getItemLabel(c.itemTarget, 'TDANNO' as any) ?? '',
+        }] : [])
+    return {
+      id: c.itemTarget.id,
+      nome: c.itemTarget.nome,
+      tipoRisoluzione: getItemLabel(c.itemTarget, 'ATK_TIPO' as any) ?? (getItemLabel(c.itemTarget, 'TPC') ? 'TPC' : ''),
+      tpc: getItemLabel(c.itemTarget, 'TPC') ?? '',
+      tiroSalvezza: getItemLabel(c.itemTarget, 'TTS' as any) ?? '',
+      tiroSalvezzaCd: getItemLabel(c.itemTarget, 'TTS_CD' as any) ?? '',
+      danni,
+    }
+  })
   const isColNascosto = (c: any) => (c.labels ?? []).some((l: any) => l.label === 'HIDDEN' && l.valore === '1')
   const getColLabel = (c: any, key: string) => (c.labels ?? []).find((l: any) => l.label === key)?.valore ?? null
   const toChildRef = (c: any) => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null, nascosto: isColNascosto(c), condizione: getColLabel(c, 'CONDIZIONE')})

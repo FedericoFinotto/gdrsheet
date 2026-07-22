@@ -54,11 +54,17 @@ public class CalcoloService {
      * Le chiavi più lunghe vengono sostituite prima per evitare match parziali
      * (es. "@PESO_TOTALE" prima di "@PESO").
      */
+    // Prefisso "cd"/"CD" scritto per errore dentro al campo formula (es. "cd 10+@LVL"): capita
+    // spesso perché il campo si chiama già "Formula CD", non è una variabile riconosciuta e
+    // rompe la valutazione facendola tornare a 0 in silenzio. "CD" non è più una stat valida
+    // (la vecchia "CD Incantesimi" è stata rimossa), quindi si può togliere in sicurezza.
+    private static final Pattern PATTERN_PREFISSO_CD = Pattern.compile("^\\s*cd\\s+", Pattern.CASE_INSENSITIVE);
+
     public String calcola(String formula, Map<String, String> valori) {
         if (formula == null || formula.isBlank()) return "0";
 
         // 1. Sostituisci le variabili (chiavi più lunghe prima)
-        String replaced = formula;
+        String replaced = PATTERN_PREFISSO_CD.matcher(formula).replaceFirst("");
         List<Map.Entry<String, String>> entries = new ArrayList<>(valori.entrySet());
         entries.sort((a, b) -> b.getKey().length() - a.getKey().length());
         for (Map.Entry<String, String> e : entries) {
@@ -134,6 +140,11 @@ public class CalcoloService {
 
         List<Item> initialRoots = itemRepository.findAllByPersonaggioIdWithChild(dati.getId());
         caratteristiche.add(new CaratteristicaDTO("LVL", "Livello", null, Integer.parseInt(String.valueOf(getLivelli(initialRoots).getLivello())), null, null));
+        // DV (Dadi Vita totali): esclusa di proposito dalla lista "attributi" generica (gestita a
+        // parte in dadiVita), va aggiunta esplicitamente qui per essere usabile nelle formule.
+        if (dati.getDadiVita() != null && dati.getDadiVita().getTotale() != null) {
+            caratteristiche.add(new CaratteristicaDTO("DV", "Dadi Vita", null, dati.getDadiVita().getTotale(), null, null));
+        }
 
         return calcola(formula, caratteristiche);
     }

@@ -21,17 +21,21 @@ interface VocePool {
   key: string
   sides: number
   count: number
+  moltiplicatore: number // "1d6x10": il totale del gruppo (non il singolo dado) va moltiplicato
 }
 
 interface GruppoRisultato {
   key: string
   sides: number
+  moltiplicatore: number
   tiri: number[]      // valori numerici grezzi (1..sides)
   testi: string[]     // rappresentazione mostrata (numero o Testa/Croce)
 }
 
 const props = defineProps<{ initialFormula?: string }>()
 
+// v.key include già "xN" quando c'è un moltiplicatore (vedi parseFormula/aggiungi): non va
+// riaggiunto qui, altrimenti si legge "1d6x10x10" invece di "1d6x10".
 const notazioneVoce = (v: VocePool) => `${v.count}${v.key}`
 const facciaTesto = (_key: string, val: number) => String(val)
 
@@ -48,10 +52,48 @@ const notazione = computed(() => {
 const poolVuoto = computed(() => pool.value.length === 0)
 
 const totale = computed(() => {
-  const diceSum = risultati.value.reduce((s, g) => s + g.tiri.reduce((a, b) => a + b, 0), 0)
+  const diceSum = risultati.value.reduce(
+      (s, g) => s + g.tiri.reduce((a, b) => a + b, 0) * (g.moltiplicatore || 1), 0)
   return diceSum + (haRisultati.value ? flatBonus.value : 0)
 })
 const haRisultati = computed(() => risultati.value.length > 0)
+
+// Moltiplicatore ripetibile sul risultato: click sul totale apre una cardina con un input
+// (default 2) e un tasto "Applica". Ogni applicazione accoda il fattore alla cronologia,
+// mostrando sia il moltiplicatore cumulativo sia (dal secondo fattore in poi) la scomposizione.
+const mostraMoltiplicatore = ref(false)
+const moltiplicatoreInput = ref(2)
+const storicoMoltiplicatori = ref<number[]>([])
+
+interface PassoMoltiplicatore { cumulativo: number; dettaglio: string; valore: number }
+const passiMoltiplicatore = computed<PassoMoltiplicatore[]>(() => {
+  const passi: PassoMoltiplicatore[] = []
+  let cum = 1
+  for (let i = 0; i < storicoMoltiplicatori.value.length; i++) {
+    cum *= storicoMoltiplicatori.value[i]
+    passi.push({
+      cumulativo: cum,
+      dettaglio: storicoMoltiplicatori.value.slice(0, i + 1).map(m => `x${m}`).join(' '),
+      valore: totale.value * cum,
+    })
+  }
+  return passi
+})
+
+function toggleMoltiplicatore() {
+  if (!haRisultati.value) return
+  mostraMoltiplicatore.value = !mostraMoltiplicatore.value
+}
+
+function applicaMoltiplicatore() {
+  const m = Number(moltiplicatoreInput.value)
+  if (!m || m <= 0) return
+  storicoMoltiplicatori.value = [...storicoMoltiplicatori.value, m]
+}
+
+function rimuoviMoltiplicatore(idx: number) {
+  storicoMoltiplicatori.value = storicoMoltiplicatori.value.slice(0, idx)
+}
 
 function parseFormula(formula: string) {
   pool.value = []
@@ -60,15 +102,17 @@ function parseFormula(formula: string) {
   // Normalizza separatori: gestisce sia "16d8+14d6+171d10+169" che con spazi
   const parts = formula.replace(/\s+/g, '').replace(/-/g, '+-').split('+').filter(Boolean)
   for (const part of parts) {
-    const m = part.match(/^(-?\d+)d(\d+)$/i)
+    // "NdM" con moltiplicatore opzionale "xK" (es. "1d6x10": tira 1d6, moltiplica il totale per 10)
+    const m = part.match(/^(-?\d+)d(\d+)(?:x(\d+))?$/i)
     if (m) {
       const count = parseInt(m[1])
       const sides = parseInt(m[2])
+      const moltiplicatore = m[3] ? parseInt(m[3]) : 1
       if (count > 0 && sides > 0) {
-        const key = `d${sides}`
+        const key = moltiplicatore !== 1 ? `d${sides}x${moltiplicatore}` : `d${sides}`
         const ex = pool.value.find(v => v.key === key)
         if (ex) ex.count += count
-        else pool.value.push({key, sides, count})
+        else pool.value.push({key, sides, count, moltiplicatore})
       }
     } else {
       const num = parseInt(part)
@@ -88,7 +132,7 @@ function aggiungi(d: Dado) {
   const n = Math.max(1, Math.floor(Number(quantita.value) || 1))
   const esistente = pool.value.find(v => v.key === d.key)
   if (esistente) esistente.count += n
-  else pool.value.push({key: d.key, sides: d.sides, count: n})
+  else pool.value.push({key: d.key, sides: d.sides, count: n, moltiplicatore: 1})
 }
 
 function rimuovi(v: VocePool) {
@@ -100,6 +144,8 @@ function pulisci() {
   pool.value = []
   risultati.value = []
   flatBonus.value = 0
+  storicoMoltiplicatori.value = []
+  mostraMoltiplicatore.value = false
 }
 
 function tira() {
@@ -110,10 +156,14 @@ function tira() {
     return {
       key: v.key,
       sides: v.sides,
+      moltiplicatore: v.moltiplicatore,
       tiri,
       testi: tiri.map(t => facciaTesto(v.key, t)),
     }
   })
+  // un nuovo tiro riparte da zero: la cronologia del moltiplicatore era sul risultato precedente
+  storicoMoltiplicatori.value = []
+  mostraMoltiplicatore.value = false
 }
 </script>
 
@@ -122,13 +172,16 @@ function tira() {
     <h3 class="dr-title">Lancia i dadi</h3>
 
     <!-- pool composto -->
-    <div class="pool" :class="{ vuoto: poolVuoto }">
-      <template v-if="!poolVuoto">
+    <div class="pool" :class="{ vuoto: poolVuoto && !flatBonus }">
+      <template v-if="!poolVuoto || flatBonus">
         <button
             v-for="v in pool" :key="v.key" type="button"
             class="pool-chip" :title="`Rimuovi un ${v.key}`"
             @click="rimuovi(v)"
         >{{ notazioneVoce(v) }}</button>
+        <span v-if="flatBonus" class="pool-chip pool-chip--bonus" title="Valore fisso da sommare">
+          {{ flatBonus > 0 ? `+${flatBonus}` : flatBonus }}
+        </span>
       </template>
       <span v-else class="pool-hint">Premi i dadi qui sotto per comporre il tiro…</span>
     </div>
@@ -137,8 +190,29 @@ function tira() {
     <div v-if="haRisultati" class="risultato">
       <div class="ris-totale">
         <span>Totale</span>
-        <span class="ris-totale-val">{{ totale }}</span>
+        <button type="button" class="ris-totale-val ris-totale-btn" title="Applica un moltiplicatore"
+                @click="toggleMoltiplicatore">{{ totale }}</button>
       </div>
+
+      <!-- cardina moltiplicatore: si apre cliccando sul totale -->
+      <div v-if="mostraMoltiplicatore" class="moltiplicatore-card">
+        <div class="mult-input-row">
+          <input v-model.number="moltiplicatoreInput" type="number" min="1" step="1" class="mult-input"/>
+          <button type="button" class="btn primary mult-btn" @click="applicaMoltiplicatore">Applica ×</button>
+        </div>
+        <div v-if="passiMoltiplicatore.length" class="mult-passi">
+          <div class="mult-passo mult-passo--base">
+            <span>{{ totale }}</span>
+          </div>
+          <div v-for="(p, i) in passiMoltiplicatore" :key="i" class="mult-passo">
+            <span class="mult-cum">x{{ p.cumulativo }}</span>
+            <span v-if="i > 0" class="mult-dettaglio muted">({{ p.dettaglio }})</span>
+            <span class="mult-valore">{{ p.valore }}</span>
+            <button type="button" class="mult-undo" title="Rimuovi da qui in poi" @click="rimuoviMoltiplicatore(i)">✕</button>
+          </div>
+        </div>
+      </div>
+
       <div class="ris-righe">
         <div v-if="flatBonus" class="ris-riga">
           <span class="ris-dado">Bonus</span>
@@ -146,7 +220,12 @@ function tira() {
         </div>
         <div v-for="g in risultati" :key="g.key" class="ris-riga">
           <span class="ris-dado">{{ g.key }}</span>
-          <span class="ris-somma">({{ g.tiri.reduce((a, b) => a + b, 0) }})</span>
+          <span class="ris-somma">
+            <template v-if="g.moltiplicatore && g.moltiplicatore !== 1">
+              ({{ g.tiri.reduce((a, b) => a + b, 0) }} × {{ g.moltiplicatore }} = {{ g.tiri.reduce((a, b) => a + b, 0) * g.moltiplicatore }})
+            </template>
+            <template v-else>({{ g.tiri.reduce((a, b) => a + b, 0) }})</template>
+          </span>
           <span class="ris-tiri">{{ g.testi.join(', ') }}</span>
         </div>
       </div>
@@ -240,6 +319,18 @@ function tira() {
   color: #b91c1c;
 }
 
+.pool-chip--bonus {
+  border-color: #7c3aed;
+  background: #f5f3ff;
+  color: #6d28d9;
+  cursor: default;
+}
+.pool-chip--bonus:hover {
+  background: #f5f3ff;
+  border-color: #7c3aed;
+  color: #6d28d9;
+}
+
 .risultato {
   display: flex;
   flex-direction: column;
@@ -300,6 +391,51 @@ function tira() {
   font-size: .85rem;
 }
 
+
+.ris-totale-btn {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+.ris-totale-btn:hover { text-decoration: underline; }
+
+.moltiplicatore-card {
+  margin: .4rem .6rem;
+  padding: .5rem;
+  border: 1px dashed #7c3aed;
+  border-radius: .5rem;
+  background: #f5f3ff;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.mult-input-row { display: flex; gap: .4rem; align-items: center; }
+.mult-input {
+  width: 4.5rem;
+  padding: .35rem .5rem;
+  border: 1px solid #d0d5dd;
+  border-radius: .5rem;
+  font: inherit;
+  text-align: center;
+}
+.mult-btn { padding: .35rem .7rem; font-size: .85rem; }
+.mult-passi { display: flex; flex-direction: column; gap: .2rem; }
+.mult-passo {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+  font-size: .85rem;
+  font-variant-numeric: tabular-nums;
+}
+.mult-passo--base { color: #6b7280; }
+.mult-cum { font-weight: 700; color: #6d28d9; min-width: 2.2rem; }
+.mult-dettaglio { font-size: .78rem; }
+.mult-valore { font-weight: 700; color: #374151; margin-left: auto; }
+.mult-undo {
+  border: 0; background: transparent; color: #9ca3af; cursor: pointer; font-size: .75rem; padding: 0 .2rem;
+}
+.mult-undo:hover { color: #ef4444; }
 
 .ris-totale-val {
   font-size: 1.8rem;
