@@ -13,6 +13,7 @@ const CAMPI: CampoLabel[] = [
   {key: 'INCLUDI_OGGETTI_ABILITATI',    label: 'Includi oggetti equipaggiati', tipo: 'checkbox'},
   {key: 'INCLUDI_CONSUMABILI_ABILITATI',label: 'Includi consumabili equipaggiati', tipo: 'checkbox'},
   {key: 'INCLUDI_TUTTI_ABILITATI',      label: 'Tutto quello che pesa', tipo: 'checkbox'},
+  {key: 'INVENTARIO_SEPARATO',          label: 'Inventario separato (sezione a parte in scheda)', tipo: 'checkbox'},
 ]
 </script>
 

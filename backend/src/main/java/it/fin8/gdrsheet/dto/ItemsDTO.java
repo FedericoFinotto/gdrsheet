@@ -40,6 +40,9 @@ public class ItemsDTO {
     /** Collegamenti verso item EFFETTO, aggregati su tutti gli item del personaggio. */
     private List<EffettoDTO> effetti;
     private List<ItemDTO> veicoli;
+    /** Contenuti dei CONTENITORE con INVENTARIO_SEPARATO=1, raggruppati per contenitore
+     *  (e già esclusi dalle liste normali per tipo qui sopra). */
+    private List<InventarioSeparatoDTO> inventariSeparati;
 
     public ItemsDTO() {
         abilita = new ArrayList<>();
@@ -68,5 +71,6 @@ public class ItemsDTO {
         patti = new ArrayList<>();
         effetti = new ArrayList<>();
         veicoli = new ArrayList<>();
+        inventariSeparati = new ArrayList<>();
     }
 }

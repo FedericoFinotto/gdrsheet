@@ -98,6 +98,10 @@ public final class Constants {
     // "indossato/riposto" ma un altro stato di gioco, quindi non si distingue "equipaggiato" in senso
     // stretto — semplicemente qualsiasi cosa pesi viene considerata "tenuta lì"). Implica gli altri INCLUDI_*.
     public static final String LABEL_INCLUDI_TUTTI_ABILITATI = "INCLUDI_TUTTI_ABILITATI";
+    // flag su CONTENITORE: "1" = i suoi contenuti vanno mostrati in scheda come una sezione
+    // separata (es. la Stiva di una NAVE) invece che sparsi nelle liste normali per tipo.
+    // Puramente di visualizzazione: non influenza calcolaPeso.
+    public static final String LABEL_INVENTARIO_SEPARATO = "INVENTARIO_SEPARATO";
     public static final String LABEL_UTILIZZI = "UTILIZZI";           // max utilizzi (globale sull'item)
     public static final String LABEL_UTILIZZI_USATI = "UTILIZZI_USATI"; // utilizzi consumati (per-personaggio)
     // "1" sull'item figlio = incantesimo spurio (non da lista/catalogo) di una sezione incantatore:
@@ -211,10 +215,23 @@ public final class Constants {
     // letto dalla lista party senza rifare il calcolo. Non modificabile a mano.
     public static final String LABEL_PESO_EFFETTIVO = "PESO_EFFETTIVO";
 
+    // Tipo di personaggio (PG/NPC/NAVE/BANCA/STELLA/BASE): personaggio_label, PG = nessuna label.
+    // Già usata da PartyService con una propria costante locale identica; qui serve a
+    // PersonaggioService per esporla nella scheda (nascondere campi anagrafici sulle NAVE).
+    public static final String LABEL_TIPO_PERSONAGGIO = "TIPO_PERSONAGGIO";
+
+    // Portata (kg trasportabili) del personaggio: rilevante soprattutto per le NAVE (Barche).
+    public static final String LABEL_PORTATA = "PORTATA";
+
+    // Lunghezza/Larghezza (m) del personaggio: solo per le NAVE (Barche).
+    public static final String LABEL_LUNGHEZZA = "LUNGHEZZA";
+    public static final String LABEL_LARGHEZZA = "LARGHEZZA";
+
     // Info anagrafiche del personaggio (personaggio_label)
     public static final List<String> PERSONAGGIO_INFO_LABELS = List.of(
             "LUOGO_NASCITA", "DATA_NASCITA", "RAZZA", "SESSO", "PELLE", "ETA",
             "ALTEZZA", "PESO", "CAPELLI", "OCCHI", "ALLINEAMENTO", "TAGLIA",
-            "MILESTONE", "MILESTONE_TO", "LIVELLO", "GRADI_DIVINI");
+            "MILESTONE", "MILESTONE_TO", "LIVELLO", "GRADI_DIVINI", "PORTATA",
+            "LUNGHEZZA", "LARGHEZZA");
 }
 

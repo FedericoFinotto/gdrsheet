@@ -7,6 +7,13 @@ export interface Soldi {
     mp: number;
 }
 
+// CONTENITORE con INVENTARIO_SEPARATO=1 collegato al FromCompendio di un personaggio
+// (es. la Stiva di una NAVE): destinazione aggiuntiva possibile per "Dai a".
+export interface ContenitoreRef {
+    id: number;
+    nome: string;
+}
+
 export interface PersonaggioSoldi {
     id: number;
     nome: string;
@@ -19,6 +26,7 @@ export interface PersonaggioSoldi {
     livello?: number | null;    // livello atteso (label LIVELLO, indicativo)
     numLivelli?: number;        // n. livelli effettivi (escluso livello 0)
     gradiDivini?: number | null; // gradi divini (label GRADI_DIVINI, indicativo)
+    contenitoriSeparati?: ContenitoreRef[];
 }
 
 export interface GruppoInfo {

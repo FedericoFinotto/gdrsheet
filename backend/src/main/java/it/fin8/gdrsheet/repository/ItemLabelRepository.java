@@ -34,21 +34,18 @@ public interface ItemLabelRepository extends JpaRepository<ItemLabel, Integer> {
     void deleteByLabelAndPersonaggio_Id(String label, Integer personaggioId);
 
     /**
-     * Triple (itemId, label, valore) per le label richieste su tutti gli item
-     * "del personaggio": quelli intestati direttamente e quelli collegati come
-     * child dei suoi item (FromCompendio).
+     * Triple (itemId, label, valore) per le label richieste, sugli item con id nella lista data
+     * (es. per calcolaPeso, a partire dal flatten già calcolato da PersonaggioService). Non filtra
+     * per id_personaggio: le label globali (compendio) e quelle per-personaggio (es. QTA) sulla
+     * stessa chiave convivono nel risultato.
      */
     @Query("""
             SELECT il.item.id, il.label, il.valore FROM ItemLabel il
-            WHERE il.label IN :labels
-              AND (il.item.personaggio.id = :personaggioId
-                   OR il.item.id IN (
-                       SELECT c.itemTarget.id FROM Collegamento c
-                       WHERE c.itemSource.personaggio.id = :personaggioId))
+            WHERE il.label IN :labels AND il.item.id IN :itemIds
             """)
-    List<Object[]> findLabelValuesByPersonaggio(
+    List<Object[]> findLabelValuesByItemIds(
             @Param("labels") java.util.Collection<String> labels,
-            @Param("personaggioId") Integer personaggioId
+            @Param("itemIds") java.util.Collection<Integer> itemIds
     );
 
     /**

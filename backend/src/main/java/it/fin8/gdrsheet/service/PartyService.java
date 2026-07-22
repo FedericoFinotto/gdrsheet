@@ -156,7 +156,8 @@ public class PartyService {
                     capogruppo,
                     livello,
                     numLivelli,
-                    gradiDivini
+                    gradiDivini,
+                    contenitoriSeparatiDi(pg)
             ));
         }
 
@@ -179,11 +180,51 @@ public class PartyService {
         );
     }
 
+    /** CONTENITORE con INVENTARIO_SEPARATO=1 collegati direttamente al FromCompendio di pg
+     *  (es. la Stiva di una NAVE): destinazioni aggiuntive possibili per "Dai a" nella pagina
+     *  Item del party. */
+    private List<PartyDetailDTO.ContenitoreRefDTO> contenitoriSeparatiDi(Personaggio pg) {
+        Item fromCompendio = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_FROM_COMPENDIO, pg.getId());
+        if (fromCompendio == null) return List.of();
+        return collegamentoRepository.findAllByItemSource_Id(fromCompendio.getId()).stream()
+                .map(Collegamento::getItemTarget)
+                .filter(t -> TipoItem.CONTENITORE.equals(t.getTipo()))
+                .filter(t -> "1".equals(t.getLabel(Constants.LABEL_INVENTARIO_SEPARATO)))
+                .map(t -> new PartyDetailDTO.ContenitoreRefDTO(t.getId(), t.getNome()))
+                .toList();
+    }
+
+    /**
+     * Possibili destinazioni di un "Dai a" per un item posseduto da {@code personaggioId}: gli
+     * altri membri del suo party (opzione "diretta", saltata solo per il possessore stesso) più,
+     * per ognuno (possessore incluso), i suoi CONTENITORE con INVENTARIO_SEPARATO=1 — usato dal
+     * bottone "Dai" nel dettaglio item, stessa logica della pagina Item del party.
+     */
+    public List<DestinatarioGiveDTO> getDestinatariGive(Integer personaggioId, Utente utente) {
+        Personaggio proprietario = personaggioRepository.findPersonaggioById(personaggioId);
+        if (proprietario == null)
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Personaggio non trovato");
+        if (proprietario.getParty() == null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Il personaggio non appartiene a un party");
+        verificaMembership(proprietario.getParty().getId(), utente);
+
+        List<DestinatarioGiveDTO> out = new ArrayList<>();
+        for (Personaggio pg : personaggioRepository.findAllByParty_IdOrderByNomeAsc(proprietario.getParty().getId())) {
+            if (!pg.getId().equals(personaggioId)) {
+                out.add(new DestinatarioGiveDTO(pg.getId(), pg.getNome(), null, null));
+            }
+            for (PartyDetailDTO.ContenitoreRefDTO c : contenitoriSeparatiDi(pg)) {
+                out.add(new DestinatarioGiveDTO(pg.getId(), pg.getNome(), c.getId(), c.getNome()));
+            }
+        }
+        return out;
+    }
+
     /**
      * Item di inventario dei membri del party, filtrati e paginati.
      */
     public PageDTO<PartyItemDTO> getPartyItems(Integer partyId, Utente utente,
-                                               String nome, String tipo, int page, int size) {
+                                               String nome, String tipo, Integer personaggioId, int page, int size) {
         verificaMembership(partyId, utente);
 
         List<Personaggio> membri = personaggioRepository.findAllByParty_IdOrderByNomeAsc(partyId);
@@ -215,6 +256,7 @@ public class PartyService {
         List<PartyItemDTO> filtrati = tutti.stream()
                 .filter(i -> nomeFiltro.isEmpty() || i.getNome().toLowerCase(Locale.ROOT).contains(nomeFiltro))
                 .filter(i -> tipo == null || tipo.isBlank() || i.getTipo().equalsIgnoreCase(tipo))
+                .filter(i -> personaggioId == null || personaggioId.equals(i.getPersonaggioId()))
                 .sorted((a, b) -> a.getNome().compareToIgnoreCase(b.getNome()))
                 .toList();
 
@@ -245,12 +287,12 @@ public class PartyService {
 
         verificaMembership(from.getParty().getId(), utente);
 
-        Item fromCompendio = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_FROM_COMPENDIO, from.getId());
-        if (fromCompendio == null)
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Inventario di origine non trovato");
-
-        List<Collegamento> links = collegamentoRepository.findAllByItemSource_Id(fromCompendio.getId()).stream()
-                .filter(c -> Objects.equals(c.getItemTarget().getId(), request.getItemId()))
+        // L'item può trovarsi ovunque nell'inventario di origine, non solo come figlio diretto
+        // del FromCompendio: anche dentro un CONTENITORE (es. la Stiva di una NAVE), a qualunque
+        // profondità — da qui la ricerca tra tutti gli id raggiungibili dal personaggio.
+        List<Integer> idsRaggiungibili = itemRepository.findReachableItemIds(from.getId());
+        List<Collegamento> links = collegamentoRepository.findAllByItemTarget_Id(request.getItemId()).stream()
+                .filter(c -> c.getItemSource() != null && idsRaggiungibili.contains(c.getItemSource().getId()))
                 .toList();
         if (links.isEmpty())
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "L'item non è nell'inventario di origine");
@@ -258,12 +300,25 @@ public class PartyService {
         Item target = links.get(0).getItemTarget();
         collegamentoRepository.deleteAll(links);
 
-        Item toCompendio = itemService.ensureFromCompendio(to.getId());
-        boolean giaPresente = collegamentoRepository.findAllByItemSource_Id(toCompendio.getId()).stream()
+        Item destinazione = itemService.ensureFromCompendio(to.getId());
+        if (request.getToContenitoreId() != null) {
+            // il contenitore scelto deve essere uno dei CONTENITORE separati del destinatario
+            // (già validati/collegati al suo FromCompendio): evita di dirottare l'item verso un
+            // contenitore arbitrario di un altro personaggio.
+            boolean valido = contenitoriSeparatiDi(to).stream()
+                    .anyMatch(c -> Objects.equals(c.getId(), request.getToContenitoreId()));
+            if (!valido)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Contenitore di destinazione non valido");
+            destinazione = itemRepository.findById(request.getToContenitoreId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contenitore non trovato"));
+        }
+
+        Item destinazioneFinale = destinazione;
+        boolean giaPresente = collegamentoRepository.findAllByItemSource_Id(destinazioneFinale.getId()).stream()
                 .anyMatch(c -> Objects.equals(c.getItemTarget().getId(), target.getId()));
         if (!giaPresente) {
             Collegamento nuovo = new Collegamento();
-            nuovo.setItemSource(toCompendio);
+            nuovo.setItemSource(destinazioneFinale);
             nuovo.setItemTarget(target);
             collegamentoRepository.save(nuovo);
         }
@@ -768,28 +823,47 @@ public class PartyService {
     }
 
     /**
-     * Peso trasportato (kg): somma di (PESO x QTA) sugli item del personaggio
-     * (diretti e collegati via FromCompendio), più la sua personaggio_label PESO,
-     * più il peso delle monete. Item senza peso valgono 0, QTA assente vale 1.
+     * Peso trasportato (kg): somma di (PESO x QTA) su TUTTI gli item del personaggio, a
+     * qualunque profondità di annidamento (diretti, collegati via FromCompendio, e dentro
+     * qualunque CONTENITORE annidato, es. la Stiva di una NAVE), più la sua personaggio_label
+     * PESO, più il peso delle monete. Item senza peso valgono 0, QTA assente vale 1.
+     * <p>
+     * {@code itemIds} è l'elenco di TUTTI gli item raggiunti dalla stessa traversata
+     * (flattenItems) già fatta da PersonaggioService per costruire scheda/modificatori: gli item
+     * vengono comunque scorsi per quel motivo, quindi si riusa quella lista invece di rifare una
+     * traversata indipendente (rischiando di divergere nelle regole di raggiungibilità, es. FRUTTO
+     * con scelta, item NASCOSTI, ecc.).
+     * <p>
+     * Questo calcolo è completamente indipendente dal flag INVENTARIO_SEPARATO: un item dentro un
+     * CONTENITORE "separato" (es. la Stiva di una NAVE) entra nei pool per tipo (armi/oggetti/
+     * consumabili/altro) esattamente come qualunque altro item del personaggio, e qualunque
+     * contenitore (la Stiva stessa o un altro contenitore normale, ovunque si trovi nell'albero)
+     * può assorbirne il peso secondo le sue label CAPIENZA/INCLUDI_* — la stessa euristica di
+     * sempre, senza alcuna distinzione "separato". Quel flag è solo di visualizzazione/mecc.
+     * (sezione a parte in scheda, nessun modificatore propagato): vedi getDatiPersonaggio.
      */
-    public double calcolaPeso(Personaggio pg) {
+    public double calcolaPeso(Personaggio pg, List<Integer> itemIds) {
         // Raccogli tutte le label rilevanti per il calcolo del peso
         Map<Integer, Map<String, String>> labelsPerItem = new HashMap<>();
-        for (Object[] row : itemLabelRepository.findLabelValuesByPersonaggio(
-                List.of(Constants.LABEL_PESO, Constants.LABEL_QTA, Constants.LABEL_CAPIENZA,
-                        Constants.ITEM_LABEL_DISABILITATO,
-                        Constants.LABEL_INCLUDI_ARMI_ABILITATE,
-                        Constants.LABEL_INCLUDI_OGGETTI_ABILITATI,
-                        Constants.LABEL_INCLUDI_CONSUMABILI_ABILITATI,
-                        Constants.LABEL_INCLUDI_TUTTI_ABILITATI), pg.getId())) {
-            labelsPerItem.computeIfAbsent((Integer) row[0], k -> new HashMap<>())
-                    .put((String) row[1], (String) row[2]);
+        if (!itemIds.isEmpty()) {
+            for (Object[] row : itemLabelRepository.findLabelValuesByItemIds(
+                    List.of(Constants.LABEL_PESO, Constants.LABEL_QTA, Constants.LABEL_CAPIENZA,
+                            Constants.ITEM_LABEL_DISABILITATO,
+                            Constants.LABEL_INCLUDI_ARMI_ABILITATE,
+                            Constants.LABEL_INCLUDI_OGGETTI_ABILITATI,
+                            Constants.LABEL_INCLUDI_CONSUMABILI_ABILITATI,
+                            Constants.LABEL_INCLUDI_TUTTI_ABILITATI), itemIds)) {
+                labelsPerItem.computeIfAbsent((Integer) row[0], k -> new HashMap<>())
+                        .put((String) row[1], (String) row[2]);
+            }
         }
 
         // Raccogli il tipo di ogni item
         Map<Integer, TipoItem> tipoPerItem = new HashMap<>();
-        for (Object[] row : itemRepository.findIdAndTipoByPersonaggioId(pg.getId())) {
-            tipoPerItem.put((Integer) row[0], (TipoItem) row[1]);
+        if (!itemIds.isEmpty()) {
+            for (Object[] row : itemRepository.findIdAndTipoByIds(itemIds)) {
+                tipoPerItem.put((Integer) row[0], (TipoItem) row[1]);
+            }
         }
 
         record ContainerInfo(double pesoMassimo, double capienza,
@@ -886,7 +960,9 @@ public class PartyService {
         return Math.round(total * 100) / 100.0;
     }
 
-    private static int parseQta(String s) {
+    // package-private (non più "private"): riusati anche da PersonaggioService per il peso
+    // del carico nei CONTENITORE "separato" (vedi getDatiPersonaggio).
+    static int parseQta(String s) {
         if (s == null) return 1;
         try {
             return Math.max(0, Integer.parseInt(s.trim()));
@@ -895,7 +971,7 @@ public class PartyService {
         }
     }
 
-    private static double parsePeso(String s) {
+    static double parsePeso(String s) {
         if (s == null) return 0;
         try {
             return Double.parseDouble(s.trim().replace(',', '.'));

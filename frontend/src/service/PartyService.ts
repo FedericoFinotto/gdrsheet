@@ -80,13 +80,44 @@ export function saghePerLivello(livello: number): number {
 
 export function getPartyItems(
     id: number,
-    params: { nome?: string; tipo?: string; page?: number; size?: number } = {}
+    params: { nome?: string; tipo?: string; personaggioId?: number; page?: number; size?: number } = {}
 ): Promise<AxiosResponse<Page<PartyItem>>> {
     return api.get<Page<PartyItem>>(`/party/${id}/items`, {params})
 }
 
-export function giveItem(itemId: number, fromPersonaggioId: number, toPersonaggioId: number): Promise<AxiosResponse<void>> {
-    return api.post<void>('/party/give', {itemId, fromPersonaggioId, toPersonaggioId})
+export function giveItem(
+    itemId: number, fromPersonaggioId: number, toPersonaggioId: number, toContenitoreId?: number
+): Promise<AxiosResponse<void>> {
+    return api.post<void>('/party/give', {itemId, fromPersonaggioId, toPersonaggioId, toContenitoreId})
+}
+
+// Possibile destinazione di un "Dai a": il personaggio principale (contenitoreId assente),
+// oppure uno dei suoi contenitori con inventario separato (es. la Stiva di una NAVE).
+export interface Destinatario {
+    label: string;
+    personaggioId: number;
+    contenitoreId?: number;
+}
+
+interface DestinatarioGiveDTO {
+    personaggioId: number;
+    personaggioNome: string;
+    contenitoreId: number | null;
+    contenitoreNome: string | null;
+}
+
+// Destinatari possibili per un item posseduto da idPersonaggio, già calcolati server-side
+// (evita di dover conoscere il partyId lato frontend): stessa logica/label della pagina Item del party.
+export async function getDestinatariGive(idPersonaggio: number): Promise<AxiosResponse<Destinatario[]>> {
+    const res = await api.get<DestinatarioGiveDTO[]>(`/party/personaggio/${idPersonaggio}/destinatari-give`)
+    return {
+        ...res,
+        data: res.data.map(d => ({
+            label: d.contenitoreNome ? `${d.personaggioNome} (${d.contenitoreNome})` : d.personaggioNome,
+            personaggioId: d.personaggioId,
+            contenitoreId: d.contenitoreId ?? undefined,
+        })),
+    }
 }
 
 export function getBanche(partyId: number): Promise<AxiosResponse<Banca[]>> {

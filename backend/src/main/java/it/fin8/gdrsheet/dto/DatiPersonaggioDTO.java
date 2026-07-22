@@ -32,6 +32,9 @@ public class DatiPersonaggioDTO {
 
     // Info anagrafiche (personaggio_label): LUOGO_NASCITA, DATA_NASCITA, RAZZA, ...
     Map<String, String> info;
+    // Tipo di personaggio (personaggio_label TIPO_PERSONAGGIO): null = PG normale, altrimenti
+    // NAVE/NPC/BANCA/STELLA/BASE. Usato in scheda per nascondere i campi anagrafici sulle NAVE.
+    String tipoPersonaggio;
     // Peso totale trasportato (kg): peso personaggio + oggetti + monete (già moltiplicato per taglia)
     Double pesoTotale;
     // Peso lordo prima del moltiplicatore taglia

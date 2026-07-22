@@ -437,13 +437,13 @@ public class ItemService {
         }
 
         if (idPersonaggio != null) {
-            Item fromCompendio = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_FROM_COMPENDIO, idPersonaggio);
-            if (fromCompendio != null) {
-                List<Collegamento> links = collegamentoRepository.findAllByItemTarget_Id(id).stream()
-                        .filter(c -> Objects.equals(c.getItemSource().getId(), fromCompendio.getId()))
-                        .toList();
-                collegamentoRepository.deleteAll(links);
-            }
+            // scollega ovunque si trovi nell'inventario del personaggio, non solo come figlio
+            // diretto del FromCompendio: anche dentro un CONTENITORE annidato (es. la Stiva).
+            List<Integer> idsRaggiungibili = itemRepository.findReachableItemIds(idPersonaggio);
+            List<Collegamento> links = collegamentoRepository.findAllByItemTarget_Id(id).stream()
+                    .filter(c -> c.getItemSource() != null && idsRaggiungibili.contains(c.getItemSource().getId()))
+                    .toList();
+            collegamentoRepository.deleteAll(links);
             // ancora referenziato da altri item (altri personaggi, armi, classi...): non toccare
             if (!collegamentoRepository.findAllByItemTarget_Id(id).isEmpty()) {
                 return;
@@ -454,17 +454,15 @@ public class ItemService {
     }
 
     /**
-     * Scollega un item dall'equipaggiamento del personaggio (rimuove il
-     * collegamento dal suo FromCompendio) senza toccare l'item, che resta
-     * nel compendio. Pensato per gli oggetti "persi".
+     * Scollega un item dall'equipaggiamento del personaggio (rimuove il collegamento dal suo
+     * FromCompendio, o da qualunque CONTENITORE annidato sotto di esso — es. la Stiva di una
+     * NAVE) senza toccare l'item, che resta nel compendio. Pensato per gli oggetti "persi".
      */
     @Transactional
     public void unlinkItem(Integer itemId, Integer idPersonaggio) {
-        Item fromCompendio = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_FROM_COMPENDIO, idPersonaggio);
-        if (fromCompendio == null) throw new RuntimeException("FromCompendio non trovato per il personaggio " + idPersonaggio);
-
+        List<Integer> idsRaggiungibili = itemRepository.findReachableItemIds(idPersonaggio);
         List<Collegamento> links = collegamentoRepository.findAllByItemTarget_Id(itemId).stream()
-                .filter(c -> Objects.equals(c.getItemSource().getId(), fromCompendio.getId()))
+                .filter(c -> c.getItemSource() != null && idsRaggiungibili.contains(c.getItemSource().getId()))
                 .toList();
         if (links.isEmpty()) throw new RuntimeException("L'item non fa parte dell'equipaggiamento del personaggio");
 

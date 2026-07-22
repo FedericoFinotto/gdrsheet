@@ -173,13 +173,27 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             @Param("ids") List<Integer> ids
     );
 
-    /** Restituisce (id, tipo) per tutti gli item del personaggio (diretti + collegati via FromCompendio). */
-    @Query("""
-            SELECT i.id, i.tipo FROM Item i
-            WHERE i.personaggio.id = :pgId
-            OR i.id IN (SELECT c.itemTarget.id FROM Collegamento c WHERE c.itemSource.personaggio.id = :pgId)
-            """)
-    List<Object[]> findIdAndTipoByPersonaggioId(@Param("pgId") Integer pgId);
+    /** Restituisce (id, tipo) per gli item con id nella lista data (es. per calcolaPeso). */
+    @Query("SELECT i.id, i.tipo FROM Item i WHERE i.id IN :ids")
+    List<Object[]> findIdAndTipoByIds(@Param("ids") java.util.Collection<Integer> ids);
+
+    /**
+     * Tutti gli id degli item "del personaggio": quelli intestati direttamente (FromCompendio,
+     * PreparedSpell, Livelli, ...) più TUTTI i loro discendenti collegati via Collegamento, a
+     * qualunque profondità (contenitori dentro contenitori inclusi). Usata da PartyService#giveItem
+     * per trovare un item ovunque si trovi nell'inventario di origine (anche dentro un
+     * CONTENITORE, non solo come figlio diretto del FromCompendio).
+     */
+    @Query(value = """
+            WITH RECURSIVE reachable(id) AS (
+                SELECT id FROM items WHERE personaggio_id = :personaggioId
+                UNION
+                SELECT c.id_item_target FROM collegamento c
+                JOIN reachable r ON c.id_item_source = r.id
+            )
+            SELECT id FROM reachable
+            """, nativeQuery = true)
+    List<Integer> findReachableItemIds(@Param("personaggioId") Integer personaggioId);
 
     /**
      * Quest radice di un personaggio (ambito QUEST_SCOPE=PERSONAGGIO): intestate direttamente a lui.

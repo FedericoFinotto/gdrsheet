@@ -128,6 +128,7 @@ const INFO_FIELDS: { key: string; label: string; type?: string }[] = [
   {key: 'ETA', label: 'Età', type: 'number'},
   {key: 'ALTEZZA', label: 'Altezza (cm)', type: 'number'},
   {key: 'PESO', label: 'Peso (kg)', type: 'number'},
+  {key: 'PORTATA', label: 'Portata (Kg Trasportabili)', type: 'number'},
   {key: 'CAPELLI', label: 'Capelli'},
   {key: 'OCCHI', label: 'Occhi'},
   {key: 'ALLINEAMENTO', label: 'Allineamento'},
@@ -135,7 +136,23 @@ const INFO_FIELDS: { key: string; label: string; type?: string }[] = [
   {key: 'MILESTONE', label: 'Milestone attuali', type: 'number'},
   {key: 'LIVELLO', label: 'Livello (atteso)', type: 'number'},
   {key: 'GRADI_DIVINI', label: 'Gradi Divini', type: 'number'},
+  {key: 'LUNGHEZZA', label: 'Lunghezza (m)', type: 'number'},
+  {key: 'LARGHEZZA', label: 'Larghezza (m)', type: 'number'},
 ]
+
+// Le NAVI (tipo "Barca") non hanno anagrafica da personaggio: solo Peso/Portata restano,
+// e in più hanno Lunghezza/Larghezza (assenti per gli altri tipi).
+const CAMPI_NASCOSTI_NAVE = new Set([
+  'LUOGO_NASCITA', 'DATA_NASCITA', 'RAZZA', 'SESSO', 'PELLE', 'ETA', 'ALTEZZA',
+  'CAPELLI', 'OCCHI', 'ALLINEAMENTO', 'TAGLIA', 'MILESTONE', 'LIVELLO', 'GRADI_DIVINI',
+])
+const CAMPI_SOLO_NAVE = new Set(['LUNGHEZZA', 'LARGHEZZA'])
+const tipoPersonaggio = computed(() => cache.value[props.idPersonaggio]?.modificatori?.tipoPersonaggio)
+const isNave = computed(() => tipoPersonaggio.value === 'NAVE')
+const infoFieldsVisibili = computed(() => INFO_FIELDS.filter(f => {
+  if (CAMPI_SOLO_NAVE.has(f.key)) return isNave.value
+  return !isNave.value || !CAMPI_NASCOSTI_NAVE.has(f.key)
+}))
 
 const TAGLIE: { value: string; label: string }[] = [
   {value: '-4', label: 'Piccolissima'},
@@ -278,14 +295,14 @@ async function salvaInfo() {
           <input v-model="editNome" type="text" class="info-input"/>
         </label>
 
-        <label v-for="f in INFO_FIELDS" :key="f.key" class="info-field">
+        <label v-for="f in infoFieldsVisibili" :key="f.key" class="info-field">
           <span class="info-label">{{ f.label }}</span>
           <SearchSelect v-if="f.type === 'select'" v-model="editInfo[f.key]"
                         :options="[{value:'',label:'—'}, ...TAGLIE]" :sort="false"/>
           <input v-else v-model="editInfo[f.key]" :type="f.type || 'text'" class="info-input"/>
         </label>
 
-        <div v-if="tagliaAttuale" class="info-peso-row">
+        <div v-if="tagliaAttuale && !isNave" class="info-peso-row">
           <span class="info-label">Taglia effettiva</span>
           <span class="info-peso-val">{{ tagliaAttuale }}</span>
         </div>

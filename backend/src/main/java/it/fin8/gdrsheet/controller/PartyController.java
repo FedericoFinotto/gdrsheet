@@ -6,6 +6,7 @@ import it.fin8.gdrsheet.dto.BancaDTO;
 import it.fin8.gdrsheet.dto.BancaDetailDTO;
 import it.fin8.gdrsheet.dto.CreatePartyRequest;
 import it.fin8.gdrsheet.dto.CreatePersonaggioRequest;
+import it.fin8.gdrsheet.dto.DestinatarioGiveDTO;
 import it.fin8.gdrsheet.dto.GiveItemRequest;
 import it.fin8.gdrsheet.dto.GruppoDTO;
 import it.fin8.gdrsheet.dto.SaveGruppoRequest;
@@ -139,11 +140,13 @@ public class PartyController {
             @RequestParam(required = false) String nome,
             @Parameter(description = "Filtro tipo item")
             @RequestParam(required = false) String tipo,
+            @Parameter(description = "Filtro id personaggio possessore")
+            @RequestParam(required = false) Integer personaggioId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal Utente utente
     ) {
-        return ResponseEntity.ok(partyService.getPartyItems(id, utente, nome, tipo, page, size));
+        return ResponseEntity.ok(partyService.getPartyItems(id, utente, nome, tipo, personaggioId, page, size));
     }
 
     @Operation(
@@ -212,6 +215,18 @@ public class PartyController {
     ) {
         partyService.giveItem(request, utente);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Possibili destinazioni di un \"Dai a\" per un item posseduto da un personaggio",
+            description = "Gli altri membri del party (opzione diretta) più, per ognuno, i suoi CONTENITORE con INVENTARIO_SEPARATO=1"
+    )
+    @GetMapping("/personaggio/{personaggioId}/destinatari-give")
+    public ResponseEntity<List<DestinatarioGiveDTO>> getDestinatariGive(
+            @PathVariable Integer personaggioId,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(partyService.getDestinatariGive(personaggioId, utente));
     }
 
     @Operation(

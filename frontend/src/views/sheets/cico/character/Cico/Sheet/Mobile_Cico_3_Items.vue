@@ -127,6 +127,13 @@ const itemsFrutti = computed(() => wrap(items.value?.frutti));
 const itemsIdoli = computed(() => wrap(items.value?.idoli));
 const itemsVeicoli = computed(() => wrap(items.value?.veicoli));
 
+// Contenuti dei CONTENITORE con INVENTARIO_SEPARATO=1 (es. la Stiva di una NAVE): mostrati
+// come sezioni a parte, già esclusi dalle liste normali qui sopra (lato backend).
+const inventariSeparati = computed(() => (items.value?.inventariSeparati ?? []).map(sep => ({
+  ...sep,
+  wrapped: wrap(sep.items),
+})));
+
 // Abilità attive = hanno utilizziTotale visibile (> 0); passive = tutto il resto
 const itemsAbilita = computed(() =>
     wrap((items.value?.abilita ?? []).filter(i => (i.utilizziTotale ?? 0) > 0))
@@ -243,6 +250,17 @@ const col = (label: string) => [
   utilizziCol(),
 ];
 
+// chip tipo (per liste miste come l'inventario separato) + gli stessi descrittori delle altre righe
+function chipsConTipo(row: any) {
+  return [{text: row.tipo, class: 'chip-tipo'}, ...descrittoriChips(row)]
+}
+function columnsSeparato(label: string) {
+  return [
+    {field: 'nome', label, disabled: (row: any) => row.disabled, badge: badgeQta, prefixChips: chipsConTipo},
+    utilizziCol(),
+  ];
+}
+
 const columnsOggetti = col('Oggetti');
 const columnsArmi = col('Armi');
 const columnsEquipaggiamento = col('Equipaggiamento');
@@ -266,7 +284,7 @@ const columnsEffetti = col('Effetti');
 <template>
   <div>
     <div class="top-bar">
-      <BottoneAggiungiItem :id-personaggio="props.idPersonaggio" label="Aggiungi oggetto"/>
+      <BottoneAggiungiItem :id-personaggio="props.idPersonaggio" label="Aggiungi"/>
       <button class="btn-compendio" type="button" @click="apriCompendio">
         &#128218; Compendio
       </button>
@@ -315,8 +333,14 @@ const columnsEffetti = col('Effetti');
     <div class="spazietto"/>
     <Tabella v-if="itemsIdoli.length > 0" :columns="columnsIdoli" :expandable="true" :items="itemsIdoli"/>
 
-    <div class="spazietto"/>
-    <BottoneAggiungiItem :id-personaggio="props.idPersonaggio" tipo="TALENTO" label="Aggiungi talento"/>
+    <!-- Inventari separati: contenuti dei CONTENITORE con INVENTARIO_SEPARATO=1 (es. la Stiva di una NAVE) -->
+    <template v-for="sep in inventariSeparati" :key="sep.contenitoreId">
+      <div class="spazietto"/>
+      <div class="separato-titolo">📦 {{ sep.contenitoreNome }}</div>
+      <Tabella v-if="sep.wrapped.length > 0" :columns="columnsSeparato(sep.contenitoreNome)" :expandable="true" :items="sep.wrapped"/>
+      <div v-else class="stato-ricerca">Vuoto.</div>
+    </template>
+
     <div class="spazietto"/>
     <Tabella v-if="itemsAbilita.length > 0" :columns="columnsAbilita" :expandable="true" :items="itemsAbilita"/>
     <div class="spazietto"/>
@@ -352,6 +376,14 @@ const columnsEffetti = col('Effetti');
 }
 .ricerca-input:focus { outline: none; border-color: #60a5fa; background: #fff; }
 .stato-ricerca { padding: .6rem; color: #6b7280; font-size: .9rem; }
+.separato-titolo {
+  font-size: .8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #6b7280;
+  padding: .2rem 0;
+}
 .btn-compendio {
   flex-shrink: 0;
   padding: .35rem .75rem;

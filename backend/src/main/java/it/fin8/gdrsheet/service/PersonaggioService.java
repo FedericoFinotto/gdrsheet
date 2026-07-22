@@ -112,6 +112,62 @@ public class PersonaggioService {
     }
 
     /**
+     * Raccoglie ricorsivamente (a qualunque profondità) gli id dei discendenti di un CONTENITORE
+     * con INVENTARIO_SEPARATO=1, associandoli all'id del contenitore stesso in {@code out}.
+     * Un item già assegnato a un contenitore separato (il più esterno incontrato per primo,
+     * nell'ordine di {@code allPersonaggioItems.getItems()}) non viene riassegnato: caso raro di
+     * contenitori-separati annidati, non serve gestirlo oltre a evitare comportamenti incoerenti.
+     */
+    private void raccogliDiscendentiSeparati(Item container, Set<Integer> visitati, Map<Integer, Integer> out, Integer containerId) {
+        if (container.getChild() == null) return;
+        for (Collegamento col : container.getChild()) {
+            Item target = col.getItemTarget();
+            if (target == null || !visitati.add(target.getId())) continue;
+            boolean nascosto = utilService.parseBooleanFromString(col.getLabel(Constants.ITEM_LABEL_NASCOSTO),
+                    Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
+            if (nascosto) continue;
+            out.putIfAbsent(target.getId(), containerId);
+            raccogliDiscendentiSeparati(target, visitati, out, containerId);
+        }
+    }
+
+    /**
+     * Mappa (itemId discendente -> id del contenitore "separato" che lo contiene) per tutti i
+     * CONTENITORE con INVENTARIO_SEPARATO=1 (es. la Stiva di una NAVE), a qualunque profondità.
+     * Usata in getDatiPersonaggio per: (a) escludere questi item dalla flatten "meccanica"
+     * (modificatori, spellbook, contatori) — un item nella Stiva è carico, non dotazione, e non
+     * deve propagare nulla al personaggio anche se abilitato, esattamente come se non fosse
+     * collegato affatto (più forte di "disabilitato", che invece resta comunque nella lista ma
+     * senza effetti); (b) calcolarne comunque il peso a parte, sommandolo direttamente invece di
+     * farlo passare dall'euristica a "capienza" di calcolaPeso (pensata per zaini con un peso
+     * dichiarato "a pieno carico", non per sommare un contenuto reale arbitrario).
+     */
+    private Map<Integer, Integer> mappaContenitoriSeparati(List<Item> items) {
+        Map<Integer, Integer> out = new HashMap<>();
+        for (Item itm : items) {
+            if (TipoItem.CONTENITORE.equals(itm.getTipo()) && utilService.parseBooleanFromString(
+                    itm.getLabel(Constants.LABEL_INVENTARIO_SEPARATO),
+                    Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE)) {
+                raccogliDiscendentiSeparati(itm, new HashSet<>(), out, itm.getId());
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Lista di destinazione per un ItemDTO: quella normale per il suo tipo, oppure la sezione
+     * del contenitore "separato" a cui appartiene (creata al volo la prima volta).
+     */
+    private List<ItemDTO> destinazioneLista(List<ItemDTO> normale, Integer idContenitoreSeparato,
+                                            Map<Integer, InventarioSeparatoDTO> separati, Map<Integer, Item> itemById) {
+        if (idContenitoreSeparato == null) return normale;
+        return separati.computeIfAbsent(idContenitoreSeparato, cid -> {
+            Item contenitore = itemById.get(cid);
+            return new InventarioSeparatoDTO(cid, contenitore != null ? contenitore.getNome() : "?", new ArrayList<>());
+        }).getItems();
+    }
+
+    /**
      * Traversal DFS degli item del personaggio.
      * @param fruttiSenzaModOut se non null, viene popolato con gli ID dei FRUTTO la cui scelta
      *                          non include "MOD" (i loro modificatori non vanno calcolati).
@@ -295,6 +351,14 @@ public class PersonaggioService {
         // FruttoDTO.trasformazioni).
         List<TrasformazioneDTO> flatTrasformazioni = new ArrayList<>();
 
+        // Contenuti dei CONTENITORE con INVENTARIO_SEPARATO=1: dirottati più sotto dalle liste
+        // normali per tipo verso una sezione a parte (es. la Stiva di una NAVE). Il contenitore
+        // stesso resta comunque visibile nella lista Contenitori: solo il suo contenuto è qui.
+        Map<Integer, Integer> separatoContainerIdByItem = mappaContenitoriSeparati(allPersonaggioItems.getItems());
+        Map<Integer, Item> itemById = new HashMap<>();
+        for (Item itm : allPersonaggioItems.getItems()) itemById.put(itm.getId(), itm);
+        Map<Integer, InventarioSeparatoDTO> inventariSeparati = new LinkedHashMap<>();
+
         Set<Integer> itemIdGiaAggiunti = new HashSet<>();
         for (Item itm : allPersonaggioItems.getItems()) {
             // filtro di visibilità (label VISIBILITA): nasconde l'item a chi non è autorizzato
@@ -313,6 +377,18 @@ public class PersonaggioService {
             }
             Integer uUsati = utilizziUsatiMap.get(itm.getId());
             Integer uTotale = utilizziTotaleMap.get(itm.getId());
+            Integer sepId = separatoContainerIdByItem.get(itm.getId());
+            if (sepId != null) {
+                // dentro un CONTENITORE "separato" (es. la Stiva di una NAVE): mostrato SOLO in
+                // quella sezione, come voce generica qualunque sia il tipo reale — niente
+                // Frutti/Abilità/Talenti/Attacchi/Spellbook/ecc. Coerente con l'esclusione dalla
+                // "mechanical" flatten in getDatiPersonaggio: è carico, non dotazione, "come se
+                // non fosse collegato al personaggio" (il peso però continua a contare altrove).
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                destinazioneLista(null, sepId, inventariSeparati, itemById).add(dto);
+                continue;
+            }
             if (TipoItem.ABILITA.equals(itm.getTipo())) {
                 itemsDTO.getAbilita().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
@@ -403,6 +479,7 @@ public class PersonaggioService {
                 itemsDTO.getNotizie().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
         }
+        itemsDTO.setInventariSeparati(new ArrayList<>(inventariSeparati.values()));
 
         for (InfoClasseDTO classe : allPersonaggioItems.getLivelli().getClassi()) {
             // Nuovo schema a sezioni (SPELL_<n>): una spellbook per sezione.
@@ -465,6 +542,7 @@ public class PersonaggioService {
         for (Item itm : allPersonaggioItems.getItems()) {
             if (TipoItem.CLASSE.equals(itm.getTipo()) || TipoItem.RAZZA.equals(itm.getTipo())) continue;
             if (itemMapper.isDisabled(itm)) continue;
+            if (separatoContainerIdByItem.containsKey(itm.getId())) continue; // carico, non dotazione
             for (SezioneIncantesimi sez : parseSezioniIncantesimi(itm)) {
                 // sezione personalizzata: liste vuota è normale (nessun filtro per lista), non va saltata
                 if (!sez.personalizzata() && sez.liste().stream().allMatch(l -> l != null && l.startsWith("+"))) continue;
@@ -894,8 +972,14 @@ public class PersonaggioService {
 
         List<Item> allItems = allPersonaggioItemsSheet.getItems();
         Set<Integer> fruttiSenzaModSheet = allPersonaggioItemsSheet.getFruttiSenzaMod();
+        // Item dentro un CONTENITORE "separato" (es. la Stiva di una NAVE): carico, non dotazione,
+        // esclusi anche se abilitati — come se non fossero collegati al personaggio (il peso
+        // continua comunque a contare, sommato più sotto in modo diretto).
+        Map<Integer, Integer> mappaContenitoriSeparati = mappaContenitoriSeparati(allItems);
+        Set<Integer> dentroContenitoriSeparati = mappaContenitoriSeparati.keySet();
         List<Item> filteredItems = new ArrayList<>();
         for (Item item : allItems) {
+            if (dentroContenitoriSeparati.contains(item.getId())) continue;
             boolean isDisabled = false;
             for (ItemLabel lbl : item.getLabels()) {
                 if (Constants.ITEM_LABEL_DISABILITATO.equalsIgnoreCase(lbl.getLabel()) && Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE.equals(lbl.getValore())) {
@@ -1020,6 +1104,8 @@ public class PersonaggioService {
             for (PersonaggioLabel l : p.getLabels()) {
                 if (Constants.PERSONAGGIO_INFO_LABELS.contains(l.getLabel())) {
                     info.put(l.getLabel(), l.getValore());
+                } else if (Constants.LABEL_TIPO_PERSONAGGIO.equals(l.getLabel())) {
+                    dto.setTipoPersonaggio(l.getValore());
                 }
             }
         }
@@ -1031,7 +1117,11 @@ public class PersonaggioService {
             if (lv != null && !lv.isBlank()) livAtteso = Integer.parseInt(lv.trim());
         } catch (NumberFormatException ignored) {}
         info.put(Constants.LABEL_MILESTONE_TO, String.valueOf(saghePerLivello(livAtteso)));
-        double pesoTotale = partyService.calcolaPeso(p);
+        // Il peso è completamente indipendente dal flag INVENTARIO_SEPARATO (quel flag è solo
+        // display/meccanica, vedi mappaContenitoriSeparati/filteredItems sopra): calcolaPeso vede
+        // TUTTI gli item raggiunti dal flatten, Stiva e suo contenuto inclusi, e li tratta come
+        // qualunque altro item/contenitore del personaggio con la stessa identica euristica.
+        double pesoTotale = partyService.calcolaPeso(p, allItems.stream().map(Item::getId).toList());
         double pesoMonete = partyService.calcolaPesoMonete(partyService.calcolaSoldi(p.getId()));
         dto.setPesoMonete(Math.round(pesoMonete * 100) / 100.0);
         CalcoloService.variabiliPersonaggio(info, pesoTotale)

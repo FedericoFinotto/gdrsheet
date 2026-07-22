@@ -20,4 +20,10 @@ public class GiveItemRequest {
     private Integer fromPersonaggioId;
     @NotNull
     private Integer toPersonaggioId;
+    /**
+     * Opzionale: id di un CONTENITORE (INVENTARIO_SEPARATO=1) del personaggio di destinazione,
+     * collegato direttamente al suo FromCompendio. Se presente, l'item finisce lì invece che
+     * direttamente nel FromCompendio del destinatario.
+     */
+    private Integer toContenitoreId;
 }

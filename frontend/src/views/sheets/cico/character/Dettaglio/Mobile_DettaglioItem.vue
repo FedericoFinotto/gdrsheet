@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, defineProps, onMounted, ref} from 'vue';
+import {computed, defineAsyncComponent, defineProps, onMounted, ref} from 'vue';
 import {
   buildMappaItemAvanzamenti,
   buildMappaModificatoriAvanzamenti,
@@ -23,6 +23,8 @@ import {Avanzamento} from "../../../../../models/entity/Avanzamento";
 import {Item} from "../../../../../models/dto/Item";
 import {getItemLabel, getItemLabels, LABELS, thereIsValoreLabel} from "../../../../../models/entity/ItemLabel";
 import {useHp} from "../../../../../function/useHp";
+
+const DaiOggettoPopup = defineAsyncComponent(() => import("../../../../../components/DaiOggettoPopup.vue"))
 
 const router = useRouter()
 const {openPopup} = usePopup()
@@ -119,6 +121,14 @@ function goToEditor() {
   router.push(`/itemeditor/${itemDetail.value?.id}?personaggio=${personaggio.modificatori.id}`);
 }
 
+function apriDai() {
+  openPopup(
+      DaiOggettoPopup,
+      {itemId: item.id, personaggioId: idPersonaggioCorrente, itemNome: item.nome},
+      {closable: true, autoClose: 0}
+  )
+}
+
 onMounted(async () => {
   try {
     const response = await getItem(item.id);
@@ -208,7 +218,11 @@ const contenitorInfo = computed(() => {
       }))
       .sort((a, b) => b.capienza - a.capienza)
 
-  // Tutti gli item con peso
+  // Tutti gli item con peso, inclusi quelli dentro un CONTENITORE "separato" (es. la Stiva di
+  // una NAVE): per il peso contano come qualunque altro item del personaggio, senza distinzione
+  // (stesso principio lato backend, vedi calcolaPeso) — arrivano da inventariSeparati invece che
+  // dalle liste normali per tipo, ma vanno sommati agli stessi pool.
+  const separatoItems = (allItems.inventariSeparati ?? []).flatMap(sep => sep.items ?? [])
   const allWithPeso = [
     ...(allItems.oggetti ?? []),
     ...(allItems.consumabili ?? []),
@@ -218,6 +232,7 @@ const contenitorInfo = computed(() => {
     ...(allItems.frutti ?? []),
     ...(allItems.idoli ?? []),
     ...(allItems.patti ?? []),
+    ...separatoItems,
   ].filter(i => (i.peso ?? 0) > 0)
 
   // item disabilitati → sempre contenibili (indipendentemente dal tipo)
@@ -421,6 +436,10 @@ function toggleExpand(key: string) {
       <button type="button" class="action-btn edit" @click.stop="goToEditor">
         <Icona name="EDIT"/>
         <span>Modifica</span>
+      </button>
+      <button v-if="idPersonaggioCorrente" type="button" class="action-btn dai" @click.stop="apriDai">
+        <span>🖐</span>
+        <span>Dai</span>
       </button>
     </div>
 
@@ -817,6 +836,12 @@ function toggleExpand(key: string) {
   background: #eff6ff;
   color: #1d4ed8;
   margin-left: auto;
+}
+
+.action-btn.dai {
+  border-color: #fde68a;
+  background: #fefce8;
+  color: #854d0e;
 }
 
 .barriera-box {

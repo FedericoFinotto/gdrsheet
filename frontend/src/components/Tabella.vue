@@ -362,5 +362,6 @@ img.row-icon {
 .cell-prefix-chip.chip-o-divino { background: #fce7f3; color: #9d174d; }
 .cell-prefix-chip.chip-o-leggendario { background: #fef3c7; color: #92400e; }
 .cell-prefix-chip.chip-o-unico { background: #fee2e2; color: #991b1b; }
+.cell-prefix-chip.chip-tipo { background: #e5e7eb; color: #374151; }
 
 </style>

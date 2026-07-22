@@ -76,6 +76,16 @@ const breakdown = computed(() => {
       peso: (i.peso ?? 0) * (i.quantita ?? 1),
       tipo, disabled: !!i.disabled,
     }))
+  // Item dentro un CONTENITORE "separato" (es. la Stiva di una NAVE): per il peso contano come
+  // qualunque altro item (stesso principio lato backend, vedi calcolaPeso), quindi eterogenei per
+  // tipo reale invece che di un'unica lista tipizzata — a differenza di withPeso sopra.
+  const withPesoMisto = (list: any[]): FlatItem[] =>
+    (list ?? []).filter(i => (i.peso ?? 0) > 0).map(i => ({
+      id: i.id, nome: i.nome,
+      peso: (i.peso ?? 0) * (i.quantita ?? 1),
+      tipo: i.tipo, disabled: !!i.disabled,
+    }))
+  const separatoItems = (allItems.inventariSeparati ?? []).flatMap(sep => sep.items ?? [])
 
   const all = [
     ...withPeso(allItems.oggetti, 'OGGETTO'),
@@ -86,6 +96,7 @@ const breakdown = computed(() => {
     ...withPeso(allItems.frutti, 'FRUTTO'),
     ...withPeso(allItems.idoli, 'IDOLO'),
     ...withPeso(allItems.patti, 'PATTO'),
+    ...withPesoMisto(separatoItems),
   ]
 
   const disabled      = all.filter(i => i.disabled)

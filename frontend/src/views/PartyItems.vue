@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import {getParty, getPartyItems, giveItem, ItemSearchResult, searchPartyItems} from '../service/PartyService'
+import {Destinatario, getParty, getPartyItems, giveItem, ItemSearchResult, searchPartyItems} from '../service/PartyService'
 import {formatKg, formatPesoTotale, Page, PartyDetail, PartyItem} from '../models/dto/Party'
 import Mobile_DettaglioItem from './sheets/cico/character/Dettaglio/Mobile_DettaglioItem.vue'
 import SearchSelect from '../components/SearchSelect.vue'
@@ -19,6 +19,7 @@ const errorMsg = ref<string | null>(null)
 // filtri + paginazione
 const filtroNome = ref('')
 const filtroTipo = ref('')
+const filtroPersonaggio = ref('')
 const page = ref(0)
 const PAGE_SIZE = 10
 
@@ -30,6 +31,12 @@ const TIPI_FILTRO = [
   {value: 'MUNIZIONE', label: 'Munizione'},
   {value: 'EQUIPAGGIAMENTO', label: 'Equipaggiamento'},
 ]
+
+// opzioni per il filtro possessore: popolate solo dopo il primo caricamento del party
+const OPZIONI_POSSESSORE = computed(() => [
+  {value: '', label: 'Tutti i possessori'},
+  ...(party.value?.personaggi ?? []).map(p => ({value: String(p.id), label: p.nome})),
+])
 
 const expandedId = ref<number | null>(null)   // riga espansa (dettaglio)
 const givingId = ref<number | null>(null)     // riga con pannello "give" aperto
@@ -74,6 +81,7 @@ async function load() {
       getPartyItems(partyId, {
         nome: filtroNome.value.trim() || undefined,
         tipo: filtroTipo.value || undefined,
+        personaggioId: filtroPersonaggio.value ? Number(filtroPersonaggio.value) : undefined,
         page: page.value,
         size: PAGE_SIZE,
       }),
@@ -93,7 +101,7 @@ async function load() {
 }
 
 let filtroTimer: any = null
-watch([filtroNome, filtroTipo], () => {
+watch([filtroNome, filtroTipo, filtroPersonaggio], () => {
   if (filtroTimer) clearTimeout(filtroTimer)
   filtroTimer = setTimeout(() => {
     page.value = 0
@@ -127,16 +135,27 @@ function toggleGive(id: number) {
   givingId.value = givingId.value === id ? null : id
 }
 
-// destinatari possibili: gli altri membri del party
-function destinatari(itm: PartyItem) {
-  return (party.value?.personaggi ?? []).filter(p => p.id !== itm.personaggioId)
+// destinatari possibili: gli altri membri del party (personaggio "principale"), più un'opzione
+// per ciascuno dei loro contenitori con inventario separato (es. la Stiva di una NAVE), mostrata
+// come "Nome Personaggio (Nome Contenitore)". Per il personaggio che possiede già l'item si
+// salta solo l'opzione "diretta" (sarebbe un no-op), ma restano validi i SUOI contenitori: serve
+// per spostare un item dall'inventario principale a una propria sezione separata (es. in Stiva).
+function destinatari(itm: PartyItem): Destinatario[] {
+  const out: Destinatario[] = []
+  for (const p of (party.value?.personaggi ?? [])) {
+    if (p.id !== itm.personaggioId) out.push({label: p.nome, personaggioId: p.id})
+    for (const c of (p.contenitoriSeparati ?? [])) {
+      out.push({label: `${p.nome} (${c.nome})`, personaggioId: p.id, contenitoreId: c.id})
+    }
+  }
+  return out
 }
 
-async function doGive(itm: PartyItem, toId: number) {
+async function doGive(itm: PartyItem, dest: Destinatario) {
   if (busyGive.value) return
   busyGive.value = true
   try {
-    await giveItem(itm.id, itm.personaggioId, toId)
+    await giveItem(itm.id, itm.personaggioId, dest.personaggioId, dest.contenitoreId)
     givingId.value = null
     expandedId.value = null
     await load()
@@ -186,6 +205,7 @@ function personaggioShim(itm: PartyItem) {
           class="filter-nome"
       />
       <SearchSelect v-model="filtroTipo" class="filter-tipo" :options="TIPI_FILTRO" :sort="false"/>
+      <SearchSelect v-model="filtroPersonaggio" class="filter-possessore" :options="OPZIONI_POSSESSORE" :sort="false"/>
     </div>
 
     <!-- risultati ricerca globale -->
@@ -244,12 +264,12 @@ function personaggioShim(itm: PartyItem) {
             <span class="give-label">Dai a:</span>
             <button
                 v-for="dest in destinatari(itm)"
-                :key="dest.id"
+                :key="`${dest.personaggioId}-${dest.contenitoreId ?? 0}`"
                 class="btn dest"
                 :disabled="busyGive"
-                @click="doGive(itm, dest.id)"
+                @click="doGive(itm, dest)"
             >
-              {{ dest.nome }}
+              {{ dest.label }}
             </button>
             <span v-if="!destinatari(itm).length" class="muted">Nessun altro membro nel party.</span>
           </div>
@@ -377,11 +397,11 @@ function personaggioShim(itm: PartyItem) {
 
 .filters {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: .4rem;
 }
 
-.filter-nome, .filter-tipo {
+.filter-nome, .filter-tipo, .filter-possessore {
   padding: .45rem .6rem;
   border: 1px solid #d0d5dd;
   border-radius: .5rem;

@@ -22,6 +22,14 @@ export interface Frutto extends Item {
     trasformazioni: GruppoTrasformazioni[];
 }
 
+// Contenuto di un CONTENITORE con INVENTARIO_SEPARATO=1 (es. la Stiva di una NAVE): i suoi
+// discendenti (di qualunque tipo) arrivano già raggruppati qui, esclusi dalle liste normali.
+export interface InventarioSeparato {
+    contenitoreId: number;
+    contenitoreNome: string;
+    items: Item[];
+}
+
 export interface Items {
     abilita: Item[];
     talenti: Item[];
@@ -50,4 +58,5 @@ export interface Items {
     patti: Item[];
     effetti: Effetto[];
     veicoli: Item[];
+    inventariSeparati: InventarioSeparato[];
 }

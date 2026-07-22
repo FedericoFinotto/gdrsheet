@@ -85,6 +85,18 @@ public class PartyDetailDTO {
         private int numLivelli;
         /** Gradi Divini indicati dalla personaggio_label GRADI_DIVINI (solo indicativo); null se assente. */
         private Integer gradiDivini;
+        /** CONTENITORE con INVENTARIO_SEPARATO=1 collegati direttamente al FromCompendio di questo
+         *  personaggio (es. la Stiva di una NAVE): possibili destinazioni aggiuntive per "Dai a". */
+        private List<ContenitoreRefDTO> contenitoriSeparati;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ContenitoreRefDTO {
+        private Integer id;
+        private String nome;
     }
 
     @Getter

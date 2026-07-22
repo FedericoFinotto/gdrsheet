@@ -19,6 +19,8 @@ export interface DatiPersonaggio {
     attributi: Attributo[];
     dadiVita: DadiVita
     info?: Record<string, string>;
+    // null/assente = PG normale, altrimenti NAVE/NPC/BANCA/STELLA/BASE
+    tipoPersonaggio?: string;
     pesoTotale?: number;
     pesoSenzaTaglia?: number;
     pesoMonete?: number;
