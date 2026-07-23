@@ -123,8 +123,20 @@ public class QuestService {
         List<NotaDTO> note = parseNote(item).stream()
                 .filter(n -> authzService.canViewVisibilita(utente, rootOwner, n.getVisibilita()))
                 .toList();
+        List<String> inCarico = parseInCarico(item);
 
-        return new QuestDTO(item.getId(), item.getNome(), item.getDescrizione(), completata, completati, totali, note, figliDTO, null, null);
+        return new QuestDTO(item.getId(), item.getNome(), item.getDescrizione(), completata, completati, totali, note, inCarico, figliDTO, null, null);
+    }
+
+    /** Righe ItemLabel IN_CARICO (testo libero), vuote escluse. */
+    private List<String> parseInCarico(Item item) {
+        if (item.getLabels() == null) return List.of();
+        List<String> result = new ArrayList<>();
+        for (ItemLabel l : item.getLabels()) {
+            if (!Constants.ITEM_LABEL_QUEST_IN_CARICO.equals(l.getLabel())) continue;
+            if (l.getValore() != null && !l.getValore().isBlank()) result.add(l.getValore().trim());
+        }
+        return result;
     }
 
     /** Ogni riga ItemLabel NOTA contiene un JSON {testo, visibilita}; righe malformate vengono ignorate. */
@@ -152,6 +164,26 @@ public class QuestService {
         if (itm == null) throw new RuntimeException("Quest non trovata: " + idItem);
         boolean cur = "1".equals(itm.getLabel(Constants.ITEM_LABEL_QUEST_COMPLETATA));
         itm.setLabel(Constants.ITEM_LABEL_QUEST_COMPLETATA, cur ? "0" : "1");
+        itemRepository.save(itm);
+    }
+
+    /**
+     * Sostituisce integralmente le righe IN_CARICO di una quest (righe vuote escluse): modifica
+     * rapida dalla scheda/vista quest, senza passare dall'editor completo dell'item.
+     */
+    public void setInCarico(Integer idItem, List<String> valori) {
+        Item itm = itemRepository.findItemById(idItem);
+        if (itm == null) throw new RuntimeException("Quest non trovata: " + idItem);
+        itm.removeLabel(Constants.ITEM_LABEL_QUEST_IN_CARICO);
+        if (itm.getLabels() == null) itm.setLabels(new ArrayList<>());
+        for (String v : valori) {
+            if (v == null || v.isBlank()) continue;
+            ItemLabel l = new ItemLabel();
+            l.setItem(itm);
+            l.setLabel(Constants.ITEM_LABEL_QUEST_IN_CARICO);
+            l.setValore(v.trim());
+            itm.getLabels().add(l);
+        }
         itemRepository.save(itm);
     }
 }

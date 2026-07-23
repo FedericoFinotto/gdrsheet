@@ -40,4 +40,14 @@ public class QuestController {
         questService.toggleCompletata(id);
         return ResponseEntity.ok().build();
     }
+
+    @Operation(
+            summary = "Imposta le righe \"In carico\" di una quest",
+            description = "Sostituisce integralmente le righe (righe vuote escluse): modifica rapida senza passare dall'editor completo dell'item."
+    )
+    @PutMapping("/{id}/in-carico")
+    public ResponseEntity<Void> setInCarico(@PathVariable Integer id, @RequestBody List<String> valori) {
+        questService.setInCarico(id, valori);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -16,6 +16,8 @@ export interface Quest {
     totali: number;
     // già filtrate lato server in base a chi guarda: solo le note effettivamente visibili.
     note: Nota[];
+    // "In carico": righe di testo libero (es. nome personaggio/party), mostrate come chip.
+    inCarico: string[];
     figli: Quest[];
     // Solo per le quest radice: "PARTY" | "MONDO" | "PERSONAGGIO". Assente/null per le sotto-quest.
     ambito: string | null;

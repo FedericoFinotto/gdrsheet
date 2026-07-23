@@ -192,6 +192,9 @@ public final class Constants {
     // e note libere (multi-valore: una riga per nota).
     public static final String ITEM_LABEL_QUEST_COMPLETATA = "QUEST_COMPLETATA";
     public static final String ITEM_LABEL_QUEST_PARTY = "QUEST_PARTY";
+    // "In carico": multi-valore, righe di testo libero (es. nome personaggio/party) mostrate come
+    // chip in cima all'accordion della quest/sotto-quest in scheda.
+    public static final String ITEM_LABEL_QUEST_IN_CARICO = "IN_CARICO";
 
     // Note: generiche, disponibili su qualunque tipo di item (non solo QUEST). Ogni riga
     // ItemLabel (chiave NOTA, multi-valore) contiene un JSON {testo, visibilita} — stessa

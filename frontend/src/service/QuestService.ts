@@ -13,3 +13,8 @@ export function getQuestParty(idParty: number): Promise<AxiosResponse<Quest[]>> 
 export function toggleQuestCompletata(idQuest: number): Promise<AxiosResponse<void>> {
     return api.post<void>(`/quest/${idQuest}/toggle`);
 }
+
+// Sostituisce integralmente le righe "In carico" di una quest (modifica rapida, senza editor).
+export function setQuestInCarico(idQuest: number, valori: string[]): Promise<AxiosResponse<void>> {
+    return api.put<void>(`/quest/${idQuest}/in-carico`, valori);
+}

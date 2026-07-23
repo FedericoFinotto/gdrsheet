@@ -89,6 +89,7 @@ const form = reactive<{
     personalizzata: boolean; incantesimiCustom: Array<{ id: number; nome: string; livello: number }>
   }>
   note: NotaRow[]
+  inCarico: string[]
   qta: number
   compendio: boolean
   visibilita: string
@@ -115,6 +116,7 @@ const form = reactive<{
   effetti: [],
   sezioniIncantesimi: [],
   note: [],
+  inCarico: [],
   qta: 1,
   utilizzi: null as number | null,
   compendio: false,
@@ -128,7 +130,7 @@ const form = reactive<{
 const open = reactive({
   labels: false, modificatori: false, attacchi: false, children: false, forme: false, effetti: false,
   campiLabel: false, descrOggetto: false, infoOggetto: false, infoVeicolo: false, descrAbilita: false, note: false,
-  incantesimi: false,
+  incantesimi: false, inCarico: false,
 })
 
 // Taglia fisica dell'oggetto (es. arma taglia Grande): puramente descrittiva, non modifica
@@ -171,6 +173,7 @@ async function preload() {
   form.infoVeicolo = {velocita: ''}
   form.descrAbilita = {straordinaria: false, magica: false, soprannaturale: false, naturale: false, divina: false}
   form.note = []
+  form.inCarico = []
   form.completata = false
   form.sezioniIncantesimi = []
   // righe SPELL_<n>* raccolte durante il giro delle label, riassemblate in sezioni a fine ciclo
@@ -237,6 +240,8 @@ async function preload() {
       } catch {
         // valore non JSON (dato legacy o corrotto): ignora la nota
       }
+    } else if (key === 'IN_CARICO') {
+      form.inCarico.push(val)
     } else if (campoKeysMulti.has(key)) {
       form.campiMulti[key].push(val)
     } else if (campoKeys.has(key) && !form.campi[key]) {
@@ -439,6 +444,7 @@ function restoreSnapshot(snap: any) {
   form.effetti = snap.effetti ?? []
   form.sezioniIncantesimi = snap.sezioniIncantesimi ?? []
   form.note = snap.note ?? []
+  form.inCarico = snap.inCarico ?? []
   form.qta = snap.qta ?? 1
   form.utilizzi = snap.utilizzi ?? null
   form.compendio = !!snap.compendio
@@ -500,6 +506,9 @@ const sumEffetti = computed(() =>
     form.effetti.map(c => `${c.condizione ?? 'Sempre'}: ${c.nome}`).join(', ') || '—')
 const sumNote = computed(() =>
     form.note.length ? `${form.note.length} nota${form.note.length > 1 ? 'e' : ''}` : '—')
+const sumInCarico = computed(() => form.inCarico.filter(v => v.trim()).join(', ') || '—')
+function addInCarico() { form.inCarico.push('') }
+function removeInCarico(i: number) { form.inCarico.splice(i, 1) }
 const sumDescrOggetto = computed(() => {
   const d = form.descrOggetto
   const flags = []
@@ -591,6 +600,10 @@ function buildPayload(): UpdateItemRequest {
   // Note generiche (qualunque item): ogni riga è un JSON {testo, visibilita}
   for (const n of form.note) {
     if (n.testo.trim()) labels.push({label: 'NOTA', valore: JSON.stringify({testo: n.testo, visibilita: n.visibilita})})
+  }
+  // Quest: "In carico" (righe di testo libero, es. nome personaggio/party)
+  for (const v of form.inCarico) {
+    if (v.trim()) labels.push({label: 'IN_CARICO', valore: v.trim()})
   }
   // utilizzi massimi (globale sull'item)
   if (form.utilizzi != null && Number.isInteger(form.utilizzi) && form.utilizzi > 0)
@@ -699,6 +712,7 @@ function resetForNew() {
   form.forme = []
   form.effetti = []
   form.note = []
+  form.inCarico = []
   form.qta = 1
   form.completata = false
 }
@@ -1036,6 +1050,27 @@ function onCancel() {
       </div>
     </section>
 
+    <!-- In carico: solo QUEST, righe di testo libero (nome personaggio/party) mostrate come chip
+         in cima all'accordion della quest/sotto-quest in scheda -->
+    <section v-if="isQuest" class="fold">
+      <button type="button" class="fold-head" @click="open.inCarico = !open.inCarico"
+              :aria-expanded="open.inCarico ? 'true' : 'false'">
+        <span class="fold-title">In carico</span>
+        <span class="fold-summary">{{ sumInCarico }}</span>
+        <span class="chev" :class="{ open: open.inCarico }">▸</span>
+      </button>
+      <div v-show="open.inCarico" class="fold-body">
+        <div v-if="!form.inCarico.length" class="muted">Nessuno.</div>
+        <div v-for="(v, i) in form.inCarico" :key="i" class="incarico-row">
+          <input type="text" class="incarico-input" :value="v" :disabled="disabledAll"
+                 placeholder="Nome personaggio o party"
+                 @input="form.inCarico[i] = ($event.target as HTMLInputElement).value"/>
+          <button type="button" class="btn-del" :disabled="disabledAll" @click="removeInCarico(i)" title="Rimuovi">✕</button>
+        </div>
+        <button type="button" class="btn-add" :disabled="disabledAll" @click="addInCarico">+ Aggiungi</button>
+      </div>
+    </section>
+
     <!-- Incantesimi (item generico): liste + slot/conosciuti a valore fisso, niente progressione -->
     <section v-if="!minimal && canHaveSpells" class="fold">
       <button type="button" class="fold-head" @click="open.incantesimi = !open.incantesimi"
@@ -1249,6 +1284,14 @@ textarea { resize: vertical; }
 .btn-del {
   border: 1px solid #fecaca; background: #fef2f2; color: #991b1b;
   border-radius: .5rem; padding: .25rem .5rem; cursor: pointer;
+}
+.btn-add {
+  justify-self: start; border: 1px dashed #d0d5dd; background: #fff;
+  border-radius: .5rem; padding: .4rem .7rem; cursor: pointer; font-size: .85rem;
+}
+.incarico-row { display: flex; gap: .4rem; margin-bottom: .4rem; }
+.incarico-input {
+  flex: 1; padding: .45rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; font: inherit;
 }
 
 .rank-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }

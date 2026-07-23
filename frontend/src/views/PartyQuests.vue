@@ -68,13 +68,17 @@ onMounted(load)
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; gap: .75rem;
   padding: .75rem 1rem; border-bottom: 1px solid #e5e7eb; background: inherit;
+  box-sizing: border-box;
 }
 .titolo { display: flex; flex-direction: column; }
 .titolo h1 { margin: 0; font-size: 1.1rem; }
 .sub { font-size: .8rem; color: #6b7280; }
 .btn { padding: .4rem .7rem; border-radius: .5rem; border: 1px solid transparent; cursor: pointer; }
 .btn.ghost { border-color: #d0d5dd; background: #fff; }
-.body { padding: .75rem 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px)); display: grid; gap: .5rem; align-content: start; }
+.body {
+  box-sizing: border-box;
+  padding: .75rem 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px)); display: grid; gap: .5rem; align-content: start;
+}
 .btn-add-item {
   justify-self: start; display: inline-flex; align-items: center; gap: .35rem;
   padding: .4rem .8rem; border: 1px dashed #94a3b8; border-radius: .5rem;

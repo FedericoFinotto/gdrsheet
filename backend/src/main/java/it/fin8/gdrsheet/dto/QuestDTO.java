@@ -26,6 +26,8 @@ public class QuestDTO {
     /** Foglie totali nell'intero sottoalbero. */
     private Integer totali;
     private List<NotaDTO> note;
+    /** "In carico": righe di testo libero (es. nome personaggio/party), mostrate come chip. */
+    private List<String> inCarico;
     private List<QuestDTO> figli;
     /** Solo per le quest radice: "PARTY" | "MONDO" | "PERSONAGGIO". Null per le sotto-quest. */
     private String ambito;
