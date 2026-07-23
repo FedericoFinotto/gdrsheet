@@ -12,9 +12,27 @@ const props = withDefaults(defineProps<{
   quest: Quest
   idPersonaggio?: number
   idParty?: number
-  depth?: number   // 0 = quest radice; passato in incremento ad ogni livello di sotto-quest
-}>(), {depth: 0})
+  depth?: number     // 0 = quest radice; passato in incremento ad ogni livello di sotto-quest
+  ramoIndex?: number // posizione tra i fratelli nel figli del genitore; determina il colore del ramo
+}>(), {depth: 0, ramoIndex: 0})
 const emit = defineEmits<{ (e: 'changed'): void }>()
+
+// Colore del "ramo" (linea che collega la sotto-quest al genitore e sottolinea il nome): un
+// colore diverso per ciascuna sotto-quest, assegnato per posizione (non per contenuto, a
+// differenza di coloreIncarico) così resta stabile anche se l'ordine dei fratelli non cambia.
+// Palette curata di 30 colori (non generata via formula): con una rotazione di tonalità pura
+// due colori vicini nell'elenco potevano finire troppo simili (es. entrambi sul rosso); una
+// lista scelta a mano garantisce che restino ben distinguibili anche fianco a fianco.
+const RAMI = [
+  '#e11d48', '#0ea5e9', '#16a34a', '#f97316', '#7c3aed', '#ca8a04', '#0891b2', '#db2777',
+  '#4d7c0f', '#2563eb', '#b91c1c', '#059669', '#9333ea', '#ea580c', '#0d9488', '#c026d3',
+  '#65a30d', '#1d4ed8', '#be123c', '#0284c7', '#a16207', '#7e22ce', '#15803d', '#d946ef',
+  '#f43f5e', '#0f766e', '#be185d', '#84cc16', '#6366f1', '#b45309',
+]
+function coloreRamo(indice: number): string {
+  return RAMI[indice % RAMI.length]
+}
+const ramoColore = computed(() => props.depth > 0 ? coloreRamo(props.ramoIndex) : undefined)
 
 const router = useRouter()
 const {openPopup} = usePopup()
@@ -22,6 +40,7 @@ const open = ref(false)
 const busy = ref(false)
 
 function apriInCarico() {
+  azioniVisibili.value = false
   openPopup(
       InCaricoQuickPopup,
       {
@@ -37,14 +56,44 @@ function apriInCarico() {
   )
 }
 
+// Tastini "+ In carico" e "Modifica": nascosti di default, appaiono/scompaiono tenendo premuto
+// sulla riga (tocco prolungato o click prolungato da desktop). Un tap normale continua ad
+// aprire/chiudere la quest come prima; solo se il timer arriva a scadenza (pressione tenuta) si
+// considera "hold" e si salta il toggle dell'apertura.
+const azioniVisibili = ref(false)
+let pressTimer: number | undefined
+let holdFired = false
+
+function onPressStart() {
+  holdFired = false
+  pressTimer = window.setTimeout(() => {
+    holdFired = true
+    azioniVisibili.value = !azioniVisibili.value
+  }, 450)
+}
+function onPressEnd() {
+  if (pressTimer !== undefined) {
+    clearTimeout(pressTimer)
+    pressTimer = undefined
+  }
+}
+function onHeadClick() {
+  if (holdFired) {
+    holdFired = false
+    return
+  }
+  open.value = !open.value
+}
+
 const isLeaf = computed(() => !props.quest.figli.length)
 const pct = computed(() => props.quest.totali > 0 ? Math.round(props.quest.completati * 100 / props.quest.totali) : 0)
 
-// "In carico" propagati verso l'alto: una quest mostra i propri valori PIÙ quelli di tutte le
-// sue sotto-quest (a qualunque profondità), deduplicati — così un genitore lascia intuire,
-// anche chiusa, chi è coinvolto più in basso nell'albero senza doverlo aprire fino in fondo.
-// L'editor rapido ("+ In carico") continua a leggere/scrivere solo quest.inCarico proprio: qui
-// è solo visualizzazione aggregata.
+// "In carico" propagati verso l'alto: una sotto-quest mostra i propri valori PIÙ quelli di tutte
+// le sue sotto-quest (a qualunque profondità), deduplicati — così un genitore lascia intuire,
+// anche chiusa, chi è coinvolto più in basso nell'albero senza doverlo aprire fino in fondo. La
+// quest principale (radice) mostra invece solo i propri, non quelli aggregati dei discendenti.
+// L'editor rapido ("+ In carico") continua a leggere/scrivere solo quest.inCarico proprio: qui è
+// solo visualizzazione.
 function inCaricoRicorsivo(q: Quest): string[] {
   const visti = new Set<string>(q.inCarico ?? [])
   for (const f of q.figli ?? []) {
@@ -52,15 +101,7 @@ function inCaricoRicorsivo(q: Quest): string[] {
   }
   return [...visti]
 }
-const inCaricoVisibili = computed(() => inCaricoRicorsivo(props.quest))
-
-// Bordo della pergamena radice: leggermente più "ink" quando completata. Le sotto-quest non
-// hanno una card propria (niente sfondo/bordo da calcolare): stanno sulla stessa pergamena del
-// genitore, si distinguono solo con indentazione/connettori/tipografia (vedi CSS).
-const cardStyle = computed(() => {
-  if (props.depth > 0) return {}
-  return pct.value === 100 ? {boxShadow: 'inset 0 0 0 1px #7a8a53, 0 3px 10px rgba(59,45,24,.18)'} : {}
-})
+const chipsVisibili = computed(() => props.depth === 0 ? (props.quest.inCarico ?? []) : inCaricoRicorsivo(props.quest))
 
 // Chip ambito: solo per le quest radice (le sotto-quest non hanno un proprio ambito).
 const ambitoLabel = computed(() => {
@@ -80,9 +121,17 @@ function visLabel(visibilita: string): string | null {
 
 async function onToggle() {
   if (busy.value) return
+  azioniVisibili.value = false
   busy.value = true
   try {
     await toggleQuestCompletata(props.quest.id)
+    // Il servizio ha già risposto: il cambio è garantito, quindi si mostra subito il flag
+    // invertito, aggiornando anche il conteggio di QUESTA riga (per una foglia totali è sempre 1
+    // e completati rispecchia solo completata) così l'anello/il timbro "Fatta" si aggiornano
+    // subito. Il ricaricamento completo dell'albero resta comunque utile per propagare il nuovo
+    // conteggio ai genitori più in alto.
+    props.quest.completata = !props.quest.completata
+    props.quest.completati = props.quest.completata ? props.quest.totali : 0
     emit('changed')
   } finally {
     busy.value = false
@@ -90,6 +139,7 @@ async function onToggle() {
 }
 
 function edit() {
+  azioniVisibili.value = false
   const params = new URLSearchParams()
   if (props.idPersonaggio) params.set('personaggio', String(props.idPersonaggio))
   else if (props.idParty) params.set('party', String(props.idParty))
@@ -99,49 +149,37 @@ function edit() {
 </script>
 
 <template>
-  <div class="quest-node" :class="{completa: pct === 100, 'is-nested': depth > 0}" :style="cardStyle">
-    <!-- Quest radice: frontespizio della pergamena, titolo centrato, controlli in una fascia sopra. -->
-    <div v-if="depth === 0" class="quest-head root-head" @click="open = !open">
-      <!-- Riga sempre visibile (anche a quest chiusa): ambito in alto a sinistra, contatore/
-           "Fatta" (se visibile) in alto a destra. -->
-      <div class="root-controls">
-        <span v-if="ambitoLabel" class="ambito-chip">{{ ambitoLabel }}</span>
-        <span v-if="pct === 100" class="stamp-fatta">Fatta</span>
-        <span v-else-if="!isLeaf" class="count">{{ quest.completati }} / {{ quest.totali }}</span>
-      </div>
-      <div v-if="(quest.inCarico ?? []).length" class="chip-row root">
-        <span v-for="(v, i) in (quest.inCarico ?? [])" :key="i" class="incarico-chip" :style="coloreIncarico(v)">{{ v }}</span>
-      </div>
-      <h2 class="scroll-title">{{ quest.nome }}</h2>
-    </div>
-    <!-- Sotto-quest: riga compatta, stessa pergamena del genitore. -->
-    <div v-else class="quest-head" @click="open = !open">
+  <div class="quest-node" :class="{completa: pct === 100, 'is-nested': depth > 0}"
+       :style="ramoColore ? {'--ramo': ramoColore} : undefined">
+    <div class="quest-head" :class="{'root-head': depth === 0, 'senza-padding-basso': depth > 0 && open && !isLeaf}"
+         @click="onHeadClick"
+         @mousedown="onPressStart" @mouseup="onPressEnd" @mouseleave="onPressEnd"
+         @touchstart.passive="onPressStart" @touchend="onPressEnd" @touchcancel="onPressEnd">
       <div class="titolo-wrap">
-        <div v-if="inCaricoVisibili.length" class="incarico-row">
-          <span v-for="(v, i) in inCaricoVisibili" :key="i" class="incarico-chip" :style="coloreIncarico(v)">{{ v }}</span>
+        <div v-if="chipsVisibili.length" class="chip-row">
+          <span v-for="(v, i) in chipsVisibili" :key="i" class="incarico-chip" :style="coloreIncarico(v)">{{ v }}</span>
         </div>
-        <span class="nome">{{ quest.nome }}</span>
+        <span class="nome" :class="{'nome-ramo': depth > 0 && open}">{{ quest.nome }}</span>
       </div>
-      <!-- Il contatore si nasconde solo quando la quest "ha solo se stessa" (foglia, nessuna
-           sotto-quest propria): in quel caso rifletterebbe solo il proprio stato completata/o,
-           già visibile altrove. Se è fatta, il "Fatta" prende comunque il posto del contatore. -->
+      <span v-if="ambitoLabel" class="ambito-chip">{{ ambitoLabel }}</span>
       <span v-if="pct === 100" class="stamp-fatta">Fatta</span>
-      <span v-else-if="!isLeaf" class="count">{{ quest.completati }} / {{ quest.totali }}</span>
+      <span v-else-if="!isLeaf" class="count-ring" :style="{ '--pct': pct }">
+        <span class="count-ring-fill"></span>
+        <span class="count-ring-text">{{ quest.completati }}/{{ quest.totali }}</span>
+      </span>
+    </div>
+    <div v-if="azioniVisibili" class="azioni-flyout" @click.stop>
+      <button type="button" class="btn-incarico" @click="apriInCarico">
+        <span>+ In carico</span>
+      </button>
+      <button type="button" class="btn-edit" @click="edit" title="Modifica">✎</button>
+      <button v-if="isLeaf" type="button" class="btn-completata" :class="{done: quest.completata}"
+              :disabled="busy" @click="onToggle"
+              :title="quest.completata ? 'Segna come non completata' : 'Segna come completata'">
+        <span v-if="quest.completata">✓</span>
+      </button>
     </div>
     <div v-if="open" class="quest-body">
-      <div class="action-bar">
-        <button type="button" class="btn-incarico" @click="apriInCarico">
-          <span>+ In carico</span>
-        </button>
-        <div class="action-bar-right">
-          <button type="button" class="btn-edit" @click="edit" title="Modifica">✎</button>
-          <button v-if="isLeaf" type="button" class="btn-completata" :class="{done: quest.completata}"
-                  :disabled="busy" @click="onToggle"
-                  :title="quest.completata ? 'Segna come non completata' : 'Segna come completata'">
-            <span v-if="quest.completata">✓</span>
-          </button>
-        </div>
-      </div>
       <div v-if="quest.descrizione" class="descrizione" v-safe-html="quest.descrizione"></div>
       <div v-if="quest.note.length" class="note">
         <strong>Note</strong>
@@ -151,7 +189,7 @@ function edit() {
         </div>
       </div>
       <div v-if="quest.figli.length" class="figli">
-        <QuestNode v-for="f in quest.figli" :key="f.id" :quest="f" :depth="depth + 1"
+        <QuestNode v-for="(f, i) in quest.figli" :key="f.id" :quest="f" :depth="depth + 1" :ramo-index="i"
                    :id-personaggio="idPersonaggio" :id-party="idParty" @changed="emit('changed')"/>
       </div>
     </div>
@@ -159,174 +197,225 @@ function edit() {
 </template>
 
 <style scoped>
-/* Pergamena: tutto il testo dell'albero (radice e sotto-quest, che vivono nello stesso DOM
-   annidato) eredita questo font indipendentemente dai confini di componente. */
 .quest-node {
-  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
-  margin-bottom: .6rem;
+  position: relative;
+  background: #fff;
+  border: 1px solid #e5eaf0;
+  border-radius: .7rem;
+  margin-bottom: .45rem;
 }
-
-/* Quest radice: la pergamena vera e propria — bordo strappato, macchie di invecchiamento,
-   ombra leggera. Il colore "completata" (JS, cardStyle) inasprisce solo il bordo interno. */
-.quest-node:not(.is-nested) {
-  background: #ecdfbd;
-  background-image:
-    repeating-linear-gradient(0deg, rgba(120, 90, 40, .05) 0px, transparent 1px, transparent 3px),
-    repeating-linear-gradient(90deg, rgba(120, 90, 40, .035) 0px, transparent 1px, transparent 4px),
-    radial-gradient(ellipse at 12% 12%, rgba(139, 105, 20, .14), transparent 32%),
-    radial-gradient(ellipse at 90% 18%, rgba(139, 105, 20, .10), transparent 28%),
-    radial-gradient(ellipse at 22% 88%, rgba(139, 105, 20, .12), transparent 30%),
-    radial-gradient(ellipse at 82% 82%, rgba(139, 105, 20, .11), transparent 34%),
-    radial-gradient(ellipse at 55% 45%, rgba(139, 105, 20, .06), transparent 55%),
-    radial-gradient(circle at 50% 50%, transparent 55%, rgba(90, 65, 30, .1) 100%);
-  box-shadow: inset 0 0 0 1px #c9b077, 0 3px 10px rgba(59, 45, 24, .18);
-  border-radius: 6px;
-  clip-path: polygon(
-    0% 1.2%, 3% 0%, 9% .8%, 15% 0%, 22% .6%, 30% 0%, 38% .8%, 46% 0%, 54% .7%, 62% 0%,
-    70% .8%, 78% 0%, 86% .7%, 93% 0%, 100% 1.2%,
-    100% 98.8%, 96% 100%, 90% 99.2%, 84% 100%, 77% 99.3%, 70% 100%, 62% 99.2%, 54% 100%,
-    46% 99.3%, 38% 100%, 30% 99.2%, 22% 100%, 14% 99.3%, 7% 100%, 0% 98.8%
-  );
+.quest-node.completa {
+  background: #eafbf0;
+  border-color: #bfe8cc;
 }
-
-/* Sotto-quest (annidate in .figli, a qualunque profondità): niente pergamena propria — stanno
-   su quella del genitore, si distinguono con indentazione + connettori tratteggiati (sotto) e
-   testo via via più piccolo/tenue, non con un'altra card identica. */
-.figli .nome { font-weight: 500; font-size: .95rem; }
-.figli .figli .nome { font-weight: 400; font-size: .9rem; color: #6e5636; }
-
-/* Selettore a doppia classe (non solo .root-head) per battere in specificità .quest-head qui
-   sotto, che altrimenti — stessa specificità, dichiarato dopo — vincerebbe sul padding. */
-.quest-head.root-head { display: flex; flex-direction: column; gap: .2rem; padding: .7rem .8rem .5rem; cursor: pointer; }
-.root-controls { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: 1.2rem; }
-.scroll-title {
-  margin: 0; text-align: center; text-wrap: balance;
-  color: #3f2d18; font-size: 1.1rem; font-weight: 700; letter-spacing: .03em;
-}
-/* I chip "In carico" stanno sempre sopra al nome (root: sopra al titolo), mai in linea con
-   esso, con poco stacco tra le due righe. */
-.chip-row.root { display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem; margin-bottom: .1rem; }
 
 .quest-head {
-  display: flex; align-items: center; gap: .4rem;
-  padding: .3rem .4rem; cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem .65rem;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
+.quest-head.root-head { padding: .65rem .8rem; }
+/* Quando aperta e con sotto-quest: azzera il padding inferiore così il sottolineato del nome
+   si congiunge senza stacco con l'inizio della linea che scende verso i figli. */
+.quest-head.senza-padding-basso { padding-bottom: 0; }
+
+/* Tastini rapidi ("+ In carico"/Modifica): nascosti finché non si tiene premuto sulla riga,
+   poi appaiono come un piccolo pannello flottante sopra il bordo destro della card. */
+.azioni-flyout {
+  position: absolute;
+  top: -.3rem;
+  right: .5rem;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: .55rem;
+  padding: .3rem .4rem;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, .14);
+}
+
 .titolo-wrap {
-  flex: 1; min-width: 0;
-  display: flex; flex-direction: column; gap: .1rem;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .15rem;
 }
-.incarico-row { display: flex; flex-wrap: wrap; gap: .25rem; }
-.ambito-chip {
-  font-family: -apple-system, 'Segoe UI', sans-serif;
-  font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-  border: 1px solid #8a6a3f; color: #6e5636; background: transparent;
-  border-radius: 999px; padding: .1rem .55rem;
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: .3rem;
 }
+/* .nome è anche una classe globale non scoped (global.css, background: var(--primary-color) per
+   altri usi come box titolo): qui va azzerata esplicitamente, altrimenti quel background filtra
+   comunque perché lo scoping non impedisce alle regole di ALTRI file di applicarsi. */
+.nome { font-weight: 600; color: #1e293b; word-break: break-word; background: none; border-radius: 0; }
+.root-head .nome { font-weight: 700; font-size: 1.02rem; }
+/* Il ramo che arriva dal genitore "sottolinea" il nome della sotto-quest, con lo stesso colore
+   della sua linea di collegamento (vedi .figli::before). border-radius: 0 sopra è necessario:
+   .nome è anche una classe globale (badge "pill", border-radius grande) e un border-bottom su un
+   box con angoli molto arrotondati appare come un arco invece che una linea dritta. */
+.nome.nome-ramo { border-bottom: 2px solid var(--ramo); padding-bottom: 0; }
+
 .incarico-chip {
-  font-family: -apple-system, 'Segoe UI', sans-serif;
-  font-size: .68rem; font-weight: 700; letter-spacing: .01em;
-  border-radius: 999px; padding: .12rem .55rem;
-  box-shadow: inset 0 0 0 1px rgba(59, 45, 24, .18);
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+  border-radius: 999px;
+  padding: .1rem .5rem;
+  flex-shrink: 0;
+}
+.ambito-chip {
+  flex-shrink: 0;
+  font-size: .62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  background: transparent;
+  border-radius: 999px;
+  padding: .1rem .55rem;
 }
 .stamp-fatta {
-  display: inline-flex; align-items: center;
-  font-family: -apple-system, 'Segoe UI', sans-serif;
-  font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
-  color: #4a5c2e; border: 1.5px solid #4a5c2e; border-radius: 4px;
-  padding: .05rem .4rem; transform: rotate(-3deg); flex-shrink: 0;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #16a34a;
+  border: 1.5px solid #16a34a;
+  border-radius: 4px;
+  padding: .05rem .4rem;
+  transform: rotate(-3deg);
 }
-/* .nome è anche una classe globale non scoped (global.css, background: var(--primary-color)
-   per altri usi come box titolo): qui va azzerata esplicitamente, altrimenti quel background
-   filtra comunque perché lo scoping non impedisce alle regole di ALTRI file di applicarsi. */
-.nome { font-weight: 600; min-width: 0; word-break: break-word; background: none; color: #3f2d18; }
-.count {
+
+/* Contatore ad anello: traccia grigia + arco verde proporzionale alla percentuale, numero al
+   centro su un disco bianco (per creare l'effetto "ring" senza SVG). */
+.count-ring {
+  position: relative;
+  flex-shrink: 0;
+  width: 2.05rem;
+  height: 2.05rem;
+  border-radius: 50%;
+  background: conic-gradient(#22c55e calc(var(--pct) * 1%), #e2e8f0 0);
+}
+.count-ring-fill {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: #fff;
+}
+.count-ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .56rem;
+  font-weight: 700;
+  color: #334155;
   font-variant-numeric: tabular-nums;
-  font-family: -apple-system, 'Segoe UI', sans-serif;
-  font-size: .72rem; color: #8a6a3f; flex-shrink: 0;
-  border: 1px solid #b99a5f; border-radius: 999px; padding: .1rem .55rem;
 }
+
+.quest-body { padding: 0 .65rem .55rem; display: grid; gap: .45rem; }
+.btn-incarico {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  cursor: pointer;
+  font-size: .82rem;
+  font-weight: 600;
+  border: 1px dashed #94a3b8;
+  background: transparent;
+  color: #475569;
+  border-radius: .5rem;
+  padding: .35rem .7rem;
+}
+.btn-incarico:hover { background: #f1f5f9; }
 .btn-edit {
   flex-shrink: 0;
-  font-family: -apple-system, 'Segoe UI', sans-serif;
-  border: 1px solid #8a6a3f; background: transparent; color: #6e5636;
-  border-radius: .4rem; padding: .2rem .5rem; cursor: pointer; font-size: .8rem;
+  border: 1px solid #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: .4rem;
+  padding: .25rem .55rem;
+  cursor: pointer;
+  font-size: .8rem;
 }
-.quest-body { padding: 0 .5rem .4rem; display: grid; gap: .4rem; }
-.action-bar {
-  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
-  padding-bottom: .35rem; border-bottom: 1px dashed #b99a5f;
-}
-.action-bar-right { display: flex; align-items: center; gap: .4rem; }
-.btn-incarico {
-  font-family: -apple-system, 'Segoe UI', sans-serif;
-  display: inline-flex; align-items: center; gap: .3rem; cursor: pointer;
-  font-size: .85rem; font-weight: 600;
-  border: 1px dashed #8a6a3f; background: transparent; color: #6e5636;
-  border-radius: .5rem; padding: .35rem .7rem;
-}
-.btn-incarico:hover { background: rgba(139, 105, 20, .08); }
-/* Completata: quadratino come .btn-edit, spunta visibile solo quando completata — un solo tap
-   per invertire lo stato, niente checkbox/etichetta testuale. */
+/* Completata: quadratino, spunta visibile solo quando completata — un solo tap per invertire lo
+   stato, niente checkbox/etichetta testuale. */
 .btn-completata {
   flex-shrink: 0;
-  width: 1.9rem; height: 1.9rem;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: .4rem; cursor: pointer;
-  font-size: .85rem; font-weight: 700; line-height: 1;
-  border: 1px solid #8a6a3f; background: transparent; color: transparent;
+  width: 1.9rem;
+  height: 1.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: .4rem;
+  cursor: pointer;
+  font-size: .85rem;
+  font-weight: 700;
+  line-height: 1;
+  border: 1px solid #94a3b8;
+  background: transparent;
+  color: transparent;
 }
-.btn-completata.done { border-color: #4a5c2e; background: #4a5c2e; color: #ecdfbd; }
+.btn-completata.done { border-color: #16a34a; background: #16a34a; color: #fff; }
 .btn-completata:disabled { opacity: .6; cursor: default; }
-.descrizione { font-size: .9rem; color: #4a3a22; white-space: pre-wrap; }
+.descrizione { font-size: .88rem; color: #334155; white-space: pre-wrap; }
 .note strong {
-  font-family: -apple-system, 'Segoe UI', sans-serif;
-  font-size: .78rem; color: #8a6a3f; text-transform: uppercase; letter-spacing: .06em;
+  font-size: .75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .05em;
 }
 .nota-item { margin-top: .3rem; }
 .nota-vis {
-  display: inline-block; margin-bottom: .15rem;
-  font-family: -apple-system, 'Segoe UI', sans-serif;
-  font-size: .7rem; font-weight: 700;
-  color: #7a2e2e; background: transparent; border: 1px solid #7a2e2e; border-radius: .35rem; padding: .05rem .4rem;
+  display: inline-block;
+  margin-bottom: .15rem;
+  font-size: .68rem;
+  font-weight: 700;
+  color: #b91c1c;
+  background: transparent;
+  border: 1px solid #b91c1c;
+  border-radius: .35rem;
+  padding: .05rem .4rem;
 }
-.nota-html { margin: .2rem 0; font-size: .9rem; color: #4a3a22; }
-/* Linee di connessione ad albero: tratteggiate color inchiostro-seppia, una verticale lungo
-   tutto il gruppo di figli più una tacca orizzontale per ciascun figlio. */
+.nota-html { margin: .2rem 0; font-size: .88rem; color: #334155; }
+
+/* Linea di connessione ad albero: una verticale continua per ciascuna quest, dal primo
+   all'ultimo dei suoi figli — il colore (--ramo) è quello assegnato a QUESTA quest dal suo
+   genitore (vedi ramoColore/ramoIndex), quindi ogni sotto-albero ha la propria linea colorata. */
 .figli {
   position: relative;
-  margin-top: .15rem;
-  padding-left: .6rem;
+  margin-top: 0;
+  padding-top: .3rem;
+  padding-left: .32rem;
   display: grid;
-  gap: 3px;
+  gap: .4rem;
 }
+/* Allineata sulla stessa X del nome/sottolineato nel proprio quest-head (stesso padding
+   sinistro), così la linea sembra proseguire dritta da lì verso il basso. La linea stessa parte
+   comunque da top:0 (non dal padding-top qui sopra) per restare congiunta al sottolineato senza
+   stacco, anche se il primo figlio ha un po' di respiro sopra di sé. */
 .figli::before {
   content: '';
   position: absolute;
-  left: .25rem;
+  left: 0;
   top: 0;
-  bottom: .6rem;
-  width: 1px;
-  background: repeating-linear-gradient(to bottom, #8a6a3f 0 4px, transparent 4px 7px);
+  bottom: 0;
+  width: 2px;
+  background: var(--ramo, #bfdbfe);
 }
-.figli > .quest-node { position: relative; }
-/* Separatore tra una riga quest e la successiva: più evidente del solo gap. */
-.figli > .quest-node:not(:last-child) {
-  padding-bottom: 3px;
-  border-bottom: 1px dashed rgba(138, 106, 63, .4);
-}
-.figli > .quest-node::before {
-  content: '';
-  position: absolute;
-  left: -.35rem;
-  top: .65rem;
-  width: .35rem;
-  height: 1px;
-  background: #8a6a3f;
-}
-/* diramazioni più profonde: stesso schema ma più tenue, per non appiattire visivamente tutti
-   i livelli sullo stesso colore */
-.figli .figli::before {
-  background: repeating-linear-gradient(to bottom, #b99a5f 0 4px, transparent 4px 7px);
-}
-.figli .figli > .quest-node::before { background: #b99a5f; }
 </style>
