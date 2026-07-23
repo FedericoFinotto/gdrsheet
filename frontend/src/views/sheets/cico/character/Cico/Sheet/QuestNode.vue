@@ -40,6 +40,20 @@ function apriInCarico() {
 const isLeaf = computed(() => !props.quest.figli.length)
 const pct = computed(() => props.quest.totali > 0 ? Math.round(props.quest.completati * 100 / props.quest.totali) : 0)
 
+// "In carico" propagati verso l'alto: una quest mostra i propri valori PIÙ quelli di tutte le
+// sue sotto-quest (a qualunque profondità), deduplicati — così un genitore lascia intuire,
+// anche chiusa, chi è coinvolto più in basso nell'albero senza doverlo aprire fino in fondo.
+// L'editor rapido ("+ In carico") continua a leggere/scrivere solo quest.inCarico proprio: qui
+// è solo visualizzazione aggregata.
+function inCaricoRicorsivo(q: Quest): string[] {
+  const visti = new Set<string>(q.inCarico ?? [])
+  for (const f of q.figli ?? []) {
+    for (const v of inCaricoRicorsivo(f)) visti.add(v)
+  }
+  return [...visti]
+}
+const inCaricoVisibili = computed(() => inCaricoRicorsivo(props.quest))
+
 // Bordo della pergamena radice: leggermente più "ink" quando completata. Le sotto-quest non
 // hanno una card propria (niente sfondo/bordo da calcolare): stanno sulla stessa pergamena del
 // genitore, si distinguono solo con indentazione/connettori/tipografia (vedi CSS).
@@ -88,39 +102,45 @@ function edit() {
   <div class="quest-node" :class="{completa: pct === 100, 'is-nested': depth > 0}" :style="cardStyle">
     <!-- Quest radice: frontespizio della pergamena, titolo centrato, controlli in una fascia sopra. -->
     <div v-if="depth === 0" class="quest-head root-head" @click="open = !open">
+      <!-- Riga sempre visibile (anche a quest chiusa): ambito in alto a sinistra, contatore/
+           "Fatta" (se visibile) in alto a destra. -->
       <div class="root-controls">
-        <span class="chev" :class="{open}">▸</span>
-        <span class="count">{{ quest.completati }} / {{ quest.totali }}</span>
-        <button type="button" class="btn-edit" @click.stop="edit" title="Modifica">✎</button>
+        <span v-if="ambitoLabel" class="ambito-chip">{{ ambitoLabel }}</span>
+        <span v-if="pct === 100" class="stamp-fatta">Fatta</span>
+        <span v-else-if="!isLeaf" class="count">{{ quest.completati }} / {{ quest.totali }}</span>
+      </div>
+      <div v-if="(quest.inCarico ?? []).length" class="chip-row root">
+        <span v-for="(v, i) in (quest.inCarico ?? [])" :key="i" class="incarico-chip" :style="coloreIncarico(v)">{{ v }}</span>
       </div>
       <h2 class="scroll-title">{{ quest.nome }}</h2>
-      <div v-if="ambitoLabel || (quest.inCarico ?? []).length || pct === 100" class="chip-row root">
-        <span v-if="ambitoLabel" class="ambito-chip">{{ ambitoLabel }}</span>
-        <span v-for="(v, i) in (quest.inCarico ?? [])" :key="i" class="incarico-chip" :style="coloreIncarico(v)">{{ v }}</span>
-        <span v-if="pct === 100" class="stamp-fatta">Fatta</span>
-      </div>
     </div>
     <!-- Sotto-quest: riga compatta, stessa pergamena del genitore. -->
     <div v-else class="quest-head" @click="open = !open">
-      <span class="chev" :class="{open}">▸</span>
       <div class="titolo-wrap">
-        <span v-for="(v, i) in (quest.inCarico ?? [])" :key="i" class="incarico-chip" :style="coloreIncarico(v)">{{ v }}</span>
+        <div v-if="inCaricoVisibili.length" class="incarico-row">
+          <span v-for="(v, i) in inCaricoVisibili" :key="i" class="incarico-chip" :style="coloreIncarico(v)">{{ v }}</span>
+        </div>
         <span class="nome">{{ quest.nome }}</span>
-        <span v-if="pct === 100" class="stamp-fatta">Fatta</span>
       </div>
-      <span class="count">{{ quest.completati }} / {{ quest.totali }}</span>
-      <button type="button" class="btn-edit" @click.stop="edit" title="Modifica">✎</button>
+      <!-- Il contatore si nasconde solo quando la quest "ha solo se stessa" (foglia, nessuna
+           sotto-quest propria): in quel caso rifletterebbe solo il proprio stato completata/o,
+           già visibile altrove. Se è fatta, il "Fatta" prende comunque il posto del contatore. -->
+      <span v-if="pct === 100" class="stamp-fatta">Fatta</span>
+      <span v-else-if="!isLeaf" class="count">{{ quest.completati }} / {{ quest.totali }}</span>
     </div>
     <div v-if="open" class="quest-body">
       <div class="action-bar">
         <button type="button" class="btn-incarico" @click="apriInCarico">
           <span>+ In carico</span>
         </button>
-        <button v-if="isLeaf" type="button" class="btn-completata" :class="{done: quest.completata}"
-                :disabled="busy" @click="onToggle"
-                :title="quest.completata ? 'Segna come non completata' : 'Segna come completata'">
-          <span v-if="quest.completata">✓</span>
-        </button>
+        <div class="action-bar-right">
+          <button type="button" class="btn-edit" @click="edit" title="Modifica">✎</button>
+          <button v-if="isLeaf" type="button" class="btn-completata" :class="{done: quest.completata}"
+                  :disabled="busy" @click="onToggle"
+                  :title="quest.completata ? 'Segna come non completata' : 'Segna come completata'">
+            <span v-if="quest.completata">✓</span>
+          </button>
+        </div>
       </div>
       <div v-if="quest.descrizione" class="descrizione" v-safe-html="quest.descrizione"></div>
       <div v-if="quest.note.length" class="note">
@@ -143,7 +163,7 @@ function edit() {
    annidato) eredita questo font indipendentemente dai confini di componente. */
 .quest-node {
   font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
-  margin-bottom: 1rem;
+  margin-bottom: .6rem;
 }
 
 /* Quest radice: la pergamena vera e propria — bordo strappato, macchie di invecchiamento,
@@ -151,8 +171,14 @@ function edit() {
 .quest-node:not(.is-nested) {
   background: #ecdfbd;
   background-image:
-    radial-gradient(ellipse at 15% 20%, rgba(139, 105, 20, .10), transparent 40%),
-    radial-gradient(ellipse at 85% 75%, rgba(139, 105, 20, .12), transparent 45%);
+    repeating-linear-gradient(0deg, rgba(120, 90, 40, .05) 0px, transparent 1px, transparent 3px),
+    repeating-linear-gradient(90deg, rgba(120, 90, 40, .035) 0px, transparent 1px, transparent 4px),
+    radial-gradient(ellipse at 12% 12%, rgba(139, 105, 20, .14), transparent 32%),
+    radial-gradient(ellipse at 90% 18%, rgba(139, 105, 20, .10), transparent 28%),
+    radial-gradient(ellipse at 22% 88%, rgba(139, 105, 20, .12), transparent 30%),
+    radial-gradient(ellipse at 82% 82%, rgba(139, 105, 20, .11), transparent 34%),
+    radial-gradient(ellipse at 55% 45%, rgba(139, 105, 20, .06), transparent 55%),
+    radial-gradient(circle at 50% 50%, transparent 55%, rgba(90, 65, 30, .1) 100%);
   box-shadow: inset 0 0 0 1px #c9b077, 0 3px 10px rgba(59, 45, 24, .18);
   border-radius: 6px;
   clip-path: polygon(
@@ -169,24 +195,27 @@ function edit() {
 .figli .nome { font-weight: 500; font-size: .95rem; }
 .figli .figli .nome { font-weight: 400; font-size: .9rem; color: #6e5636; }
 
-.root-head { display: flex; flex-direction: column; gap: .4rem; padding: 1.2rem 1.3rem .9rem; cursor: pointer; }
-.root-controls { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+/* Selettore a doppia classe (non solo .root-head) per battere in specificità .quest-head qui
+   sotto, che altrimenti — stessa specificità, dichiarato dopo — vincerebbe sul padding. */
+.quest-head.root-head { display: flex; flex-direction: column; gap: .2rem; padding: .7rem .8rem .5rem; cursor: pointer; }
+.root-controls { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: 1.2rem; }
 .scroll-title {
-  margin: .1rem 0; text-align: center; text-wrap: balance;
-  color: #3f2d18; font-size: 1.2rem; font-weight: 700; letter-spacing: .03em;
+  margin: 0; text-align: center; text-wrap: balance;
+  color: #3f2d18; font-size: 1.1rem; font-weight: 700; letter-spacing: .03em;
 }
-.chip-row.root { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem; }
+/* I chip "In carico" stanno sempre sopra al nome (root: sopra al titolo), mai in linea con
+   esso, con poco stacco tra le due righe. */
+.chip-row.root { display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem; margin-bottom: .1rem; }
 
 .quest-head {
-  display: flex; align-items: center; gap: .5rem;
-  padding: .55rem .8rem; cursor: pointer;
+  display: flex; align-items: center; gap: .4rem;
+  padding: .3rem .4rem; cursor: pointer;
 }
-/* Titolo e chip: stanno sulla stessa riga finché entrano; se lo spazio non basta vanno a
-   capo, coi chip (primi nel DOM) sopra e il nome sotto — sempre dopo il chevron. */
 .titolo-wrap {
   flex: 1; min-width: 0;
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem .5rem;
+  display: flex; flex-direction: column; gap: .1rem;
 }
+.incarico-row { display: flex; flex-wrap: wrap; gap: .25rem; }
 .ambito-chip {
   font-family: -apple-system, 'Segoe UI', sans-serif;
   font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
@@ -206,8 +235,6 @@ function edit() {
   color: #4a5c2e; border: 1.5px solid #4a5c2e; border-radius: 4px;
   padding: .05rem .4rem; transform: rotate(-3deg); flex-shrink: 0;
 }
-.chev { transition: transform .15s ease; flex-shrink: 0; color: #8a6a3f; }
-.chev.open { transform: rotate(90deg); }
 /* .nome è anche una classe globale non scoped (global.css, background: var(--primary-color)
    per altri usi come box titolo): qui va azzerata esplicitamente, altrimenti quel background
    filtra comunque perché lo scoping non impedisce alle regole di ALTRI file di applicarsi. */
@@ -224,11 +251,12 @@ function edit() {
   border: 1px solid #8a6a3f; background: transparent; color: #6e5636;
   border-radius: .4rem; padding: .2rem .5rem; cursor: pointer; font-size: .8rem;
 }
-.quest-body { padding: 0 .8rem .7rem .8rem; display: grid; gap: .6rem; }
+.quest-body { padding: 0 .5rem .4rem; display: grid; gap: .4rem; }
 .action-bar {
   display: flex; align-items: center; justify-content: space-between; gap: .5rem;
-  padding-bottom: .5rem; border-bottom: 1px dashed #b99a5f;
+  padding-bottom: .35rem; border-bottom: 1px dashed #b99a5f;
 }
+.action-bar-right { display: flex; align-items: center; gap: .4rem; }
 .btn-incarico {
   font-family: -apple-system, 'Segoe UI', sans-serif;
   display: inline-flex; align-items: center; gap: .3rem; cursor: pointer;
@@ -266,27 +294,32 @@ function edit() {
    tutto il gruppo di figli più una tacca orizzontale per ciascun figlio. */
 .figli {
   position: relative;
-  margin-top: .3rem;
-  padding-left: 1.3rem;
+  margin-top: .15rem;
+  padding-left: .6rem;
   display: grid;
-  gap: 2px;
+  gap: 3px;
 }
 .figli::before {
   content: '';
   position: absolute;
-  left: .55rem;
+  left: .25rem;
   top: 0;
-  bottom: 1.05rem;
+  bottom: .6rem;
   width: 1px;
   background: repeating-linear-gradient(to bottom, #8a6a3f 0 4px, transparent 4px 7px);
 }
 .figli > .quest-node { position: relative; }
+/* Separatore tra una riga quest e la successiva: più evidente del solo gap. */
+.figli > .quest-node:not(:last-child) {
+  padding-bottom: 3px;
+  border-bottom: 1px dashed rgba(138, 106, 63, .4);
+}
 .figli > .quest-node::before {
   content: '';
   position: absolute;
-  left: -.75rem;
-  top: 1.05rem;
-  width: .65rem;
+  left: -.35rem;
+  top: .65rem;
+  width: .35rem;
   height: 1px;
   background: #8a6a3f;
 }
