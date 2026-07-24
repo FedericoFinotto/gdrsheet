@@ -815,7 +815,7 @@ public class PartyService {
     private static final double PESO_MO_KG = 0.01;
     private static final double PESO_MP_KG = 0.01;
 
-    public static double calcolaPesoMonete(PartyDetailDTO.SoldiDTO soldi) {
+    public double calcolaPesoMonete(PartyDetailDTO.SoldiDTO soldi) {
         return soldi.getMr() * PESO_MR_KG
                 + soldi.getMa() * PESO_MA_KG
                 + soldi.getMo() * PESO_MO_KG

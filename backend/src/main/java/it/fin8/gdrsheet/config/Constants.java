@@ -13,6 +13,12 @@ public final class Constants {
     // Stat fittizia: un CAMBIA_CARATTERISTICA su questa stat cambia la caratteristica base di TUTTI i tiri salvezza
     public static final String STAT_TUTTI_TS = "TSTUTTI";
 
+    // Chiavi in VariabiliDTO per valori calcolati fuori dai calcola* di ModificatoriService (non
+    // ricavabili da un item/caratteristica) e riletti al bisogno invece di essere ricalcolati.
+    public static final String VARIABILE_TAGLIA = "@TAGLIA";      // taglia attuale, con tutti i modificatori
+    public static final String VARIABILE_TAGLIA_BASE = "@TAGLIA_BASE"; // taglia base da anagrafica
+    public static final String VARIABILE_DIFFERENZA_TAGLIA = "@DIFFERENZA_TAGLIA"; // TAGLIA - TAGLIA_BASE
+
     // Gruppi di personaggi in un party (personaggio_label)
     public static final String LABEL_GRUPPO = "GRUPPO";          // valore = id del gruppo
     public static final String LABEL_CAPOGRUPPO = "CAPOGRUPPO";  // "1" = capogruppo del suo gruppo
@@ -229,6 +235,8 @@ public final class Constants {
     // Lunghezza/Larghezza (m) del personaggio: solo per le NAVE (Barche).
     public static final String LABEL_LUNGHEZZA = "LUNGHEZZA";
     public static final String LABEL_LARGHEZZA = "LARGHEZZA";
+
+    public static final String MODIFICATORE_TEMP = "Temporaneo";
 
     // Info anagrafiche del personaggio (personaggio_label)
     public static final List<String> PERSONAGGIO_INFO_LABELS = List.of(

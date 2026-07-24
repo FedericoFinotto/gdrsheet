@@ -133,10 +133,26 @@ const mappaRiga = (mod) => {
       ? ` [${modificatoreModificatore(mod)}]`
       : ''
   let valoreFinale = base === '+0' && extra === '' && formula ? formula : base + extra;
-  if (mod.tipo === 'PERCENTUALE') valoreFinale = valoreFinale + '%';
-  if (mod.tipo === 'MOLTIPLICA' && mod.formula) valoreFinale = `×${mod.formula} ${valoreFinale}`;
-  if (mod.tipo === 'DIVIDI' && mod.formula) valoreFinale = `/${mod.formula} ${valoreFinale}`;
-  if (mod.tipo === 'CAMBIA_CARATTERISTICA') valoreFinale = `Caratteristica → ${mod.formula ?? ''}`;
+  if ((mod.item === 'Moltiplicatore' || mod.item === 'Divisore') && mod.formula) {
+    // Modificatore già combinato dal backend (vedi estraiModificatoreMoltiplicaDividi): la formula
+    // è già il fattore ×/÷ netto finale completo di simbolo (es. "×1.5", "÷2", oppure con più
+    // decimali tipo "×3.3333333333333335"). Il calcolo resta quello esatto (non tocchiamo
+    // mod.valore): qui si tronca SOLO il testo mostrato a un decimale, per estetica.
+    const simbolo = mod.formula.charAt(0);
+    const numero = parseFloat(mod.formula.slice(1));
+    const fattoreTesto = Number.isFinite(numero)
+        ? `${simbolo}${Math.trunc(numero * 10) / 10}`
+        : mod.formula;
+    valoreFinale = `${fattoreTesto} ${valoreFinale}`;
+  } else if (mod.tipo === 'PERCENTUALE') {
+    valoreFinale = valoreFinale + '%';
+  } else if (mod.tipo === 'MOLTIPLICA' && mod.formula) {
+    valoreFinale = `×${mod.formula} ${valoreFinale}`;
+  } else if (mod.tipo === 'DIVIDI' && mod.formula) {
+    valoreFinale = `/${mod.formula} ${valoreFinale}`;
+  } else if (mod.tipo === 'CAMBIA_CARATTERISTICA') {
+    valoreFinale = `Caratteristica → ${mod.formula ?? ''}`;
+  }
   return {
     ...mod,
     origine: mod.item ?? 'Sconosciuto',

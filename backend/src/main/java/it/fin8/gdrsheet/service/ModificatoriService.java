@@ -37,173 +37,74 @@ public class ModificatoriService {
     @Autowired
     private StatRepository statRepository;
 
+    // ==================== CALCOLA* (metodi principali) ====================
 
+    /**
+     * Calcola una caratteristica (FOR/DES/COS/INT/SAG/CAR): somma i modificatori (VALORE, MOD
+     * raddoppiato, BASE, Temporaneo, taglia per COS), poi applica l'eventuale fattore ×/÷
+     * combinato (vedi estraiModificatoreMoltiplicaDividi) e deriva valore/modificatore/permanente.
+     */
     CaratteristicaDTO calcolaCaratteristica(
             StatValue stat,
             List<ModificatoreDTO> modsDto,
-            List<ContatoreItemDTO> contatoriItem,
-            List<ItemLabel> taglia
+            VariabiliDTO variabili
     ) {
 
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
-        if (!stat.getValore().equals("0")) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
-        }
-        if (stat.getStat().getId().equals("COS")) {
-            int differenzaTaglia = getTaglia(taglia) - getTagliaClasse(taglia);
-            if (differenzaTaglia != 0)
-                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), 4 * differenzaTaglia, null, null, TipoModificatore.VALORE, false, "Taglia", null, null));
-        }
-        if (!modsDto.isEmpty()) {
-            // Se non c'è un modificatore BASE (valori base non ancora impostati) la caratteristica parte da 0
-            ModificatoreDTO baseDto = prendiMaxDTO(modsDto, TipoModificatore.BASE);
-            if (baseDto != null) modificatoriAttivi.add(baseDto);
-        }
-        int valoreBase = (modsDto.stream().filter(x -> x.getTipoItem().equals(TipoItem.LIVELLO)).mapToInt(ModificatoreDTO::getValore).sum());
+        aggiungiTemporaneo(modificatoriAttivi, stat);
+        aggiungiModificatoreBase(modificatoriAttivi, modsDto);
+        aggiungiModificatoreTagliaCOS(modificatoriAttivi, stat, variabili);
+        aggiungiModificatoriValore(modificatoriAttivi, modsDto);
+        aggiungiModificatoriValoreDaMod(modificatoriAttivi, modsDto);
 
-        modificatoriAttivi.addAll(modsDto.stream().filter(m -> TipoModificatore.VALORE.equals(m.getTipo())).toList());
-        // MOD: vale metà di VALORE → muta il DTO a ×2 così popup e somma mostrano il valore effettivo
-        List<ModificatoreDTO> modDtos = modsDto.stream().filter(m -> TipoModificatore.MOD.equals(m.getTipo())).toList();
-        if (!modDtos.isEmpty()) modDtos.forEach(m -> {
-            if (m.getValore() != null)
-                m.setValore(m.getValore() * 2);
-            if (m.getFormula() != null && !m.getFormula().isBlank()) {
-                m.setFormula(m.getFormula().concat("*2"));
-            }
-        });
-        modificatoriAttivi.addAll(modDtos);
-        // MOLTIPLICA / DIVIDI: post-processing, inclusi nel popup
-        modificatoriAttivi.addAll(modsDto.stream().filter(m -> TipoModificatore.MOLTIPLICA.equals(m.getTipo()) || TipoModificatore.DIVIDI.equals(m.getTipo())).toList());
+        risolviFormule(modificatoriAttivi, variabili.mappa());
 
-        for (ModificatoreDTO modificatoreDTO : modificatoriAttivi) {
-            if (modificatoreDTO.getFormula() != null && (modificatoreDTO.getFormula().contains("$") || modificatoreDTO.getFormula().indexOf('@') >= 0)) {
-                try {
-                    modificatoreDTO.setFormula(calcoloService.calcola(modificatoreDTO.itemIdInFormula(), contatoriItem.stream().map(ContatoreItemDTO::toCaratteristicaDTO).toList()));
-                    modificatoreDTO.setValore(Integer.parseInt(modificatoreDTO.getFormula()));
-                } catch (Exception e) {
-                    modificatoriAttivi.remove(modificatoreDTO);
-                }
-            }
-        }
-
-        int valore = Optional.of(modificatoriAttivi)
-                .orElse(Collections.emptyList())
-                .stream()
-                .filter(x -> x.getNota() == null
-                        && !TipoModificatore.MOLTIPLICA.equals(x.getTipo())
-                        && !TipoModificatore.DIVIDI.equals(x.getTipo()))
+        int valore = modificatoriAttivi.stream()
+                .filter(x -> x.getNota() == null)
                 .mapToInt(ModificatoreDTO::getValore)
                 .sum();
 
-        // MOLTIPLICA/DIVIDI operano sul modificatore ((valore-10)/2), non sul valore grezzo
-        int runningMod = (valore - 10) / 2;
+        valore = aggiungiMoltiplicatoreDivisore(modificatoriAttivi, stat.getStat().getId(), modsDto, variabili, valore);
 
-        List<ModificatoreDTO> moltiplicatoriDto = modificatoriAttivi.stream()
-                .filter(x -> x.getNota() == null && TipoModificatore.MOLTIPLICA.equals(x.getTipo()) && x.getValore() != null)
-                .sorted(Comparator.comparingInt(ModificatoreDTO::getValore))
-                .toList();
-        for (ModificatoreDTO mDto : moltiplicatoriDto) {
-            int m = mDto.getValore();
-            mDto.setFormula(String.valueOf(m));  // moltiplicatore originale per il display (×N)
-            mDto.setValore(runningMod * (m - 1) * 2);
-            runningMod *= m;
-        }
-
-        List<ModificatoreDTO> divisoriDto = modificatoriAttivi.stream()
-                .filter(x -> x.getNota() == null && TipoModificatore.DIVIDI.equals(x.getTipo()) && x.getValore() != null && x.getValore() != 0)
-                .sorted(Comparator.comparingInt(ModificatoreDTO::getValore))
-                .toList();
-        for (ModificatoreDTO dDto : divisoriDto) {
-            int d = dDto.getValore();
-            int nuovoMod = runningMod / d;
-            dDto.setFormula(String.valueOf(d));  // divisore originale per il display (/N)
-            dDto.setValore((nuovoMod - runningMod) * 2);
-            runningMod = nuovoMod;
-        }
-
-        // riconverti in valore se ci sono stati MOLTIPLICA/DIVIDI
-        if (!moltiplicatoriDto.isEmpty() || !divisoriDto.isEmpty()) {
-            valore = runningMod * 2 + 10;
-        }
-
-        int valorePermanente = Optional.of(modificatoriAttivi)
-                .orElse(Collections.emptyList())
-                .stream()
+        int valorePermanente = modificatoriAttivi.stream()
                 .filter(x -> x.getNota() == null && Boolean.TRUE.equals(x.getSempreAttivo())
                         && !TipoModificatore.MOLTIPLICA.equals(x.getTipo())
                         && !TipoModificatore.DIVIDI.equals(x.getTipo()))
                 .mapToInt(ModificatoreDTO::getValore)
                 .sum();
 
-        if (modificatoriAttivi.stream().filter(x -> x.getNota() == null && Boolean.TRUE.equals(x.getSempreAttivo())).noneMatch(x -> x.getTipo().equals(TipoModificatore.BASE))) {
-            valorePermanente += valoreBase;
-        }
-
         return new CaratteristicaDTO(
                 stat.getStat().getId(),
                 stat.getStat().getLabel(),
                 valore,
-                (valore - 10) / 2,
-                (valorePermanente - 10) / 2,
+                valoreToMod(valore),
+                valoreToMod(valorePermanente),
                 modificatoriAttivi
         );
     }
 
+    /**
+     * Calcola un tiro salvezza (Tempra/Riflessi/Volontà): caratteristica base (con eventuale
+     * override CAMBIA_CARATTERISTICA specifico o globale) più i modificatori propri e Temporaneo.
+     */
     TiroSalvezzaDTO calcoloTiroSalvezza(
             StatValue stat,
             List<ModificatoreDTO> modsDto,
-            List<ContatoreItemDTO> contatoriItem,
+            VariabiliDTO variabili,
             List<CaratteristicaDTO> carList,
             List<ModificatoreDTO> cambiaGlobali
     ) {
-        List<ModificatoreDTO> mods = new ArrayList<>(modsDto);
-        // CAMBIA_CARATTERISTICA globale ("tutti i tiri salvezza"): unito ai mods, visibile nel popup
-        if (cambiaGlobali != null) {
-            for (ModificatoreDTO g : cambiaGlobali) {
-                if (mods.stream().noneMatch(m -> Objects.equals(m.getId(), g.getId()))) mods.add(g);
-            }
-        }
-        applicaCalcoli(mods, carList);
+        List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(modsDto);
+        aggiungiCambiaGlobali(modificatoriAttivi, cambiaGlobali);
 
-        // CAMBIA_CARATTERISTICA: sostituisce la caratteristica base del TS (specifico su questo TS o globale)
         String modStatId = stat.getMod() != null ? stat.getMod().getId() : null;
-        String tsId = stat.getStat().getId();
-        String cambiaSpecifico = mods.stream()
-                .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()) && tsId.equals(m.getStatId()))
-                .map(ModificatoreDTO::getFormula).filter(s -> s != null && !s.isBlank())
-                .reduce((a, b) -> b).orElse(null);
-        String cambiaGlobale = mods.stream()
-                .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()) && Constants.STAT_TUTTI_TS.equals(m.getStatId()))
-                .map(ModificatoreDTO::getFormula).filter(s -> s != null && !s.isBlank())
-                .reduce((a, b) -> b).orElse(null);
-        String cambia = cambiaSpecifico != null ? cambiaSpecifico : cambiaGlobale;
+        String cambia = risolviCambiaCaratteristica(modificatoriAttivi, stat.getStat().getId(), Constants.STAT_TUTTI_TS);
         if (cambia != null) modStatId = cambia;
 
-        List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
-        // Caratteristica base (con eventuale override CAMBIA_CARATTERISTICA)
-        if (modStatId != null) {
-            String finalBase = modStatId;
-            carList.stream().filter(c -> finalBase.equals(c.getId())).findFirst()
-                    .ifPresent(c -> modificatoriAttivi.add(new ModificatoreDTO(
-                            null, stat.getStat().getId(), c.getModificatore(), null, null,
-                            TipoModificatore.VALORE, true, c.getLabel(), null, null)));
-        }
-        modificatoriAttivi.addAll(mods);
+        aggiungiCaratteristicaBase(modificatoriAttivi, stat, carList, modStatId);
+        aggiungiTemporaneo(modificatoriAttivi, stat);
 
-        if (!stat.getValore().equals("0")) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
-        }
-
-        for (ModificatoreDTO modificatoreDTO : modificatoriAttivi) {
-            if (modificatoreDTO.getFormula() != null && (modificatoreDTO.getFormula().contains("$") || modificatoreDTO.getFormula().indexOf('@') >= 0)) {
-                try {
-                    modificatoreDTO.setFormula(calcoloService.calcola(modificatoreDTO.itemIdInFormula(), contatoriItem.stream().map(ContatoreItemDTO::toCaratteristicaDTO).toList()));
-                    modificatoreDTO.setValore(Integer.parseInt(modificatoreDTO.getFormula()));
-                } catch (Exception e) {
-                    modificatoriAttivi.remove(modificatoreDTO);
-                }
-            }
-        }
+        risolviFormule(modificatoriAttivi, variabili.mappa());
 
         int modificatore = modificatoriAttivi.stream()
                 .filter(x -> x.getNota() == null && !TipoModificatore.CAMBIA_CARATTERISTICA.equals(x.getTipo()))
@@ -218,200 +119,76 @@ public class ModificatoriService {
         );
     }
 
+    /**
+     * Calcola un'abilità: caratteristica base (con eventuale override CAMBIA_CARATTERISTICA
+     * specifico o globale) più i bonus dai modificatori e i gradi (di classe pieni, cross-class
+     * dimezzati, o "maxati" se il personaggio ha un rank forzato al massimo).
+     */
     AbilitaDTO calcolaAbilita(
             StatValue stat,
             List<ModificatoreDTO> modsDto,
             List<RankDTO> ranksDto,
             List<CaratteristicaDTO> carList,
             List<ModificatoreDTO> cambiaGlobali,
-            List<ContatoreItemDTO> contatoriItem
+            VariabiliDTO variabili
     ) {
         List<ModificatoreDTO> mods = new ArrayList<>(modsDto);
-        Map<String, String> valori = new HashMap<>();
-        valori.putAll(contatoriItem.stream()
-                .collect(Collectors.toMap(
-                        x -> "$".concat(x.getId()),
-                        x -> x.getValore().toString(),
-                        (a, b) -> a
-                )));
-        valori.putAll(carList.stream()
-                .collect(Collectors.toMap(
-                        x -> "@".concat(x.getId()),
-                        x -> x.getModificatore().toString(),
-                        (a, b) -> a
-                )));
+        aggiungiCambiaGlobali(mods, cambiaGlobali);
 
-        // CAMBIA_CARATTERISTICA globale ("tutte le abilità"): unito ai mods così viene preservato
-        // anche nelle ricomputazioni (es. sinergie) ed è visibile nel popup dell'abilità.
-        if (cambiaGlobali != null) {
-            for (ModificatoreDTO g : cambiaGlobali) {
-                if (mods.stream().noneMatch(m -> Objects.equals(m.getId(), g.getId()))) mods.add(g);
-            }
-        }
-        applicaCalcoli(mods, carList);
-
-        // CAMBIA_CARATTERISTICA: sostituisce la caratteristica base dell'abilità.
-        // La formula del modificatore contiene l'id della caratteristica bersaglio (es. "DES").
-        // Priorità all'override specifico dell'abilità, poi a quello globale.
         String modStatId = stat.getMod() != null ? stat.getMod().getId() : null;
-        String abId = stat.getStat().getId();
-        String cambiaSpecifico = mods.stream()
-                .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()) && abId.equals(m.getStatId()))
-                .map(ModificatoreDTO::getFormula).filter(s -> s != null && !s.isBlank())
-                .reduce((a, b) -> b).orElse(null);
-        String cambiaGlobale = mods.stream()
-                .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()) && Constants.STAT_TUTTE_ABILITA.equals(m.getStatId()))
-                .map(ModificatoreDTO::getFormula).filter(s -> s != null && !s.isBlank())
-                .reduce((a, b) -> b).orElse(null);
-        String cambia = cambiaSpecifico != null ? cambiaSpecifico : cambiaGlobale;
+        String cambia = risolviCambiaCaratteristica(mods, stat.getStat().getId(), Constants.STAT_TUTTE_ABILITA);
         if (cambia != null) modStatId = cambia;
 
-        CaratteristicaDTO cBase = null;
-        Integer modBase = 0;
-        if (modStatId != null) {
-            String finalModStatId = modStatId;
-            cBase = carList.stream()
-                    .filter(c -> finalModStatId.equals(c.getId()))
-                    .findFirst().orElse(null);
-            if (cBase != null) {
-                modBase = cBase.getModificatore();
-            }
-        }
-        int formulaBase = 0;
-        // guard "Formula" già presente: quando questo metodo viene richiamato una seconda volta sullo
-        // stesso modsDto già calcolato (es. applicaSinergie ricalcola l'abilità passando la sua stessa
-        // lista di modificatori finale), senza questo controllo la formula verrebbe riaggiunta e il suo
-        // valore sommato due volte.
-        boolean formulaGiaPresente = mods.stream()
-                .anyMatch(m -> "Formula".equals(m.getItem()) && stat.getStat().getId().equals(m.getStatId()));
-        if (!formulaGiaPresente && stat.getFormula() != null && !stat.getFormula().isBlank()) {
-            try {
-                mods.add(new ModificatoreDTO(null, stat.getStat().getId(), 0, stat.getFormula(), null, null, true, "Formula", null, null));
-            } catch (Exception ignored) {}
-        }
-        for (ModificatoreDTO modificatoreDTO : mods) {
-            if (modificatoreDTO.getFormula() != null && (modificatoreDTO.getFormula().contains("$") || modificatoreDTO.getFormula().indexOf('@') >= 0)) {
-                try {
-                    modificatoreDTO.setFormula(calcoloService.calcola(modificatoreDTO.itemIdInFormula(), valori));
-                    modificatoreDTO.setValore(Integer.parseInt(modificatoreDTO.getFormula()));
-                } catch (Exception e) {
-                    mods.remove(modificatoreDTO);
-                }
-            }
-        }
+        CaratteristicaDTO cBase = trovaCaratteristicaBase(carList, modStatId);
+        int modBase = cBase != null ? cBase.getModificatore() : 0;
+
+        aggiungiFormulaAbilita(mods, stat);
+        risolviFormule(mods, variabili.mappa());
         int bonusVal = mods.stream()
                 .filter(x -> x.getNota() == null && !TipoModificatore.CAMBIA_CARATTERISTICA.equals(x.getTipo()))
                 .mapToInt(ModificatoreDTO::getValore)
                 .sum();
-        int bonusRank = ranksDto.stream()
-                .filter(RankDTO::getSempreAttivo)
-                .collect(Collectors.teeing(
-                        Collectors.summingInt(r -> r.getDiClasse() ? r.getValore() : 0),
-                        Collectors.summingInt(r -> r.getDiClasse() ? 0 : r.getValore()),
-                        (cls, non) -> cls + non / 2
-                ));
 
-        int valoreRank = ranksDto.stream()
-                .filter(RankDTO::getSempreAttivo)
-                .mapToInt(RankDTO::getValore)
-                .sum();
-
-        Integer maxatoRank = ranksDto.stream().map(RankDTO::getMaxato).filter(Objects::nonNull).findFirst().orElse(null);
-        if (maxatoRank != null) {
-            bonusRank = maxatoRank;
-            valoreRank = maxatoRank;
-        }
-
-        int total = modBase + bonusVal + bonusRank;
+        RankTotali rank = calcolaRankTotali(ranksDto);
+        int total = modBase + bonusVal + rank.bonusRank();
 
         boolean negata = mods.stream().anyMatch(m -> TipoModificatore.NEGA.equals(m.getTipo()));
         boolean sbloccata = mods.stream().anyMatch(m -> TipoModificatore.SBLOCCA.equals(m.getTipo()));
-        AbilitaDTO dto = new AbilitaDTO(stat, total, mods, valoreRank, bonusRank, ranksDto, cBase);
+        AbilitaDTO dto = new AbilitaDTO(stat, total, mods, rank.valoreRank(), rank.bonusRank(), ranksDto, cBase);
         if (negata) dto.setNegata(true);
         if (sbloccata) dto.setSbloccata(true);
         return dto;
     }
 
+    /**
+     * Calcola CA/CAC/CAS: bonus di taglia, caratteristica base, e i bonus CA
+     * (schivare/armatura/naturale/scudo/magici, ciascuno preso al massimo per tipo) — ognuna delle
+     * tre stat ne usa un sottoinsieme diverso (vedi aggiungiModificatoriClasseArmatura).
+     */
     ClasseArmaturaDTO calcolaClasseArmatura(StatValue stat, List<ModificatoreDTO> modsDto, List<ModificatoreDTO> modsCADto,
-                                            List<CaratteristicaDTO> carList, List<ItemLabel> taglie,
-                                            List<ContatoreItemDTO> contatoriItem) {
-        int modificatore = 0;
-        // Come calcolaAbilita: risolve sia le variabili $<id> (contatori item) sia @<id>
-        // (caratteristiche) nelle formule dei modificatori, non solo @ come prima.
-        Map<String, String> valori = new HashMap<>();
-        valori.putAll(contatoriItem.stream()
-                .collect(Collectors.toMap(
-                        x -> "$".concat(x.getId()),
-                        x -> x.getValore().toString(),
-                        (a, b) -> a
-                )));
-        valori.putAll(contatoriItem.stream()
-                .collect(Collectors.toMap(
-                        x -> "@".concat(x.getId()),
-                        x -> x.getValore().toString(),
-                        (a, b) -> a
-                )));
-        valori.putAll(carList.stream()
-                .collect(Collectors.toMap(
-                        x -> "@".concat(x.getId()),
-                        x -> x.getModificatore().toString(),
-                        (a, b) -> a
-                )));
-        applicaCalcoli(modsDto, valori);
-        applicaCalcoli(modsCADto, valori);
-        int taglia = getTaglia(taglie);
+                                            List<CaratteristicaDTO> carList,
+                                            VariabiliDTO variabili) {
+        // modsCADto è SEMPRE la lista grezza della stat "CA" (modsDtoByStat.get("CA")), la stessa
+        // istanza riusata per le tre chiamate CA/CAC/CAS: risolviFormule rimuove le entry con
+        // formula non valutabile, quindi va applicata a una COPIA, non alla lista condivisa
+        // (altrimenti la prima chiamata la accorcerebbe anche per le altre due).
+        risolviFormule(modsDto, variabili.mappa());
+        List<ModificatoreDTO> modsCADtoRisolti = risolviCopia(modsCADto, variabili);
+        int taglia = variabili.getInt(Constants.VARIABILE_TAGLIA);
 
-        ModificatoreDTO schivare = prendiMaxDTO(modsCADto, TipoModificatore.CA_SCHIVARE);
-        ModificatoreDTO armor = prendiMaxDTO(modsCADto, TipoModificatore.CA_ARMOR);
-        ModificatoreDTO naturale = prendiMaxDTO(modsCADto, TipoModificatore.CA_NATURALE);
-        ModificatoreDTO scudo = prendiMaxDTO(modsCADto, TipoModificatore.CA_SHIELD);
-        ModificatoreDTO magici = prendiMaxDTO(modsCADto, TipoModificatore.CA_MAGIC);
-
+        BonusCA bonus = estraiBonusCA(modsCADtoRisolti);
         List<ModificatoreDTO> valore = modsDto.stream().filter(x -> x.getNota() == null && (TipoModificatore.VALORE.equals(x.getTipo()) || TipoModificatore.CA_DEVIAZIONE.equals(x.getTipo()))).toList();
-        List<ModificatoreDTO> valoreCA = modsCADto.stream().filter(x -> x.getNota() == null && (TipoModificatore.VALORE.equals(x.getTipo()) || TipoModificatore.CA_DEVIAZIONE.equals(x.getTipo()))).toList();
+        List<ModificatoreDTO> valoreCA = modsCADtoRisolti.stream().filter(x -> x.getNota() == null && (TipoModificatore.VALORE.equals(x.getTipo()) || TipoModificatore.CA_DEVIAZIONE.equals(x.getTipo()))).toList();
+
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(valore);
-        if (taglia != 0) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), sizeModCaAttacco(taglia), "TAGLIA", null, null, true, "Taglia", null, null));
-        }
+        aggiungiTagliaCA(modificatoriAttivi, stat, taglia);
+        aggiungiTemporaneo(modificatoriAttivi, stat);
+        ModificatoreDTO baseMod = baseModDaCaratteristica(stat, carList);
+        aggiungiModificatoriClasseArmatura(modificatoriAttivi, stat, baseMod, bonus, valoreCA);
 
-        ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
-                .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel(), null, null)).orElse(null);
-
-        if (!stat.getValore().equals("0")) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
-        }
-
-
-        if (stat.getStat().getId().equals("CA")) {
-            modificatoriAttivi.addAll(Stream.of(
-                    baseMod, schivare, armor, naturale, scudo, magici
-            ).filter(Objects::nonNull).toList());
-        }
-        if (stat.getStat().getId().equals("CAC")) {
-            modificatoriAttivi.addAll(valoreCA);
-            modificatoriAttivi.addAll(Stream.of(
-                    baseMod, schivare, magici
-            ).filter(Objects::nonNull).toList());
-        }
-        if (stat.getStat().getId().equals("CAS")) {
-            modificatoriAttivi.addAll(valoreCA);
-            modificatoriAttivi.addAll(Stream.of(
-                    armor, naturale, scudo, magici
-            ).filter(Objects::nonNull).toList());
-        }
-
-        modificatoriAttivi.forEach(x -> {
-            if (x.getFormula() != null && (x.getFormula().contains("$") || x.getFormula().indexOf('@') >= 0)) {
-                try {
-                    x.setFormula(calcoloService.calcola(x.itemIdInFormula(), valori));
-                    x.setValore(Integer.parseInt(x.getFormula()));
-                } catch (Exception e) {
-                    modificatoriAttivi.remove(x);
-                }
-            }
-        });
-
-        modificatore = modificatoriAttivi.stream().mapToInt(ModificatoreDTO::getValore).sum();
+        // Niente risolviFormule qui: ogni entry di modificatoriAttivi arriva già risolta (da
+        // modsDto/modsCADtoRisolti sopra, o è un valore letterale come Taglia/baseMod/Temporaneo).
+        int modificatore = sommaValori(modificatoriAttivi);
 
         return new ClasseArmaturaDTO(
                 stat.getStat().getId(), stat.getStat().getLabel(),
@@ -419,134 +196,55 @@ public class ModificatoriService {
         );
     }
 
-    BonusAttaccoDTO calcolaBonusAttacco(StatValue stat, List<ModificatoreDTO> modsDto, List<ModificatoreDTO> modsBABDto, List<CaratteristicaDTO> carList, List<ItemLabel> taglie) {
-        int modificatore = 0;
-        int taglia = getTaglia(taglie);
-
-        applicaCalcoli(modsDto, carList);
+    /**
+     * Calcola BAB/LTT (Lotta)/GTT/MSC: BAB è il bonus attacco base grezzo; le altre tre aggiungono
+     * il BAB, la caratteristica base e un bonus di taglia (lineare per LTT, tabella non lineare
+     * per GTT/MSC, come CA/CAC/CAS).
+     */
+    BonusAttaccoDTO calcolaBonusAttacco(StatValue stat, List<ModificatoreDTO> modsDto, List<ModificatoreDTO> modsBABDto, List<CaratteristicaDTO> carList, VariabiliDTO variabili) {
+        int taglia = variabili.getInt(Constants.VARIABILE_TAGLIA);
+        risolviFormule(modsDto, variabili.mappa());
 
         List<ModificatoreDTO> valore = modsDto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList();
         List<ModificatoreDTO> valoreBAB = modsBABDto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList();
         int modificatoreBAB = valoreBAB.stream().mapToInt(ModificatoreDTO::getValore).sum();
+
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(valore);
+        aggiungiTemporaneo(modificatoriAttivi, stat);
+        ModificatoreDTO baseMod = baseModDaCaratteristica(stat, carList);
 
-        ModificatoreDTO baseMod = null;
-        if (stat.getMod() != null) {
-            baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
-                    .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel(), null, null)).orElse(null);
-        }
-
-        if (!stat.getValore().equals("0")) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
-        }
-
-        if (stat.getStat().getId().equals("BAB")) {
-            modificatore = Optional.of(modificatoriAttivi)
-                    .map(list -> list.stream()
-                            .mapToInt(ModificatoreDTO::getValore)
-                            .sum())
-                    .orElse(0);
-        }
-        if (stat.getStat().getId().equals("LTT")) {
-            modificatoriAttivi.addAll(valoreBAB);
-            modificatoriAttivi.add(baseMod);
-            if (taglia != 0)
-                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), 4 * taglia, "4*TAGLIA", null, null, true, "Taglia", null, null));
-            modificatore = Optional.of(modificatoriAttivi)
-                    .map(list -> list.stream()
-                            .mapToInt(ModificatoreDTO::getValore)
-                            .sum())
-                    .orElse(0);
-        }
-        if (stat.getStat().getId().equals("GTT")) {
-            modificatoriAttivi.addAll(valoreBAB);
-            modificatoriAttivi.add(baseMod);
-            if (taglia != 0)
-                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), sizeModCaAttacco(taglia), "TAGLIA", null, null, true, "Taglia", null, null));
-            modificatore = Optional.of(modificatoriAttivi)
-                    .map(list -> list.stream()
-                            .mapToInt(ModificatoreDTO::getValore)
-                            .sum())
-                    .orElse(0);
-        }
-        if (stat.getStat().getId().equals("MSC")) {
-            modificatoriAttivi.addAll(valoreBAB);
-            modificatoriAttivi.add(baseMod);
-            if (taglia != 0)
-                modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), sizeModCaAttacco(taglia), "TAGLIA", null, null, true, "Taglia", null, null));
-            modificatore = Optional.of(modificatoriAttivi)
-                    .map(list -> list.stream()
-                            .mapToInt(ModificatoreDTO::getValore)
-                            .sum())
-                    .orElse(0);
-
-        }
+        String id = stat.getStat().getId();
+        int modificatore = switch (id) {
+            case "BAB" -> sommaValori(modificatoriAttivi);
+            case "LTT" -> aggiungiTagliaEValoreBAB(modificatoriAttivi, stat, valoreBAB, baseMod, taglia, true);
+            case "GTT", "MSC" -> aggiungiTagliaEValoreBAB(modificatoriAttivi, stat, valoreBAB, baseMod, taglia, false);
+            default -> 0;
+        };
 
         return new BonusAttaccoDTO(
-                stat.getStat().getId(), stat.getStat().getLabel(),
+                id, stat.getStat().getLabel(),
                 modificatore, computeIterativeAttacks(modificatoreBAB, modificatore), modificatoriAttivi
         );
     }
 
+    /**
+     * Calcola un contatore generico (es. PF): la formula propria della stat (es. "10+@LVL"), la
+     * caratteristica base, e (solo per PF) il malus da livelli maledetti.
+     */
     public ContatoreDTO calcolaContatore(StatValue stat,
                                          List<ModificatoreDTO> modsDto,
                                          List<CaratteristicaDTO> carList,
                                          DadiVitaDTO dadiVita,
                                          List<Item> livelloItems,
-                                         List<ContatoreItemDTO> contatoriItem) {
+                                         VariabiliDTO variabili) {
         espandiIdInFormule(modsDto);
-        Map<String, String> valori = new HashMap<>();
-        valori.putAll(contatoriItem.stream()
-                .collect(Collectors.toMap(
-                        x -> "$".concat(x.getId()),
-                        x -> x.getValore().toString(),
-                        (a, b) -> a
-                )));
-        valori.putAll(carList.stream()
-                .collect(Collectors.toMap(
-                        x -> "@".concat(x.getId()),
-                        x -> x.getModificatore().toString(),
-                        (a, b) -> a
-                )));
-
-
-        applicaCalcoli(modsDto, valori);
-        try {
-            Integer.parseInt(stat.getValore());
-        } catch (Exception e) {
-            stat.setValore("0");
-        }
-
-//        for (ModificatoreDTO modificatoreDTO : modificatoriAttivi) {
-//            if (modificatoreDTO.getFormula() != null && (modificatoreDTO.getFormula().contains("$") || modificatoreDTO.getFormula().indexOf('@') >= 0)) {
-//                try {
-//                    modificatoreDTO.setFormula(calcoloService.calcola(modificatoreDTO.itemIdInFormula(), contatoriItem.stream().map(ContatoreItemDTO::toCaratteristicaDTO).toList()));
-//                    modificatoreDTO.setValore(Integer.parseInt(modificatoreDTO.getFormula()));
-//                } catch (Exception e) {
-//                    modificatoriAttivi.remove(modificatoreDTO);
-//                }
-//            }
-//        }
+        risolviFormule(modsDto, variabili.mappa());
+        assicuraValoreNumerico(stat);
 
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>(modsDto.stream().toList());
-
-        if (stat.getMod() != null) {
-            carList.stream()
-                    .filter(c -> c.getId().equals(stat.getMod().getId()))
-                    .findFirst().ifPresent(baseCar ->
-                            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getMod().getId(), baseCar.getModificatore(), null, null, null, true, stat.getMod().getLabel(), null, null)));
-        }
-
-        if (stat.getFormula() != null) {
-            String formula = stat.getFormula().replaceAll("@DV", String.valueOf(dadiVita.getTotale()));
-            int formulaEvaluated = Integer.parseInt(calcoloService.calcola(formula, valori));
-            modificatoriAttivi.add(new ModificatoreDTO(null, null, formulaEvaluated, formula, null, null, true, "BASE", null, null));
-        }
-
-        if (stat.getStat().getId().equals("PF")) {
-            modificatoriAttivi.addAll(livelloItems.stream().filter(x -> x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) != null).map(ModificatoriService::getMalusPF).toList());
-            modificatoriAttivi.addAll(dadiVita.getModPF());
-        }
+        aggiungiModCaratteristicaContatore(modificatoriAttivi, stat, carList);
+        aggiungiBaseFormulaContatore(modificatoriAttivi, stat, dadiVita, variabili);
+        aggiungiMalusPF(modificatoriAttivi, stat, livelloItems, dadiVita);
 
         int total = modificatoriAttivi.stream()
                 .filter(x -> x.getNota() == null)
@@ -562,132 +260,60 @@ public class ModificatoriService {
         );
     }
 
+    /**
+     * Calcola un attributo generico: VALORE/MOD/PERCENTUALE/MOLTIPLICA/DIVIDI applicati in
+     * sequenza (vedi calcolaValoreAttributo) — un meccanismo più semplice e indipendente da quello
+     * combinato usato in calcolaCaratteristica.
+     */
     AttributoDTO calcolaAttributo(
             StatValue stat,
             List<ModificatoreDTO> modsDto,
             List<CaratteristicaDTO> carList,
-            List<ContatoreItemDTO> contatoriItem
+            VariabiliDTO variabili
     ) {
         espandiIdInFormule(modsDto);
-        Map<String, String> valori = new HashMap<>();
-        valori.putAll(contatoriItem.stream()
-                .collect(Collectors.toMap(
-                        x -> "$".concat(x.getId()),
-                        x -> x.getValore().toString(),
-                        (a, b) -> a
-                )));
-        valori.putAll(carList.stream()
-                .collect(Collectors.toMap(
-                        x -> "@".concat(x.getId()),
-                        x -> x.getModificatore().toString(),
-                        (a, b) -> a
-                )));
-
-
-        applicaCalcoli(modsDto, valori);
-        int modificatore = 0;
+        risolviFormule(modsDto, variabili.mappa());
 
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
-        if (!stat.getValore().equals("0")) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
-        }
-        // VALORE: sempre attivi (senza nota) e situazionali (con nota)
-        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList());
-        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getNota() != null && x.getTipo() == TipoModificatore.VALORE).toList());
-        // MOD: vale metà di VALORE — inclusi nel popup, contribuiscono ×2 al totale
-        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getTipo() == TipoModificatore.MOD).toList());
-        // PERCENTUALE: calcolato separatamente, incluso nel popup
-        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getTipo() == TipoModificatore.PERCENTUALE).toList());
-        // MOLTIPLICA / DIVIDI: post-processing, inclusi nel popup
-        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getTipo() == TipoModificatore.MOLTIPLICA || x.getTipo() == TipoModificatore.DIVIDI).toList());
-
-        if (stat.getMod() != null) {
-            ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
-                    .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel(), null, null)).orElse(null);
+        aggiungiTemporaneo(modificatoriAttivi, stat);
+        aggiungiModificatoriAttributo(modificatoriAttivi, modsDto);
+        ModificatoreDTO baseMod = baseModDaCaratteristica(stat, carList);
+        if (baseMod != null) {
             modificatoriAttivi.add(baseMod);
         }
 
-        // Somma base: VALORE normale, MOD raddoppiato; esclusi PERCENTUALE, MOLTIPLICA, DIVIDI
-        modificatore = modificatoriAttivi.stream()
-                .filter(x -> x.getNota() == null
-                        && x.getTipo() != TipoModificatore.PERCENTUALE
-                        && x.getTipo() != TipoModificatore.MOLTIPLICA
-                        && x.getTipo() != TipoModificatore.DIVIDI)
-                .mapToInt(m -> TipoModificatore.MOD.equals(m.getTipo()) ? m.getValore() * 2 : m.getValore())
-                .sum();
-
-        // MOLTIPLICA: applica in ordine crescente di valore
-        List<Integer> moltiplicatori = modsDto.stream()
-                .filter(x -> x.getNota() == null && TipoModificatore.MOLTIPLICA.equals(x.getTipo()))
-                .map(ModificatoreDTO::getValore)
-                .filter(Objects::nonNull)
-                .sorted()
-                .toList();
-        for (int m : moltiplicatori) modificatore *= m;
-
-        // DIVIDI: applica in ordine crescente di valore (ignora divisione per 0)
-        List<Integer> divisori = modsDto.stream()
-                .filter(x -> x.getNota() == null && TipoModificatore.DIVIDI.equals(x.getTipo()))
-                .map(ModificatoreDTO::getValore)
-                .filter(Objects::nonNull)
-                .sorted()
-                .toList();
-        for (int d : divisori) if (d != 0) modificatore /= d;
-
-        int percentuale = modsDto.stream()
-                .filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.PERCENTUALE)
-                .mapToInt(ModificatoreDTO::getValore).sum();
+        int modificatore = calcolaValoreAttributo(modsDto, modificatoriAttivi);
+        Integer percentuale = calcolaPercentualeAttributo(modsDto);
 
         return new AttributoDTO(
                 stat.getStat().getId(), stat.getStat().getLabel(),
-                modificatore, percentuale == 0 ? null : percentuale, modificatoriAttivi
+                modificatore, percentuale, modificatoriAttivi
         );
     }
 
+    /**
+     * Calcola i dadi vita totali: un dado per livello di classe (esclusi quelli maledetti, gestiti
+     * a parte in calcolaContatore) più eventuali dadi vita extra da oggetti/buff.
+     */
     DadiVitaDTO calcolaDadiVita(
             StatValue stat,
             List<ModificatoreDTO> modsDto,
             List<CaratteristicaDTO> carList,
             List<Item> livelloItems,
-            List<ContatoreItemDTO> contatoriItem
+            VariabiliDTO variabili
     ) {
-        applicaCalcoli(modsDto, carList);
-
-        // Risolve formule con variabili ($QTA, @...) usando i contatori item, come calcolaCaratteristica
-        List<CaratteristicaDTO> contatoriCar = contatoriItem.stream()
-                .map(ContatoreItemDTO::toCaratteristicaDTO).toList();
-        for (ModificatoreDTO m : modsDto) {
-            if (m.getFormula() != null && (m.getFormula().contains("$") || m.getFormula().indexOf('@') >= 0)) {
-                try {
-                    String resolved = calcoloService.calcola(m.itemIdInFormula(), contatoriCar);
-                    m.setFormula(resolved);
-                    m.setValore(Integer.parseInt(resolved));
-                } catch (Exception ignored) {
-                    m.setValore(0);
-                }
-            }
-        }
+        risolviFormule(modsDto, variabili.mappa());
 
         List<ModificatoreDTO> modificatoriAttivi = new ArrayList<>();
         List<ModificatoreDTO> modPF = new ArrayList<>();
-        if (!stat.getValore().equals("0")) {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, "Temporaneo", null, null));
-        }
-        modificatoriAttivi.addAll(livelloItems.stream().filter(x -> x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) == null).map(x -> new ModificatoreDTO(null, stat.getStat().getId(), null, x.getLabel(Constants.ITEM_LABEL_DADI_VITA), null, TipoModificatore.VALORE, true, x.getNome(), null, TipoItem.LIVELLO)).toList());
-        modsDto.stream().filter(x -> !x.getTipoItem().equals(TipoItem.LIVELLO)).forEach(x -> {
-            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getLabel(), x.getValore(), x.getFormula(), null, null, true, x.getItem(), x.getItemId(), null));
-            try {
-                modPF.add(new ModificatoreDTO(null, "PF", DiceRoller.roll(x.getFormula(), true), x.getFormula(), null, TipoModificatore.VALORE, true, x.getItem(), x.getItemId(), null));
-            } catch (Exception ignored) {
-            }
-        });
+        aggiungiTemporaneo(modificatoriAttivi, stat);
+        aggiungiDadiVitaLivelli(modificatoriAttivi, stat, livelloItems);
+        aggiungiDadiVitaExtra(modificatoriAttivi, modPF, stat, modsDto);
 
         DiceSummary dice = utilService.combineDice(modificatoriAttivi, ModificatoreDTO::getFormula);
 
-
-        if (stat.getMod() != null) {
-            ModificatoreDTO baseMod = carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
-                    .findFirst().map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel(), null, null)).orElse(null);
+        ModificatoreDTO baseMod = baseModDaCaratteristica(stat, carList);
+        if (baseMod != null) {
             modificatoriAttivi.add(baseMod);
         }
 
@@ -696,6 +322,9 @@ public class ModificatoriService {
         );
     }
 
+    // ==================== API pubblica non "calcola*" ====================
+
+    /** Applica alla label $V_ (contatore) tutte le label $M_ (modificatori) che la referenziano, in ordine. */
     public ContatoreItemDTO calcolaContatoreItem(ItemLabel count, List<ItemLabel> modifiers) {
 
         String refVariabile = parseVariableFromLabel(count);
@@ -716,6 +345,7 @@ public class ModificatoriService {
         );
     }
 
+    /** Applica un singolo modificatore ($M_) a una variabile ($V_): +N/-N/=N sul suo valore. */
     public static void applyModifierFromLabel(ItemLabel var, ItemLabel mod) {
         if (var == null || mod == null) return;
 
@@ -739,7 +369,8 @@ public class ModificatoriService {
         }
     }
 
-
+    /** Risolve una label $M_... nell'id di variabile che modifica, con eventuale navigazione P/C
+     *  (padre/figlio) verso l'item che porta la variabile bersaglio. */
     public static String parseVariableToModFromLabel(ItemLabel mod) {
         String label = mod.getLabel();
         if (!label.startsWith("$M_")) return null;
@@ -763,233 +394,13 @@ public class ModificatoriService {
         return null;
     }
 
+    /** Id della variabile ($V_...) definita su questo item, o null se la label non è una variabile. */
     public static String parseVariableFromLabel(ItemLabel var) {
         String label = var.getLabel();
         if (!label.startsWith("$V_")) return null;
         Item item = var.getItem();
         String nomeVar = label.substring(3);
         return item.getId() + "_" + nomeVar;
-    }
-
-
-    private ModificatoreDTO prendiMaxDTO(List<ModificatoreDTO> mods, TipoModificatore tipo) {
-        if (tipo == TipoModificatore.BASE) {
-            ModificatoreDTO modForzato = mods.stream()
-                    .filter(m -> TipoModificatore.FORZATO.equals(m.getTipo()))
-                    .min(Comparator.comparing(ModificatoreDTO::getValore))
-                    .orElse(null);
-            if (modForzato != null) {
-                modForzato.setTipo(TipoModificatore.BASE);
-                return modForzato;
-            }
-        }
-        return mods.stream()
-                .filter(m -> tipo.equals(m.getTipo()))
-                .max(Comparator.comparing(ModificatoreDTO::getValore))
-                .orElse(null);
-    }
-
-    /**
-     * Taglia effettiva del personaggio. Parte dalla taglia base (la
-     * personaggio_label TAGLIA, rappresentata da una label con item nullo).
-     * Un item con label TAGLIA SOSTITUISCE la base. Infine le label ADD_TAGLIA
-     * sommano/sottraggono alla taglia effettiva.
-     */
-    // Modificatore di taglia per CA e attacco (mischia/gittata), tabella SRD indicizzata da taglia+4
-    // (taglia da -4 Piccolissima a +4 Colossale): NON è lineare oltre Grande/Piccola, raddoppia agli
-    // estremi (Mastodontica -4, Colossale -8, Minuta +4, Piccolissima +8) invece di continuare a scalare
-    // di 1 per passo. Diverso dal modificatore di Lotta/Presa, che è lineare (vedi uso diretto di
-    // "4*taglia" per LTT) e non va toccato.
-    private static final int[] SIZE_MOD_CA_ATTACCO = {8, 4, 2, 1, 0, -1, -2, -4, -8};
-
-    private int sizeModCaAttacco(int taglia) {
-        int idx = Math.max(0, Math.min(SIZE_MOD_CA_ATTACCO.length - 1, taglia + 4));
-        return SIZE_MOD_CA_ATTACCO[idx];
-    }
-
-    public Integer getTaglia(List<ItemLabel> taglia) {
-        try {
-            List<ItemLabel> set = taglia.stream()
-                    .filter(c -> c != null && Constants.ITEM_LABEL_TAGLIA.equals(c.getLabel()))
-                    .toList();
-
-            // taglia base: il SET del personaggio (item == null)
-            int effettiva = set.stream()
-                    .filter(x -> x.getItem() == null)
-                    .map(ItemLabel::getValore)
-                    .map(this::parseTaglia)
-                    .filter(Objects::nonNull)
-                    .findFirst()
-                    .orElse(0);
-
-            // override da item CLASSE: quello al livello più alto
-            TreeMap<Integer, ItemLabel> tagliaPerLivello = set.stream()
-                    .filter(c -> c.getItem() != null && c.getItem().getTipo() == TipoItem.CLASSE)
-                    .map(c -> new AbstractMap.SimpleEntry<>(estraiLvlDaTaglia(c), c))
-                    .filter(e -> e.getKey() != null)
-                    .collect(Collectors.toMap(
-                            AbstractMap.SimpleEntry::getKey,
-                            AbstractMap.SimpleEntry::getValue,
-                            (a, b) -> a,          // in caso di stesso LVL tieni il primo
-                            TreeMap::new          // <Integer, ItemLabel> dedotti correttamente
-                    ));
-            ItemLabel tagliaDiClasse = tagliaPerLivello.isEmpty()
-                    ? null
-                    : tagliaPerLivello.lastEntry().getValue();
-
-            // override da item NON di classe, NON trasformazione (es. trait razziale, oggetto magico)
-            ItemLabel tagliaAltro = set.stream()
-                    .filter(x -> x.getItem() != null
-                            && x.getItem().getTipo() != TipoItem.CLASSE
-                            && x.getItem().getTipo() != TipoItem.FRUTTO
-                            && x.getItem().getTipo() != TipoItem.FORMA
-                            && x.getItem().getTipo() != TipoItem.TRASFORMAZIONE)
-                    .findFirst()
-                    .orElse(null);
-
-            // override da FRUTTO / FORMA / TRASFORMAZIONE: priorità massima (sovrascrive tutto)
-            ItemLabel tagliaFrutto = set.stream()
-                    .filter(x -> x.getItem() != null && (
-                            TipoItem.FRUTTO.equals(x.getItem().getTipo())
-                            || TipoItem.FORMA.equals(x.getItem().getTipo())
-                            || TipoItem.TRASFORMAZIONE.equals(x.getItem().getTipo())))
-                    .findFirst()
-                    .orElse(null);
-
-            // un item con TAGLIA sostituisce la base (ordine crescente di priorità)
-            if (tagliaDiClasse != null) {
-                effettiva = Integer.parseInt(tagliaDiClasse.getValore());
-            }
-            if (tagliaAltro != null) {
-                effettiva = Integer.parseInt(tagliaAltro.getValore());
-            }
-            if (tagliaFrutto != null) {
-                effettiva = Integer.parseInt(tagliaFrutto.getValore());
-            }
-
-            // ADD_TAGLIA: incrementi/decrementi sulla taglia effettiva
-            int add = taglia.stream()
-                    .filter(c -> c != null && Constants.ITEM_LABEL_ADD_TAGLIA.equals(c.getLabel()))
-                    .map(c -> parseTaglia(c.getValore()))
-                    .filter(Objects::nonNull)
-                    .mapToInt(Integer::intValue)
-                    .sum();
-
-            return effettiva + add;
-        } catch (Exception e) {
-            return 0;
-        }
-
-    }
-
-    private Integer parseTaglia(String s) {
-        if (s == null) return null;
-        try {
-            return Integer.parseInt(s.trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private Integer getTagliaClasse(List<ItemLabel> taglia) {
-        try {
-            TreeMap<Integer, ItemLabel> tagliaPerLivello = taglia.stream()
-                    .filter(c -> c != null && Constants.ITEM_LABEL_TAGLIA.equals(c.getLabel()) && c.getItem() != null && c.getItem().getTipo() == TipoItem.CLASSE)
-                    .map(c -> new AbstractMap.SimpleEntry<>(estraiLvlDaTaglia(c), c))
-                    .filter(e -> e.getKey() != null)
-                    .collect(Collectors.toMap(
-                            AbstractMap.SimpleEntry::getKey,
-                            AbstractMap.SimpleEntry::getValue,
-                            (a, b) -> a,
-                            TreeMap::new
-                    ));
-
-            ItemLabel tagliaDiClasse = tagliaPerLivello.isEmpty() ? null : tagliaPerLivello.lastEntry().getValue();
-
-            if (tagliaDiClasse != null) {
-                return Integer.parseInt(tagliaDiClasse.getValore());
-            }
-            return 0;
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-
-    /** Il BAB si divide al massimo in 6 attacchi (regola di sistema), anche se il valore di
-     * partenza (per bonus da oggetti/buff) permetterebbe altrimenti più iterazioni. */
-    private static final int MAX_ATTACCHI_ITERATIVI = 6;
-
-    public static List<Integer> computeIterativeAttacks(int baseBab, int baseMod) {
-        List<Integer> attacks = new ArrayList<>();
-        int value = baseBab;
-        while (value > 0 && attacks.size() < MAX_ATTACCHI_ITERATIVI) {
-            attacks.add(baseMod);
-            value -= 5;
-            baseMod -= 5;
-        }
-        return attacks;
-    }
-
-    /**
-     * Normalizza le formule della lista: espande i riferimenti $VAR (senza ID esplicito)
-     * in $&lt;itemId&gt;_VAR, lasciando invariati i riferimenti già qualificati come $123_VAR.
-     * Esempio: "$1111_QTA+$QTA+@CAR*3" con itemId=456 → "$1111_QTA+$456_QTA+@CAR*3"
-     */
-    void espandiIdInFormule(List<ModificatoreDTO> mods) {
-        for (ModificatoreDTO m : mods) {
-            if (m.getFormula() == null || !m.getFormula().contains("$") || m.getItemId() == null) continue;
-            m.setFormula(m.getFormula().replaceAll("\\$(?!\\d+_)", "\\$" + m.getItemId() + "_"));
-        }
-    }
-
-    /**
-     * Overload diretto: accetta una mappa chiave→valore già pronta (es. "@CAR"→"7", "$1983_QTA"→"14").
-     */
-    private void applicaCalcoli(List<ModificatoreDTO> modsDto, Map<String, String> valori) {
-        modsDto.forEach(x -> {
-            try {
-                if (x.getValore() == null) {
-                    x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), valori)));
-                }
-            } catch (Exception e) {
-                x.setValore(0);
-            }
-        });
-    }
-
-    private void applicaCalcoli(List<ModificatoreDTO> modsDto, List<CaratteristicaDTO> carList) {
-        modsDto.forEach(x -> {
-            try {
-                if (x.getValore() == null) {
-                    x.setValore(Integer.parseInt(calcoloService.calcola(x.getFormula(), carList)));
-                }
-            } catch (Exception e) {
-                x.setFormula(x.getFormula());
-                x.setValore(0);
-            }
-
-        });
-    }
-
-    private void addModificatoreFromCaratteristica(List<ModificatoreDTO> modificatoriAttivi, StatValue stat, List<CaratteristicaDTO> carList) {
-        if (stat.getMod() != null) {
-            carList.stream()
-                    .filter(c -> c.getId().equals(stat.getMod().getId()))
-                    .findFirst()
-                    .ifPresent(c -> modificatoriAttivi.add(
-                            new ModificatoreDTO(
-                                    null,
-                                    stat.getStat().getId(),
-                                    c.getModificatore(),
-                                    null,
-                                    null,
-                                    TipoModificatore.VALORE,
-                                    true,
-                                    stat.getMod().getLabel(), null, null
-                            )
-                    ));
-        }
     }
 
     /**
@@ -1124,6 +535,11 @@ public class ModificatoriService {
         return getAbilitaClasse(getClassiUnicheDaLivelli(idPersonaggio), idClasse);
     }
 
+    /**
+     * Applica le sinergie tra abilità (5+ gradi in un'abilità sorgente danno un bonus fisso su
+     * un'abilità bersaglio, vedi listaSinergie): per ogni abilità con una sinergia attiva, aggiunge
+     * il modificatore di sinergia e ricalcola l'abilità, sostituendola nella lista.
+     */
     public void applicaSinergie(DatiPersonaggioDTO dp, List<CaratteristicaDTO> cars) {
         List<AbilitaDTO> abilitaList = dp.getAbilita();
 
@@ -1165,7 +581,7 @@ public class ModificatoriService {
                             ab.getRank().getRanks(),
                             cars,
                             Collections.emptyList(),
-                            List.of()
+                            costruisciVariabili(List.of(), cars)
                     );
 
                     abilitaList.set(i, nuovaAbilita);
@@ -1175,6 +591,7 @@ public class ModificatoriService {
         }
     }
 
+    /** Tabella statica delle sinergie tra abilità SRD 3.5 (abilità sorgente → abilità bersaglio → bonus). */
     private List<Sinergia> listaSinergie() {
         List<Sinergia> sinergie = new ArrayList<>();
         // TODO: Gestire Artigianato e Valutare diversi e aggiungere Sinergie
@@ -1208,6 +625,707 @@ public class ModificatoriService {
         return sinergie;
     }
 
+    // ==================== Helper privati usati dai calcola* ====================
+
+    /**
+     * BASE: prendiMaxDTO ne tiene solo uno (i BASE si sovrascrivono a vicenda) — quello rimasto è
+     * per definizione IL valore base della caratteristica, quindi sempre attivo anche se la
+     * entity da cui viene non lo segnava esplicitamente (altrimenti valorePermanente lo
+     * escluderebbe del tutto). Se non c'è un BASE (valori base non ancora impostati) non aggiunge
+     * nulla, la caratteristica parte da 0.
+     */
+    private void aggiungiModificatoreBase(List<ModificatoreDTO> modificatoriAttivi, List<ModificatoreDTO> modsDto) {
+        if (modsDto.isEmpty()) return;
+        ModificatoreDTO baseDto = prendiMaxDTO(modsDto, TipoModificatore.BASE);
+        if (baseDto == null) return;
+        if (!Boolean.TRUE.equals(baseDto.getSempreAttivo())) baseDto.setSempreAttivo(true);
+        modificatoriAttivi.add(baseDto);
+    }
+
+    /**
+     * Malus/bonus di taglia: solo su COS, +4 per punto di differenza tra taglia attuale e base
+     * (vedi Constants.VARIABILE_DIFFERENZA_TAGLIA, calcolata fuori una volta sola).
+     */
+    private void aggiungiModificatoreTagliaCOS(List<ModificatoreDTO> modificatoriAttivi, StatValue stat, VariabiliDTO variabili) {
+        if (!stat.getStat().getId().equals("COS")) return;
+        int differenzaTaglia = variabili.getInt(Constants.VARIABILE_DIFFERENZA_TAGLIA);
+        if (differenzaTaglia != 0) {
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), 4 * differenzaTaglia, null, null, TipoModificatore.VALORE, false, "Taglia", null, null));
+        }
+    }
+
+    /**
+     * Modificatori di tipo VALORE, aggiunti così come sono.
+     */
+    private void aggiungiModificatoriValore(List<ModificatoreDTO> modificatoriAttivi, List<ModificatoreDTO> modsDto) {
+        modificatoriAttivi.addAll(modsDto.stream().filter(m -> TipoModificatore.VALORE.equals(m.getTipo())).toList());
+    }
+
+    /**
+     * Modificatori di tipo MOD: valgono metà di VALORE → mutati a ×2 in-place (via peek) così
+     * popup e somma mostrano il valore effettivo, senza una lista intermedia inutile.
+     */
+    private void aggiungiModificatoriValoreDaMod(List<ModificatoreDTO> modificatoriAttivi, List<ModificatoreDTO> modsDto) {
+        modificatoriAttivi.addAll(modsDto.stream()
+                .filter(m -> TipoModificatore.MOD.equals(m.getTipo()))
+                .peek(m -> {
+                    if (m.getValore() != null) m.setValore(m.getValore() * 2);
+                    if (m.getFormula() != null && !m.getFormula().isBlank()) m.setFormula(m.getFormula().concat("*2"));
+                })
+                .toList());
+    }
+
+    /**
+     * Estrae (vedi estraiModificatoreMoltiplicaDividi) e aggiunge il modificatore MOLTIPLICA/DIVIDI
+     * combinato, se presente — il fattore netto ×/÷ moltiplica/divide direttamente il VALORE, non
+     * il modificatore ((valore-10)/2), che resta una derivazione automatica fatta più avanti (vedi
+     * valoreToMod). Ritorna il valore aggiornato con il delta del modificatore combinato.
+     */
+    private int aggiungiMoltiplicatoreDivisore(List<ModificatoreDTO> modificatoriAttivi, String statId, List<ModificatoreDTO> modsDto, VariabiliDTO variabili, int valore) {
+        ModificatoreDTO moltiplicaDividi = estraiModificatoreMoltiplicaDividi(statId, modsDto, variabili, valore);
+        if (moltiplicaDividi == null) return valore;
+        modificatoriAttivi.add(moltiplicaDividi);
+        return valore + moltiplicaDividi.getValore();
+    }
+
+    /**
+     * Unisce cambiaGlobali a mods evitando duplicati per id: usato da calcoloTiroSalvezza (TS
+     * globale) e calcolaAbilita (abilità globale) per rendere visibile l'override globale nel
+     * popup e preservarlo nelle ricomputazioni (es. sinergie).
+     */
+    private void aggiungiCambiaGlobali(List<ModificatoreDTO> mods, List<ModificatoreDTO> cambiaGlobali) {
+        if (cambiaGlobali == null) return;
+        for (ModificatoreDTO g : cambiaGlobali) {
+            if (mods.stream().noneMatch(m -> Objects.equals(m.getId(), g.getId()))) mods.add(g);
+        }
+    }
+
+    /**
+     * CAMBIA_CARATTERISTICA: id della caratteristica che sostituisce quella base di una stat/abilità
+     * (la formula del modificatore contiene l'id bersaglio, es. "DES"). Priorità all'override
+     * specifico su {@code statId}, poi a quello globale su {@code statGlobaleKey} (es.
+     * Constants.STAT_TUTTI_TS o STAT_TUTTE_ABILITA). null se non c'è nessun override.
+     */
+    private String risolviCambiaCaratteristica(List<ModificatoreDTO> mods, String statId, String statGlobaleKey) {
+        String specifico = mods.stream()
+                .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()) && statId.equals(m.getStatId()))
+                .map(ModificatoreDTO::getFormula).filter(s -> s != null && !s.isBlank())
+                .reduce((a, b) -> b).orElse(null);
+        String globale = mods.stream()
+                .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()) && statGlobaleKey.equals(m.getStatId()))
+                .map(ModificatoreDTO::getFormula).filter(s -> s != null && !s.isBlank())
+                .reduce((a, b) -> b).orElse(null);
+        return specifico != null ? specifico : globale;
+    }
+
+    /**
+     * Aggiunge il modificatore "caratteristica base" del tiro salvezza (con eventuale override
+     * CAMBIA_CARATTERISTICA già risolto in modStatId), se presente in carList.
+     */
+    private void aggiungiCaratteristicaBase(List<ModificatoreDTO> modificatoriAttivi, StatValue stat, List<CaratteristicaDTO> carList, String modStatId) {
+        if (modStatId == null) return;
+        carList.stream().filter(c -> modStatId.equals(c.getId())).findFirst()
+                .ifPresent(c -> modificatoriAttivi.add(new ModificatoreDTO(
+                        null, stat.getStat().getId(), c.getModificatore(), null, null,
+                        TipoModificatore.VALORE, true, c.getLabel(), null, null)));
+    }
+
+    /**
+     * La CaratteristicaDTO bersaglio di un'abilità (con eventuale override CAMBIA_CARATTERISTICA
+     * già risolto in modStatId), o null se modStatId è null o non trovata in carList.
+     */
+    private CaratteristicaDTO trovaCaratteristicaBase(List<CaratteristicaDTO> carList, String modStatId) {
+        if (modStatId == null) return null;
+        return carList.stream().filter(c -> modStatId.equals(c.getId())).findFirst().orElse(null);
+    }
+
+    /**
+     * Aggiunge a mods un modificatore "Formula" per la formula propria dell'abilità
+     * (stat.getFormula()), con guard "già presente": quando calcolaAbilita viene richiamato una
+     * seconda volta sullo stesso modsDto già calcolato (es. applicaSinergie ricalcola l'abilità
+     * passando la sua stessa lista di modificatori finale), senza questo controllo la formula
+     * verrebbe riaggiunta e il suo valore sommato due volte.
+     */
+    private void aggiungiFormulaAbilita(List<ModificatoreDTO> mods, StatValue stat) {
+        boolean formulaGiaPresente = mods.stream()
+                .anyMatch(m -> "Formula".equals(m.getItem()) && stat.getStat().getId().equals(m.getStatId()));
+        if (!formulaGiaPresente && stat.getFormula() != null && !stat.getFormula().isBlank()) {
+            try {
+                mods.add(new ModificatoreDTO(null, stat.getStat().getId(), 0, stat.getFormula(), null, null, true, "Formula", null, null));
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    /**
+     * Bonus rank di un'abilità (di classe pieno, cross-class dimezzato) e valore rank grezzo,
+     * entrambi sostituiti dal maxato se presente (rank "al massimo", es. da talento/abilità).
+     */
+    private record RankTotali(int bonusRank, int valoreRank) {
+    }
+
+    /** Calcola i totali rank (bonus e valore grezzo) a partire dai RankDTO sempre attivi, vedi RankTotali. */
+    private RankTotali calcolaRankTotali(List<RankDTO> ranksDto) {
+        int bonusRank = ranksDto.stream()
+                .filter(RankDTO::getSempreAttivo)
+                .collect(Collectors.teeing(
+                        Collectors.summingInt(r -> r.getDiClasse() ? r.getValore() : 0),
+                        Collectors.summingInt(r -> r.getDiClasse() ? 0 : r.getValore()),
+                        (cls, non) -> cls + non / 2
+                ));
+        int valoreRank = ranksDto.stream()
+                .filter(RankDTO::getSempreAttivo)
+                .mapToInt(RankDTO::getValore)
+                .sum();
+        Integer maxatoRank = ranksDto.stream().map(RankDTO::getMaxato).filter(Objects::nonNull).findFirst().orElse(null);
+        if (maxatoRank != null) return new RankTotali(maxatoRank, maxatoRank);
+        return new RankTotali(bonusRank, valoreRank);
+    }
+
+    /**
+     * Copia la lista e vi risolve le formule ($/@): usata quando la lista originale è condivisa
+     * tra più chiamate (es. modsCADto tra CA/CAC/CAS) e risolviFormule non può rimuoverne le entry
+     * in place senza accorciarla anche per le altre chiamate.
+     */
+    private List<ModificatoreDTO> risolviCopia(List<ModificatoreDTO> lista, VariabiliDTO variabili) {
+        List<ModificatoreDTO> copia = new ArrayList<>(lista);
+        risolviFormule(copia, variabili.mappa());
+        return copia;
+    }
+
+    /**
+     * I quattro bonus "prendi il massimo" di CA (schivare/armatura/naturale/scudo/magici),
+     * ciascuno il modificatore più alto del proprio tipo tra i modificatori della stat "CA".
+     */
+    private record BonusCA(ModificatoreDTO schivare, ModificatoreDTO armor, ModificatoreDTO naturale,
+                           ModificatoreDTO scudo, ModificatoreDTO magici) {
+    }
+
+    /** Estrae i cinque bonus CA (vedi BonusCA) dai modificatori della stat "CA". */
+    private BonusCA estraiBonusCA(List<ModificatoreDTO> modsCADtoRisolti) {
+        return new BonusCA(
+                prendiMaxDTO(modsCADtoRisolti, TipoModificatore.CA_SCHIVARE),
+                prendiMaxDTO(modsCADtoRisolti, TipoModificatore.CA_ARMOR),
+                prendiMaxDTO(modsCADtoRisolti, TipoModificatore.CA_NATURALE),
+                prendiMaxDTO(modsCADtoRisolti, TipoModificatore.CA_SHIELD),
+                prendiMaxDTO(modsCADtoRisolti, TipoModificatore.CA_MAGIC)
+        );
+    }
+
+    /**
+     * Modificatore di taglia per CA/CAC/CAS (tabella non lineare, vedi SIZE_MOD_CA_ATTACCO).
+     */
+    private void aggiungiTagliaCA(List<ModificatoreDTO> modificatoriAttivi, StatValue stat, int taglia) {
+        if (taglia != 0) {
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), sizeModCaAttacco(taglia), "TAGLIA", null, null, true, "Taglia", null, null));
+        }
+    }
+
+    /**
+     * CA/CAC/CAS pescano un sottoinsieme diverso dei bonus CA (una debolezza già SRD: CAC esclude
+     * naturale/scudo, CAS esclude base/schivare) — vedi CaratteristicaDTO per il significato di
+     * ciascun bonus.
+     */
+    private void aggiungiModificatoriClasseArmatura(List<ModificatoreDTO> modificatoriAttivi, StatValue stat, ModificatoreDTO baseMod, BonusCA bonus, List<ModificatoreDTO> valoreCA) {
+        String id = stat.getStat().getId();
+        if (id.equals("CA")) {
+            modificatoriAttivi.addAll(Stream.of(
+                    baseMod, bonus.schivare(), bonus.armor(), bonus.naturale(), bonus.scudo(), bonus.magici()
+            ).filter(Objects::nonNull).toList());
+        }
+        if (id.equals("CAC")) {
+            modificatoriAttivi.addAll(valoreCA);
+            modificatoriAttivi.addAll(Stream.of(
+                    baseMod, bonus.schivare(), bonus.magici()
+            ).filter(Objects::nonNull).toList());
+        }
+        if (id.equals("CAS")) {
+            modificatoriAttivi.addAll(valoreCA);
+            modificatoriAttivi.addAll(Stream.of(
+                    bonus.armor(), bonus.naturale(), bonus.scudo(), bonus.magici()
+            ).filter(Objects::nonNull).toList());
+        }
+    }
+
+    /**
+     * Somma i valore di una lista di modificatori già risolti (niente Optional: la lista non è mai null).
+     */
+    private int sommaValori(List<ModificatoreDTO> lista) {
+        return lista.stream().mapToInt(ModificatoreDTO::getValore).sum();
+    }
+
+    /**
+     * LTT/GTT/MSC condividono la stessa struttura (valoreBAB + baseMod + bonus di taglia), diversi
+     * solo per la formula di taglia: LTT è lineare (4*taglia, come da regola di Lotta/Presa), GTT e
+     * MSC usano la tabella non lineare (sizeModCaAttacco, come CA/CAC/CAS).
+     */
+    private int aggiungiTagliaEValoreBAB(List<ModificatoreDTO> modificatoriAttivi, StatValue stat, List<ModificatoreDTO> valoreBAB, ModificatoreDTO baseMod, int taglia, boolean tagliaLineare) {
+        modificatoriAttivi.addAll(valoreBAB);
+        if (baseMod != null) modificatoriAttivi.add(baseMod);
+        if (taglia != 0) {
+            int valoreTaglia = tagliaLineare ? 4 * taglia : sizeModCaAttacco(taglia);
+            String formula = tagliaLineare ? "4*TAGLIA" : "TAGLIA";
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getId(), valoreTaglia, formula, null, null, true, "Taglia", null, null));
+        }
+        return sommaValori(modificatoriAttivi);
+    }
+
+    /**
+     * Riporta stat.getValore() a "0" se non è un numero valido (guard difensiva usata da
+     * calcolaContatore prima di fare Integer.parseInt su di esso più avanti).
+     */
+    private void assicuraValoreNumerico(StatValue stat) {
+        try {
+            Integer.parseInt(stat.getValore());
+        } catch (Exception e) {
+            stat.setValore("0");
+        }
+    }
+
+    /**
+     * Modificatore "caratteristica base" di un contatore (es. PF da COS), se stat.getMod() è
+     * presente in carList.
+     */
+    private void aggiungiModCaratteristicaContatore(List<ModificatoreDTO> modificatoriAttivi, StatValue stat, List<CaratteristicaDTO> carList) {
+        if (stat.getMod() == null) return;
+        carList.stream()
+                .filter(c -> c.getId().equals(stat.getMod().getId()))
+                .findFirst().ifPresent(baseCar ->
+                        modificatoriAttivi.add(new ModificatoreDTO(null, stat.getMod().getId(), baseCar.getModificatore(), null, null, null, true, stat.getMod().getLabel(), null, null)));
+    }
+
+    /**
+     * Modificatore "BASE" di un contatore, dalla formula propria della stat (es. "10+@LVL" per
+     * PF): @DV viene espanso prima al totale dadi vita, poi il resto è valutato normalmente.
+     */
+    private void aggiungiBaseFormulaContatore(List<ModificatoreDTO> modificatoriAttivi, StatValue stat, DadiVitaDTO dadiVita, VariabiliDTO variabili) {
+        if (stat.getFormula() == null) return;
+        String formula = stat.getFormula().replaceAll("@DV", String.valueOf(dadiVita.getTotale()));
+        int formulaEvaluated = Integer.parseInt(calcoloService.calcola(formula, variabili.mappa()));
+        modificatoriAttivi.add(new ModificatoreDTO(null, null, formulaEvaluated, formula, null, null, true, "BASE", null, null));
+    }
+
+    /**
+     * Malus PF da livelli maledetti (solo per il contatore PF), più il pool di modificatori PF
+     * già calcolato altrove sui dadi vita.
+     */
+    private void aggiungiMalusPF(List<ModificatoreDTO> modificatoriAttivi, StatValue stat, List<Item> livelloItems, DadiVitaDTO dadiVita) {
+        if (!stat.getStat().getId().equals("PF")) return;
+        modificatoriAttivi.addAll(livelloItems.stream().filter(x -> x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) != null).map(ModificatoriService::getMalusPF).toList());
+        modificatoriAttivi.addAll(dadiVita.getModPF());
+    }
+
+    /**
+     * Aggiunge tutti i tipi di modificatore di un attributo generico (VALORE sempre/situazionali,
+     * MOD, PERCENTUALE, MOLTIPLICA/DIVIDI), così come sono — il calcolo vero e proprio (con MOD
+     * raddoppiato e moltiplica/dividi applicati) è in calcolaValoreAttributo.
+     */
+    private void aggiungiModificatoriAttributo(List<ModificatoreDTO> modificatoriAttivi, List<ModificatoreDTO> modsDto) {
+        // VALORE: sempre attivi (senza nota) e situazionali (con nota)
+        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.VALORE).toList());
+        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getNota() != null && x.getTipo() == TipoModificatore.VALORE).toList());
+        // MOD: vale metà di VALORE — inclusi nel popup, contribuiscono ×2 al totale
+        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getTipo() == TipoModificatore.MOD).toList());
+        // PERCENTUALE: calcolato separatamente, incluso nel popup
+        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getTipo() == TipoModificatore.PERCENTUALE).toList());
+        // MOLTIPLICA / DIVIDI: post-processing, inclusi nel popup
+        modificatoriAttivi.addAll(modsDto.stream().filter(x -> x.getTipo() == TipoModificatore.MOLTIPLICA || x.getTipo() == TipoModificatore.DIVIDI).toList());
+    }
+
+    /**
+     * Somma base (VALORE normale, MOD raddoppiato; esclusi PERCENTUALE/MOLTIPLICA/DIVIDI), poi
+     * applica in sequenza (ordine crescente di valore) i MOLTIPLICA e i DIVIDI — a differenza di
+     * estraiModificatoreMoltiplicaDividi (usato da calcolaCaratteristica), qui non sono combinati
+     * in un unico modificatore ridotto ai minimi termini: meccanismo più semplice, indipendente.
+     */
+    private int calcolaValoreAttributo(List<ModificatoreDTO> modsDto, List<ModificatoreDTO> modificatoriAttivi) {
+        int modificatore = modificatoriAttivi.stream()
+                .filter(x -> x.getNota() == null
+                        && x.getTipo() != TipoModificatore.PERCENTUALE
+                        && x.getTipo() != TipoModificatore.MOLTIPLICA
+                        && x.getTipo() != TipoModificatore.DIVIDI)
+                .mapToInt(m -> TipoModificatore.MOD.equals(m.getTipo()) ? m.getValore() * 2 : m.getValore())
+                .sum();
+
+        List<Integer> moltiplicatori = modsDto.stream()
+                .filter(x -> x.getNota() == null && TipoModificatore.MOLTIPLICA.equals(x.getTipo()))
+                .map(ModificatoreDTO::getValore)
+                .filter(Objects::nonNull)
+                .sorted()
+                .toList();
+        for (int m : moltiplicatori) modificatore *= m;
+
+        List<Integer> divisori = modsDto.stream()
+                .filter(x -> x.getNota() == null && TipoModificatore.DIVIDI.equals(x.getTipo()))
+                .map(ModificatoreDTO::getValore)
+                .filter(Objects::nonNull)
+                .sorted()
+                .toList();
+        for (int d : divisori) if (d != 0) modificatore /= d;
+
+        return modificatore;
+    }
+
+    /**
+     * Somma dei modificatori PERCENTUALE, null se 0 (per non mostrarla nel popup).
+     */
+    private Integer calcolaPercentualeAttributo(List<ModificatoreDTO> modsDto) {
+        int percentuale = modsDto.stream()
+                .filter(x -> x.getNota() == null && x.getTipo() == TipoModificatore.PERCENTUALE)
+                .mapToInt(ModificatoreDTO::getValore).sum();
+        return percentuale == 0 ? null : percentuale;
+    }
+
+    /**
+     * Un modificatore per livello di classe (Dado Vita di quel livello), esclusi i livelli
+     * maledetti (gestiti a parte, vedi aggiungiMalusPF/getMalusPF).
+     */
+    private void aggiungiDadiVitaLivelli(List<ModificatoreDTO> modificatoriAttivi, StatValue stat, List<Item> livelloItems) {
+        modificatoriAttivi.addAll(livelloItems.stream()
+                .filter(x -> x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) == null)
+                .map(x -> new ModificatoreDTO(null, stat.getStat().getId(), null, x.getLabel(Constants.ITEM_LABEL_DADI_VITA), null, TipoModificatore.VALORE, true, x.getNome(), null, TipoItem.LIVELLO))
+                .toList());
+    }
+
+    /**
+     * Modificatori extra ai dadi vita (oggetti/buff, non da livello): un modificatore normale in
+     * modificatoriAttivi, più il suo corrispettivo tiro di dado (via DiceRoller) nel pool modPF.
+     */
+    private void aggiungiDadiVitaExtra(List<ModificatoreDTO> modificatoriAttivi, List<ModificatoreDTO> modPF, StatValue stat, List<ModificatoreDTO> modsDto) {
+        modsDto.stream().filter(x -> !x.getTipoItem().equals(TipoItem.LIVELLO)).forEach(x -> {
+            modificatoriAttivi.add(new ModificatoreDTO(null, stat.getStat().getLabel(), x.getValore(), x.getFormula(), null, null, true, x.getItem(), x.getItemId(), null));
+            try {
+                modPF.add(new ModificatoreDTO(null, "PF", DiceRoller.roll(x.getFormula(), true), x.getFormula(), null, TipoModificatore.VALORE, true, x.getItem(), x.getItemId(), null));
+            } catch (Exception ignored) {
+            }
+        });
+    }
+
+    /** Il modificatore con valore più alto di un certo tipo; per BASE, un eventuale FORZATO vince
+     *  sempre (prendendo il minimo tra i forzati, non il massimo). */
+    private ModificatoreDTO prendiMaxDTO(List<ModificatoreDTO> mods, TipoModificatore tipo) {
+        if (tipo == TipoModificatore.BASE) {
+            ModificatoreDTO modForzato = mods.stream()
+                    .filter(m -> TipoModificatore.FORZATO.equals(m.getTipo()))
+                    .min(Comparator.comparing(ModificatoreDTO::getValore))
+                    .orElse(null);
+            if (modForzato != null) {
+                modForzato.setTipo(TipoModificatore.BASE);
+                return modForzato;
+            }
+        }
+        return mods.stream()
+                .filter(m -> tipo.equals(m.getTipo()))
+                .max(Comparator.comparing(ModificatoreDTO::getValore))
+                .orElse(null);
+    }
+
+    // Modificatore di taglia per CA e attacco (mischia/gittata), tabella SRD indicizzata da taglia+4
+    // (taglia da -4 Piccolissima a +4 Colossale): NON è lineare oltre Grande/Piccola, raddoppia agli
+    // estremi (Mastodontica -4, Colossale -8, Minuta +4, Piccolissima +8) invece di continuare a scalare
+    // di 1 per passo. Diverso dal modificatore di Lotta/Presa, che è lineare (vedi uso diretto di
+    // "4*taglia" per LTT) e non va toccato.
+    private static final int[] SIZE_MOD_CA_ATTACCO = {8, 4, 2, 1, 0, -1, -2, -4, -8};
+
+    /** Modificatore di taglia per CA/attacco dalla tabella non lineare SIZE_MOD_CA_ATTACCO. */
+    private int sizeModCaAttacco(int taglia) {
+        int idx = Math.max(0, Math.min(SIZE_MOD_CA_ATTACCO.length - 1, taglia + 4));
+        return SIZE_MOD_CA_ATTACCO[idx];
+    }
+
+    /**
+     * Taglia effettiva del personaggio. Parte dalla taglia base (la
+     * personaggio_label TAGLIA, rappresentata da una label con item nullo).
+     * Un item con label TAGLIA SOSTITUISCE la base. Infine le label ADD_TAGLIA
+     * sommano/sottraggono alla taglia effettiva.
+     */
+    public Integer getTaglia(List<ItemLabel> taglia) {
+        try {
+            List<ItemLabel> set = taglia.stream()
+                    .filter(c -> c != null && Constants.ITEM_LABEL_TAGLIA.equals(c.getLabel()))
+                    .toList();
+
+            // taglia base: il SET del personaggio (item == null)
+            int effettiva = set.stream()
+                    .filter(x -> x.getItem() == null)
+                    .map(ItemLabel::getValore)
+                    .map(this::parseTaglia)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(0);
+
+            // override da item CLASSE: quello al livello più alto
+            TreeMap<Integer, ItemLabel> tagliaPerLivello = set.stream()
+                    .filter(c -> c.getItem() != null && c.getItem().getTipo() == TipoItem.CLASSE)
+                    .map(c -> new AbstractMap.SimpleEntry<>(estraiLvlDaTaglia(c), c))
+                    .filter(e -> e.getKey() != null)
+                    .collect(Collectors.toMap(
+                            AbstractMap.SimpleEntry::getKey,
+                            AbstractMap.SimpleEntry::getValue,
+                            (a, b) -> a,          // in caso di stesso LVL tieni il primo
+                            TreeMap::new          // <Integer, ItemLabel> dedotti correttamente
+                    ));
+            ItemLabel tagliaDiClasse = tagliaPerLivello.isEmpty()
+                    ? null
+                    : tagliaPerLivello.lastEntry().getValue();
+
+            // override da item NON di classe, NON trasformazione (es. trait razziale, oggetto magico)
+            ItemLabel tagliaAltro = set.stream()
+                    .filter(x -> x.getItem() != null
+                            && x.getItem().getTipo() != TipoItem.CLASSE
+                            && x.getItem().getTipo() != TipoItem.FRUTTO
+                            && x.getItem().getTipo() != TipoItem.FORMA
+                            && x.getItem().getTipo() != TipoItem.TRASFORMAZIONE)
+                    .findFirst()
+                    .orElse(null);
+
+            // override da FRUTTO / FORMA / TRASFORMAZIONE: priorità massima (sovrascrive tutto)
+            ItemLabel tagliaFrutto = set.stream()
+                    .filter(x -> x.getItem() != null && (
+                            TipoItem.FRUTTO.equals(x.getItem().getTipo())
+                                    || TipoItem.FORMA.equals(x.getItem().getTipo())
+                                    || TipoItem.TRASFORMAZIONE.equals(x.getItem().getTipo())))
+                    .findFirst()
+                    .orElse(null);
+
+            // un item con TAGLIA sostituisce la base (ordine crescente di priorità)
+            if (tagliaDiClasse != null) {
+                effettiva = Integer.parseInt(tagliaDiClasse.getValore());
+            }
+            if (tagliaAltro != null) {
+                effettiva = Integer.parseInt(tagliaAltro.getValore());
+            }
+            if (tagliaFrutto != null) {
+                effettiva = Integer.parseInt(tagliaFrutto.getValore());
+            }
+
+            // ADD_TAGLIA: incrementi/decrementi sulla taglia effettiva
+            int add = taglia.stream()
+                    .filter(c -> c != null && Constants.ITEM_LABEL_ADD_TAGLIA.equals(c.getLabel()))
+                    .map(c -> parseTaglia(c.getValore()))
+                    .filter(Objects::nonNull)
+                    .mapToInt(Integer::intValue)
+                    .sum();
+
+            return effettiva + add;
+        } catch (Exception e) {
+            return 0;
+        }
+
+    }
+
+    /** Parsa una taglia come intero, null se non è un numero valido. */
+    private Integer parseTaglia(String s) {
+        if (s == null) return null;
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Taglia base scritta nelle info personaggio (la personaggio_label TAGLIA, item == null,
+     * stesso valore di partenza usato come "effettiva" in {@link #getTaglia(List)}), non l'attuale
+     * taglia effettiva (che tiene conto di eventuali override di classe/oggetto/trasformazione):
+     * la differenza taglia-attuale vs taglia-base usata per il malus/bonus COS deve confrontarsi
+     * con quanto impostato in anagrafica, non con la taglia "di classe". 0 se non impostata.
+     */
+    public Integer getTagliaBase(List<ItemLabel> taglia) {
+        try {
+            return taglia.stream()
+                    .filter(c -> c != null && Constants.ITEM_LABEL_TAGLIA.equals(c.getLabel()) && c.getItem() == null)
+                    .map(ItemLabel::getValore)
+                    .map(this::parseTaglia)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(0);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Il BAB si divide al massimo in 6 attacchi (regola di sistema), anche se il valore di
+     * partenza (per bonus da oggetti/buff) permetterebbe altrimenti più iterazioni.
+     */
+    private static final int MAX_ATTACCHI_ITERATIVI = 6;
+
+    /** Bonus di attacco di ciascun attacco iterativo (-5 ogni 5 punti di BAB, vedi MAX_ATTACCHI_ITERATIVI). */
+    public static List<Integer> computeIterativeAttacks(int baseBab, int baseMod) {
+        List<Integer> attacks = new ArrayList<>();
+        int value = baseBab;
+        while (value > 0 && attacks.size() < MAX_ATTACCHI_ITERATIVI) {
+            attacks.add(baseMod);
+            value -= 5;
+            baseMod -= 5;
+        }
+        return attacks;
+    }
+
+    /**
+     * Normalizza le formule della lista: espande i riferimenti $VAR (senza ID esplicito)
+     * in $&lt;itemId&gt;_VAR, lasciando invariati i riferimenti già qualificati come $123_VAR.
+     * Esempio: "$1111_QTA+$QTA+@CAR*3" con itemId=456 → "$1111_QTA+$456_QTA+@CAR*3"
+     */
+    void espandiIdInFormule(List<ModificatoreDTO> mods) {
+        for (ModificatoreDTO m : mods) {
+            if (m.getFormula() == null || !m.getFormula().contains("$") || m.getItemId() == null) continue;
+            m.setFormula(m.getFormula().replaceAll("\\$(?!\\d+_)", "\\$" + m.getItemId() + "_"));
+        }
+    }
+
+    /**
+     * Blocco "Temporaneo" (bonus/malus ad hoc inserito a mano su stat.getValore()): ripetuto
+     * identico in calcolaCaratteristica/calcoloTiroSalvezza/calcolaClasseArmatura/
+     * calcolaBonusAttacco/calcolaAttributo/calcolaDadiVita.
+     */
+    private void aggiungiTemporaneo(List<ModificatoreDTO> lista, StatValue stat) {
+        if (!stat.getValore().equals("0")) {
+            lista.add(new ModificatoreDTO(null, stat.getStat().getId(), Integer.parseInt(stat.getValore()), null, null, TipoModificatore.VALORE, false, Constants.MODIFICATORE_TEMP, null, null));
+        }
+    }
+
+    /**
+     * Converte un valore di caratteristica nel suo modificatore D&D 3.5. Per ora è solo (valore-10)/2.
+     */
+    private int valoreToMod(int valore) {
+        return (valore - 10) / 2;
+    }
+
+    /**
+     * ModificatoreDTO "base" derivato dalla caratteristica collegata a stat.getMod() (es. DES per
+     * CA, COS per PF...), o null se stat non ha una caratteristica di riferimento o questa non è
+     * (ancora) in carList. Ripetuto identico in calcolaClasseArmatura/calcolaBonusAttacco/
+     * calcolaAttributo/calcolaDadiVita (una delle copie non controllava stat.getMod() == null
+     * prima di usarlo, rischiando un NPE: qui è centralizzato e sempre sicuro).
+     */
+    private ModificatoreDTO baseModDaCaratteristica(StatValue stat, List<CaratteristicaDTO> carList) {
+        if (stat.getMod() == null) return null;
+        return carList.stream().filter(c -> c.getId().equals(stat.getMod().getId()))
+                .findFirst()
+                .map(x -> new ModificatoreDTO(null, x.getId(), x.getModificatore(), null, null, null, true, x.getLabel(), null, null))
+                .orElse(null);
+    }
+
+    /**
+     * Estrae da modsDto tutti i modificatori MOLTIPLICA/DIVIDI e li raggruppa in UN UNICO
+     * ModificatoreDTO (invece di lasciarne N separati, uno per fonte, fragili da leggere e da
+     * estendere con più di una fonte): la nota elenca ogni fonte con il suo ×N/÷N (una riga
+     * ciascuna, mostrata in piccolo/grigio a frontend sotto il titolo), la formula è il fattore
+     * ×/÷ NETTO combinato — prodotto dei moltiplicatori diviso prodotto dei divisori, ridotto ai
+     * minimi termini e applicato UNA SOLA VOLTA (non più una troncatura per ogni divisore in
+     * sequenza) — es. ×6 e ÷4 diventano "×1.5", non "×6 ÷4". Il titolo (item) è "Moltiplicatore"
+     * se il fattore netto è > 1, altrimenti "Divisore".
+     * <p>
+     * Il fattore ×/÷ va applicato al VALORE grezzo ({@code valoreBase}, già calcolato da
+     * VALORE+MOD), non al modificatore ((valore-10)/2): quest'ultimo resta una conversione
+     * derivata automaticamente più avanti (vedi {@link #valoreToMod}), non va ricalcolato qui. Il
+     * valore del modificatore restituito è quindi il delta da SOMMARE a {@code valoreBase} per
+     * ottenere il valore finale.
+     * <p>
+     * Ritorna null se non c'è nessun MOLTIPLICA/DIVIDI (con nota, valore o formula validi).
+     */
+    private ModificatoreDTO estraiModificatoreMoltiplicaDividi(String statId, List<ModificatoreDTO> modsDto, VariabiliDTO variabili, int valoreBase) {
+        List<ModificatoreDTO> candidati = new ArrayList<>(modsDto.stream()
+                .filter(m -> TipoModificatore.MOLTIPLICA.equals(m.getTipo()) || TipoModificatore.DIVIDI.equals(m.getTipo()))
+                .toList());
+        if (candidati.isEmpty()) return null;
+        risolviFormule(candidati, variabili.mappa());
+
+        List<ModificatoreDTO> moltiplicatoriDto = candidati.stream()
+                .filter(x -> x.getNota() == null && TipoModificatore.MOLTIPLICA.equals(x.getTipo()) && x.getValore() != null)
+                .toList();
+        List<ModificatoreDTO> divisoriDto = candidati.stream()
+                .filter(x -> x.getNota() == null && TipoModificatore.DIVIDI.equals(x.getTipo()) && x.getValore() != null && x.getValore() != 0)
+                .toList();
+        if (moltiplicatoriDto.isEmpty() && divisoriDto.isEmpty()) return null;
+
+        int numeratore = moltiplicatoriDto.stream().mapToInt(ModificatoreDTO::getValore).reduce(1, (a, b) -> a * b);
+        int denominatore = divisoriDto.stream().mapToInt(ModificatoreDTO::getValore).reduce(1, (a, b) -> a * b);
+        int mcd = mcd(numeratore, denominatore);
+        numeratore /= mcd;
+        denominatore /= mcd;
+
+        int nuovoValore = valoreBase * numeratore / denominatore;
+
+        String fonti = Stream.concat(
+                moltiplicatoriDto.stream().map(m -> m.getItem() + " (×" + m.getValore() + ")"),
+                divisoriDto.stream().map(d -> d.getItem() + " (÷" + d.getValore() + ")")
+        ).collect(Collectors.joining("\n"));
+
+        boolean nettoMoltiplicatore = numeratore > denominatore;
+        String fattoreFinale = (nettoMoltiplicatore ? "×" : "÷")
+                + formattaRapporto(nettoMoltiplicatore ? numeratore : denominatore, nettoMoltiplicatore ? denominatore : numeratore);
+
+        return new ModificatoreDTO(null, statId, nuovoValore - valoreBase, fattoreFinale,
+                fonti, TipoModificatore.MOLTIPLICA, false, nettoMoltiplicatore ? "Moltiplicatore" : "Divisore", null, null);
+    }
+
+    /** Massimo comun divisore (Euclide), per ridurre ai minimi termini il fattore ×/÷ combinato. */
+    private static int mcd(int a, int b) {
+        return b == 0 ? Math.max(a, 1) : mcd(b, a % b);
+    }
+
+    /**
+     * Formatta un rapporto a/b come decimale ESATTO (non troncato: il calcolo di runningMod non
+     * passa comunque da questa stringa, usa numeratore/denominatore interi), senza ".0" superfluo
+     * se è un intero (4/2 → "2"). Il troncamento a un decimale è solo estetico e va fatto lato
+     * frontend alla visualizzazione, non qui.
+     */
+    private static String formattaRapporto(int a, int b) {
+        double r = (double) a / b;
+        return r == Math.floor(r) ? String.valueOf((long) r) : String.valueOf(r);
+    }
+
+    /**
+     * Costruisce "variabili": $id->valore (contatori item) + @id->valore (contatori item,
+     * ripetuti anche come @ per le formule di CA che li referenziano così) + @id->modificatore
+     * (caratteristiche), usata per risolvere le formule dei modificatori in TUTTI i metodi
+     * calcola*. Costruita UNA SOLA VOLTA per personaggio da PersonaggioService (non più
+     * ricostruita identica dentro ogni singolo calcola*) e passata già pronta: chi ha bisogno di
+     * aggiungere altro (es. la taglia: calcolata fuori da PersonaggioService una volta sola, con
+     * getTaglia/getTagliaBase, e messa qui con setTagliaAttuale/setTagliaBase PRIMA di qualunque
+     * chiamata a calcolaCaratteristica/calcolaClasseArmatura/calcolaBonusAttacco) scrive
+     * direttamente in questa stessa istanza, condivisa, invece di calcolare/duplicare altrove.
+     */
+    public VariabiliDTO costruisciVariabili(List<ContatoreItemDTO> contatoriItem, List<CaratteristicaDTO> carList) {
+        VariabiliDTO variabili = new VariabiliDTO();
+        variabili.setAll(contatoriItem.stream()
+                .collect(Collectors.toMap(x -> "$".concat(x.getId()), x -> x.getValore().toString(), (a, b) -> a)));
+        variabili.setAll(contatoriItem.stream()
+                .collect(Collectors.toMap(x -> "@".concat(x.getId()), x -> x.getValore().toString(), (a, b) -> a)));
+        variabili.setAll(carList.stream()
+                .collect(Collectors.toMap(x -> "@".concat(x.getId()), x -> x.getModificatore().toString(), (a, b) -> a)));
+        return variabili;
+    }
+
+    /**
+     * Risolve le formule con variabili ($... o @...) di ciascun modificatore nel contesto dato
+     * (via calcoloService.calcola), sostituendo formula/valore; se la risoluzione fallisce, il
+     * modificatore viene scartato dalla lista. Usa un Iterator per rimuovere in sicurezza durante
+     * l'iterazione: le 4 copie di questo ciclo che c'erano prima (calcolaCaratteristica,
+     * calcoloTiroSalvezza, calcolaAbilita, calcolaClasseArmatura) rimuovevano dalla lista dentro
+     * un for-each/forEach sulla lista stessa, il che lancia ConcurrentModificationException non
+     * appena capita davvero una formula da scartare.
+     */
+    private void risolviFormule(List<ModificatoreDTO> lista, Map<String, String> contesto) {
+        Iterator<ModificatoreDTO> it = lista.iterator();
+        while (it.hasNext()) {
+            ModificatoreDTO m = it.next();
+            if (m.getFormula() != null && (m.getFormula().contains("$") || m.getFormula().indexOf('@') >= 0)) {
+                try {
+                    m.setFormula(calcoloService.calcola(m.itemIdInFormula(), contesto));
+                    m.setValore(Integer.parseInt(m.getFormula()));
+                } catch (Exception e) {
+                    it.remove();
+                }
+            }
+        }
+    }
+
+    /** Livello dell'item LIVELLO padre della classe che porta questa label TAGLIA, per ordinare
+     *  gli override di taglia per livello raggiunto (getTaglia tiene quello più alto). */
     private static Integer estraiLvlDaTaglia(ItemLabel c) {
         if (c == null || c.getItem() == null) return null;
 
@@ -1231,6 +1349,8 @@ public class ModificatoriService {
         }
     }
 
+    /** Malus PF per un livello "maledetto": il minimo tra i PF assegnati a quel livello e la
+     *  media dei dadi vita persi (vedi calcolaMalus). */
     private static ModificatoreDTO getMalusPF(Item itemLivello) {
         String dadoVita = itemLivello.getLabel(Constants.ITEM_LABEL_DADI_VITA);
         Modificatore modificatorePF = itemLivello.getModificatore(Constants.ITEM_LABEL_PUNTI_FERITA);
@@ -1242,6 +1362,7 @@ public class ModificatoriService {
         return new ModificatoreDTO(null, "PF", -1 * malus, null, null, TipoModificatore.VALORE, true, itemLivello.getNome() + " Maledetto", null, itemLivello.getTipo());
     }
 
+    /** Media SRD di un dado vita, arrotondata per eccesso (non aritmetica pura: d6 → 4, non 3.5). */
     private static int mediaDadoDND35(int M) {
         return switch (M) {
             case 4 -> 3;
@@ -1253,6 +1374,7 @@ public class ModificatoriService {
         };
     }
 
+    /** Punti vita persi per un dado vita "NdM" (es. "2d6"), usando la media SRD di ciascun dado. */
     private static int calcolaMalus(String dadoVita) {
         String[] parts = dadoVita.split("d");
         int N = Integer.parseInt(parts[0]);
@@ -1261,6 +1383,5 @@ public class ModificatoriService {
         int media = mediaDadoDND35(M);
         return N * media;
     }
-
 
 }

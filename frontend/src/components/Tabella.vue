@@ -301,6 +301,7 @@ img.row-icon {
 .subtext {
   font-size: 0.7rem;
   color: gray;
+  white-space: pre-line;
 }
 
 .tbl-row.is-negata {

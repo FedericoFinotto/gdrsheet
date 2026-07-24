@@ -1129,6 +1129,20 @@ public class PersonaggioService {
 
         dto.getContatoriItem().addAll(itemCounterList);
 
+        // "variabili": raccoglie $id/@id per risolvere le formule di TUTTI i calcola* che seguono,
+        // costruita una sola volta (non più ricostruita identica dentro ognuno). Le caratteristiche
+        // non esistono ancora a questo punto (vengono calcolate subito sotto): le loro entry "@id"
+        // vengono aggiunte alla STESSA istanza non appena carList è pronta. La taglia (che serve a
+        // calcolaCaratteristica/calcolaClasseArmatura/calcolaBonusAttacco) è calcolata QUI, fuori da
+        // quei metodi, una volta sola, e scritta subito in variabili invece di essere ricalcolata
+        // identica in ciascuno.
+        VariabiliDTO variabili = modificatoriService.costruisciVariabili(itemCounterList, List.of());
+        int tagliaPerVariabili = modificatoriService.getTaglia(taglia);
+        int tagliaBasePerVariabili = modificatoriService.getTagliaBase(taglia);
+        variabili.set(Constants.VARIABILE_TAGLIA, tagliaPerVariabili);
+        variabili.set(Constants.VARIABILE_TAGLIA_BASE, tagliaBasePerVariabili);
+        variabili.set(Constants.VARIABILE_DIFFERENZA_TAGLIA, tagliaPerVariabili - tagliaBasePerVariabili);
+
         // Valuta formulaQty sui collegamenti usando i contatori già calcolati
         List<Collegamento> conFormula = collegamentoRepository.findWithFormulaQty(itemIds, itemIds);
         if (!conFormula.isEmpty()) {
@@ -1150,13 +1164,16 @@ public class PersonaggioService {
                 .map(sv -> modificatoriService.calcolaCaratteristica(
                         sv,
                         modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
-                        itemCounterList,
-                        taglia
+                        variabili
                 ))
                 .toList());
         // Rende LVL disponibile nelle formule delle statistiche
         carList.add(new CaratteristicaDTO("LVL", "Livello", null, livelloPersonaggio, null, null));
         dto.getCaratteristiche().addAll(carList);
+        // Ora che le caratteristiche esistono, le loro entry "@id" entrano nella STESSA "variabili"
+        // già in uso (non una mappa nuova): da qui in poi ogni calcola* le trova già pronte.
+        variabili.setAll(carList.stream()
+                .collect(Collectors.toMap(x -> "@".concat(x.getId()), x -> x.getModificatore().toString(), (a, b) -> a)));
 
         Optional<DadiVitaDTO> dvOpt = stats.stream()
                 .filter(sv -> TipoStat.ATT.equals(sv.getStat().getTipo()) && "DV".equals(sv.getStat().getId()))
@@ -1166,7 +1183,7 @@ public class PersonaggioService {
                         modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
                         carList,
                         livelloItems,
-                        itemCounterList
+                        variabili
                 ));
         dvOpt.ifPresent(dto::setDadiVita);
 
@@ -1186,7 +1203,7 @@ public class PersonaggioService {
                             .map(sv -> modificatoriService.calcoloTiroSalvezza(
                                     sv,
                                     modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
-                                    itemCounterList,
+                                    variabili,
                                     carList,
                                     cambiaTsGlobali
                             ))
@@ -1230,7 +1247,7 @@ public class PersonaggioService {
                                         ranksDtoByStat.getOrDefault(idStat, Collections.emptyList()),
                                         carList,
                                         cambiaAbilitaGlobali,
-                                        itemCounterList
+                                        variabili
                                 );
                             })
                             .toList()
@@ -1244,7 +1261,7 @@ public class PersonaggioService {
                                     sv,
                                     modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
                                     modsDtoByStat.getOrDefault("CA", Collections.emptyList()),
-                                    carList, taglia, itemCounterList
+                                    carList, variabili
                             ))
                             .toList()
             ).get();
@@ -1258,7 +1275,7 @@ public class PersonaggioService {
                                     modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
                                     modsDtoByStat.getOrDefault("BAB", Collections.emptyList()),
                                     carList,
-                                    taglia
+                                    variabili
                             ))
                             .toList()
             ).get();
@@ -1273,7 +1290,7 @@ public class PersonaggioService {
                                     carList,
                                     dto.getDadiVita(),
                                     livelloItems,
-                                    itemCounterList
+                                    variabili
                             ))
                             .toList()
             ).get();
@@ -1286,7 +1303,7 @@ public class PersonaggioService {
                                     sv,
                                     modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
                                     carList,
-                                    itemCounterList
+                                    variabili
                             ))
                             .toList()
             ).get();
@@ -1302,12 +1319,10 @@ public class PersonaggioService {
 
         dto.setInfo(info);
 
-        // Taglia: base dal personaggio, attuale con tutti i modificatori
-        int tagliaAttuale = modificatoriService.getTaglia(taglia);
-        int tagliaBase = taglia.stream()
-                .filter(l -> l.getItem() == null && Constants.ITEM_LABEL_TAGLIA.equals(l.getLabel()))
-                .map(l -> { try { return Integer.parseInt(l.getValore()); } catch (Exception e) { return 0; } })
-                .findFirst().orElse(0);
+        // Taglia: base dal personaggio, attuale con tutti i modificatori — già calcolata una volta
+        // sola fuori dai calcola* e messa in "variabili" più sopra, qui solo riletta.
+        int tagliaAttuale = variabili.getInt(Constants.VARIABILE_TAGLIA);
+        int tagliaBase = variabili.getInt(Constants.VARIABILE_TAGLIA_BASE);
         dto.setTagliaAttuale(tagliaAttuale);
         dto.setTagliaBase(tagliaBase);
 
