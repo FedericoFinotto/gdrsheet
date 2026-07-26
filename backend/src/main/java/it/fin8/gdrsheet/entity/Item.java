@@ -140,22 +140,30 @@ public class Item implements Serializable {
         return disabledLabel != null && disabledLabel.equals("1");
     }
 
+    /**
+     * Navigazione strutturale verso il genitore (usata es. da $M_P_&lt;var&gt; per trovare il
+     * frutto a cui applicare la variabile di una forma): NON filtra più per "disabilitato" — da
+     * quando DISABLED è diventato sempre personaggio-scoped (vedi ItemService.isItemDisabled),
+     * Collegamento.isDisabled() non è mai più scritto (sempre false) e Item.isDisabled() legge
+     * solo la label globale, che qui non riflette lo stato per il personaggio corrente: il
+     * risultato era che un frutto/forma "normalmente abilitato" per il personaggio veniva escluso
+     * comunque, rompendo la risoluzione di $M_P_FORMA per qualunque forma diversa dalla prima.
+     */
     public Item getFirstParent(TipoItem type) {
-        List<Collegamento> parentFilteredList = parent.stream().filter(x -> !x.isDisabled() && !x.getItemSource().isDisabled()).toList();
-        if (parentFilteredList.isEmpty()) return null;
+        if (parent.isEmpty()) return null;
         if (type == null)
-            return parentFilteredList.get(0).getItemSource();
+            return parent.get(0).getItemSource();
         else
-            return parentFilteredList.stream().map(Collegamento::getItemSource).filter(itemSource -> itemSource.getTipo().equals(type)).findFirst().orElse(null);
+            return parent.stream().map(Collegamento::getItemSource).filter(itemSource -> itemSource.getTipo().equals(type)).findFirst().orElse(null);
     }
 
+    /** Stesso motivo di {@link #getFirstParent}: nessun filtro su "disabilitato". */
     public Item getFirstChild(TipoItem type) {
-        List<Collegamento> childFilteredList = child.stream().filter(x -> !x.isDisabled() && !x.getItemTarget().isDisabled()).toList();
-        if (childFilteredList.isEmpty()) return null;
+        if (child.isEmpty()) return null;
         if (type == null)
-            return childFilteredList.get(0).getItemSource();
+            return child.get(0).getItemSource();
         else
-            return childFilteredList.stream().map(Collegamento::getItemSource).filter(itemSource -> itemSource.getTipo().equals(type)).findFirst().orElse(null);
+            return child.stream().map(Collegamento::getItemSource).filter(itemSource -> itemSource.getTipo().equals(type)).findFirst().orElse(null);
     }
 
 }
