@@ -15,8 +15,6 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Component
@@ -52,45 +50,38 @@ public class ItemService {
 
     public Item switchItemState(Integer itemId, Integer personaggioId) {
         Item itm = itemRepository.findItemById(itemId);
-
-        if (itm.getPersonaggio() == null) {
-            Collegamento link = utilService.findRightConnectionLink(itm, personaggioId)
-                    .orElseThrow(() -> new RuntimeException("Impossibile definire collegamento oggetto"));
-
-            toggleDisabled(() -> link.getLabel(Constants.ITEM_LABEL_DISABILITATO), val -> link.setLabel(Constants.ITEM_LABEL_DISABILITATO, val));
-            collegamentoRepository.save(link);
-
-        } else {
-            toggleDisabled(() -> itm.getLabel(Constants.ITEM_LABEL_DISABILITATO), val -> itm.setLabel(Constants.ITEM_LABEL_DISABILITATO, val));
-            itemRepository.save(itm);
-        }
-
+        saveDisabledPerPersonaggio(itemId, personaggioId, !isItemDisabled(itemId, personaggioId));
         personaggioCacheService.invalidaPersonaggio(personaggioId);
         return itm;
     }
 
     /**
-     * Stato disabilitato di un item nel contesto di un personaggio: per gli item del
-     * compendio guarda il collegamento (FromCompendio), per quelli intestati l'item stesso.
+     * Stato disabilitato di un item nel contesto di un personaggio: SEMPRE una ItemLabel legata a
+     * quel personaggio (mai il collegamento, mai la riga globale) — così vale anche per un
+     * discendente di un item di compendio condiviso, non solo per il primo livello raggiunto
+     * tramite FromCompendio.
      */
     public boolean isItemDisabled(Integer itemId, Integer personaggioId) {
-        Item itm = itemRepository.findItemById(itemId);
-        if (itm == null) return false;
-        String stato;
-        if (itm.getPersonaggio() == null && personaggioId != null) {
-            stato = utilService.findRightConnectionLink(itm, personaggioId)
-                    .map(l -> l.getLabel(Constants.ITEM_LABEL_DISABILITATO))
-                    .orElse(null);
-        } else {
-            stato = itm.getLabel(Constants.ITEM_LABEL_DISABILITATO);
-        }
-        return Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE.equals(stato);
+        if (itemId == null || personaggioId == null) return false;
+        return itemLabelRepository.findByItem_IdAndLabelAndPersonaggio_Id(itemId, Constants.ITEM_LABEL_DISABILITATO, personaggioId)
+                .map(ItemLabel::getValore)
+                .map(Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE::equals)
+                .orElse(false);
     }
 
-    private static void toggleDisabled(Supplier<String> getter, Consumer<String> setter) {
-        String v = getter.get();
-        v = (v == null) ? "" : v.trim();
-        setter.accept(v.isEmpty() || v.equals(Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE) ? Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE : Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
+    /** Stesso pattern di saveQtaPerPersonaggio: una riga ItemLabel per (item, personaggio), mai globale. */
+    private void saveDisabledPerPersonaggio(Integer itemId, Integer personaggioId, boolean disabled) {
+        ItemLabel dl = itemLabelRepository
+                .findByItem_IdAndLabelAndPersonaggio_Id(itemId, Constants.ITEM_LABEL_DISABILITATO, personaggioId)
+                .orElseGet(() -> {
+                    ItemLabel nl = new ItemLabel();
+                    nl.setItem(em.getReference(Item.class, itemId));
+                    nl.setPersonaggio(em.getReference(Personaggio.class, personaggioId));
+                    nl.setLabel(Constants.ITEM_LABEL_DISABILITATO);
+                    return nl;
+                });
+        dl.setValore(disabled ? Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE : Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
+        itemLabelRepository.save(dl);
     }
 
     public List<SpellBookIncantesimoDTO> getListIncantesimiByClasseAndLevel(Integer idClasse, Integer livello, String spellList) {
@@ -353,10 +344,10 @@ public class ItemService {
             Collegamento link = new Collegamento();
             link.setItemSource(fromCompendio);
             link.setItemTarget(saved);
-            // un item appena aggiunto nasce disabilitato: va abilitato esplicitamente
             link.setLabels(new ArrayList<>());
-            link.setLabel(Constants.ITEM_LABEL_DISABILITATO, Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE);
             collegamentoRepository.save(link);
+            // un item appena aggiunto nasce disabilitato: va abilitato esplicitamente
+            saveDisabledPerPersonaggio(saved.getId(), pg.getId(), true);
         }
 
         if (pg != null) personaggioCacheService.invalidaPersonaggio(pg.getId());
@@ -558,8 +549,9 @@ public class ItemService {
         link.setItemSource(fromCompendio);
         link.setItemTarget(target);
         link.setLabels(new ArrayList<>());
-        link.setLabel(Constants.ITEM_LABEL_DISABILITATO, Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE);
         collegamentoRepository.save(link);
+        // un item appena collegato nasce disabilitato: va abilitato esplicitamente
+        saveDisabledPerPersonaggio(target.getId(), idPersonaggio, true);
         personaggioCacheService.invalidaPersonaggio(idPersonaggio);
     }
 

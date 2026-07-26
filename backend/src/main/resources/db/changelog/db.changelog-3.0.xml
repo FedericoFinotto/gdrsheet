@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        Migrazione DISABLED: da "sul Collegamento (item condiviso) o sulla riga globale (item
+        intestato)" a "sempre una item_label legata a id_personaggio" (vedi ItemService.
+        isItemDisabled/switchItemState). Senza questa migrazione gli item già disabilitati con
+        il vecchio meccanismo tornerebbero visibili come abilitati, perché nessun codice legge
+        più le vecchie posizioni.
+    -->
+
+    <changeSet id="200" author="developer">
+        <comment>
+            DISABLED su item INTESTATI: converte in place la vecchia riga globale
+            (item_label.id_personaggio IS NULL) nella nuova riga scoped, usando il personaggio_id
+            già presente sull'item stesso (per un item intestato non c'è ambiguità: appartiene a
+            un solo personaggio).
+        </comment>
+        <sql>
+            UPDATE item_label il
+            SET id_personaggio = i.personaggio_id
+            FROM items i
+            WHERE il.id_item = i.id
+              AND il.label = 'DISABLED'
+              AND il.valore = '1'
+              AND il.id_personaggio IS NULL
+              AND i.personaggio_id IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM item_label il2
+                  WHERE il2.id_item = il.id_item
+                    AND il2.label = 'DISABLED'
+                    AND il2.id_personaggio = i.personaggio_id
+              )
+        </sql>
+    </changeSet>
+
+    <changeSet id="201" author="developer">
+        <comment>
+            DISABLED su item di COMPENDIO condivisi: la vecchia riga viveva sul Collegamento
+            (item_source -&gt; item_target). Migra i casi risolvibili senza ambiguità, cioè dove
+            item_source è a sua volta intestato a un personaggio (il caso comune: il proprio
+            FromCompendio -&gt; item condiviso, o un item personale -&gt; suo figlio/effetto) — in
+            quel caso il personaggio proprietario del collegamento è certo. NON copre i
+            collegamenti tra due item entrambi di compendio (nessun personaggio univoco
+            determinabile senza ripercorrere il grafo come a runtime): quelle righe vanno
+            controllate a mano, vedi la query di verifica a corredo di questa migrazione.
+        </comment>
+        <sql>
+            INSERT INTO item_label (id_item, label, valore, id_personaggio)
+            SELECT c.id_item_target, 'DISABLED', '1', src.personaggio_id
+            FROM collegamento c
+            JOIN collegamento_label cl ON cl.id_collegamento = c.id
+            JOIN items src ON src.id = c.id_item_source
+            WHERE cl.label = 'DISABLED'
+              AND cl.valore = '1'
+              AND src.personaggio_id IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM item_label il
+                  WHERE il.id_item = c.id_item_target
+                    AND il.label = 'DISABLED'
+                    AND il.id_personaggio = src.personaggio_id
+              )
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

@@ -6,6 +6,7 @@ import it.fin8.gdrsheet.def.TipoModificatore;
 import it.fin8.gdrsheet.def.TipoStat;
 import it.fin8.gdrsheet.dto.*;
 import it.fin8.gdrsheet.entity.*;
+import it.fin8.gdrsheet.repository.ItemLabelRepository;
 import it.fin8.gdrsheet.repository.ItemRepository;
 import it.fin8.gdrsheet.repository.PersonaggioRepository;
 import it.fin8.gdrsheet.repository.StatRepository;
@@ -36,6 +37,9 @@ public class ModificatoriService {
 
     @Autowired
     private StatRepository statRepository;
+
+    @Autowired
+    private ItemLabelRepository itemLabelRepository;
 
     // ==================== CALCOLA* (metodi principali) ====================
 
@@ -415,12 +419,11 @@ public class ModificatoriService {
         Personaggio personaggio = personaggioRepository.findById(idPersonaggio)
                 .orElseThrow(() -> new RuntimeException("Personaggio non trovato"));
 
+        Set<Integer> disabledItemIds = itemLabelRepository.findItemIdsByLabelValoreTrueAndPersonaggio_Id(
+                Constants.ITEM_LABEL_DISABILITATO, idPersonaggio);
         List<Item> livelli = personaggio.getItems().stream()
                 .filter(x -> x.getTipo().equals(TipoItem.LIVELLO))
-                .filter(x -> {
-                    String dis = x.getLabel(Constants.ITEM_LABEL_DISABILITATO);
-                    return dis == null || Objects.equals(dis, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
-                })
+                .filter(x -> !disabledItemIds.contains(x.getId()))
                 .toList();
         if (livelli.isEmpty()) return List.of();
 

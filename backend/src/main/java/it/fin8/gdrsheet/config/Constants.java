@@ -278,5 +278,30 @@ public final class Constants {
             "ALTEZZA", "PESO", "CAPELLI", "OCCHI", "ALLINEAMENTO", "TAGLIA",
             "MILESTONE", "MILESTONE_TO", "LIVELLO", "GRADI_DIVINI", "PORTATA",
             "LUNGHEZZA", "LARGHEZZA");
+
+    /**
+     * Registro centrale dello scope delle ItemLabel (unica fonte di verità, sostituisce la
+     * decisione presa ad-hoc caso per caso finora): PERSONAGGIO = il valore può differire per
+     * ogni personaggio che referenzia lo stesso item (di solito con fallback alla riga globale,
+     * id_personaggio IS NULL), tutte le altre label sono OGGETTO = un solo valore condiviso.
+     * <p>
+     * IMPORTANTE: {@link it.fin8.gdrsheet.entity.Item#getLabel(String)}/{@code setLabel(String, String)}
+     * vedono e scrivono SOLO la riga globale (vedi {@code @Where(clause = "id_personaggio IS NULL")}
+     * sulla collection {@code labels} in Item.java) — per le label elencate qui sotto NON vanno usati
+     * per leggere/scrivere il valore "vero" del personaggio, serve una query/scrittura scoped
+     * dedicata (oggi QTA e UTILIZZI_USATI sono le uniche due già gestite così, con codice scritto a
+     * mano in ItemService/PersonaggioService; le altre elencate qui sono concettualmente
+     * personaggio-scoped ma oggi finiscono comunque nella riga globale, condivisa tra tutti i
+     * personaggi che referenziano lo stesso item — nessuna query scoped dedicata esiste ancora).
+     */
+    public static final java.util.Set<String> ITEM_LABEL_PERSONAGGIO_SCOPE = java.util.Set.of(
+            LABEL_QTA,
+            LABEL_INVENTARIO_SEPARATO,
+            LABEL_UTILIZZI_USATI,
+            ITEM_LABEL_DISABILITATO,
+            ITEM_LABEL_NASCOSTO,
+            ITEM_LABEL_PREFISSO_OGGETTI,
+            ITEM_LABEL_BARR_CONS
+    );
 }
 

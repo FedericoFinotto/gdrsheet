@@ -34,6 +34,20 @@ public interface ItemLabelRepository extends JpaRepository<ItemLabel, Integer> {
     void deleteByLabelAndPersonaggio_Id(String label, Integer personaggioId);
 
     /**
+     * Id degli item con quella label a "1" per un personaggio (es. DISABLED): un'unica query
+     * prima del flatten invece di controllare item per item durante la traversata. Nessun filtro
+     * su item.id: il numero di item esplicitamente disabilitati da un personaggio è tipicamente
+     * piccolo, molto più economico di filtrare per un insieme di id che si scoprono solo
+     * traversando (dipendenza circolare: servirebbe l'esito del flatten per sapere quali id
+     * chiedere).
+     */
+    @Query("""
+            SELECT il.item.id FROM ItemLabel il
+            WHERE il.label = :label AND il.valore = '1' AND il.personaggio.id = :personaggioId
+            """)
+    java.util.Set<Integer> findItemIdsByLabelValoreTrueAndPersonaggio_Id(@Param("label") String label, @Param("personaggioId") Integer personaggioId);
+
+    /**
      * Triple (itemId, label, valore) per le label richieste, sugli item con id nella lista data
      * (es. per calcolaPeso, a partire dal flatten già calcolato da PersonaggioService). Non filtra
      * per id_personaggio: le label globali (compendio) e quelle per-personaggio (es. QTA) sulla

@@ -139,7 +139,7 @@ public class PartyService {
             try { if (livelloRaw != null) livello = Integer.parseInt(livelloRaw.trim()); } catch (NumberFormatException ignored) {}
             int numLivelli = pg.getItems() == null ? 0 : (int) pg.getItems().stream()
                     .filter(i -> TipoItem.LIVELLO.equals(i.getTipo()))
-                    .filter(i -> !Boolean.TRUE.equals(i.isDisabled()))   // i livelli disabilitati non contano
+                    .filter(i -> !itemService.isItemDisabled(i.getId(), pg.getId()))   // i livelli disabilitati non contano
                     .filter(i -> !"0".equals(i.getLabel(Constants.ITEM_LIVELLO_LVL)))
                     .count();
             Integer gradiDivini = null;
@@ -246,7 +246,7 @@ public class PartyService {
                         quantita,
                         pg.getId(),
                         pg.getNome(),
-                        Boolean.TRUE.equals(itm.isDisabled()) || Boolean.TRUE.equals(link.isDisabled())
+                        itemService.isItemDisabled(itm.getId(), pg.getId())
                 ));
             }
         }
@@ -843,18 +843,36 @@ public class PartyService {
      * (sezione a parte in scheda, nessun modificatore propagato): vedi getDatiPersonaggio.
      */
     public double calcolaPeso(Personaggio pg, List<Integer> itemIds) {
-        // Raccogli tutte le label rilevanti per il calcolo del peso
+        // Raccogli tutte le label OGGETTO-scope rilevanti per il calcolo del peso (PESO/CAPIENZA/
+        // INCLUDI_*: un solo valore condiviso, nessuno scoping per personaggio necessario).
         Map<Integer, Map<String, String>> labelsPerItem = new HashMap<>();
         if (!itemIds.isEmpty()) {
             for (Object[] row : itemLabelRepository.findLabelValuesByItemIds(
-                    List.of(Constants.LABEL_PESO, Constants.LABEL_QTA, Constants.LABEL_CAPIENZA,
-                            Constants.ITEM_LABEL_DISABILITATO,
+                    List.of(Constants.LABEL_PESO, Constants.LABEL_CAPIENZA,
                             Constants.LABEL_INCLUDI_ARMI_ABILITATE,
                             Constants.LABEL_INCLUDI_OGGETTI_ABILITATI,
                             Constants.LABEL_INCLUDI_CONSUMABILI_ABILITATI,
                             Constants.LABEL_INCLUDI_TUTTI_ABILITATI), itemIds)) {
                 labelsPerItem.computeIfAbsent((Integer) row[0], k -> new HashMap<>())
                         .put((String) row[1], (String) row[2]);
+            }
+            // QTA (PERSONAGGIO scope, priorità: riga di questo personaggio, poi fallback globale —
+            // stessa priorità di qtaByItem in PersonaggioService) e DISABLED (PERSONAGGIO scope,
+            // sempre legato a pg, mai globale — vedi ItemService.isItemDisabled) NON possono passare
+            // dalla query sopra: per un item condiviso tra più personaggi (es. di compendio)
+            // prenderebbe una riga a caso tra quelle di TUTTI i personaggi che lo referenziano.
+            Map<Integer, String> qtaByItem = new HashMap<>();
+            for (ItemLabel l : itemLabelRepository.findByLabelAndItem_IdInAndPersonaggioIsNull(Constants.LABEL_QTA, itemIds)) {
+                qtaByItem.put(l.getItem().getId(), l.getValore());
+            }
+            for (ItemLabel l : itemLabelRepository.findByLabelAndItem_IdInAndPersonaggio_Id(Constants.LABEL_QTA, itemIds, pg.getId())) {
+                qtaByItem.put(l.getItem().getId(), l.getValore()); // per-personaggio vince sul globale
+            }
+            qtaByItem.forEach((itemId, valore) ->
+                    labelsPerItem.computeIfAbsent(itemId, k -> new HashMap<>()).put(Constants.LABEL_QTA, valore));
+
+            for (ItemLabel l : itemLabelRepository.findByLabelAndItem_IdInAndPersonaggio_Id(Constants.ITEM_LABEL_DISABILITATO, itemIds, pg.getId())) {
+                labelsPerItem.computeIfAbsent(l.getItem().getId(), k -> new HashMap<>()).put(Constants.ITEM_LABEL_DISABILITATO, l.getValore());
             }
         }
 

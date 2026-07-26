@@ -8,6 +8,7 @@ import it.fin8.gdrsheet.dto.InfoClasseDTO;
 import it.fin8.gdrsheet.dto.InfoLivelliDTO;
 import it.fin8.gdrsheet.entity.Item;
 import it.fin8.gdrsheet.mapper.StatMapper;
+import it.fin8.gdrsheet.repository.ItemLabelRepository;
 import it.fin8.gdrsheet.repository.ItemRepository;
 import net.objecthunter.exp4j.ExpressionBuilder;
 import net.objecthunter.exp4j.function.Function;
@@ -30,6 +31,9 @@ public class CalcoloService {
 
     @Autowired
     private UtilService utilService;
+
+    @Autowired
+    private ItemLabelRepository itemLabelRepository;
 
 
     private static final Pattern PATTERN_PLACEH = Pattern.compile("@\\w+");
@@ -139,7 +143,7 @@ public class CalcoloService {
                 .forEach((k, v) -> caratteristiche.add(new CaratteristicaDTO(k, k, null, v, null, null)));
 
         List<Item> initialRoots = itemRepository.findAllByPersonaggioIdWithChild(dati.getId());
-        caratteristiche.add(new CaratteristicaDTO("LVL", "Livello", null, Integer.parseInt(String.valueOf(getLivelli(initialRoots).getLivello())), null, null));
+        caratteristiche.add(new CaratteristicaDTO("LVL", "Livello", null, Integer.parseInt(String.valueOf(getLivelli(initialRoots, dati.getId()).getLivello())), null, null));
         // DV (Dadi Vita totali): esclusa di proposito dalla lista "attributi" generica (gestita a
         // parte in dadiVita), va aggiunta esplicitamente qui per essere usabile nelle formule.
         if (dati.getDadiVita() != null && dati.getDadiVita().getTotale() != null) {
@@ -173,7 +177,7 @@ public class CalcoloService {
         }
     }
 
-    public InfoLivelliDTO getLivelli(List<Item> initialRoots) {
+    public InfoLivelliDTO getLivelli(List<Item> initialRoots, Integer idPersonaggio) {
         InfoLivelliDTO out = new InfoLivelliDTO();
         if (initialRoots == null || initialRoots.isEmpty()) {
             out.setLivello(0);
@@ -181,23 +185,22 @@ public class CalcoloService {
             return out;
         }
 
+        // Chiamato PRIMA del flatten (che è quello che "stampa" DISABLED risolto sull'entity):
+        // qui gli item sono ancora "freschi", va controllato esplicitamente per questo personaggio.
+        Set<Integer> disabledItemIds = itemLabelRepository.findItemIdsByLabelValoreTrueAndPersonaggio_Id(
+                Constants.ITEM_LABEL_DISABILITATO, idPersonaggio);
+
         // Filtri inline (senza Predicate)
         List<Item> livelliTotali = initialRoots.stream()
                 .filter(Objects::nonNull)
                 .filter(i -> TipoItem.LIVELLO.equals(i.getTipo()))
-                .filter(x -> !utilService.parseBooleanFromString(
-                        x.getLabel(Constants.ITEM_LABEL_DISABILITATO),
-                        Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE,
-                        Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE))
+                .filter(x -> !disabledItemIds.contains(x.getId()))
                 .toList();
 
         List<Item> livelliAttivi = initialRoots.stream()
                 .filter(Objects::nonNull)
                 .filter(i -> TipoItem.LIVELLO.equals(i.getTipo()))
-                .filter(x -> !utilService.parseBooleanFromString(
-                        x.getLabel(Constants.ITEM_LABEL_DISABILITATO),
-                        Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE,
-                        Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE))
+                .filter(x -> !disabledItemIds.contains(x.getId()))
                 .filter(x -> x.getLabel(Constants.ITEM_LABEL_MALEDIZIONE) == null)
                 .toList();
 

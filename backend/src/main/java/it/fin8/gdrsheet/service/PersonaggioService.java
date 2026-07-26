@@ -108,10 +108,6 @@ public class PersonaggioService {
         return new HashSet<>(Arrays.asList(scelta.split(",")));
     }
 
-    private List<Item> flattenItems(Collection<Item> rootItems) {
-        return flattenItems(rootItems, null);
-    }
-
     /**
      * Raccoglie ricorsivamente (a qualunque profondità) gli id dei discendenti di un CONTENITORE
      * con INVENTARIO_SEPARATO=1, associandoli all'id del contenitore stesso in {@code out}.
@@ -170,11 +166,20 @@ public class PersonaggioService {
 
     /**
      * Traversal DFS degli item del personaggio.
+     * @param idPersonaggio personaggio per cui risolvere lo stato DISABLED (sempre una ItemLabel
+     *                      legata a questo id, vedi ItemService.isItemDisabled/switchItemState —
+     *                      niente più stato "disabilitato" sul Collegamento).
      * @param fruttiSenzaModOut se non null, viene popolato con gli ID dei FRUTTO la cui scelta
      *                          non include "MOD" (i loro modificatori non vanno calcolati).
      */
-    private List<Item> flattenItems(Collection<Item> rootItems, Set<Integer> fruttiSenzaModOut) {
+    private List<Item> flattenItems(Collection<Item> rootItems, Integer idPersonaggio, Set<Integer> fruttiSenzaModOut) {
         List<Item> result = new ArrayList<>();
+        // Un'unica query per TUTTI gli item che questo personaggio ha esplicitamente disabilitato,
+        // invece di controllarlo item per item durante la traversata (vedi
+        // ItemLabelRepository.findItemIdsByLabelValoreTrueAndPersonaggio_Id per il motivo per cui
+        // non si filtra per id item: si scoprono solo traversando, qui sotto).
+        Set<Integer> disabledItemIds = itemLabelRepository.findItemIdsByLabelValoreTrueAndPersonaggio_Id(
+                Constants.ITEM_LABEL_DISABILITATO, idPersonaggio);
         // Cache per-traversal: più item dell'albero (es. più LIVELLO della stessa classe) spesso
         // referenziano la STESSA lista di competenze — senza questa cache, findCompetenze farebbe
         // una findItemsByIds per ognuno anche quando gli id sono identici a quelli già risolti.
@@ -196,7 +201,12 @@ public class PersonaggioService {
                 if (!hasMod) fruttiSenzaModOut.add(cur.getId());
             }
 
-            boolean isDisabled = utilService.parseBooleanFromString(cur.getLabel(Constants.ITEM_LABEL_DISABILITATO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
+            boolean isDisabled = disabledItemIds.contains(cur.getId());
+            // Stampa (transitoria, non persistita: vedi DbCache per il motivo per cui è sicuro)
+            // il risultato già risolto per QUESTO personaggio sull'entity stessa, così il resto
+            // della richiesta (ItemMapper, calcolaPeso, ecc.) continua a leggerlo con
+            // cur.getLabel(DISABLED)/isDisabled() senza dover ripetere la query per personaggio.
+            if (isDisabled) cur.setLabel(Constants.ITEM_LABEL_DISABILITATO, Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE);
 
             if (!isDisabled) {
                 List<Item> competenze = findCompetenze(cur, competenzeCache);
@@ -218,15 +228,11 @@ public class PersonaggioService {
 
                     for (Collegamento col : cur.getChild().stream()
                             .filter(x -> !x.getItemTarget().getTipo().equals(TipoItem.CLASSE)).toList()) {
-                        boolean isColDisabled = utilService.parseBooleanFromString(col.getLabel(Constants.ITEM_LABEL_DISABILITATO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
                         boolean isColNascosto = utilService.parseBooleanFromString(col.getLabel(Constants.ITEM_LABEL_NASCOSTO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
                         // Collegamento NASCOSTO: non visibile da fuori, saltalo del tutto (nascondere implica disabilitare).
                         // Per le FORMA resta comunque nell'indice formaLinks, così FORMA_N delle altre non slitta.
                         if (isColNascosto) {
                             continue;
-                        }
-                        if (isColDisabled) {
-                            col.getItemTarget().setLabel(Constants.ITEM_LABEL_DISABILITATO, Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE);
                         }
 
                         // Se stiamo in un FRUTTO con scelta, salta le FORMA non selezionate
@@ -597,18 +603,22 @@ public class PersonaggioService {
                         ? figliAttacchiMap : figliFruttoMap;
                 target.computeIfAbsent(sourceId, k -> new ArrayList<>()).add(ref);
             }
-            for (Collegamento c : collegamentoRepository.findEffettiByItemSourceIds(allItemIds)) {
-                // Lo stato disabilitato di un EFFETTO viene scritto da switchItemState sul
-                // COLLEGAMENTO (oggetto base -> effetto), non sull'item stesso: va letto da lì.
-                boolean effettoDisabled = utilService.parseBooleanFromString(
-                        c.getLabel(Constants.ITEM_LABEL_DISABILITATO),
-                        Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE,
-                        Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
+            List<Collegamento> effetti = collegamentoRepository.findEffettiByItemSourceIds(allItemIds);
+            // Lo stato disabilitato di un EFFETTO è sempre una ItemLabel legata a questo personaggio
+            // sull'item EFFETTO stesso (vedi ItemService.isItemDisabled/switchItemState), non più sul
+            // Collegamento: batch su tutti i target invece di una query per effetto.
+            Set<Integer> effettoIds = effetti.stream().map(c -> c.getItemTarget().getId()).collect(Collectors.toSet());
+            Set<Integer> effettiDisabilitati = effettoIds.isEmpty() ? Set.of() : itemLabelRepository
+                    .findByLabelAndItem_IdInAndPersonaggio_Id(Constants.ITEM_LABEL_DISABILITATO, new ArrayList<>(effettoIds), id).stream()
+                    .filter(l -> Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE.equals(l.getValore()))
+                    .map(l -> l.getItem().getId())
+                    .collect(Collectors.toSet());
+            for (Collegamento c : effetti) {
                 itemsDTO.getEffetti().add(new EffettoDTO(
                         c.getItemSource().getId(), c.getItemSource().getNome(),
                         c.getItemTarget().getId(), c.getItemTarget().getNome(),
                         c.getLabel(Constants.COLLEGAMENTO_LABEL_CONDIZIONE),
-                        effettoDisabled));
+                        effettiDisabilitati.contains(c.getItemTarget().getId())));
             }
         }
         Stream.of(itemsDTO.getAbilita(), itemsDTO.getTalenti(), itemsDTO.getOggetti(), itemsDTO.getConsumabili(),
@@ -768,7 +778,7 @@ public class PersonaggioService {
         List<Item> initialRoots = itemRepository.findAllByPersonaggioIdWithChild(idPersonaggio);
 
         // Determina le classi e livelli dai soli rootItems
-        result.setLivelli(calcoloService.getLivelli(initialRoots));
+        result.setLivelli(calcoloService.getLivelli(initialRoots, idPersonaggio));
 
         // Raccogli root items aggiuntive dagli avanzamenti di classe
         List<Item> advanceRoots = new ArrayList<>();
@@ -787,6 +797,7 @@ public class PersonaggioService {
                                 .filter(obj -> true)
                                 .flatMap(Collection::stream)
                                 .toList(),
+                        idPersonaggio,
                         result.getFruttiSenzaMod()
                 )
         );
@@ -2027,7 +2038,14 @@ public class PersonaggioService {
         for (Collegamento c : fonte.getChild()) {
             Item entity = c.getItemTarget();
             if (entity == null || !"1".equals(entity.getLabel(Constants.ITEM_LABEL_SPURIO))) continue;
-            if (itemMapper.isDisabled(entity)) continue;
+            // Non arriva dal flatten (child letto direttamente da fonte.getChild()): DISABLED va
+            // quindi controllato qui esplicitamente per questo personaggio, non tramite
+            // itemMapper.isDisabled (che legge solo la label globale, mai scritta per DISABLED).
+            List<ItemLabel> disabledRows = itemLabelRepository.findByLabelAndItem_IdInAndPersonaggio_Id(
+                    Constants.ITEM_LABEL_DISABILITATO, List.of(entity.getId()), idPersonaggio);
+            boolean spurioDisabilitato = !disabledRows.isEmpty()
+                    && Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE.equals(disabledRows.get(0).getValore());
+            if (spurioDisabilitato) continue;
 
             Integer uTotale = parseIntOrNull(entity.getLabel(Constants.LABEL_UTILIZZI));
             Integer uUsati = 0;
