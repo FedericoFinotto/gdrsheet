@@ -18,6 +18,15 @@ public final class Constants {
     public static final String VARIABILE_TAGLIA = "@TAGLIA";      // taglia attuale, con tutti i modificatori
     public static final String VARIABILE_TAGLIA_BASE = "@TAGLIA_BASE"; // taglia base da anagrafica
     public static final String VARIABILE_DIFFERENZA_TAGLIA = "@DIFFERENZA_TAGLIA"; // TAGLIA - TAGLIA_BASE
+    // Prefisso + id classe (Item.id) = uno dei livelli di InfoClasseDTO per quella classe del
+    // personaggio, es. "@LIVELLO_NM_1983". Usabili in QUALSIASI formula (modificatori/contatori di
+    // qualunque oggetto, non solo item concessi via avanzamento della classe stessa).
+    public static final String VARIABILE_LIVELLO_NM_PREFIX = "@LIVELLO_NM_";       // livelloNonMaledetto
+    public static final String VARIABILE_LIVELLO_MNM_PREFIX = "@LIVELLO_MNM_";     // livelloMaxNonMaledetto
+    public static final String VARIABILE_LIVELLO_TOT_PREFIX = "@LIVELLO_TOT_";     // livelloTotale
+    public static final String VARIABILE_LIVELLO_MAX_PREFIX = "@LIVELLO_MAX_";     // livelloMax
+    public static final String VARIABILE_LIVELLO_CASTER_NM_PREFIX = "@LIVELLO_CASTER_NM_"; // casterLevelNonMaledetto
+    public static final String VARIABILE_LIVELLO_CASTER_PREFIX = "@LIVELLO_CASTER_"; // casterLevelTotale (conta anche i maledetti)
 
     // Gruppi di personaggi in un party (personaggio_label)
     public static final String LABEL_GRUPPO = "GRUPPO";          // valore = id del gruppo
@@ -79,6 +88,19 @@ public final class Constants {
     public static final String ITEM_LABEL_VEICOLO_VELOCITA = "VEICOLO_VELOCITA";
     public static final String ITEM_LABEL_SPELL_SLOT = "SP_SLOT";
     public static final String ITEM_LABEL_SPELL_SLOT_BONUS = "SP_SLOT_BONUS";
+    // Caratteristica associata alla lista incantesimi (usata per la CD, "10 + caster level +
+    // modificatore"): legacy (path SPELL singola, solo classi) è una label piatta sulla classe;
+    // nuovo schema a sezioni è indicizzata per sezione (SPELL_<n>_CARATTERISTICA).
+    public static final String ITEM_LABEL_SPELL_CARATTERISTICA = "SP_CARATTERISTICA";
+    public static final String ITEM_LABEL_SPELL_CARATTERISTICA_SUFFIX = "_CARATTERISTICA";
+    // Caster level FISSO di una sezione: obbligatorio sugli OGGETTI (non hanno "livelli" da cui
+    // derivarlo come le classi), ignorato se la sezione appartiene a una classe.
+    public static final String ITEM_LABEL_SPELL_CASTER_LEVEL_SUFFIX = "_CASTER_LEVEL";
+    // Quale livello di classe (InfoClasseDTO) usare, solo per sezioni di CLASSE (ignorate sugli
+    // oggetti, che non hanno "livelli"): valori ammessi indicati accanto a ciascuna costante.
+    // Assente/valore non riconosciuto = default "NM".
+    public static final String ITEM_LABEL_SPELL_CL_SORGENTE_SUFFIX = "_CL_SRC";     // "NM" | "TOT"
+    public static final String ITEM_LABEL_SPELL_SLOT_SORGENTE_SUFFIX = "_SLOT_SRC"; // "MNM" | "NM" | "TOT"
     public static final String COLLEGAMENTO_LABEL_LIVELLO = "LIVELLO";
     public static final String COLLEGAMENTO_LABEL_LISTA_INCANTESIMI = "SP_LIST";
     public static final String COLLEGAMENTO_LABEL_N_USATI = "USED";
@@ -123,10 +145,18 @@ public final class Constants {
     public static final String ITEM_LABEL_FORMA_MOD_LVL = "$M_P_FORMA";  // forma: imposta la variabile FORMA del frutto padre
     public static final String ITEM_LABEL_FRUTTO_MOLT = "$V_MOLTIPLICATORE";      // variabile moltiplicatore del frutto
     public static final String ITEM_LABEL_FORMA_MOD_MOLT = "$M_P_MOLTIPLICATORE"; // forma: imposta il moltiplicatore del frutto padre
-    public static final String ITEM_LABEL_ADD_CLASSE_PREFIX = "ADD_CLASSE_"; // ADD_CLASSE_<n> = +1 livello (valore = idClasse)
+    // ADD_CLASSE_<n>: di default NON aggiunge NULLA — ogni effetto (_LIVELLO/_ITEMS/_BONUS/_SPELL
+    // sotto) è opt-in e indipendente dagli altri. ADD_CLASSE_<n> = +N livelli (N = _VALUE, valore
+    // dell'indice = idClasse target).
+    public static final String ITEM_LABEL_ADD_CLASSE_PREFIX = "ADD_CLASSE_";
     public static final String ITEM_LABEL_ADD_CLASSE_VALUE_SUFFIX = "_VALUE";
     // Alias italiano accettato in lettura per lo stesso suffisso sopra (facile da digitare per errore).
     public static final String ITEM_LABEL_ADD_CLASSE_VALUE_SUFFIX_ALIAS = "_VALORE";
+    // ADD_CLASSE_<n>_LIVELLO = "1": i livelli virtuali contano come livelli "ufficiali" della classe
+    // — compaiono nella lista livelli/UI e nelle variabili generiche @LIVELLO_NM_/_MNM_/_TOT_/_MAX_.
+    // Senza questo flag i livelli virtuali restano invisibili ovunque tranne che negli effetti
+    // esplicitamente flaggati sotto (_ITEMS/_BONUS/_SPELL).
+    public static final String ITEM_LABEL_ADD_CLASSE_LIVELLO_SUFFIX = "_LIVELLO";
     // ADD_CLASSE_<n>_ITEMS = "1": concede anche i Privilegi di Classe (Talenti/Abilità/Privilegi/etc,
     // dagli Avanzamento CLASSE->item) dei livelli virtuali aggiunti da questo indice <n>. Calcolo a
     // runtime, mai persistito: gli item concessi appaiono nell'inventario come se fossero
@@ -136,6 +166,10 @@ public final class Constants {
     // aggiunti da questo indice <n>, leggendo la Tabella livelli della classe (cappata al numero
     // di livelli reale della classe).
     public static final String ITEM_LABEL_ADD_CLASSE_BONUS_SUFFIX = "_BONUS";
+    // ADD_CLASSE_<n>_SPELL = "1": i livelli virtuali aggiunti da questo indice <n> contano per la
+    // progressione incantesimi (CL e slot) della classe target — indipendentemente da _LIVELLO
+    // (può contare per gli incantesimi senza comparire come livello "ufficiale", o viceversa).
+    public static final String ITEM_LABEL_ADD_CLASSE_SPELL_SUFFIX = "_SPELL";
     public static final String LABEL_CC_GIOCATORE_PREFIX = "G";
     public static final String LABEL_CC_PARTY_PREFIX = "P";
     public static final String TIPO_PERSONAGGIO_BANCA = "BANCA";

@@ -24,10 +24,12 @@ export const LABEL_CATALOG: VoceInfo[] = [
     {nome: 'REQ_COMP', descrizione: 'Competenza richiesta per usare l’item.'},
     {nome: 'MLDZN', descrizione: 'Marca il livello/oggetto come derivante da una maledizione.'},
     {nome: 'GRP_TRASF', descrizione: 'Gruppo di trasformazione (per la mutua esclusione tra trasformazioni/forme).'},
-    {nome: 'ADD_CLASSE_<n>', descrizione: 'Aggiunge livelli alla N-esima classe: il valore è l’id della classe da aggiungere. <n> distingue più classi sullo stesso item.'},
-    {nome: 'ADD_CLASSE_<n>_VALUE', descrizione: 'Numero di livelli da aggiungere alla N-esima classe (abbinata a ADD_CLASSE_<n>). Accettato anche come alias ADD_CLASSE_<n>_VALORE.'},
+    {nome: 'ADD_CLASSE_<n>', descrizione: 'Aggiunge livelli virtuali alla N-esima classe: il valore è l’id della classe da aggiungere. <n> distingue più classi sullo stesso item. Di base non aggiunge nulla: ogni effetto (_LIVELLO/_ITEMS/_BONUS/_SPELL) è opt-in e indipendente dagli altri.'},
+    {nome: 'ADD_CLASSE_<n>_VALUE', descrizione: 'Numero di livelli da aggiungere alla N-esima classe (abbinata a ADD_CLASSE_<n>). Accetta anche una formula con @LIVELLO_NM_/_MNM_/_TOT_/_MAX_/_CASTER_NM_/_CASTER_<idClasse> (es. "@LIVELLO_CASTER_NM_2013/2"), sempre sui livelli REALI di ogni classe (mai su virtuali aggiunti da un altro ADD_CLASSE nello stesso giro). Accettato anche come alias ADD_CLASSE_<n>_VALORE.'},
+    {nome: 'ADD_CLASSE_<n>_LIVELLO', descrizione: 'Valore "1": i livelli virtuali contano come livelli ufficiali della classe (compaiono nella lista livelli/UI e nelle variabili @LIVELLO_NM_/_MNM_/_TOT_/_MAX_). Senza questo flag restano invisibili ovunque tranne negli effetti esplicitamente flaggati.'},
     {nome: 'ADD_CLASSE_<n>_ITEMS', descrizione: 'Valore "1": concede anche i Privilegi di Classe (Talenti/Abilità/Privilegi/etc.) dei livelli virtuali aggiunti da ADD_CLASSE_<n> — calcolati a runtime, non persistiti, appaiono nell’inventario.'},
     {nome: 'ADD_CLASSE_<n>_BONUS', descrizione: 'Valore "1": concede anche BAB/Tempra/Riflessi/Volontà dei livelli virtuali aggiunti da ADD_CLASSE_<n>, dalla Tabella livelli della classe (cappati al numero di livelli reale della classe).'},
+    {nome: 'ADD_CLASSE_<n>_SPELL', descrizione: 'Valore "1": i livelli virtuali aggiunti da ADD_CLASSE_<n> contano per la progressione incantesimi (CL e slot) della classe target, indipendentemente da _LIVELLO.'},
 ]
 
 // Variabili utilizzabili nelle formule di modificatori e attacchi.

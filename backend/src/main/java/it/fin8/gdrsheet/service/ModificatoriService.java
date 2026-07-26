@@ -547,7 +547,7 @@ public class ModificatoriService {
             AbilitaDTO ab = abilitaList.get(i);
 
             AbilitaDTO finalAb = ab;
-            List<Sinergia> sinergie = listaSinergie().stream()
+            List<Sinergia> sinergie = SINERGIE.stream()
                     .filter(x -> x.getT().equals(finalAb.getAbilita().getId()))
                     .toList();
 
@@ -564,7 +564,10 @@ public class ModificatoriService {
                         ab.getAbilita().setModificatori(new ArrayList<>());
                     }
 
-                    ModificatoreDTO mod = s.getM();
+                    // SINERGIE è ora una tabella statica condivisa (vedi sopra): s.getM() NON va
+                    // mutato direttamente (corromperebbe lo stesso oggetto per tutte le richieste
+                    // concorrenti) — se ne muta una copia.
+                    ModificatoreDTO mod = clonaModificatore(s.getM());
                     int moltiplicatore = rankVal / 5;
                     String formula = mod.getFormula() + "*" + moltiplicatore;
 
@@ -591,8 +594,15 @@ public class ModificatoriService {
         }
     }
 
-    /** Tabella statica delle sinergie tra abilità SRD 3.5 (abilità sorgente → abilità bersaglio → bonus). */
-    private List<Sinergia> listaSinergie() {
+    /**
+     * Tabella statica delle sinergie tra abilità SRD 3.5 (abilità sorgente → abilità bersaglio →
+     * bonus), costruita UNA SOLA VOLTA al class-load (non più ad ogni chiamata di applicaSinergie,
+     * e non più una volta per abilità dentro il suo loop — erano ~24 oggetti riallocati da zero
+     * decine di volte a richiesta).
+     */
+    private static final List<Sinergia> SINERGIE = costruisciSinergie();
+
+    private static List<Sinergia> costruisciSinergie() {
         List<Sinergia> sinergie = new ArrayList<>();
         // TODO: Gestire Artigianato e Valutare diversi e aggiungere Sinergie
         sinergie.add(new Sinergia("AB26", "AB12", new ModificatoreDTO(null, "AB12", 2, "+2", null, TipoModificatore.VALORE, true, "Sinergia Raggirare", null, null))); //Diplomazia
@@ -623,6 +633,12 @@ public class ModificatoriService {
         sinergie.add(new Sinergia("AB33", "AB4", new ModificatoreDTO(null, "AB4", 2, "+2", "per liberarsi da corde", TipoModificatore.VALORE, true, "Sinergia Usare Corde", null, null))); //Artista della fuga
         sinergie.add(new Sinergia("AB8", "AB32", new ModificatoreDTO(null, "AB32", 2, "+2", "quando segui tracce", TipoModificatore.VALORE, true, "Sinergia Cercare", null, null))); //Sopravvivenza
         return sinergie;
+    }
+
+    /** Copia superficiale di un ModificatoreDTO: serve a non mutare i template statici in SINERGIE. */
+    private static ModificatoreDTO clonaModificatore(ModificatoreDTO src) {
+        return new ModificatoreDTO(src.getId(), src.getStatId(), src.getValore(), src.getFormula(),
+                src.getNota(), src.getTipo(), src.getSempreAttivo(), src.getItem(), src.getItemId(), src.getTipoItem());
     }
 
     // ==================== Helper privati usati dai calcola* ====================

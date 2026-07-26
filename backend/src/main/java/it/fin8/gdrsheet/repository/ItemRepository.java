@@ -36,7 +36,16 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
 
     Item findItemByNomeAndPersonaggio_Id(String name, Integer personaggioId);
 
-    List<Item> findTop20ByNomeContainingIgnoreCaseOrderByNomeAsc(String nome);
+    // Cerca sia nel nome sia nella label EN_NAME (nome originale inglese), non solo nel nome.
+    @Query("""
+            SELECT i FROM Item i
+            WHERE lower(i.nome) LIKE lower(concat('%', :nome, '%'))
+               OR EXISTS (SELECT 1 FROM ItemLabel ien
+                          WHERE ien.item = i AND ien.label = 'EN_NAME'
+                            AND lower(ien.valore) LIKE lower(concat('%', :nome, '%')))
+            ORDER BY i.nome ASC
+            """)
+    List<Item> findTop20ByNomeOrEnNameContainingIgnoreCase(@Param("nome") String nome, org.springframework.data.domain.Pageable pageable);
 
     @Query("SELECT i FROM Item i JOIN i.labels il WHERE il.label = 'CC' AND il.valore = :cc")
     List<Item> findContiByCc(@Param("cc") String cc);
@@ -45,7 +54,10 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             SELECT i FROM Item i
             WHERE i.personaggio IS NULL
               AND (:tipo IS NULL OR i.tipo = :tipo)
-              AND (:nome = '' OR lower(i.nome) LIKE lower(concat('%', :nome, '%')))
+              AND (:nome = '' OR lower(i.nome) LIKE lower(concat('%', :nome, '%'))
+                   OR EXISTS (SELECT 1 FROM ItemLabel ien
+                              WHERE ien.item = i AND ien.label = 'EN_NAME'
+                                AND lower(ien.valore) LIKE lower(concat('%', :nome, '%'))))
               AND (
                 i.tipo IN (it.fin8.gdrsheet.def.TipoItem.INCANTESIMO,
                            it.fin8.gdrsheet.def.TipoItem.CLASSE,
@@ -64,14 +76,27 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             org.springframework.data.domain.Pageable pageable
     );
 
-    List<Item> findTop20ByNomeContainingIgnoreCaseAndTipoOrderByNomeAsc(String nome, TipoItem tipo);
+    // Come sopra, filtrata anche per tipo.
+    @Query("""
+            SELECT i FROM Item i
+            WHERE i.tipo = :tipo
+              AND (lower(i.nome) LIKE lower(concat('%', :nome, '%'))
+                   OR EXISTS (SELECT 1 FROM ItemLabel ien
+                              WHERE ien.item = i AND ien.label = 'EN_NAME'
+                                AND lower(ien.valore) LIKE lower(concat('%', :nome, '%'))))
+            ORDER BY i.nome ASC
+            """)
+    List<Item> findTop20ByNomeOrEnNameContainingIgnoreCaseAndTipo(@Param("nome") String nome, @Param("tipo") TipoItem tipo, org.springframework.data.domain.Pageable pageable);
 
     /** Compendio senza filtro COMPENDIO — visibile solo ad admin/master. */
     @Query("""
             SELECT i FROM Item i
             WHERE i.personaggio IS NULL
               AND (:tipo IS NULL OR i.tipo = :tipo)
-              AND (:nome = '' OR lower(i.nome) LIKE lower(concat('%', :nome, '%')))
+              AND (:nome = '' OR lower(i.nome) LIKE lower(concat('%', :nome, '%'))
+                   OR EXISTS (SELECT 1 FROM ItemLabel ien
+                              WHERE ien.item = i AND ien.label = 'EN_NAME'
+                                AND lower(ien.valore) LIKE lower(concat('%', :nome, '%'))))
               AND (:idMondo IS NULL OR (i.mondo IS NOT NULL AND i.mondo.id = :idMondo))
             ORDER BY i.nome
             """)
@@ -87,7 +112,10 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             SELECT i FROM Item i
             WHERE i.personaggio IS NULL
               AND (:tipo IS NULL OR i.tipo = :tipo)
-              AND (:nome = '' OR lower(i.nome) LIKE lower(concat('%', :nome, '%')))
+              AND (:nome = '' OR lower(i.nome) LIKE lower(concat('%', :nome, '%'))
+                   OR EXISTS (SELECT 1 FROM ItemLabel ien
+                              WHERE ien.item = i AND ien.label = 'EN_NAME'
+                                AND lower(ien.valore) LIKE lower(concat('%', :nome, '%'))))
               AND (:idMondo IS NULL OR (i.mondo IS NOT NULL AND i.mondo.id = :idMondo))
               AND (
                 i.tipo IN (it.fin8.gdrsheet.def.TipoItem.INCANTESIMO,

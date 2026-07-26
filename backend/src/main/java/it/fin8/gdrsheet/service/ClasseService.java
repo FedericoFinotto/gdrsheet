@@ -149,6 +149,9 @@ public class ClasseService {
             s.setConosciuti(conosciutiRaw == null || conosciutiRaw.isBlank()
                     ? List.of()
                     : Arrays.stream(conosciutiRaw.split(";")).map(String::trim).toList());
+            s.setCaratteristica(classe.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CARATTERISTICA_SUFFIX));
+            s.setCasterLevelSorgente(classe.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CL_SORGENTE_SUFFIX));
+            s.setSlotLivelloSorgente(classe.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_SLOT_SORGENTE_SUFFIX));
             out.add(s);
         }
         if (out.isEmpty()) {
@@ -214,7 +217,7 @@ public class ClasseService {
                 String k = l.getLabel();
                 return k != null && (k.equals(Constants.ITEM_LABEL_LISTA_INCANTESIMI)
                         || k.equals(Constants.ITEM_LABEL_SPELL_SLOT_BONUS)
-                        || k.matches("SPELL_\\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI)?"));
+                        || k.matches("SPELL_\\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_CARATTERISTICA|_CL_SRC|_SLOT_SRC)?"));
             });
         }
         List<ClasseDetailDTO.SezioneSpellDTO> sezioni = dto.getSezioniIncantesimi();
@@ -235,6 +238,15 @@ public class ClasseService {
                 putSingleLabel(classe, "SPELL_" + n, String.join(",", liste));
                 putSingleLabel(classe, "SPELL_" + n + "_PROG", s.getProgressione());
                 putSingleLabel(classe, "SPELL_" + n + "_BONUS", s.getBonus());
+                String caratteristica = s.getCaratteristica() == null ? null : s.getCaratteristica().trim();
+                putSingleLabel(classe, "SPELL_" + n + Constants.ITEM_LABEL_SPELL_CARATTERISTICA_SUFFIX,
+                        caratteristica == null || caratteristica.isBlank() ? null : caratteristica);
+                String clSrc = s.getCasterLevelSorgente() == null ? null : s.getCasterLevelSorgente().trim();
+                putSingleLabel(classe, "SPELL_" + n + Constants.ITEM_LABEL_SPELL_CL_SORGENTE_SUFFIX,
+                        clSrc == null || clSrc.isBlank() ? null : clSrc);
+                String slotSrc = s.getSlotLivelloSorgente() == null ? null : s.getSlotLivelloSorgente().trim();
+                putSingleLabel(classe, "SPELL_" + n + Constants.ITEM_LABEL_SPELL_SLOT_SORGENTE_SUFFIX,
+                        slotSrc == null || slotSrc.isBlank() ? null : slotSrc);
                 // tabella slot custom della sezione (solo se CUSTOM e valorizzata)
                 if (s.getSlot() != null && !s.getSlot().isEmpty()) {
                     String slotJoined = s.getSlot().stream()

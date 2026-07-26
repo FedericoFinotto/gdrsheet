@@ -696,9 +696,11 @@ public class ItemService {
     public List<Item> searchItems(String query, TipoItem tipo) {
         String q = query == null ? "" : query.trim();
         if (q.isEmpty()) return List.of();
+        var top20 = org.springframework.data.domain.PageRequest.of(0, 20);
+        // Cerca sia nel nome sia nella label EN_NAME (nome originale inglese).
         return tipo == null
-                ? itemRepository.findTop20ByNomeContainingIgnoreCaseOrderByNomeAsc(q)
-                : itemRepository.findTop20ByNomeContainingIgnoreCaseAndTipoOrderByNomeAsc(q, tipo);
+                ? itemRepository.findTop20ByNomeOrEnNameContainingIgnoreCase(q, top20)
+                : itemRepository.findTop20ByNomeOrEnNameContainingIgnoreCaseAndTipo(q, tipo, top20);
     }
 
     /**

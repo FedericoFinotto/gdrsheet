@@ -71,6 +71,9 @@ const groupedByClassLevel = computed(() => {
         idClasse: sb?.idClasse,
         fonteTipo: sb?.fonteTipo,
         spellList: sb?.spellList,
+        casterLevel: sb?.casterLevel,
+        caratteristica: sb?.caratteristica,
+        cd: sb?.cd,
         levels: normalizeLevels(sb?.livelli),
         spurii: sb?.spurii ?? []
       }))
@@ -294,6 +297,8 @@ function showPopup(opts: ShowPopupOpts) {
       <h3 class="classe-title">
         {{ group.classe }}
         <span class="muted fonte-tipo">Da: {{ fonteTipoLabel(group.fonteTipo) }}</span>
+        <span v-if="group.casterLevel != null" class="muted"> · CL: {{ group.casterLevel }}</span>
+        <span v-if="group.cd != null" class="muted"> · CD: {{ group.cd }}</span>
       </h3>
 
       <div v-for="lv in group.levels" :key="`${group.idClasse ?? group.classe}-${lv.livello}`" class="level-block">

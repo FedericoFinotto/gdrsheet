@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -174,6 +175,10 @@ public class PersonaggioService {
      */
     private List<Item> flattenItems(Collection<Item> rootItems, Set<Integer> fruttiSenzaModOut) {
         List<Item> result = new ArrayList<>();
+        // Cache per-traversal: più item dell'albero (es. più LIVELLO della stessa classe) spesso
+        // referenziano la STESSA lista di competenze — senza questa cache, findCompetenze farebbe
+        // una findItemsByIds per ognuno anche quando gli id sono identici a quelli già risolti.
+        Map<Integer, Item> competenzeCache = new HashMap<>();
         Deque<FlattenEntry> stack = new ArrayDeque<>();
         for (Item root : rootItems) stack.push(new FlattenEntry(root, null));
 
@@ -194,7 +199,7 @@ public class PersonaggioService {
             boolean isDisabled = utilService.parseBooleanFromString(cur.getLabel(Constants.ITEM_LABEL_DISABILITATO), Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE, Constants.ITEM_LABEL_DISABILITATO_VALORE_FALSE);
 
             if (!isDisabled) {
-                List<Item> competenze = findCompetenze(cur);
+                List<Item> competenze = findCompetenze(cur, competenzeCache);
 //                List<Item> lingue = findLingue(cur);
 
                 if (cur.getChild() != null) {
@@ -278,13 +283,19 @@ public class PersonaggioService {
 
         Cache modCache = cacheManager.getCache(CACHE_MODIFICATORI);
         AllPersonaggioItems allPersonaggioItems = getAllPersonaggioItemsByIdPersonaggio(id);
+        // Calcolata UNA SOLA VOLTA qui e passata a entrambe le chiamate sotto (invece di lasciarla
+        // ricalcolare identica sia dentro getDatiPersonaggio sia dentro
+        // getAllPersonaggioItemsDTOByIdPersonaggio, che altrimenti la rifanno entrambe sulla stessa
+        // allPersonaggioItems.getItems() quando in questa richiesta mancano entrambe le cache).
+        Map<Integer, Integer> mappaContenitoriSeparati = mappaContenitoriSeparati(allPersonaggioItems.getItems());
+
         DatiPersonaggioDTO dati = modCache != null ? modCache.get(id, DatiPersonaggioDTO.class) : null;
         if (dati == null) {
-            dati = getDatiPersonaggio(id, allPersonaggioItems);
+            dati = getDatiPersonaggio(id, allPersonaggioItems, mappaContenitoriSeparati);
             if (modCache != null) modCache.put(id, dati);
         }
 
-        ItemsDTO result = getAllPersonaggioItemsDTOByIdPersonaggio(id, utente, dati.getUtilizziTotaleFormula(), allPersonaggioItems);
+        ItemsDTO result = getAllPersonaggioItemsDTOByIdPersonaggio(id, utente, dati.getUtilizziTotaleFormula(), allPersonaggioItems, mappaContenitoriSeparati, dati.getVariabili());
         if (itemsCache != null) itemsCache.put(key, result);
         return result;
     }
@@ -295,6 +306,27 @@ public class PersonaggioService {
      * calcola una volta sola e lo condivide con getDatiPersonaggio).
      */
     public ItemsDTO getAllPersonaggioItemsDTOByIdPersonaggio(Integer id, Utente utente, Map<Integer, Integer> utilizziTotaleFormula, AllPersonaggioItems allPersonaggioItems) {
+        return getAllPersonaggioItemsDTOByIdPersonaggio(id, utente, utilizziTotaleFormula, allPersonaggioItems,
+                mappaContenitoriSeparati(allPersonaggioItems.getItems()), getDatiPersonaggio(id, allPersonaggioItems).getVariabili());
+    }
+
+    /**
+     * Come sopra, ma accetta anche la mappa dei contenitori "separati" già calcolata dal chiamante
+     * (es. da getDatiPersonaggio nella stessa richiesta): evita di rifare la stessa DFS sugli item
+     * quando entrambe le cache (items + modificatori) mancano nella stessa richiesta.
+     */
+    public ItemsDTO getAllPersonaggioItemsDTOByIdPersonaggio(Integer id, Utente utente, Map<Integer, Integer> utilizziTotaleFormula, AllPersonaggioItems allPersonaggioItems, Map<Integer, Integer> mappaContenitoriSeparatiPrecalcolata) {
+        return getAllPersonaggioItemsDTOByIdPersonaggio(id, utente, utilizziTotaleFormula, allPersonaggioItems,
+                mappaContenitoriSeparatiPrecalcolata, getDatiPersonaggio(id, allPersonaggioItems, mappaContenitoriSeparatiPrecalcolata).getVariabili());
+    }
+
+    /**
+     * Come sopra, ma accetta anche la mappa "variabili" (@id/$id) già calcolata dal chiamante
+     * (usata per calcolare la CD degli spellbook: "10 + caster level + modificatore
+     * caratteristica"), evitando di ricalcolare getDatiPersonaggio quando è già disponibile
+     * nella stessa richiesta.
+     */
+    public ItemsDTO getAllPersonaggioItemsDTOByIdPersonaggio(Integer id, Utente utente, Map<Integer, Integer> utilizziTotaleFormula, AllPersonaggioItems allPersonaggioItems, Map<Integer, Integer> mappaContenitoriSeparatiPrecalcolata, Map<String, Integer> variabili) {
         ItemsDTO itemsDTO = new ItemsDTO();
         Personaggio personaggio = personaggioRepository.findPersonaggioById(id);
 
@@ -354,7 +386,7 @@ public class PersonaggioService {
         // Contenuti dei CONTENITORE con INVENTARIO_SEPARATO=1: dirottati più sotto dalle liste
         // normali per tipo verso una sezione a parte (es. la Stiva di una NAVE). Il contenitore
         // stesso resta comunque visibile nella lista Contenitori: solo il suo contenuto è qui.
-        Map<Integer, Integer> separatoContainerIdByItem = mappaContenitoriSeparati(allPersonaggioItems.getItems());
+        Map<Integer, Integer> separatoContainerIdByItem = mappaContenitoriSeparatiPrecalcolata;
         Map<Integer, Item> itemById = new HashMap<>();
         for (Item itm : allPersonaggioItems.getItems()) itemById.put(itm.getId(), itm);
         Map<Integer, InventarioSeparatoDTO> inventariSeparati = new LinkedHashMap<>();
@@ -485,29 +517,27 @@ public class PersonaggioService {
             // Nuovo schema a sezioni (SPELL_<n>): una spellbook per sezione.
             List<SezioneIncantesimi> sezioni = parseSezioniIncantesimi(classe.getClasse());
             if (!sezioni.isEmpty()) {
-                int baseTot = classe.getLivelloTotale() != null ? classe.getLivelloTotale() : 0;
-                int baseEff = classe.getLivelloNonMaledetto() != null ? classe.getLivelloNonMaledetto() : 0;
                 for (SezioneIncantesimi sez : sezioni) {
                     // sezione di solo avanzamento (liste tutte "+...") non genera spellbook proprio
                     if (sez.liste().stream().allMatch(l -> l != null && l.startsWith("+"))) continue;
 
-                    // avanzamento da altre classi (liste "+<lista>" di classi da prestigio)
-                    Set<String> listeSez = new HashSet<>(sez.liste());
-                    int extraTot = 0, extraEff = 0;
-                    for (InfoClasseDTO other : allPersonaggioItems.getLivelli().getClassi()) {
-                        if (other.getClasse() == null
-                                || Objects.equals(other.getClasse().getId(), classe.getClasse().getId())) continue;
-                        boolean avanza = tutteLeListe(other.getClasse()).stream()
-                                .anyMatch(ol -> ol != null && ol.startsWith("+") && listeSez.contains(ol.substring(1)));
-                        if (avanza) {
-                            extraTot += other.getLivelloTotale() != null ? other.getLivelloTotale() : 0;
-                            extraEff += other.getLivelloNonMaledetto() != null ? other.getLivelloNonMaledetto() : 0;
-                        }
-                    }
+                    // liste proprie della sezione (non "+..."): scope per l'aggregazione con le
+                    // classi di prestigio che le avanzano, sia per il caster level (CL) sia per il
+                    // livello usato per pescare gli slot — ognuno scelto tra le varianti di
+                    // InfoClasseDTO configurate sulla sezione (SPELL_<n>_CL_SRC/_SLOT_SRC).
+                    List<String> listeProprie = sez.liste().stream()
+                            .filter(l -> l != null && !l.startsWith("+")).distinct().toList();
+                    var selCL = selettoreCasterLevel(sez.casterLevelSorgente());
+                    var selSlot = selettoreLivelloSlot(sez.slotLivelloSorgente());
+                    List<InfoClasseDTO> tutteLeClassi = allPersonaggioItems.getLivelli().getClassi();
+                    int casterLevel = aggregaLivelloPerListe(listeProprie, classe.getClasse(), tutteLeClassi,
+                            selCL, selCL.apply(classe));
+                    int livelloSlot = aggregaLivelloPerListe(listeProprie, classe.getClasse(), tutteLeClassi,
+                            selSlot, selSlot.apply(classe));
 
                     SpellBookDTO sb = generateSpellBookSezione(
-                            classe.getClasse(), baseTot + extraTot, baseEff + extraEff, id, sez, false);
-                    if (sb != null && !sb.getLivelli().isEmpty()) itemsDTO.getSpellbooks().add(sb);
+                            classe.getClasse(), livelloSlot, casterLevel, id, sez, false, variabili);
+                    if (!sb.getLivelli().isEmpty()) itemsDTO.getSpellbooks().add(sb);
                 }
                 itemsDTO.getClassi().add(itemMapper.toClasseDTO(classe));
                 continue;
@@ -528,7 +558,7 @@ public class PersonaggioService {
                         livelloTotale += info.getLivelloTotale();
                         livelloNonMaledetto += info.getLivelloNonMaledetto();
                     }
-                    SpellBookDTO spellbook = generateSpellBook(classe.getClasse(), livelloTotale, livelloNonMaledetto, id);
+                    SpellBookDTO spellbook = generateSpellBook(classe.getClasse(), livelloTotale, livelloNonMaledetto, id, variabili);
                     if (spellbook != null) {
                         itemsDTO.getSpellbooks().add(spellbook);
                     }
@@ -546,7 +576,7 @@ public class PersonaggioService {
             for (SezioneIncantesimi sez : parseSezioniIncantesimi(itm)) {
                 // sezione personalizzata: liste vuota è normale (nessun filtro per lista), non va saltata
                 if (!sez.personalizzata() && sez.liste().stream().allMatch(l -> l != null && l.startsWith("+"))) continue;
-                SpellBookDTO sb = generateSpellBookSezione(itm, 0, 0, id, sez, true);
+                SpellBookDTO sb = generateSpellBookSezione(itm, 0, 0, id, sez, true, variabili);
                 if (sb != null && !sb.getLivelli().isEmpty()) itemsDTO.getSpellbooks().add(sb);
             }
         }
@@ -765,36 +795,159 @@ public class PersonaggioService {
         // valore = id della classe). Aggiornano solo le InfoClasseDTO della classe.
         applyAddClasseLevels(result);
 
+        // CasterLevel per classe: va calcolato DOPO applyAddClasseLevels, che può aver aggiunto
+        // livelli virtuali e quindi cambiato livelloNonMaledetto/livelloTotale.
+        List<InfoClasseDTO> tutteLeClassi = result.getLivelli().getClassi();
+        for (InfoClasseDTO classe : tutteLeClassi) {
+            if (classe.getClasse() == null) continue;
+            classe.setCasterLevelNonMaledetto(computeCasterLevel(classe.getClasse(), classe.getLivelloNonMaledettoPerIncantesimi(),
+                    tutteLeClassi, InfoClasseDTO::getLivelloNonMaledettoPerIncantesimi));
+            classe.setCasterLevelTotale(computeCasterLevel(classe.getClasse(), classe.getLivelloTotalePerIncantesimi(),
+                    tutteLeClassi, InfoClasseDTO::getLivelloTotalePerIncantesimi));
+        }
+
         return result;
     }
 
     /**
-     * Aggiunge alle classi i livelli extra concessi dagli item del personaggio.
-     * Le label sono indicizzate a triplette per indice {@code <n>}:
+     * Caster level di una classe: il proprio livello (secondo {@code livelloAltra}, non
+     * maledetto o totale a seconda del chiamante) più lo stesso livello di ogni ALTRA classe che
+     * avanza (label "+<lista>") una delle liste incantesimi proprie di questa classe (es. Bardo
+     * prestigio che avanza la lista base del Bardo). Stesso calcolo, generalizzato a tutte le
+     * sezioni della classe, di quello fatto per-sezione in
+     * {@code getAllPersonaggioItemsDTOByIdPersonaggio} per generare lo spellbook (variante "non
+     * maledetto"): coincide con esso quando la classe ha una sola sezione incantatore (il caso
+     * comune); una classe con più sezioni su liste diverse ha qui un unico valore aggregato
+     * invece di uno per sezione.
+     */
+    private Integer computeCasterLevel(Item classeItem, Integer livelloProprio, List<InfoClasseDTO> tutteLeClassi,
+                                        java.util.function.Function<InfoClasseDTO, Integer> livelloAltra) {
+        List<String> listeProprie = tutteLeListe(classeItem).stream()
+                .filter(l -> l != null && !l.startsWith("+"))
+                .distinct()
+                .toList();
+        return aggregaLivelloPerListe(listeProprie, classeItem, tutteLeClassi, livelloAltra, livelloProprio);
+    }
+
+    /**
+     * Il proprio livello (secondo {@code estrattore}) più lo stesso livello di ogni ALTRA classe
+     * che avanza (label "+<lista>") una delle liste date, scoped esattamente a {@code listeProprie}
+     * (non a tutte le liste della classe: usato sia per il caster level "di classe" aggregato su
+     * tutte le sue sezioni sia, per sezione singola, nella generazione dello spellbook).
+     */
+    private int aggregaLivelloPerListe(List<String> listeProprie, Item classeItem, List<InfoClasseDTO> tutteLeClassi,
+                                        java.util.function.Function<InfoClasseDTO, Integer> estrattore, Integer livelloProprio) {
+        int proprio = livelloProprio != null ? livelloProprio : 0;
+        if (listeProprie.isEmpty()) return proprio;
+
+        int extra = 0;
+        for (InfoClasseDTO other : tutteLeClassi) {
+            if (other.getClasse() == null || Objects.equals(other.getClasse().getId(), classeItem.getId())) continue;
+            boolean avanza = tutteLeListe(other.getClasse()).stream()
+                    .anyMatch(ol -> ol != null && ol.startsWith("+") && listeProprie.contains(ol.substring(1)));
+            if (avanza) {
+                Integer v = estrattore.apply(other);
+                extra += v != null ? v : 0;
+            }
+        }
+        return proprio + extra;
+    }
+
+    /**
+     * "TOT" = livello totale (con maledetti); assente/altro = default "NM" (non maledetto). Usa le
+     * varianti "PerIncantesimi" (escludono i livelli virtuali ADD_CLASSE senza _SPELL=1, vedi
+     * InfoClasseDTO), non i campi grezzi — questi ultimi restano per le variabili @LIVELLO_* generiche.
+     */
+    private java.util.function.Function<InfoClasseDTO, Integer> selettoreCasterLevel(String sorgente) {
+        return "TOT".equalsIgnoreCase(sorgente) ? InfoClasseDTO::getLivelloTotalePerIncantesimi : InfoClasseDTO::getLivelloNonMaledettoPerIncantesimi;
+    }
+
+    /**
+     * "MNM" = livello massimo non maledetto; "TOT" = livello totale; assente/altro = default "NM".
+     * Stesse varianti "PerIncantesimi" di {@link #selettoreCasterLevel}.
+     */
+    private java.util.function.Function<InfoClasseDTO, Integer> selettoreLivelloSlot(String sorgente) {
+        if ("MNM".equalsIgnoreCase(sorgente)) return InfoClasseDTO::getLivelloMaxNonMaledettoPerIncantesimi;
+        if ("TOT".equalsIgnoreCase(sorgente)) return InfoClasseDTO::getLivelloTotalePerIncantesimi;
+        return InfoClasseDTO::getLivelloNonMaledettoPerIncantesimi;
+    }
+
+    /**
+     * Aggiunge alle classi i livelli extra concessi dagli item del personaggio. Di default un
+     * ADD_CLASSE non aggiunge NULLA: ogni effetto è opt-in tramite il proprio flag, indipendente
+     * dagli altri. Le label sono indicizzate a gruppi per indice {@code <n>}:
      * <ul>
      *   <li>{@code ADD_CLASSE_<n>} = id della classe;</li>
-     *   <li>{@code ADD_CLASSE_<n>_VALUE} = numero di livelli da aggiungere;</li>
+     *   <li>{@code ADD_CLASSE_<n>_VALUE} = numero di livelli da aggiungere, letterale o formula
+     *       con @LIVELLO_NM_/_MNM_/_TOT_/_MAX_/_CASTER_NM_/_CASTER_&lt;idClasse&gt; (es.
+     *       "@LIVELLO_CASTER_NM_2013/2"). Tutte calcolate SOLO sui livelli reali (pre-ADD_CLASSE) di
+     *       ogni classe — mai su virtuali aggiunti da un ALTRO ADD_CLASSE processato in questo stesso
+     *       giro, altrimenti il risultato dipenderebbe dall'ordine di iterazione degli item;</li>
+     *   <li>{@code ADD_CLASSE_<n>_LIVELLO} = "1": i livelli virtuali contano come livelli
+     *       "ufficiali" della classe (lista livelli/UI, variabili @LIVELLO_NM_/_MNM_/_TOT_/_MAX_);</li>
      *   <li>{@code ADD_CLASSE_<n>_ITEMS} = "1": concede anche i Privilegi di Classe (Avanzamento
      *       CLASSE->item, esclusi i template AVANZAMENTO) dei livelli virtuali aggiunti — calcolo a
      *       runtime, mai persistito, appaiono nell'inventario come item veri;</li>
      *   <li>{@code ADD_CLASSE_<n>_BONUS} = "1": concede anche BAB/Tempra/Riflessi/Volontà dei
      *       livelli virtuali aggiunti, leggendo gli item template AVANZAMENTO della classe
-     *       (stessa fonte della Tabella livelli), cappati al numero di livelli reale della classe.</li>
+     *       (stessa fonte della Tabella livelli), cappati al numero di livelli reale della classe;</li>
+     *   <li>{@code ADD_CLASSE_<n>_SPELL} = "1": i livelli virtuali contano per la progressione
+     *       incantesimi (CL/slot) della classe, a prescindere da _LIVELLO.</li>
      * </ul>
-     * Gli item disabilitati non concedono livelli. I livelli aggiunti contano come non maledetti
-     * (validi per gli incantesimi). Più item possono aggiungere livelli alla stessa classe: si
-     * sommano, ognuno sul range di livelli subito successivo a quello già raggiunto.
+     * Gli item disabilitati non concedono livelli. Più item possono aggiungere livelli alla stessa
+     * classe: si sommano, ognuno sul range di livelli subito successivo a quello già raggiunto
+     * (il range è condiviso da tutti gli effetti, indipendentemente da quali flag hanno impostato).
      */
     private void applyAddClasseLevels(AllPersonaggioItems result) {
         final String prefix = Constants.ITEM_LABEL_ADD_CLASSE_PREFIX;
         final String suffixValore = Constants.ITEM_LABEL_ADD_CLASSE_VALUE_SUFFIX;
         final String suffixValoreAlias = Constants.ITEM_LABEL_ADD_CLASSE_VALUE_SUFFIX_ALIAS;
+        final String suffixLivello = Constants.ITEM_LABEL_ADD_CLASSE_LIVELLO_SUFFIX;
         final String suffixItems = Constants.ITEM_LABEL_ADD_CLASSE_ITEMS_SUFFIX;
         final String suffixBonus = Constants.ITEM_LABEL_ADD_CLASSE_BONUS_SUFFIX;
+        final String suffixSpell = Constants.ITEM_LABEL_ADD_CLASSE_SPELL_SUFFIX;
 
         List<InfoClasseDTO> classi = new ArrayList<>(result.getLivelli().getClassi());
+
+        // Snapshot dei livelli REALI (pre-ADD_CLASSE) di ogni classe: usato sia come contesto delle
+        // formule in ADD_CLASSE_<n>_VALUE (es. "@LIVELLO_NM_2013/2"), sia come base fissa per il
+        // calcolo incantesimi (getLivelloXPerIncantesimi in InfoClasseDTO), che deve restare
+        // indipendente da cosa _LIVELLO abbia eventualmente aggiunto ai campi "ufficiali" più sotto.
+        // Scattato PRIMA di qualunque mutazione, così una formula vede sempre i livelli "di base"
+        // delle altre classi — mai livelli virtuali aggiunti da un ALTRO ADD_CLASSE processato in
+        // questo stesso giro (che dipenderebbe dall'ordine di iterazione degli item, non
+        // deterministico dal punto di vista dell'utente).
+        Map<String, String> contestoLivelli = new HashMap<>();
+        for (InfoClasseDTO c : classi) {
+            if (c.getClasse() == null) continue;
+            c.setLivelloNonMaledettoRealeBase(c.getLivelloNonMaledetto() != null ? c.getLivelloNonMaledetto() : 0);
+            c.setLivelloTotaleRealeBase(c.getLivelloTotale() != null ? c.getLivelloTotale() : 0);
+            c.setLivelloMaxNonMaledettoRealeBase(c.getLivelloMaxNonMaledetto() != null ? c.getLivelloMaxNonMaledetto() : 0);
+            String cid = c.getClasse().getId().toString();
+            contestoLivelli.put(Constants.VARIABILE_LIVELLO_NM_PREFIX + cid, String.valueOf(c.getLivelloNonMaledettoRealeBase()));
+            contestoLivelli.put(Constants.VARIABILE_LIVELLO_MNM_PREFIX + cid, String.valueOf(c.getLivelloMaxNonMaledettoRealeBase()));
+            contestoLivelli.put(Constants.VARIABILE_LIVELLO_TOT_PREFIX + cid, String.valueOf(c.getLivelloTotaleRealeBase()));
+            contestoLivelli.put(Constants.VARIABILE_LIVELLO_MAX_PREFIX + cid,
+                    String.valueOf(c.getLivelloMax() != null ? c.getLivelloMax() : 0));
+        }
+        // @LIVELLO_CASTER_NM_/_TOT_<id>: stesso caster level esposto nelle variabili del personaggio
+        // (aggregato con le classi di prestigio che avanzano le sue liste via "+lista"), ma calcolato
+        // qui SOLO sui livelli reali sopra — mai su virtuali di ALTRI ADD_CLASSE processati in questo
+        // stesso giro, altrimenti il risultato dipenderebbe dall'ordine di iterazione degli item.
+        // Richiede un secondo giro perché computeCasterLevel di una classe legge il RealeBase di
+        // TUTTE le altre, che deve quindi essere già impostato per l'intera lista.
+        for (InfoClasseDTO c : classi) {
+            if (c.getClasse() == null) continue;
+            String cid = c.getClasse().getId().toString();
+            int clNM = computeCasterLevel(c.getClasse(), c.getLivelloNonMaledettoRealeBase(), classi, InfoClasseDTO::getLivelloNonMaledettoRealeBase);
+            int clTOT = computeCasterLevel(c.getClasse(), c.getLivelloTotaleRealeBase(), classi, InfoClasseDTO::getLivelloTotaleRealeBase);
+            contestoLivelli.put(Constants.VARIABILE_LIVELLO_CASTER_NM_PREFIX + cid, String.valueOf(clNM));
+            contestoLivelli.put(Constants.VARIABILE_LIVELLO_CASTER_PREFIX + cid, String.valueOf(clTOT));
+        }
+
         // "prossimo livello libero" per classe: parte dal max reale, cresce con ogni item che
-        // aggiunge livelli virtuali (così più item sulla stessa classe si sommano su range distinti)
+        // aggiunge livelli virtuali (così più item sulla stessa classe si sommano su range distinti,
+        // a prescindere da quali flag hanno impostato — il range è condiviso, gli effetti no).
         Map<Integer, Integer> prossimoLivello = new HashMap<>();
         List<Item> daAggiungereAlFlatten = new ArrayList<>();
         boolean trovatoAlmenoUno = false;
@@ -811,14 +964,20 @@ public class PersonaggioService {
                 String key = l.getLabel();
                 if (key == null || !key.startsWith(prefix)) continue;
                 String rest = key.substring(prefix.length());
-                if (rest.endsWith(suffixValore) || rest.endsWith(suffixValoreAlias)
-                        || rest.endsWith(suffixItems) || rest.endsWith(suffixBonus)) continue;
+                if (rest.endsWith(suffixValore) || rest.endsWith(suffixValoreAlias) || rest.endsWith(suffixLivello)
+                        || rest.endsWith(suffixItems) || rest.endsWith(suffixBonus) || rest.endsWith(suffixSpell)) continue;
 
                 Integer idClasse = parseIntOrNull(l.getValore());
                 if (idClasse == null) continue;
                 String livelliString = itm.getLabel(prefix + rest + suffixValore);
                 if (livelliString == null) livelliString = itm.getLabel(prefix + rest + suffixValoreAlias);
-                Integer extra = livelliString != null ? parseIntOrNull(livelliString) : null;
+                // Formula (es. "@LIVELLO_CASTER_NM_2013/2") o intero letterale: calcoloService.calcola
+                // gestisce entrambi (un letterale è già un'espressione numerica valida). Tutte le
+                // varianti @LIVELLO_*/_CASTER_* qui sono quelle REALI (snapshot sopra), mai quelle
+                // con virtuali di un ALTRO ADD_CLASSE in questo stesso giro (vedi commento sopra).
+                Integer extra = livelliString != null
+                        ? parseIntOrNull(calcoloService.calcola(livelliString, contestoLivelli))
+                        : null;
                 if (extra == null || extra <= 0) continue;
                 trovatoAlmenoUno = true;
 
@@ -837,6 +996,9 @@ public class PersonaggioService {
                     info.setLivelloNonMaledetto(0);
                     info.setLivelloMax(0);
                     info.setLivelloMaxNonMaledetto(0);
+                    info.setLivelloNonMaledettoRealeBase(0);
+                    info.setLivelloTotaleRealeBase(0);
+                    info.setLivelloMaxNonMaledettoRealeBase(0);
                     classi.add(info);
                 }
 
@@ -844,13 +1006,28 @@ public class PersonaggioService {
                 int end = start + extra - 1;
                 prossimoLivello.put(idClasse, end);
 
-                Set<Integer> livelli = info.getLivelli() != null ? new HashSet<>(info.getLivelli()) : new HashSet<>();
-                for (int lv = start; lv <= end; lv++) livelli.add(lv);
-                info.setLivelli(livelli);
-                info.setLivelloTotale((info.getLivelloTotale() != null ? info.getLivelloTotale() : 0) + extra);
-                info.setLivelloNonMaledetto((info.getLivelloNonMaledetto() != null ? info.getLivelloNonMaledetto() : 0) + extra);
-                info.setLivelloMax(end);
-                info.setLivelloMaxNonMaledetto((info.getLivelloMaxNonMaledetto() != null ? info.getLivelloMaxNonMaledetto() : 0) + extra);
+                // Di default un ADD_CLASSE non aggiunge NULLA: ogni effetto è opt-in e indipendente
+                // dagli altri (_LIVELLO/_ITEMS/_BONUS/_SPELL non si implicano a vicenda).
+                boolean contaComeLivello = "1".equals(itm.getLabel(prefix + rest + suffixLivello));
+                if (contaComeLivello) {
+                    Set<Integer> livelli = info.getLivelli() != null ? new HashSet<>(info.getLivelli()) : new HashSet<>();
+                    for (int lv = start; lv <= end; lv++) livelli.add(lv);
+                    info.setLivelli(livelli);
+                    info.setLivelloTotale((info.getLivelloTotale() != null ? info.getLivelloTotale() : 0) + extra);
+                    info.setLivelloNonMaledetto((info.getLivelloNonMaledetto() != null ? info.getLivelloNonMaledetto() : 0) + extra);
+                    info.setLivelloMax(end);
+                    info.setLivelloMaxNonMaledetto((info.getLivelloMaxNonMaledetto() != null ? info.getLivelloMaxNonMaledetto() : 0) + extra);
+                }
+
+                // Contributo per la progressione incantesimi (CL/slot): indipendente da _LIVELLO,
+                // sommato alla base REALE (mai ai campi "ufficiali" sopra, per non contarlo due volte
+                // se sia _LIVELLO sia _SPELL sono flaggati sullo stesso ADD_CLASSE).
+                boolean contaPerIncantesimi = "1".equals(itm.getLabel(prefix + rest + suffixSpell));
+                if (contaPerIncantesimi) {
+                    info.setVirtualiSpellNonMaledetto((info.getVirtualiSpellNonMaledetto() != null ? info.getVirtualiSpellNonMaledetto() : 0) + extra);
+                    info.setVirtualiSpellTotale((info.getVirtualiSpellTotale() != null ? info.getVirtualiSpellTotale() : 0) + extra);
+                    info.setVirtualiSpellMaxNonMaledetto((info.getVirtualiSpellMaxNonMaledetto() != null ? info.getVirtualiSpellMaxNonMaledetto() : 0) + extra);
+                }
 
                 boolean grantItems = "1".equals(itm.getLabel(prefix + rest + suffixItems));
                 boolean grantBonus = "1".equals(itm.getLabel(prefix + rest + suffixBonus));
@@ -946,14 +1123,17 @@ public class PersonaggioService {
         }
 
         AllPersonaggioItems allPersonaggioItems = getAllPersonaggioItemsByIdPersonaggio(id);
-        DatiPersonaggioDTO dati = getDatiPersonaggio(id, allPersonaggioItems);
+        // Calcolata UNA SOLA VOLTA e passata a entrambe le chiamate sotto, vedi commento gemello in
+        // getAllPersonaggioItemsDTOByIdPersonaggio(id, utente).
+        Map<Integer, Integer> mappaContenitoriSeparati = mappaContenitoriSeparati(allPersonaggioItems.getItems());
+        DatiPersonaggioDTO dati = getDatiPersonaggio(id, allPersonaggioItems, mappaContenitoriSeparati);
         if (modCache != null) modCache.put(id, dati);
 
         if (utente != null) {
             Cache itemsCache = cacheManager.getCache(CACHE_ITEMS);
             String key = itemsCacheKey(id, utente);
             if (itemsCache != null && itemsCache.get(key) == null) {
-                ItemsDTO items = getAllPersonaggioItemsDTOByIdPersonaggio(id, utente, dati.getUtilizziTotaleFormula(), allPersonaggioItems);
+                ItemsDTO items = getAllPersonaggioItemsDTOByIdPersonaggio(id, utente, dati.getUtilizziTotaleFormula(), allPersonaggioItems, mappaContenitoriSeparati, dati.getVariabili());
                 itemsCache.put(key, items);
             }
         }
@@ -966,6 +1146,16 @@ public class PersonaggioService {
      * calcola una volta sola e lo condivide con getAllPersonaggioItemsDTOByIdPersonaggio).
      */
     public DatiPersonaggioDTO getDatiPersonaggio(Integer id, AllPersonaggioItems allPersonaggioItemsSheet) {
+        return getDatiPersonaggio(id, allPersonaggioItemsSheet, mappaContenitoriSeparati(allPersonaggioItemsSheet.getItems()));
+    }
+
+    /**
+     * Come sopra, ma accetta anche la mappa dei contenitori "separati" già calcolata dal chiamante
+     * (es. da getAllPersonaggioItemsDTOByIdPersonaggio nella stessa richiesta): evita di rifare la
+     * stessa DFS sugli item quando entrambe le cache (items + modificatori) mancano nella stessa
+     * richiesta.
+     */
+    public DatiPersonaggioDTO getDatiPersonaggio(Integer id, AllPersonaggioItems allPersonaggioItemsSheet, Map<Integer, Integer> mappaContenitoriSeparatiPrecalcolata) {
         // 1) Carica Personaggio base
         Personaggio p = personaggioRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Personaggio non trovato"));
@@ -975,7 +1165,7 @@ public class PersonaggioService {
         // Item dentro un CONTENITORE "separato" (es. la Stiva di una NAVE): carico, non dotazione,
         // esclusi anche se abilitati — come se non fossero collegati al personaggio (il peso
         // continua comunque a contare, sommato più sotto in modo diretto).
-        Map<Integer, Integer> mappaContenitoriSeparati = mappaContenitoriSeparati(allItems);
+        Map<Integer, Integer> mappaContenitoriSeparati = mappaContenitoriSeparatiPrecalcolata;
         Set<Integer> dentroContenitoriSeparati = mappaContenitoriSeparati.keySet();
         List<Item> filteredItems = new ArrayList<>();
         for (Item item : allItems) {
@@ -1018,13 +1208,15 @@ public class PersonaggioService {
                 : filteredItems.stream().map(Item::getId)
                     .filter(iid -> !fruttiSenzaModSheet.contains(iid)).toList();
         List<Modificatore> allMods = modificatoreRepository.findAllByItemIdIn(itemIdsPerMod);
-        List<Modificatore> modificatoriPerLivello = elaboraModificatoriStatLivello(allMods);
-        allMods = allMods.stream()
-                .filter(x -> !(x.getItem().getTipo().equals(TipoItem.LIVELLO)
-                        && Constants.listOfUniqueByClassStats.contains(x.getStat().getId())))
-                .toList();
-
-        allMods = Stream.concat(allMods.stream(), modificatoriPerLivello.stream())
+        // Un solo passaggio su allMods (partitioningBy) invece di due filtri con predicati
+        // complementari: quelli che matchano vanno "de-duplicati" (un solo livello per
+        // stat+nome classe, il più alto raggiunto) da elaboraModificatoriStatLivello, gli altri
+        // restano così come sono.
+        Map<Boolean, List<Modificatore>> modsPartizionati = allMods.stream()
+                .collect(Collectors.partitioningBy(x -> x.getItem().getTipo().equals(TipoItem.LIVELLO)
+                        && Constants.listOfUniqueByClassStats.contains(x.getStat().getId())));
+        List<Modificatore> modificatoriPerLivello = elaboraModificatoriStatLivello(modsPartizionati.get(true));
+        allMods = Stream.concat(modsPartizionati.get(false).stream(), modificatoriPerLivello.stream())
                 .toList();
 
         List<ItemLabel> taglia = new ArrayList<>(itemLabelRepository.findByLabelAndItem_IdIn(Constants.ITEM_LABEL_TAGLIA, itemIds));
@@ -1127,8 +1319,6 @@ public class PersonaggioService {
         CalcoloService.variabiliPersonaggio(info, pesoTotale)
                 .forEach((k, v) -> itemCounterList.add(new ContatoreItemDTO(k, v)));
 
-        dto.getContatoriItem().addAll(itemCounterList);
-
         // "variabili": raccoglie $id/@id per risolvere le formule di TUTTI i calcola* che seguono,
         // costruita una sola volta (non più ricostruita identica dentro ognuno). Le caratteristiche
         // non esistono ancora a questo punto (vengono calcolate subito sotto): le loro entry "@id"
@@ -1142,6 +1332,25 @@ public class PersonaggioService {
         variabili.set(Constants.VARIABILE_TAGLIA, tagliaPerVariabili);
         variabili.set(Constants.VARIABILE_TAGLIA_BASE, tagliaBasePerVariabili);
         variabili.set(Constants.VARIABILE_DIFFERENZA_TAGLIA, tagliaPerVariabili - tagliaBasePerVariabili);
+        // Tutti i livelli di InfoClasseDTO per classe (@LIVELLO_NM_/MNM_/TOT_/MAX_/CASTER_<idClasse>),
+        // usabili in qualunque formula di modificatore/contatore, non solo su item concessi
+        // dall'avanzamento della classe stessa.
+        for (InfoClasseDTO infoClasse : allPersonaggioItemsSheet.getLivelli().getClassi()) {
+            if (infoClasse.getClasse() == null) continue;
+            String idClasse = infoClasse.getClasse().getId().toString();
+            variabili.set(Constants.VARIABILE_LIVELLO_NM_PREFIX + idClasse,
+                    infoClasse.getLivelloNonMaledetto() != null ? infoClasse.getLivelloNonMaledetto() : 0);
+            variabili.set(Constants.VARIABILE_LIVELLO_MNM_PREFIX + idClasse,
+                    infoClasse.getLivelloMaxNonMaledetto() != null ? infoClasse.getLivelloMaxNonMaledetto() : 0);
+            variabili.set(Constants.VARIABILE_LIVELLO_TOT_PREFIX + idClasse,
+                    infoClasse.getLivelloTotale() != null ? infoClasse.getLivelloTotale() : 0);
+            variabili.set(Constants.VARIABILE_LIVELLO_MAX_PREFIX + idClasse,
+                    infoClasse.getLivelloMax() != null ? infoClasse.getLivelloMax() : 0);
+            variabili.set(Constants.VARIABILE_LIVELLO_CASTER_NM_PREFIX + idClasse,
+                    infoClasse.getCasterLevelNonMaledetto() != null ? infoClasse.getCasterLevelNonMaledetto() : 0);
+            variabili.set(Constants.VARIABILE_LIVELLO_CASTER_PREFIX + idClasse,
+                    infoClasse.getCasterLevelTotale() != null ? infoClasse.getCasterLevelTotale() : 0);
+        }
 
         // Valuta formulaQty sui collegamenti usando i contatori già calcolati
         List<Collegamento> conFormula = collegamentoRepository.findWithFormulaQty(itemIds, itemIds);
@@ -1175,6 +1384,11 @@ public class PersonaggioService {
         variabili.setAll(carList.stream()
                 .collect(Collectors.toMap(x -> "@".concat(x.getId()), x -> x.getModificatore().toString(), (a, b) -> a)));
 
+        // "variabili" nel DTO ritornato: TUTTO ciò che è risolvibile in una formula per questo
+        // personaggio (contatori item, taglia, livello per classe, caratteristiche), non solo
+        // l'elenco grezzo dei $V_/QTA come prima - un solo posto invece di incrociare più fonti.
+        variabili.mappa().forEach((k, v) -> dto.getVariabili().put(k, parseIntOrNull(v)));
+
         Optional<DadiVitaDTO> dvOpt = stats.stream()
                 .filter(sv -> TipoStat.ATT.equals(sv.getStat().getTipo()) && "DV".equals(sv.getStat().getId()))
                 .findFirst()
@@ -1187,7 +1401,12 @@ public class PersonaggioService {
                 ));
         dvOpt.ifPresent(dto::setDadiVita);
 
-        // 9b) Calcolo parallelo di Tiri Salvezza e Abilità
+        // 9b) Calcolo parallelo di Tiri Salvezza, Abilità, CA, Bonus Attacco, Contatori e Attributi.
+        // Le 6 sottomissioni sono TUTTE indipendenti (leggono solo modsDtoByStat/carList/variabili,
+        // mai mutati da nessuna di esse — variabili è una ConcurrentHashMap apposta per questo) e
+        // vanno quindi sottomesse TUTTE PRIMA di aspettare il risultato di qualunque: prima le
+        // giravano una alla volta (submit+get, poi il prossimo submit+get...), cioè in pratica in
+        // sequenza — nessun vero parallelismo TRA i sei gruppi, solo dentro ciascuno.
         ForkJoinPool pool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
         try {
             // CAMBIA_CARATTERISTICA globale sui tiri salvezza (stat fittizia "tutti i TS").
@@ -1197,7 +1416,17 @@ public class PersonaggioService {
                     .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()))
                     .toList();
             cambiaTsGlobali.forEach(m -> { if (m.getValore() == null) m.setValore(0); });
-            List<TiroSalvezzaDTO> tsList = pool.submit(() ->
+
+            // CAMBIA_CARATTERISTICA globale: modificatori sulla stat fittizia "tutte le abilità".
+            // Sono DTO condivisi tra i calcoli paralleli: fisso valore=0 qui (single-thread) così
+            // applicaCalcoli non li muta concorrentemente (l'override usa la formula, non il valore).
+            List<ModificatoreDTO> cambiaAbilitaGlobali = modsDtoByStat
+                    .getOrDefault(Constants.STAT_TUTTE_ABILITA, Collections.emptyList()).stream()
+                    .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()))
+                    .toList();
+            cambiaAbilitaGlobali.forEach(m -> { if (m.getValore() == null) m.setValore(0); });
+
+            ForkJoinTask<List<TiroSalvezzaDTO>> tsTask = pool.submit(() ->
                     stats.stream()
                             .filter(sv -> TipoStat.TS.equals(sv.getStat().getTipo()))
                             .map(sv -> modificatoriService.calcoloTiroSalvezza(
@@ -1208,22 +1437,13 @@ public class PersonaggioService {
                                     cambiaTsGlobali
                             ))
                             .toList()
-            ).get();
-            dto.getTiriSalvezza().addAll(tsList);
+            );
 
-            // CAMBIA_CARATTERISTICA globale: modificatori sulla stat fittizia "tutte le abilità".
-            // Sono DTO condivisi tra i calcoli paralleli: fisso valore=0 qui (single-thread) così
-            // applicaCalcoli non li muta concorrentemente (l'override usa la formula, non il valore).
-            List<ModificatoreDTO> cambiaAbilitaGlobali = modsDtoByStat
-                    .getOrDefault(Constants.STAT_TUTTE_ABILITA, Collections.emptyList()).stream()
-                    .filter(m -> TipoModificatore.CAMBIA_CARATTERISTICA.equals(m.getTipo()))
-                    .toList();
-            cambiaAbilitaGlobali.forEach(m -> { if (m.getValore() == null) m.setValore(0); });
             // Placeholder di famiglia (AB00/AR00/CO00/IN00): mai mostrati come abilità vere e proprie
             // (né in scheda né in Gestisci Gradi), valgono solo come bersaglio di Modificatore: un
             // Modificatore su AB00 si applica automaticamente a tutte le abilità semplici (e così via
             // per le altre famiglie), tramite placeholderPerAbilita().
-            List<AbilitaDTO> abList = pool.submit(() ->
+            ForkJoinTask<List<AbilitaDTO>> abTask = pool.submit(() ->
                     stats.stream()
                             .filter(sv -> TipoStat.AB.equals(sv.getStat().getTipo()))
                             .filter(sv -> !ModificatoriService.FAMIGLIA_GENERICA.containsKey(sv.getStat().getId()))
@@ -1251,10 +1471,9 @@ public class PersonaggioService {
                                 );
                             })
                             .toList()
-            ).get();
-            dto.getAbilita().addAll(abList);
+            );
 
-            List<ClasseArmaturaDTO> caList = pool.submit(() ->
+            ForkJoinTask<List<ClasseArmaturaDTO>> caTask = pool.submit(() ->
                     stats.stream()
                             .filter(sv -> TipoStat.CA.equals(sv.getStat().getTipo()))
                             .map(sv -> modificatoriService.calcolaClasseArmatura(
@@ -1264,10 +1483,9 @@ public class PersonaggioService {
                                     carList, variabili
                             ))
                             .toList()
-            ).get();
-            dto.getClasseArmatura().addAll(caList);
+            );
 
-            List<BonusAttaccoDTO> atkList = pool.submit(() ->
+            ForkJoinTask<List<BonusAttaccoDTO>> atkTask = pool.submit(() ->
                     stats.stream()
                             .filter(sv -> TipoStat.ATK.equals(sv.getStat().getTipo()))
                             .map(sv -> modificatoriService.calcolaBonusAttacco(
@@ -1278,10 +1496,9 @@ public class PersonaggioService {
                                     variabili
                             ))
                             .toList()
-            ).get();
-            dto.getBonusAttacco().addAll(atkList);
+            );
 
-            List<ContatoreDTO> countList = pool.submit(() ->
+            ForkJoinTask<List<ContatoreDTO>> countTask = pool.submit(() ->
                     stats.stream()
                             .filter(sv -> TipoStat.COUNT.equals(sv.getStat().getTipo()))
                             .map(sv -> modificatoriService.calcolaContatore(
@@ -1293,10 +1510,9 @@ public class PersonaggioService {
                                     variabili
                             ))
                             .toList()
-            ).get();
-            dto.getContatori().addAll(countList);
+            );
 
-            List<AttributoDTO> attrList = pool.submit(() ->
+            ForkJoinTask<List<AttributoDTO>> attrTask = pool.submit(() ->
                     stats.stream()
                             .filter(sv -> TipoStat.ATT.equals(sv.getStat().getTipo()) && !sv.getStat().getId().equals("GRADI") && !sv.getStat().getId().equals("DV"))
                             .map(sv -> modificatoriService.calcolaAttributo(
@@ -1306,8 +1522,14 @@ public class PersonaggioService {
                                     variabili
                             ))
                             .toList()
-            ).get();
-            dto.getAttributi().addAll(attrList);
+            );
+
+            dto.getTiriSalvezza().addAll(tsTask.get());
+            dto.getAbilita().addAll(abTask.get());
+            dto.getClasseArmatura().addAll(caTask.get());
+            dto.getBonusAttacco().addAll(atkTask.get());
+            dto.getContatori().addAll(countTask.get());
+            dto.getAttributi().addAll(attrTask.get());
 
         } catch (Exception e) {
             throw new RuntimeException("Errore nel calcolo parallelo", e);
@@ -1491,17 +1713,29 @@ public class PersonaggioService {
         return true;
     }
 
-    private List<Item> findCompetenze(Item item) {
+    /**
+     * Item referenziati dalla label LISTA_COMPETENZE di {@code item} (es. le competenze scelte per
+     * un talento). {@code cache} è condivisa per l'intero traversal (flattenItems): solo gli id non
+     * ancora visti vengono richiesti al DB, in un'unica findItemsByIds — evitando sia il refetch di
+     * competenze già risolte per un altro item, sia una query separata per ciascun id.
+     */
+    private List<Item> findCompetenze(Item item, Map<Integer, Item> cache) {
         ItemLabel competenze = item.getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_LISTA_COMPETENZE)).findFirst().orElse(null);
-        if (competenze != null) {
-            List<Integer> competenzeIds = Stream.of(competenze.getValore().split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .map(Integer::parseInt)
-                    .toList();
-            return itemRepository.findItemsByIds(competenzeIds);
+        if (competenze == null) return new ArrayList<>();
+
+        List<Integer> competenzeIds = Stream.of(competenze.getValore().split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Integer::parseInt)
+                .toList();
+
+        List<Integer> mancanti = competenzeIds.stream().filter(id -> !cache.containsKey(id)).toList();
+        if (!mancanti.isEmpty()) {
+            for (Item trovato : itemRepository.findItemsByIds(mancanti)) {
+                cache.put(trovato.getId(), trovato);
+            }
         }
-        return new ArrayList<>();
+        return competenzeIds.stream().map(cache::get).filter(Objects::nonNull).toList();
     }
 
     private List<Item> findLingue(Item item) {
@@ -1573,7 +1807,9 @@ public class PersonaggioService {
      */
     public record SezioneIncantesimi(List<String> liste, String progressione, String bonus, List<String> slot,
                                       boolean conosciutiSeparati, List<String> conosciuti,
-                                      boolean personalizzata, List<String> incantesimiCustom) {}
+                                      boolean personalizzata, List<String> incantesimiCustom,
+                                      String caratteristica, Integer casterLevelFisso,
+                                      String casterLevelSorgente, String slotLivelloSorgente) {}
 
     /**
      * Legge le sezioni incantatore "nuove" di un item dalle label indicizzate:
@@ -1618,8 +1854,13 @@ public class PersonaggioService {
             List<String> incantesimiCustom = (incantesimiRaw == null || incantesimiRaw.isBlank())
                     ? List.of()
                     : Arrays.stream(incantesimiRaw.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
+            String caratteristica = item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CARATTERISTICA_SUFFIX);
+            Integer casterLevelFisso = parseIntOrNull(item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CASTER_LEVEL_SUFFIX));
+            String casterLevelSorgente = item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CL_SORGENTE_SUFFIX);
+            String slotLivelloSorgente = item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_SLOT_SORGENTE_SUFFIX);
             out.add(new SezioneIncantesimi(listeArr, prog, bonus, slot, conosciutiSeparati, conosciuti,
-                    personalizzata, incantesimiCustom));
+                    personalizzata, incantesimiCustom, caratteristica, casterLevelFisso,
+                    casterLevelSorgente, slotLivelloSorgente));
         }
         return out;
     }
@@ -1640,14 +1881,22 @@ public class PersonaggioService {
      * avanzamenti della classe (come il path legacy). Gli incantesimi sono filtrati
      * sulle liste della sezione.
      */
-    private SpellBookDTO generateSpellBookSezione(Item classe, int livelloTotale, int livelloEffettivo,
-                                                  Integer idPersonaggio, SezioneIncantesimi sez, boolean fisso) {
+    private SpellBookDTO generateSpellBookSezione(Item classe, int livelloSlot, int casterLevelClasse,
+                                                  Integer idPersonaggio, SezioneIncantesimi sez, boolean fisso,
+                                                  Map<String, Integer> variabili) {
         SpellBookDTO spellBook = new SpellBookDTO();
         spellBook.setIdClasse(classe.getId());
         spellBook.setNomeClasse(classe.getNome());
         spellBook.setFonteTipo(classe.getTipo() != null ? classe.getTipo().name() : null);
         spellBook.setSpellList(String.join(",", sez.liste()));
         spellBook.setSpurii(generateSpurii(classe, idPersonaggio));
+        // CasterLevel (mostrato in scheda come "CL"): sugli oggetti (fisso=true) è un valore
+        // impostato a mano (l'oggetto non ha "livelli"), sulle classi è già stato aggregato dal
+        // chiamante secondo la variante scelta sulla sezione (SPELL_<n>_CL_SRC: NM/TOT).
+        Integer casterLevel = fisso ? sez.casterLevelFisso() : casterLevelClasse;
+        spellBook.setCasterLevel(casterLevel);
+        spellBook.setCaratteristica(sez.caratteristica());
+        impostaCd(spellBook, casterLevel, sez.caratteristica(), variabili);
 
         List<SpellBookIncantesimoDTO> incantesimi;
         if (sez.personalizzata()) {
@@ -1663,43 +1912,39 @@ public class PersonaggioService {
 
         Set<String> liste = new HashSet<>(sez.liste());
 
+        // Il livello di classe usato per pescare gli slot è UNO SOLO (scelto dal chiamante tra
+        // Livello Massimo Non Maledetto / Livello Totale Non Maledetto / Livello Totale, vedi
+        // SPELL_<n>_SLOT_SRC) — non più una coppia "attuale vs teorico massimo" come in passato.
         int[] slots;
-        int[] slotsMax;
         if (fisso) {
             // Item (non classe): un numero fisso di slot, nessuna progressione per livello.
             slots = sez.slot() != null && !sez.slot().isEmpty() ? parseSlotRow(sez.slot().get(0)) : new int[0];
-            slotsMax = slots;
         } else if (it.fin8.gdrsheet.def.ProgressioneIncantesimi.isPreset(sez.progressione())) {
-            slots = it.fin8.gdrsheet.def.ProgressioneIncantesimi.slotsPerLivello(sez.progressione(), livelloEffettivo);
-            slotsMax = it.fin8.gdrsheet.def.ProgressioneIncantesimi.slotsPerLivello(sez.progressione(), livelloTotale);
+            slots = it.fin8.gdrsheet.def.ProgressioneIncantesimi.slotsPerLivello(sez.progressione(), livelloSlot);
         } else if (sez.slot() != null && !sez.slot().isEmpty()) {
             // CUSTOM con tabella propria della sezione
-            slots = slotArrayDaSezione(sez, livelloEffettivo);
-            slotsMax = slotArrayDaSezione(sez, livelloTotale);
+            slots = slotArrayDaSezione(sez, livelloSlot);
         } else {
             // CUSTOM legacy: slot dagli avanzamenti della classe
-            slots = slotArrayDaAvanzamento(classe, livelloEffettivo);
-            slotsMax = slotArrayDaAvanzamento(classe, livelloTotale);
+            slots = slotArrayDaAvanzamento(classe, livelloSlot);
         }
-        if (slots.length == 0 || slotsMax.length == 0) return spellBook;
+        if (slots.length == 0) return spellBook;
 
-        int[] conosciutiMax = !sez.conosciutiSeparati() ? new int[0]
+        int[] conosciuti = !sez.conosciutiSeparati() ? new int[0]
                 : fisso
                     ? (sez.conosciuti() != null && !sez.conosciuti().isEmpty() ? parseSlotRow(sez.conosciuti().get(0)) : new int[0])
-                    : conosciutiArrayDaSezione(sez, livelloTotale);
+                    : conosciutiArrayDaSezione(sez, livelloSlot);
 
-        for (int i = 0; i < slotsMax.length; i++) {
+        for (int i = 0; i < slots.length; i++) {
             // "dash" (nessun accesso, mai): solo per righe CUSTOM col sentinel; nei preset la riga
             // è già strutturalmente più corta e il loop non arriva a questo indice.
-            if (slotsMax[i] == SLOT_DASH) continue;
-            int slot = i < slots.length ? slots[i] : 0;
-            if (slot == SLOT_DASH) slot = 0;
+            if (slots[i] == SLOT_DASH) continue;
 
             SpellBookLivelloDTO liv = new SpellBookLivelloDTO();
             liv.setLivello(i);
-            liv.setSlot(slot);
-            if (i < conosciutiMax.length && conosciutiMax[i] != SLOT_DASH) {
-                liv.setConosciuti(conosciutiMax[i]);
+            liv.setSlot(slots[i]);
+            if (i < conosciuti.length && conosciuti[i] != SLOT_DASH) {
+                liv.setConosciuti(conosciuti[i]);
             }
             if (sez.bonus() != null && !sez.bonus().isBlank() && i > 0) {
                 liv.getBonus().add(sez.bonus());
@@ -1711,6 +1956,17 @@ public class PersonaggioService {
             spellBook.getLivelli().add(liv);
         }
         return spellBook;
+    }
+
+    /**
+     * CD = 10 + caster level + modificatore della caratteristica associata alla lista. Lascia
+     * "cd" a null se manca il caster level, la caratteristica non è impostata sulla sezione/classe,
+     * o non si trova tra le variabili del personaggio (es. stat inesistente/refuso in etichetta).
+     */
+    private void impostaCd(SpellBookDTO spellBook, Integer casterLevel, String caratteristica, Map<String, Integer> variabili) {
+        if (casterLevel == null || caratteristica == null || caratteristica.isBlank() || variabili == null) return;
+        Integer modCaratteristica = variabili.get("@" + caratteristica.trim());
+        if (modCaratteristica != null) spellBook.setCd(10 + casterLevel + modCaratteristica);
     }
 
     /** Sentinel per una cella "—" (nessun accesso, mai) nelle righe CUSTOM inserite a mano. */
@@ -1824,7 +2080,8 @@ public class PersonaggioService {
         return out;
     }
 
-    private SpellBookDTO generateSpellBook(Item classe, Integer lvl, Integer livelloEffettivo, Integer idPersonaggio) {
+    private SpellBookDTO generateSpellBook(Item classe, Integer lvl, Integer livelloEffettivo, Integer idPersonaggio,
+                                           Map<String, Integer> variabili) {
         ItemLabel spellList = classe.getLabels().stream().filter(x -> x.getLabel().equals(Constants.ITEM_LABEL_LISTA_INCANTESIMI)).findFirst().orElse(null);
         if (spellList == null) return null;
         SpellBookDTO spellBook = new SpellBookDTO();
@@ -1833,6 +2090,12 @@ public class PersonaggioService {
         spellBook.setFonteTipo(classe.getTipo() != null ? classe.getTipo().name() : null);
         spellBook.setSpellList(spellList.getValore());
         spellBook.setSpurii(generateSpurii(classe, idPersonaggio));
+        // Path legacy: solo classi, il caster level è sempre il livello effettivo (già comprensivo
+        // degli avanzamenti da classi di prestigio, sommato dal chiamante).
+        spellBook.setCasterLevel(livelloEffettivo);
+        String caratteristica = utilService.getItemLabel(classe, Constants.ITEM_LABEL_SPELL_CARATTERISTICA);
+        spellBook.setCaratteristica(caratteristica);
+        impostaCd(spellBook, livelloEffettivo, caratteristica, variabili);
         String slotBonus = utilService.getItemLabel(classe, Constants.ITEM_LABEL_SPELL_SLOT_BONUS);
 
         Avanzamento avanzamentoTotale = findAvanzamentoPerLivello(classe, Math.toIntExact(lvl));
@@ -1988,7 +2251,9 @@ public class PersonaggioService {
         String needle = q == null ? "" : q.trim().toLowerCase();
         var stream = personaggio.getParty().getMondo().getItems().stream()
                 .filter(x -> x.getTipo().equals(tipoItem))
-                .filter(x -> needle.isEmpty() || x.getNome() != null && x.getNome().toLowerCase().contains(needle));
+                .filter(x -> needle.isEmpty()
+                        || (x.getNome() != null && x.getNome().toLowerCase().contains(needle))
+                        || (x.getLabel(Constants.ITEM_LABEL_EN_NAME) != null && x.getLabel(Constants.ITEM_LABEL_EN_NAME).toLowerCase().contains(needle)));
         if (!needle.isEmpty()) stream = stream.limit(50);
         return stream.toList();
     }
@@ -2065,12 +2330,14 @@ public class PersonaggioService {
         }
     }
 
-    public List<Modificatore> elaboraModificatoriStatLivello(List<Modificatore> allMods) {
-        List<Modificatore> modificatoriSTAT = allMods.stream()
-                .filter(x -> x.getItem().getTipo().equals(TipoItem.LIVELLO)
-                        && Constants.listOfUniqueByClassStats.contains(x.getStat().getId()))
-                .toList();
-
+    /**
+     * Tra i modificatori "unici per classe" (BAB/TS: il valore del livello più alto raggiunto
+     * sostituisce quelli dei livelli precedenti, non li somma) tiene solo il modificatore del
+     * livello massimo per ciascuna coppia stat+classe. {@code modificatoriSTAT} deve già essere
+     * filtrato dal chiamante (item di tipo LIVELLO, stat in listOfUniqueByClassStats) — non lo
+     * rifiltra qui per evitare un secondo passaggio sull'intera lista dei modificatori.
+     */
+    public List<Modificatore> elaboraModificatoriStatLivello(List<Modificatore> modificatoriSTAT) {
         Map<String, List<Modificatore>> byStat = modificatoriSTAT.stream()
                 .collect(Collectors.groupingBy(m -> m.getStat().getId()));
 

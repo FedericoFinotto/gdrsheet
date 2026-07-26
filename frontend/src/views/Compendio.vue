@@ -123,11 +123,11 @@ onMounted(load)
           <div class="row">
             <button class="row-main" @click="toggleExpand(itm.id)">
               <div class="row-main-content">
-                <span v-if="itm.manuale" class="manuale">{{ itm.manuale }}</span>
-                <div class="row-main-line">
-                  <span class="nome">{{ itm.nome }}</span>
+                <div class="row-top">
                   <span class="pill tipo">{{ TIPO_ITEM_LABELS[itm.tipo] ?? itm.tipo }}</span>
+                  <span v-if="itm.manuale" class="manuale">{{ itm.manuale }}</span>
                 </div>
+                <span class="nome">{{ itm.nome }}</span>
               </div>
             </button>
             <button class="btn-edit" title="Modifica" @click="router.push(`/itemeditor/${itm.id}`)">
@@ -235,27 +235,23 @@ onMounted(load)
   width: 100%;
 }
 
+.row-top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: .1rem .5rem;
+}
+
 .manuale {
   font-size: .7rem;
   color: var(--color-text-secondary, #6b7280);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.row-main-line {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: .5rem;
-  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .nome {
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: break-word;
 }
 
 .pill {

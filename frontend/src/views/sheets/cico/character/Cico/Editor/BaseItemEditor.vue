@@ -88,6 +88,10 @@ const form = reactive<{
     liste: string[]; bonus: string; slot: string; conosciutiSeparati: boolean; conosciuti: string
     personalizzata: boolean; incantesimiCustom: Array<{ id: number; nome: string; livello: number }>
   }>
+  aggiunteClasse: Array<{
+    idClasse: number | null; nomeClasse: string; valore: string
+    livello: boolean; items: boolean; bonus: boolean; spell: boolean
+  }>
   note: NotaRow[]
   inCarico: string[]
   qta: number
@@ -115,6 +119,7 @@ const form = reactive<{
   forme: [],
   effetti: [],
   sezioniIncantesimi: [],
+  aggiunteClasse: [],
   note: [],
   inCarico: [],
   qta: 1,
@@ -130,7 +135,7 @@ const form = reactive<{
 const open = reactive({
   labels: false, modificatori: false, attacchi: false, children: false, forme: false, effetti: false,
   campiLabel: false, descrOggetto: false, infoOggetto: false, infoVeicolo: false, descrAbilita: false, note: false,
-  incantesimi: false, inCarico: false,
+  incantesimi: false, inCarico: false, aggiunteClasse: false,
 })
 
 // Taglia fisica dell'oggetto (es. arma taglia Grande): puramente descrittiva, non modifica
@@ -176,11 +181,16 @@ async function preload() {
   form.inCarico = []
   form.completata = false
   form.sezioniIncantesimi = []
+  form.aggiunteClasse = []
   // righe SPELL_<n>* raccolte durante il giro delle label, riassemblate in sezioni a fine ciclo
   // (l'ordine delle label non è garantito, es. _SLOT potrebbe comparire prima di SPELL_<n> stesso)
   const spellRaw: Record<number, {
     liste?: string; bonus?: string; slot?: string; haConosciuti?: string; conosciuti?: string
     personalizzata?: string; incantesimi?: string
+  }> = {}
+  // righe ADD_CLASSE_<n>* raccolte allo stesso modo (stesso motivo: ordine label non garantito)
+  const addClasseRaw: Record<number, {
+    idClasse?: string; valore?: string; livello?: string; items?: string; bonus?: string; spell?: string
   }> = {}
   for (const l of (props.item.labels ?? [])) {
     const key = l.label ?? ''
@@ -259,6 +269,17 @@ async function preload() {
       else if (suffix === '_CUSTOM') row.personalizzata = val
       else if (suffix === '_INCANTESIMI') row.incantesimi = val
       // _PROG: ignorata, gli item non hanno progressione (sempre a slot fisso)
+    } else if (/^ADD_CLASSE_\d+(_VALUE|_VALORE|_LIVELLO|_ITEMS|_BONUS|_SPELL)?$/.test(key)) {
+      const m = key.match(/^ADD_CLASSE_(\d+)(_VALUE|_VALORE|_LIVELLO|_ITEMS|_BONUS|_SPELL)?$/)!
+      const n = Number(m[1])
+      const suffix = m[2] ?? ''
+      const row = (addClasseRaw[n] ??= {})
+      if (suffix === '') row.idClasse = val
+      else if (suffix === '_VALUE' || suffix === '_VALORE') row.valore = val
+      else if (suffix === '_LIVELLO') row.livello = val
+      else if (suffix === '_ITEMS') row.items = val
+      else if (suffix === '_BONUS') row.bonus = val
+      else if (suffix === '_SPELL') row.spell = val
     } else {
       form.labels.push({label: key, valore: val})
     }
@@ -283,6 +304,25 @@ async function preload() {
   await Promise.all(form.sezioniIncantesimi.flatMap(s => s.incantesimiCustom.map(async c => {
     try { c.nome = (await getItem(c.id)).data?.nome ?? c.nome } catch { /* item non trovato: resta il placeholder #id */ }
   })))
+
+  form.aggiunteClasse = Object.keys(addClasseRaw).map(Number).sort((a, b) => a - b)
+      .map(n => {
+        const r = addClasseRaw[n]
+        return {
+          idClasse: r.idClasse ? Number(r.idClasse) : null,
+          nomeClasse: '',
+          valore: r.valore ?? '',
+          livello: r.livello === '1',
+          items: r.items === '1',
+          bonus: r.bonus === '1',
+          spell: r.spell === '1',
+        }
+      })
+  // il label salva solo l'id classe: recupera il nome per mostrarlo nella select
+  await Promise.all(form.aggiunteClasse.map(async a => {
+    if (a.idClasse == null) return
+    try { a.nomeClasse = (await getItem(a.idClasse)).data?.nome ?? `#${a.idClasse}` } catch { a.nomeClasse = `#${a.idClasse}` }
+  }))
 
   form.modificatori = (props.item.modificatori ?? []).map(m => ({
     id: m.id,
@@ -405,6 +445,33 @@ function rimuoviIncantesimoCustom(s: { incantesimiCustom: any[] }, idx: number) 
   s.incantesimiCustom.splice(idx, 1)
 }
 
+// Aggiunta Classe: N righe ADD_CLASSE_<n>* — livelli virtuali (anche da formula) concessi a una
+// classe. Di default NON aggiunge nulla: ogni checkbox è un effetto indipendente e opt-in (vedi
+// PersonaggioService.applyAddClasseLevels) — spuntarne una non implica le altre.
+function addAggiuntaClasse() {
+  form.aggiunteClasse.push({idClasse: null, nomeClasse: '', valore: '', livello: false, items: false, bonus: false, spell: false})
+}
+function removeAggiuntaClasse(i: number) {
+  form.aggiunteClasse.splice(i, 1)
+}
+async function searchClasseAggiunta(q: string) {
+  try {
+    const res = await searchItems(q, 'CLASSE')
+    return (res.data ?? []).map((c: any) => ({value: c.id, label: c.nome}))
+  } catch (e) {
+    console.error('Errore ricerca classi:', e)
+    return []
+  }
+}
+// SearchSelect (in modalità remota) emette solo l'id scelto, non l'etichetta: la recupero
+// con una singola getItem, come già fatto altrove in questo file per gli incantesimi custom.
+async function onPickClasseAggiunta(row: { idClasse: number | null; nomeClasse: string }, value: number | string | null) {
+  row.idClasse = value == null ? null : Number(value)
+  row.nomeClasse = ''
+  if (row.idClasse == null) return
+  try { row.nomeClasse = (await getItem(row.idClasse)).data?.nome ?? `#${row.idClasse}` } catch { row.nomeClasse = `#${row.idClasse}` }
+}
+
 const router = useRouter()
 const route = useRoute()
 const childCreate = useChildCreate()
@@ -443,6 +510,7 @@ function restoreSnapshot(snap: any) {
   form.forme = snap.forme ?? []
   form.effetti = snap.effetti ?? []
   form.sezioniIncantesimi = snap.sezioniIncantesimi ?? []
+  form.aggiunteClasse = snap.aggiunteClasse ?? []
   form.note = snap.note ?? []
   form.inCarico = snap.inCarico ?? []
   form.qta = snap.qta ?? 1
@@ -502,6 +570,8 @@ const sumForme = computed(() =>
     form.forme.map(c => c.nome).join(', ') || '—')
 const sumSezioniIncantesimi = computed(() =>
     form.sezioniIncantesimi.length > 0 ? `${form.sezioniIncantesimi.length} sezioni` : 'nessuno')
+const sumAggiunteClasse = computed(() =>
+    form.aggiunteClasse.filter(a => a.idClasse).map(a => a.nomeClasse || `#${a.idClasse}`).join(', ') || '—')
 const sumEffetti = computed(() =>
     form.effetti.map(c => `${c.condizione ?? 'Sempre'}: ${c.nome}`).join(', ') || '—')
 const sumNote = computed(() =>
@@ -632,6 +702,21 @@ function buildPayload(): UpdateItemRequest {
         labels.push({label: `SPELL_${n}_CUSTOM`, valore: '1'})
         labels.push({label: `SPELL_${n}_INCANTESIMI`, valore: custom.map(c => `${c.id}:${c.livello}`).join(',')})
       }
+      n++
+    }
+  }
+  // Aggiunta Classe: livelli virtuali (anche da formula) concessi a una classe, disponibile su
+  // qualunque item (nessuna restrizione di tipo, come nel backend).
+  {
+    let n = 0
+    for (const a of form.aggiunteClasse) {
+      if (!a.idClasse || !a.valore.trim()) continue
+      labels.push({label: `ADD_CLASSE_${n}`, valore: String(a.idClasse)})
+      labels.push({label: `ADD_CLASSE_${n}_VALUE`, valore: a.valore.trim()})
+      if (a.livello) labels.push({label: `ADD_CLASSE_${n}_LIVELLO`, valore: '1'})
+      if (a.items) labels.push({label: `ADD_CLASSE_${n}_ITEMS`, valore: '1'})
+      if (a.bonus) labels.push({label: `ADD_CLASSE_${n}_BONUS`, valore: '1'})
+      if (a.spell) labels.push({label: `ADD_CLASSE_${n}_SPELL`, valore: '1'})
       n++
     }
   }
@@ -1164,6 +1249,65 @@ function onCancel() {
         </div>
 
         <button type="button" class="btn outline" :disabled="disabledAll" @click="addSezioneIncantesimi">+ Aggiungi sezione</button>
+      </div>
+    </section>
+
+    <!-- Aggiunta Classe: N righe ADD_CLASSE_<n>* — livelli virtuali (anche da formula) concessi a
+         una classe del personaggio, con flag opzionali per cosa quei livelli concedono -->
+    <section v-if="!minimal" class="fold">
+      <button type="button" class="fold-head" @click="open.aggiunteClasse = !open.aggiunteClasse"
+              :aria-expanded="open.aggiunteClasse ? 'true' : 'false'">
+        <span class="fold-title">Aggiunta Classe</span>
+        <span class="fold-summary">{{ sumAggiunteClasse }}</span>
+        <span class="chev" :class="{ open: open.aggiunteClasse }">▸</span>
+      </button>
+      <div v-show="open.aggiunteClasse" class="fold-body">
+        <p class="muted">
+          Aggiunge livelli virtuali a una classe del personaggio (non persistiti, calcolati a runtime).
+          Il valore può essere un numero fisso o una formula con @LIVELLO_NM_/_MNM_/_TOT_/_MAX_/
+          _CASTER_NM_/_CASTER_&lt;idClasse&gt; (es. "@LIVELLO_CASTER_NM_2013/2") — sempre sui livelli
+          REALI di ogni classe, mai su virtuali aggiunti da un ALTRO ADD_CLASSE nello stesso giro.
+          <strong>Di base questa riga non aggiunge nulla</strong>: ogni checkbox è un effetto a sé,
+          spuntane solo quelli che vuoi davvero concedere.
+        </p>
+
+        <div v-for="(a, i) in form.aggiunteClasse" :key="i" class="sez-card">
+          <div class="sez-head">
+            <span class="sez-title">Classe {{ i + 1 }}</span>
+            <button type="button" class="btn-del" :disabled="disabledAll" @click="removeAggiuntaClasse(i)" title="Rimuovi">✕</button>
+          </div>
+
+          <label class="field">
+            <span class="lbl">Classe</span>
+            <SearchSelect :model-value="a.idClasse" :on-search="searchClasseAggiunta" :selected-label="a.nomeClasse"
+                          :disabled="disabledAll" placeholder="Cerca classe…"
+                          @update:model-value="onPickClasseAggiunta(a, $event)"/>
+          </label>
+
+          <label class="field">
+            <span class="lbl">Livelli da aggiungere (numero o formula)</span>
+            <input v-model.trim="a.valore" type="text" placeholder="Es.: 2  oppure  @LIVELLO_CASTER_NM_2013/2" :disabled="disabledAll"/>
+          </label>
+
+          <label class="field checkbox-field">
+            <input type="checkbox" v-model="a.livello" :disabled="disabledAll"/>
+            <span class="lbl">Conta come livello ufficiale della classe (lista livelli, variabili @LIVELLO_NM_/_MNM_/_TOT_/_MAX_)</span>
+          </label>
+          <label class="field checkbox-field">
+            <input type="checkbox" v-model="a.items" :disabled="disabledAll"/>
+            <span class="lbl">Concede anche i Privilegi di Classe dei livelli virtuali</span>
+          </label>
+          <label class="field checkbox-field">
+            <input type="checkbox" v-model="a.bonus" :disabled="disabledAll"/>
+            <span class="lbl">Concede anche BAB/Tempra/Riflessi/Volontà dei livelli virtuali</span>
+          </label>
+          <label class="field checkbox-field">
+            <input type="checkbox" v-model="a.spell" :disabled="disabledAll"/>
+            <span class="lbl">Conta per la progressione incantesimi (CL/slot) della classe</span>
+          </label>
+        </div>
+
+        <button type="button" class="btn outline" :disabled="disabledAll" @click="addAggiuntaClasse">+ Aggiungi classe</button>
       </div>
     </section>
 

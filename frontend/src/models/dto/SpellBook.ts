@@ -28,6 +28,9 @@ export interface SpellBook {
     nomeClasse: string;
     fonteTipo?: string;                // TipoItem della fonte (CLASSE, OGGETTO, ...)
     spellList: string;                // codice lista (es. "SP_DRUID")
+    casterLevel?: number;              // classi: livello effettivo (+prestigio); oggetti: valore fisso da label
+    caratteristica?: string;           // stat id usata per la CD (es. "INT")
+    cd?: number;                       // 10 + casterLevel + modificatore caratteristica
     livelli: SpellBookLivello[];   // inizializzato a []
     spurii?: SpellBookIncantesimo[];   // incantesimi non da lista/catalogo, utilizzi propri o di gruppo
 }

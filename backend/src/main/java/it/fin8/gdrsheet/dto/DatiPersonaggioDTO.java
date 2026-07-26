@@ -24,7 +24,9 @@ public class DatiPersonaggioDTO {
     List<BonusAttaccoDTO> bonusAttacco;
     List<ContatoreDTO> contatori;
     List<AttributoDTO> attributi;
-    List<ContatoreItemDTO> contatoriItem;
+    // Tutte le variabili ($id/@id) risolvibili in una formula per questo personaggio a fine calcolo
+    // (contatori item, taglia, livello per classe, caratteristiche) - vedi VariabiliDTO.
+    Map<String, Integer> variabili;
     DadiVitaDTO dadiVita;
 
     // utilizziTotale calcolati da formulaQty sui collegamenti (itemTargetId → totale)
@@ -57,7 +59,7 @@ public class DatiPersonaggioDTO {
         bonusAttacco = new ArrayList<>();
         contatori = new ArrayList<>();
         attributi = new ArrayList<>();
-        contatoriItem = new ArrayList<>();
+        variabili = new LinkedHashMap<>();
         utilizziTotaleFormula = new HashMap<>();
     }
 

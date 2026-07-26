@@ -10,7 +10,11 @@ import java.util.function.Supplier;
  * ModificatoriService, invece di essere ricostruita identica dentro ognuno. La taglia (attuale e
  * base, vedi Constants.VARIABILE_TAGLIA/VARIABILE_TAGLIA_BASE) è calcolata fuori da questi
  * metodi, una volta sola, e messa qui dentro come una variabile qualunque, non come un campo
- * dedicato. È una ConcurrentHashMap perché letta/scritta anche dai calcoli paralleli (CA, BAB...).
+ * dedicato. Stesso schema per i livelli per classe (Constants.VARIABILE_LIVELLO_NM_PREFIX /
+ * _MNM_ / _TOT_ / _MAX_ / _CASTER_NM_ / _CASTER_ + id classe, es. "@LIVELLO_NM_1983"): usabili in
+ * qualunque formula di modificatore/contatore, di qualunque item, non solo di quelli concessi
+ * dall'avanzamento della classe stessa. È una ConcurrentHashMap perché letta/scritta anche dai
+ * calcoli paralleli (CA, BAB...).
  */
 public class VariabiliDTO {
     private final Map<String, String> valori = new ConcurrentHashMap<>();

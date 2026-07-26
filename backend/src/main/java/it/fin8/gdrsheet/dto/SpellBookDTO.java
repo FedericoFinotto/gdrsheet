@@ -15,6 +15,9 @@ public class SpellBookDTO {
     String nomeClasse;
     String fonteTipo;  // TipoItem della fonte (CLASSE, OGGETTO, ...): distingue le sezioni in scheda
     String spellList;
+    Integer casterLevel;   // classi: livello effettivo (+ prestigio); oggetti: SPELL_<n>_CASTER_LEVEL fisso
+    String caratteristica; // stat id usata per la CD (SPELL_<n>_CARATTERISTICA / SP_CARATTERISTICA)
+    Integer cd;            // 10 + casterLevel + modificatore caratteristica; null se non calcolabile
     List<SpellBookLivelloDTO> livelli;
     List<SpellBookIncantesimoDTO> spurii;  // incantesimi non da lista/catalogo, con utilizzi propri o di gruppo
 

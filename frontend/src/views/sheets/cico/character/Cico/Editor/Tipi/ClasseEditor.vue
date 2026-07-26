@@ -66,7 +66,8 @@ const form = reactive({
   // + incantesimi conosciuti (opzionale/flaggabile, indipendente dalla progressione slot)
   sezioni: [] as Array<{
     liste: string[]; progressione: string; bonus: string; slot: string[]
-    conosciutiSeparati: boolean; conosciuti: string[]
+    conosciutiSeparati: boolean; conosciuti: string[]; caratteristica: string
+    casterLevelSorgente: string; slotLivelloSorgente: string
   }>,
   rank1: '',
   rank: '',
@@ -162,6 +163,9 @@ onMounted(async () => {
       slot: Array.isArray(s.slot) ? s.slot.slice() : [],
       conosciutiSeparati: !!s.conosciutiSeparati,
       conosciuti: Array.isArray(s.conosciuti) ? s.conosciuti.slice() : [],
+      caratteristica: s.caratteristica ?? '',
+      casterLevelSorgente: s.casterLevelSorgente ?? 'NM',
+      slotLivelloSorgente: s.slotLivelloSorgente ?? 'NM',
     }))
     form.rank1 = d.rank1 ?? ''
     form.rank = d.rank ?? ''
@@ -423,6 +427,9 @@ function buildClassePayload() {
             slot: slot.some(x => x) ? slot : null,
             conosciutiSeparati: s.conosciutiSeparati,
             conosciuti: conosciuti.some(x => x) ? conosciuti : null,
+            caratteristica: (s.caratteristica || '').trim() || null,
+            casterLevelSorgente: s.casterLevelSorgente || null,
+            slotLivelloSorgente: s.slotLivelloSorgente || null,
           }
         })
         .filter(s => s.liste.length > 0),
@@ -479,8 +486,21 @@ async function salvaRigaAvanzata(a: AbilitaConcessa) {
 const PROGRESSIONI = ['CUSTOM', 'MAGO', 'STREGONE', 'CHIERICO', 'DRUIDO', 'BARDO', 'RANGER', 'PALADINO']
 
 function addSezione() {
-  form.sezioni.push({liste: [], progressione: 'CUSTOM', bonus: '', slot: [], conosciutiSeparati: false, conosciuti: []})
+  form.sezioni.push({
+    liste: [], progressione: 'CUSTOM', bonus: '', slot: [], conosciutiSeparati: false, conosciuti: [],
+    caratteristica: '', casterLevelSorgente: 'NM', slotLivelloSorgente: 'NM',
+  })
 }
+
+const OPZIONI_CASTER_LEVEL = [
+  {value: 'NM', label: 'Caster Level Non Maledetto'},
+  {value: 'TOT', label: 'Caster Level Totale'},
+]
+const OPZIONI_LIVELLO_SLOT = [
+  {value: 'MNM', label: 'Livello Massimo Non Maledetto'},
+  {value: 'NM', label: 'Livello Totale Non Maledetto'},
+  {value: 'TOT', label: 'Livello Totale'},
+]
 function removeSezione(i: number) {
   form.sezioni.splice(i, 1)
 }
@@ -772,6 +792,22 @@ const sumInfoRazza = computed(() => {
               <label class="field">
                 <span class="lbl">Formula slot bonus</span>
                 <input v-model.trim="s.bonus" type="text" placeholder="Es.: 1+(@SAG-#L)/4)" :disabled="disabledAll"/>
+              </label>
+              <label class="field">
+                <span class="lbl">Caratteristica (per la CD: 10 + CL + modificatore)</span>
+                <SearchSelect v-model="s.caratteristica" :disabled="disabledAll"
+                              :options="[{value: '', label: '— nessuna —'}, ...stats.filter(x => x.tipo === 'CAR').map(x => ({value: x.id, label: x.label}))]"
+                              :sort="false"/>
+              </label>
+              <label class="field">
+                <span class="lbl">Livello usato per il CL</span>
+                <SearchSelect v-model="s.casterLevelSorgente" :disabled="disabledAll"
+                              :options="OPZIONI_CASTER_LEVEL" :sort="false"/>
+              </label>
+              <label class="field">
+                <span class="lbl">Livello usato per pescare gli slot</span>
+                <SearchSelect v-model="s.slotLivelloSorgente" :disabled="disabledAll"
+                              :options="OPZIONI_LIVELLO_SLOT" :sort="false"/>
               </label>
             </div>
 

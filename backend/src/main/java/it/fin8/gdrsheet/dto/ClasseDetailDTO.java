@@ -102,6 +102,16 @@ public class ClasseDetailDTO {
          */
         private boolean conosciutiSeparati;
         private List<String> conosciuti;  // stesso formato/dash di "slot" (una riga "4,2,1,-,…" per livello)
+        private String caratteristica;    // stat id usata per la CD di questa sezione (es. "INT")
+
+        /**
+         * Quale livello di classe usare (InfoClasseDTO), aggregato con le eventuali classi di
+         * prestigio che avanzano questa sezione: per il caster level (CL) "NM" (default, non
+         * maledetto) o "TOT" (totale, con maledetti); per gli slot anche "MNM" (livello massimo
+         * non maledetto). Ignorati sulle sezioni di OGGETTI (non hanno "livelli" di classe).
+         */
+        private String casterLevelSorgente; // "NM" | "TOT"
+        private String slotLivelloSorgente; // "MNM" | "NM" | "TOT"
     }
 
     @Getter
