@@ -1307,8 +1307,12 @@ public class ModificatoriService {
      */
     public VariabiliDTO costruisciVariabili(List<ContatoreItemDTO> contatoriItem, List<CaratteristicaDTO> carList) {
         VariabiliDTO variabili = new VariabiliDTO();
-        variabili.setAll(contatoriItem.stream()
-                .collect(Collectors.toMap(x -> "$".concat(x.getId()), x -> x.getValore().toString(), (a, b) -> a)));
+        // Solo "@": ogni formula che referenzia un contatore item con "$..." viene riscritta in
+        // "@<itemId>_..." PRIMA di essere valutata (vedi ModificatoreDTO.itemIdInFormula, usato da
+        // risolviFormule), quindi in questa mappa non arriva mai una lookup con chiave "$...". Le due
+        // varianti erano scritte entrambe (probabile residuo di un calcola rotto risolto altrove,
+        // prima che itemIdInFormula esistesse): la copia "$" non veniva mai letta da nessun
+        // chiamante, l'ho rimossa.
         variabili.setAll(contatoriItem.stream()
                 .collect(Collectors.toMap(x -> "@".concat(x.getId()), x -> x.getValore().toString(), (a, b) -> a)));
         variabili.setAll(carList.stream()
