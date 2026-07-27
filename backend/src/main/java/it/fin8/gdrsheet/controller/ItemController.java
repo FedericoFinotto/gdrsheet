@@ -9,6 +9,7 @@ import it.fin8.gdrsheet.dto.ImportJsonlResultDTO;
 import it.fin8.gdrsheet.dto.ItemDTO;
 import it.fin8.gdrsheet.dto.ItemSearchResultDTO;
 import it.fin8.gdrsheet.dto.MondoDTO;
+import it.fin8.gdrsheet.dto.NotaDTO;
 import it.fin8.gdrsheet.dto.NotiziaDTO;
 import it.fin8.gdrsheet.dto.PageDTO;
 import it.fin8.gdrsheet.dto.SpellBookIncantesimoDTO;
@@ -88,6 +89,19 @@ public class ItemController {
         Item itm = repo.findItemById(id);
 
         return ResponseEntity.ok(itm);
+    }
+
+    @Operation(
+            summary = "Note (label NOTA) di un item, filtrate per visibilità",
+            description = "idPersonaggio è il contesto di lettura (la scheda/inventario da cui si sta guardando l'item, per la visibilità OWNER), non l'item stesso. Può essere omesso (es. dal compendio)."
+    )
+    @GetMapping("/{id}/note")
+    public ResponseEntity<List<NotaDTO>> getNote(
+            @PathVariable Integer id,
+            @RequestParam(required = false) Integer idPersonaggio,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(personaggioService.getNoteItem(id, idPersonaggio, utente));
     }
 
     @Operation(

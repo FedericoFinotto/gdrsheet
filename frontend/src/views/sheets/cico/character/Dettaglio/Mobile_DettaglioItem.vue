@@ -10,7 +10,8 @@ import {
   testoModificatore,
   testoModificatoreConTipo
 } from "../../../../../function/Utils";
-import {getItem, switchItemState} from "../../../../../service/PersonaggioService";
+import {getItem, getNoteItem, switchItemState} from "../../../../../service/PersonaggioService";
+import {Nota} from "../../../../../models/dto/Quest";
 import {ItemDB, TIPO_ITEM} from "../../../../../models/entity/ItemDB";
 import {useCharacterStore} from "../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
@@ -64,6 +65,18 @@ const listaAvanzamenti = ref<Avanzamento[]>([]);
 
 const itemDetail = ref<ItemDB | null>(null);
 const loading = ref(true);
+// Note (label NOTA), già filtrate lato server in base alla visibilità: idPersonaggioCorrente è il
+// contesto di lettura (la scheda in cui ci si trova), non necessariamente il "proprietario" reale
+// dell'item — stesso significato di OWNER usato ovunque nell'app per queste note.
+const note = ref<Nota[]>([]);
+
+const VISIBILITA_LABELS: Record<string, string> = {
+  OWNER: 'Visibile solo al proprietario del personaggio',
+  MASTER: 'Visibile solo al Master',
+};
+function visLabel(visibilita: string): string | null {
+  return VISIBILITA_LABELS[visibilita] ?? null;
+}
 
 // Mappe per labels
 const labelMap = ref<Record<string, string>>({});
@@ -129,7 +142,18 @@ function apriDai() {
   )
 }
 
+// Caricata separatamente dal resto del dettaglio: un errore qui (o la latenza) non deve bloccare
+// il resto della card, che ha già tutto il suo contenuto pronto senza dover aspettare le note.
+async function caricaNote() {
+  try {
+    note.value = (await getNoteItem(item.id, idPersonaggioCorrente)).data ?? [];
+  } catch (e) {
+    console.error('Errore caricamento note item:', e);
+  }
+}
+
 onMounted(async () => {
+  caricaNote();
   try {
     const response = await getItem(item.id);
     const data = response.data;
@@ -642,6 +666,16 @@ function toggleExpand(key: string) {
       <div class="spazietto"/>
     </div>
 
+    <!-- Note: già filtrate lato server in base a chi guarda (stessa visibilità delle quest) -->
+    <div v-if="note.length" class="note-box">
+      <strong>Note</strong>
+      <div v-for="(n, i) in note" :key="i" class="nota-item">
+        <span v-if="visLabel(n.visibilita)" class="nota-vis">{{ visLabel(n.visibilita) }}</span>
+        <div class="nota-html" v-safe-html="n.testo"></div>
+      </div>
+      <div class="spazietto"/>
+    </div>
+
     <!-- Talento: sezioni stile dndtools (una card per sezione presente) -->
     <template v-if="talentoInfo">
       <div v-if="talentoInfo.prerequisito" class="section-card">
@@ -793,6 +827,33 @@ function toggleExpand(key: string) {
 .descrizione-html :deep(ol) { margin: .3rem 0 .3rem 1.2rem; padding: 0; }
 .descrizione-html :deep(h3) { margin: .4rem 0 .2rem; font-size: 1rem; }
 .descrizione-html :deep(p) { margin: .3rem 0; }
+
+.note-box strong {
+  font-size: .75rem;
+  color: var(--color-text-secondary, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.nota-item { margin-top: .3rem; }
+.nota-vis {
+  display: inline-block;
+  margin-bottom: .15rem;
+  font-size: .68rem;
+  font-weight: 700;
+  color: #b91c1c;
+  background: transparent;
+  border: 1px solid #b91c1c;
+  border-radius: .35rem;
+  padding: .05rem .4rem;
+}
+.nota-html {
+  margin: .2rem 0;
+  font-size: .88rem;
+  color: #334155;
+}
+.nota-html :deep(ul),
+.nota-html :deep(ol) { margin: .3rem 0 .3rem 1.2rem; padding: 0; }
+.nota-html :deep(p) { margin: .3rem 0; }
 
 .action-bar {
   display: flex;

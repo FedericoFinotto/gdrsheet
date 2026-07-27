@@ -14,6 +14,7 @@ import {UpdateSpellRequest} from "../models/dto/UpdateSpellRequest";
 import {UpdateBaseStatValueRequest} from "../models/dto/UpdateBaseStatValueRequest";
 import {UpdateSpellUsageRequest} from "../models/dto/UpdateSpellUsageRequest";
 import {ItemSearchResult} from "./PartyService";
+import {Nota} from "../models/dto/Quest";
 import {Abilita} from "../models/dto/Abilita";
 import {Item} from "../models/dto/Item";
 import {Gradi} from "../models/dto/Gradi";
@@ -49,6 +50,14 @@ export function getAllIncantesimiByClasseAndLivello(idClasse: number, livello: n
 export function getItem(id: number): Promise<AxiosResponse<ItemDB>> {
     return api
         .get<ItemDB>(`/item/${id}`);
+}
+
+// Note (label NOTA) di un item qualsiasi, già filtrate lato server in base alla visibilità.
+// idPersonaggio è il contesto di lettura (per la visibilità OWNER), non l'item stesso: può
+// essere omesso (es. dal compendio, dove solo le note senza restrizioni passano il filtro).
+export function getNoteItem(id: number, idPersonaggio?: number): Promise<AxiosResponse<Nota[]>> {
+    return api
+        .get<Nota[]>(`/item/${id}/note`, {params: {idPersonaggio}});
 }
 
 export function getItemParents(id: number): Promise<AxiosResponse<Item[]>> {

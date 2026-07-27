@@ -56,7 +56,7 @@ function update(idx: number, patch: Partial<ModificatoreRow>) {
 }
 
 function add() {
-  emit('update:modelValue', [...props.modelValue, {statId: '', tipo: 'MOD', valore: '', nota: '', sempreAttivo: false}])
+  emit('update:modelValue', [...props.modelValue, {statId: '', tipo: 'VALORE', valore: '', nota: '', sempreAttivo: true}])
 }
 
 function remove(idx: number) {

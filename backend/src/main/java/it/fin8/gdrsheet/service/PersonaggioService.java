@@ -922,6 +922,29 @@ public class PersonaggioService {
         return null;
     }
 
+    /**
+     * Note (label NOTA) di un item QUALSIASI, filtrate in base a chi guarda — stesso meccanismo
+     * già usato per le quest (vedi QuestService#getDettaglio), generalizzato a ogni tipo di item
+     * così il dettaglio/popup di un oggetto qualunque può mostrarle rispettando la visibilità.
+     * {@code idPersonaggio}: il personaggio nel cui contesto si sta guardando l'item (la sua
+     * scheda/inventario) — determina la visibilità OWNER, non "chi ha creato l'item". Può essere
+     * null (es. dal compendio): in quel caso solo le note senza restrizioni o già visibili ad
+     * admin/master passano il filtro.
+     */
+    public List<NotaDTO> getNoteItem(Integer itemId, Integer idPersonaggio, Utente utente) {
+        Item itm = itemRepository.findItemById(itemId);
+        if (itm == null || itm.getLabels() == null) return List.of();
+        Personaggio owner = idPersonaggio != null ? personaggioRepository.findPersonaggioById(idPersonaggio) : null;
+        List<NotaDTO> out = new ArrayList<>();
+        for (ItemLabel l : itm.getLabels()) {
+            if (!Constants.ITEM_LABEL_NOTA.equals(l.getLabel()) || l.getValore() == null) continue;
+            NotaDTO nota = parseNotaSingola(l.getValore());
+            if (nota == null || !authzService.canViewVisibilita(utente, owner, nota.getVisibilita())) continue;
+            out.add(nota);
+        }
+        return out;
+    }
+
     /** Una riga ItemLabel NOTA è un JSON {testo, visibilita}; null se malformata (dato legacy/corrotto). */
     private NotaDTO parseNotaSingola(String valoreJson) {
         try {
