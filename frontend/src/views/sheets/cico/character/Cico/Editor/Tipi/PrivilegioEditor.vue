@@ -6,7 +6,12 @@ import {CampoLabel} from '../../../../../../../models/dto/UpdateItemRequest'
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
 
-const CAMPI: CampoLabel[] = []
+// GRUPPO_PRIVILEGI: se un personaggio ha 2+ privilegi con lo stesso valore di questo campo (es.
+// una versione potenziata dello stesso privilegio sbloccata da una classe di prestigio), in
+// scheda si vede solo quello legato al LIVELLO più alto (vedi PersonaggioService, backend).
+const CAMPI: CampoLabel[] = [
+  {key: 'GRUPPO_PRIVILEGI', label: 'Gruppo privilegi', placeholder: 'es. FURIA'},
+]
 </script>
 
 <template>

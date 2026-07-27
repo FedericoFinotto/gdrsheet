@@ -403,6 +403,12 @@ public class PersonaggioService {
         for (Item itm : allPersonaggioItems.getItems()) itemById.put(itm.getId(), itm);
         Map<Integer, InventarioSeparatoDTO> inventariSeparati = new LinkedHashMap<>();
 
+        // Privilegi di classe raggruppati da GRUPPO_PRIVILEGI (es. una versione potenziata dello
+        // stesso privilegio sbloccata da una classe di prestigio): tra quelli con lo stesso valore
+        // di gruppo si tiene solo quello del LIVELLO più alto, filtrato a fine metodo.
+        record PrivilegioGruppo(ItemDTO dto, int livello) {}
+        Map<String, List<PrivilegioGruppo>> privilegiPerGruppo = new HashMap<>();
+
         Set<Integer> itemIdGiaAggiunti = new HashSet<>();
         for (Item itm : allPersonaggioItems.getItems()) {
             // filtro di visibilità (label VISIBILITA): nasconde l'item a chi non è autorizzato
@@ -507,7 +513,21 @@ public class PersonaggioService {
                 itemsDTO.getForme().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.PRIVILEGIO.equals(itm.getTipo())) {
-                itemsDTO.getPrivilegi().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                itemsDTO.getPrivilegi().add(dto);
+                String gruppo = itm.getLabel(Constants.ITEM_LABEL_GRUPPO_PRIVILEGI);
+                if (gruppo != null && !gruppo.isBlank()) {
+                    Item livelloParent = itm.getFirstParent(TipoItem.LIVELLO);
+                    int livello = -1;
+                    if (livelloParent != null) {
+                        try {
+                            livello = Integer.parseInt(livelloParent.getLabel(Constants.ITEM_LIVELLO_LVL));
+                        } catch (NumberFormatException ignored) {
+                        }
+                    }
+                    privilegiPerGruppo.computeIfAbsent(gruppo.trim(), k -> new ArrayList<>())
+                            .add(new PrivilegioGruppo(dto, livello));
+                }
             }
             if (TipoItem.ALTRO.equals(itm.getTipo())) {
                 ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
@@ -524,6 +544,19 @@ public class PersonaggioService {
             }
         }
         itemsDTO.setInventariSeparati(new ArrayList<>(inventariSeparati.values()));
+
+        // Per ogni gruppo con 2+ privilegi: tiene solo quello del livello più alto, rimuove gli
+        // altri dalla lista già popolata sopra. Un livello non determinabile (-1, es. privilegio
+        // collegato al personaggio senza passare da un LIVELLO) non prevale mai su uno noto.
+        for (List<PrivilegioGruppo> gruppo : privilegiPerGruppo.values()) {
+            if (gruppo.size() < 2) continue;
+            PrivilegioGruppo max = gruppo.stream()
+                    .max(Comparator.comparingInt(PrivilegioGruppo::livello))
+                    .orElseThrow();
+            for (PrivilegioGruppo p : gruppo) {
+                if (p != max) itemsDTO.getPrivilegi().remove(p.dto());
+            }
+        }
 
         for (InfoClasseDTO classe : allPersonaggioItems.getLivelli().getClassi()) {
             // Nuovo schema a sezioni (SPELL_<n>): una spellbook per sezione.

@@ -5,14 +5,11 @@ import it.fin8.gdrsheet.dto.QuestDTO;
 import it.fin8.gdrsheet.dto.QuestDettaglioDTO;
 import it.fin8.gdrsheet.dto.QuestSceltaDTO;
 import it.fin8.gdrsheet.entity.Utente;
-import it.fin8.gdrsheet.service.AuthzService;
 import it.fin8.gdrsheet.service.ItemService;
 import it.fin8.gdrsheet.service.QuestService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -22,12 +19,10 @@ public class QuestController {
 
     private final QuestService questService;
     private final ItemService itemService;
-    private final AuthzService authzService;
 
-    public QuestController(QuestService questService, ItemService itemService, AuthzService authzService) {
+    public QuestController(QuestService questService, ItemService itemService) {
         this.questService = questService;
         this.itemService = itemService;
-        this.authzService = authzService;
     }
 
     @Operation(
@@ -105,13 +100,11 @@ public class QuestController {
             description = "Cancella la quest e a cascata tutte le sue sotto-quest, con i relativi " +
                     "collegamenti, modificatori, avanzamenti, permessi e item_label. Gli eventuali " +
                     "figli non-QUEST (item collegati, potenzialmente condivisi) vengono solo scollegati. " +
-                    "Riservato a master e admin."
+                    "Disponibile a qualunque giocatore che veda la quest, non solo a master/admin " +
+                    "(a differenza della delete generica degli altri item)."
     )
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteQuest(@PathVariable Integer id,
-                                            @AuthenticationPrincipal Utente utente) {
-        if (!authzService.isMasterOrAdmin(utente))
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo master e admin possono eliminare una quest");
+    public ResponseEntity<Void> deleteQuest(@PathVariable Integer id) {
         itemService.deleteQuestTree(id);
         return ResponseEntity.noContent().build();
     }

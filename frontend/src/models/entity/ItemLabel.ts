@@ -74,6 +74,9 @@ export const LABELS = {
     DESCR_SOPRANNATURALE: 'DESCR_SOP',
     DESCR_NATURALE: 'DESCR_NAT',
     DESCR_DIVINA: 'DESCR_DIV',
+    // Privilegio di Classe: raggruppa versioni dello stesso privilegio che si "aggiornano" a
+    // livello più alto (es. sbloccata da una classe di prestigio) — vedi PrivilegioEditor.vue.
+    GRUPPO_PRIVILEGI: 'GRUPPO_PRIVILEGI',
 } as const;
 export type TipoLabels = typeof LABELS[keyof typeof LABELS];
 

@@ -48,6 +48,7 @@ interface AbilitaConcessa {
   magica?: boolean
   soprannaturale?: boolean
   naturale?: boolean
+  gruppoPrivilegi?: string  // GRUPPO_PRIVILEGI: vedi PrivilegioEditor.vue
   caricato?: boolean
   salvandoRiga?: boolean
 }
@@ -364,6 +365,7 @@ function rimuoviConcessa(i: number) {
 const modalitaAvanzata = ref(false)
 const DESCR_LABELS: string[] = [
   LABELS.DESCR_STRAORDINARIA, LABELS.DESCR_MAGICA, LABELS.DESCR_SOPRANNATURALE, LABELS.DESCR_NATURALE,
+  LABELS.GRUPPO_PRIVILEGI,
 ]
 
 async function caricaDettagliAvanzati(a: AbilitaConcessa) {
@@ -376,6 +378,7 @@ async function caricaDettagliAvanzati(a: AbilitaConcessa) {
     a.magica = val(LABELS.DESCR_MAGICA) === '1'
     a.soprannaturale = val(LABELS.DESCR_SOPRANNATURALE) === '1'
     a.naturale = val(LABELS.DESCR_NATURALE) === '1'
+    a.gruppoPrivilegi = val(LABELS.GRUPPO_PRIVILEGI) ?? ''
     a.altreLabels = (it.labels ?? [])
         .filter(l => l.label && !DESCR_LABELS.includes(l.label))
         .map(l => ({label: l.label!, valore: l.valore ?? ''}))
@@ -473,6 +476,7 @@ async function salvaRigaAvanzata(a: AbilitaConcessa) {
     if (a.magica) labels.push({label: LABELS.DESCR_MAGICA, valore: '1'})
     if (a.soprannaturale) labels.push({label: LABELS.DESCR_SOPRANNATURALE, valore: '1'})
     if (a.naturale) labels.push({label: LABELS.DESCR_NATURALE, valore: '1'})
+    if (a.gruppoPrivilegi?.trim()) labels.push({label: LABELS.GRUPPO_PRIVILEGI, valore: a.gruppoPrivilegi.trim()})
     await updateItem(a.itemId, {descrizione: a.descrizione ?? '', labels})
     await api.post('/item/classe', buildClassePayload())
   } catch (e: any) {
@@ -953,10 +957,17 @@ const sumInfoRazza = computed(() => {
             <div v-if="modalitaAvanzata" class="conc-adv">
               <p v-if="!a.itemId" class="muted">Salva prima la classe per poter modificare questo nuovo privilegio.</p>
               <template v-else>
-                <label class="field liv-input">
-                  <span class="lbl">Livello</span>
-                  <input v-model.number="a.livello" type="number" min="1" :max="form.numLivelli" :disabled="disabledAll"/>
-                </label>
+                <div class="conc-adv-top">
+                  <label class="field liv-input">
+                    <span class="lbl">Livello</span>
+                    <input v-model.number="a.livello" type="number" min="1" :max="form.numLivelli" :disabled="disabledAll"/>
+                  </label>
+                  <label class="field gruppo-input"
+                         title="Se il personaggio ha più privilegi con lo stesso gruppo (es. una versione potenziata sbloccata da una classe di prestigio), in scheda si vede solo quello del livello più alto.">
+                    <span class="lbl">Gruppo privilegi</span>
+                    <input v-model="a.gruppoPrivilegi" type="text" placeholder="es. FURIA" :disabled="disabledAll"/>
+                  </label>
+                </div>
                 <div class="conc-adv-body">
                   <label class="field grow">
                     <span class="lbl">Descrizione</span>
@@ -1191,6 +1202,8 @@ textarea { resize: vertical; }
   display: flex; flex-direction: column; gap: .5rem;
 }
 .conc-adv .liv-input { max-width: 6rem; }
+.conc-adv-top { display: flex; gap: .6rem; }
+.conc-adv-top .gruppo-input { max-width: 12rem; }
 .conc-adv-body { display: flex; gap: .6rem; align-items: flex-start; }
 .conc-adv-body .grow { flex: 1; min-width: 0; }
 .conc-adv-flags {

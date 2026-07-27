@@ -80,9 +80,12 @@ async function onToggleStato() {
 const canUnlink = computed(() =>
     !!idPersonaggio.value && !!item.value && item.value.tipo !== 'LIVELLO' && item.value.tipo !== 'QUEST')
 
-// eliminazione: solo master e admin
+// eliminazione: solo master e admin, TRANNE per le quest — "elimina per tutti" è un'azione
+// pensata per essere disponibile a qualunque giocatore che la veda, non solo a master/admin
+// (coerente col backend, che per le quest non applica la stessa restrizione).
 const auth = useAuthStore()
 const canDelete = computed(() => {
+  if (isQuest.value) return true
   const r = (auth.utente?.ruolo ?? '').toUpperCase()
   return r === 'MASTER' || r === 'ADMIN' || r === 'SUPERUSER'
 })

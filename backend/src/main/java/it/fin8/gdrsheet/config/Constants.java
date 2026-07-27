@@ -84,6 +84,13 @@ public final class Constants {
     // frecce come "Freccia: Freccia +1" nell'elenco oggetti.
     public static final String ITEM_LABEL_PREFISSO_OGGETTI = "PREFISSO_OGGETTI";
 
+    // Raggruppa privilegi di classe che si "aggiornano" a livello più alto (es. una versione
+    // potenziata dello stesso privilegio sbloccata da una classe di prestigio): quando un
+    // personaggio ha più PRIVILEGIO con lo stesso valore di questa label, in scheda si vede solo
+    // quello legato al LIVELLO più alto, gli altri vengono ignorati (vedi
+    // PersonaggioService#getAllPersonaggioItemsDTOByIdPersonaggio).
+    public static final String ITEM_LABEL_GRUPPO_PRIVILEGI = "GRUPPO_PRIVILEGI";
+
     // Info Veicolo: campi descrittivi (solo tipo VEICOLO).
     public static final String ITEM_LABEL_VEICOLO_VELOCITA = "VEICOLO_VELOCITA";
     public static final String ITEM_LABEL_SPELL_SLOT = "SP_SLOT";
