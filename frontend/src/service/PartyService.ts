@@ -10,9 +10,10 @@ export interface ItemSearchResult {
     id: number;
     nome: string;
     tipo: string;
-    personaggioId: number;
-    personaggioNome: string;
-    match: string;        // "nome" | "label <KEY>" | "nota"
+    personaggioId: number | null;
+    personaggioNome: string | null;
+    match: string;         // "nome" | "descrizione" | "label <KEY>" | "nota" | "nota modificatore"
+    matchTesto: string | null; // il testo effettivo in cui è stato trovato il match, da mostrare come contesto
     disabled: boolean;
 }
 

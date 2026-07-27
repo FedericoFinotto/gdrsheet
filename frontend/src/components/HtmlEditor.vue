@@ -45,15 +45,51 @@ function exec(cmd: string, value?: string) {
   programmatic = false
 }
 
-// Alcuni browser (soprattutto mobile) mantengono attivo lo stato "grassetto/corsivo/sottolineato"
-// da un'interazione precedente (anche di un altro campo): se l'editor è vuoto quando riceve il
-// focus, lo spegniamo esplicitamente così il testo digitato riparte sempre in stile normale.
+type StileInline = 'bold' | 'italic' | 'underline'
+
+// Stato "vero" secondo il DOM nel punto in cui si trova il caret. Serve perché
+// queryCommandState() non distingue tra "il caret è davvero dentro un <b>" e "c'è uno stile di
+// battitura pendente" — quest'ultimo è memorizzato a livello di documento dai browser e
+// sopravvive al cambio di focus, anche verso un ALTRO editor.
+function stileRealeAlCaret(cmd: StileInline): boolean {
+  const sel = window.getSelection()
+  if (!sel || sel.rangeCount === 0) return false
+  let node: Node | null = sel.getRangeAt(0).startContainer
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentNode
+  if (!(node instanceof Element)) return false
+  const cs = getComputedStyle(node)
+  if (cmd === 'bold') {
+    const w = cs.fontWeight
+    return w === 'bold' || w === 'bolder' || (parseInt(w, 10) || 400) >= 600
+  }
+  if (cmd === 'italic') return cs.fontStyle === 'italic' || cs.fontStyle === 'oblique'
+  return cs.textDecorationLine.includes('underline')
+}
+
+// Spegne gli stili che risultano attivi SOLO come stile di battitura pendente (ereditato da
+// un'interazione precedente, tipicamente il pulsante B di un altro editor), lasciando intatta
+// la formattazione reale: se il caret è dentro del testo davvero in grassetto, non lo tocchiamo.
+function resetStiliPendenti() {
+  if (props.disabled || programmatic || !el.value) return
+  const sel = window.getSelection()
+  // Su alcuni browser il focus arriva prima che la selezione sia posizionata: in quel caso non
+  // facciamo nulla e ci pensa la seconda passata schedulata da onFocus.
+  if (!sel || sel.rangeCount === 0 || !el.value.contains(sel.getRangeAt(0).startContainer)) return
+  for (const cmd of ['bold', 'italic', 'underline'] as StileInline[]) {
+    if (document.queryCommandState(cmd) && !stileRealeAlCaret(cmd)) {
+      document.execCommand(cmd, false)
+    }
+  }
+}
+
 function onFocus() {
+  // se il focus arriva dal focus() dentro exec() non dobbiamo schedulare nulla: annulleremmo lo
+  // stile che l'utente ha appena chiesto con la toolbar
   if (props.disabled || programmatic) return
-  if (!el.value || el.value.innerText.trim() !== '') return
-  if (document.queryCommandState('bold')) document.execCommand('bold', false)
-  if (document.queryCommandState('italic')) document.execCommand('italic', false)
-  if (document.queryCommandState('underline')) document.execCommand('underline', false)
+  // due passate (subito + al frame successivo) per coprire sia il focus da click, dove la
+  // selezione è già posizionata, sia quello da tastiera dove arriva dopo
+  resetStiliPendenti()
+  requestAnimationFrame(resetStiliPendenti)
 }
 
 // incolla come testo semplice per evitare HTML "sporco" da altre fonti
@@ -79,16 +115,19 @@ watch(() => props.modelValue, (v) => {
 <template>
   <div class="html-editor" :class="{ disabled }">
     <div class="he-toolbar">
-      <button type="button" :disabled="disabled || sourceMode" title="Grassetto" @click="exec('bold')"><b>B</b></button>
-      <button type="button" :disabled="disabled || sourceMode" title="Corsivo" @click="exec('italic')"><i>I</i></button>
-      <button type="button" :disabled="disabled || sourceMode" title="Sottolineato" @click="exec('underline')"><u>U</u></button>
+      <!-- @mousedown.prevent: senza, il click sul pulsante toglie il focus al contenteditable e
+           fa perdere la selezione/posizione del caret, con il risultato che lo stile viene
+           applicato in un punto casuale (o resta "appeso" e colpisce l'editor successivo). -->
+      <button type="button" :disabled="disabled || sourceMode" title="Grassetto" @mousedown.prevent @click="exec('bold')"><b>B</b></button>
+      <button type="button" :disabled="disabled || sourceMode" title="Corsivo" @mousedown.prevent @click="exec('italic')"><i>I</i></button>
+      <button type="button" :disabled="disabled || sourceMode" title="Sottolineato" @mousedown.prevent @click="exec('underline')"><u>U</u></button>
       <span class="he-sep"/>
-      <button type="button" :disabled="disabled || sourceMode" title="Elenco puntato" @click="exec('insertUnorderedList')">•</button>
-      <button type="button" :disabled="disabled || sourceMode" title="Elenco numerato" @click="exec('insertOrderedList')">1.</button>
+      <button type="button" :disabled="disabled || sourceMode" title="Elenco puntato" @mousedown.prevent @click="exec('insertUnorderedList')">•</button>
+      <button type="button" :disabled="disabled || sourceMode" title="Elenco numerato" @mousedown.prevent @click="exec('insertOrderedList')">1.</button>
       <span class="he-sep"/>
-      <button type="button" :disabled="disabled || sourceMode" title="Titolo" @click="exec('formatBlock', 'H3')">H</button>
-      <button type="button" :disabled="disabled || sourceMode" title="Paragrafo" @click="exec('formatBlock', 'P')">¶</button>
-      <button type="button" :disabled="disabled || sourceMode" title="Rimuovi formattazione" @click="exec('removeFormat')">⌫</button>
+      <button type="button" :disabled="disabled || sourceMode" title="Titolo" @mousedown.prevent @click="exec('formatBlock', 'H3')">H</button>
+      <button type="button" :disabled="disabled || sourceMode" title="Paragrafo" @mousedown.prevent @click="exec('formatBlock', 'P')">¶</button>
+      <button type="button" :disabled="disabled || sourceMode" title="Rimuovi formattazione" @mousedown.prevent @click="exec('removeFormat')">⌫</button>
       <span class="he-sep"/>
       <button type="button" :disabled="disabled" class="he-source-btn" :class="{active: sourceMode}"
               title="Vedi/modifica il codice HTML" @click="toggleSource">&lt;/&gt;</button>

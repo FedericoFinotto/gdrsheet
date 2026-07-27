@@ -13,6 +13,7 @@ import {SpellBookIncantesimo} from "../models/dto/SpellBook";
 import {UpdateSpellRequest} from "../models/dto/UpdateSpellRequest";
 import {UpdateBaseStatValueRequest} from "../models/dto/UpdateBaseStatValueRequest";
 import {UpdateSpellUsageRequest} from "../models/dto/UpdateSpellUsageRequest";
+import {ItemSearchResult} from "./PartyService";
 import {Abilita} from "../models/dto/Abilita";
 import {Item} from "../models/dto/Item";
 import {Gradi} from "../models/dto/Gradi";
@@ -192,6 +193,12 @@ export function getCompendio(
     params: { nome?: string; tipo?: string; idMondo?: number | null; page?: number; size?: number } = {}
 ): Promise<AxiosResponse<Page<Item>>> {
     return api.get<Page<Item>>('/item/compendio', {params});
+}
+
+// Ricerca profonda tra gli item di compendio (nome, descrizione, label, note, note modificatori):
+// visibile solo ad admin/master, per chiunque altro il backend torna sempre lista vuota.
+export function searchCompendioDeep(q: string): Promise<AxiosResponse<ItemSearchResult[]>> {
+    return api.get<ItemSearchResult[]>('/item/compendio/search-deep', {params: {q}});
 }
 
 let statsCache: Stat[] | null = null;

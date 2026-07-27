@@ -2,6 +2,7 @@
 import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {Destinatario, getParty, getPartyItems, giveItem, ItemSearchResult, searchPartyItems} from '../service/PartyService'
+import {highlightMatch} from '../function/textHighlight'
 import {formatKg, formatPesoTotale, Page, PartyDetail, PartyItem} from '../models/dto/Party'
 import Mobile_DettaglioItem from './sheets/cico/character/Dettaglio/Mobile_DettaglioItem.vue'
 import SearchSelect from '../components/SearchSelect.vue'
@@ -42,29 +43,28 @@ const expandedId = ref<number | null>(null)   // riga espansa (dettaglio)
 const givingId = ref<number | null>(null)     // riga con pannello "give" aperto
 const busyGive = ref(false)
 
-// ricerca globale profonda (tutti i tipi, label, note)
-const ricercaGlobale = ref('')
+// Barra di ricerca unica: "DEEP" (visibile a tutti qui, a differenza del compendio) cambia cosa
+// fa la STESSA query digitata in filtroNome — filtro sul nome dell'inventario paginato (default)
+// oppure ricerca profonda (tutti i tipi, label, note) quando attivo.
+const deepMode = ref(false)
 const risultatiGlobali = ref<ItemSearchResult[]>([])
 const cercando = ref(false)
 const globalExpandedKey = ref<string | null>(null)
-const inRicercaGlobale = computed(() => ricercaGlobale.value.trim().length >= 2)
-let ricercaTimer: any = null
-watch(ricercaGlobale, () => {
-  if (ricercaTimer) clearTimeout(ricercaTimer)
-  const q = ricercaGlobale.value.trim()
+const inRicercaGlobale = computed(() => deepMode.value && filtroNome.value.trim().length >= 2)
+
+async function eseguiRicercaGlobale() {
+  const q = filtroNome.value.trim()
   if (q.length < 2) { risultatiGlobali.value = []; return }
-  ricercaTimer = setTimeout(async () => {
-    cercando.value = true
-    try {
-      risultatiGlobali.value = (await searchPartyItems(partyId, q)).data
-    } catch (e) {
-      console.error('Errore ricerca globale:', e)
-      risultatiGlobali.value = []
-    } finally {
-      cercando.value = false
-    }
-  }, 350)
-})
+  cercando.value = true
+  try {
+    risultatiGlobali.value = (await searchPartyItems(partyId, q)).data
+  } catch (e) {
+    console.error('Errore ricerca globale:', e)
+    risultatiGlobali.value = []
+  } finally {
+    cercando.value = false
+  }
+}
 function toggleGlobalExpand(key: string) {
   globalExpandedKey.value = globalExpandedKey.value === key ? null : key
 }
@@ -101,7 +101,13 @@ async function load() {
 }
 
 let filtroTimer: any = null
-watch([filtroNome, filtroTipo, filtroPersonaggio], () => {
+let ricercaTimer: any = null
+watch([filtroNome, filtroTipo, filtroPersonaggio, deepMode], () => {
+  if (deepMode.value) {
+    if (ricercaTimer) clearTimeout(ricercaTimer)
+    ricercaTimer = setTimeout(eseguiRicercaGlobale, 350)
+    return
+  }
   if (filtroTimer) clearTimeout(filtroTimer)
   filtroTimer = setTimeout(() => {
     page.value = 0
@@ -187,23 +193,21 @@ function personaggioShim(itm: PartyItem) {
       <span v-if="party" class="tot-peso">{{ formatPesoTotale(party.pesoTotale) }}</span>
     </header>
 
-    <!-- ricerca globale profonda -->
+    <!-- barra di ricerca unica: DEEP cambia cosa fa la stessa query -->
     <div class="global-search">
       <input
           type="text"
-          v-model="ricercaGlobale"
-          placeholder="🔎 Cerca ovunque (tutti i tipi, label, note)…"
+          v-model="filtroNome"
+          :placeholder="deepMode ? '🔎 Cerca ovunque (tutti i tipi, label, note)…' : 'Cerca per nome…'"
       />
+      <button type="button" class="btn-deep" :class="{ active: deepMode }"
+              title="Ricerca profonda: tutti i tipi, label, note" @click="deepMode = !deepMode">
+        DEEP
+      </button>
     </div>
 
     <!-- filtri inventario (nascosti durante la ricerca globale) -->
     <div v-if="!inRicercaGlobale" class="filters">
-      <input
-          type="text"
-          v-model="filtroNome"
-          placeholder="Cerca per nome…"
-          class="filter-nome"
-      />
       <SearchSelect v-model="filtroTipo" class="filter-tipo" :options="TIPI_FILTRO" :sort="false"/>
       <SearchSelect v-model="filtroPersonaggio" class="filter-possessore" :options="OPZIONI_POSSESSORE" :sort="false"/>
     </div>
@@ -215,9 +219,10 @@ function personaggioShim(itm: PartyItem) {
         <li v-for="r in risultatiGlobali" :key="`${r.personaggioId}-${r.id}`" class="row-wrap">
           <div class="row" :class="{ disabled: r.disabled }">
             <button class="row-main global" @click="toggleGlobalExpand(`${r.personaggioId}-${r.id}`)">
-              <span class="nome">{{ r.nome }}</span>
+              <span class="nome" v-html="highlightMatch(r.nome, filtroNome)"></span>
+              <span v-if="r.matchTesto" class="match-snippet" v-html="highlightMatch(r.matchTesto, filtroNome)"></span>
               <span class="pill tipo">{{ r.tipo }}</span>
-              <span class="pill owner">{{ r.personaggioNome }}</span>
+              <span v-if="r.personaggioNome" class="pill owner">{{ r.personaggioNome }}</span>
               <span class="match">{{ r.match }}</span>
             </button>
           </div>
@@ -374,8 +379,13 @@ function personaggioShim(itm: PartyItem) {
 .pill.owner { background: #eef2ff; color: #3730a3; white-space: nowrap; }
 .pill.qta { background: #f0fdf4; color: #166534; margin-left: .3rem; font-weight: 700; }
 
+.global-search {
+  display: flex;
+  gap: .4rem;
+}
 .global-search input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   box-sizing: border-box;
   padding: .55rem .7rem;
   border: 1px solid #bfdbfe;
@@ -385,6 +395,24 @@ function personaggioShim(itm: PartyItem) {
 }
 .global-search input:focus { outline: none; border-color: #60a5fa; background: #fff; }
 
+.btn-deep {
+  padding: 0 .9rem;
+  border-radius: .6rem;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  color: #6b7280;
+  font-weight: 700;
+  font-size: .78rem;
+  letter-spacing: .04em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-deep.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
 .row-main.global {
   display: flex;
   flex-wrap: wrap;
@@ -392,16 +420,29 @@ function personaggioShim(itm: PartyItem) {
   gap: .4rem;
 }
 .row-main.global .nome { flex: 1 1 100%; }
+.match-snippet {
+  flex: 1 1 100%;
+  font-size: .82rem;
+  color: var(--color-text-secondary, #6b7280);
+  overflow-wrap: anywhere;
+}
+.match-snippet :deep(mark.hl),
+.nome :deep(mark.hl) {
+  background: #fef08a;
+  color: inherit;
+  border-radius: .2rem;
+  padding: 0 .1rem;
+}
 .pill.tipo { background: #eef2ff; color: #3730a3; white-space: nowrap; }
 .match { font-size: .72rem; color: #9ca3af; font-style: italic; margin-left: auto; }
 
 .filters {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: auto auto;
   gap: .4rem;
 }
 
-.filter-nome, .filter-tipo, .filter-possessore {
+.filter-tipo, .filter-possessore {
   padding: .45rem .6rem;
   border: 1px solid #d0d5dd;
   border-radius: .5rem;

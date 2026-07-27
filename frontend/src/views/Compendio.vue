@@ -1,16 +1,45 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
-import {getCompendio} from '../service/PersonaggioService'
+import {getCompendio, searchCompendioDeep} from '../service/PersonaggioService'
+import {ItemSearchResult} from '../service/PartyService'
 import SearchSelect from '../components/SearchSelect.vue'
 import {Page} from '../models/dto/Party'
 import {Item} from '../models/dto/Item'
 import {TIPO_ITEM_LABELS} from './sheets/cico/character/Cico/Editor/editorRegistry'
 import Mobile_DettaglioItem from './sheets/cico/character/Dettaglio/Mobile_DettaglioItem.vue'
 import {useMondoSistema} from '../function/useMondoSistema'
+import {useAuthStore} from '../stores/auth'
+import {highlightMatch} from '../function/textHighlight'
 
 const router = useRouter()
 const {meiMondi, meiMondiOptions} = useMondoSistema()
+const authStore = useAuthStore()
+
+// Ricerca profonda (nome, descrizione, label, note, note modificatori): visibile solo ad
+// admin/master, stesso ruolo effettivo già usato per il resto dell'app (isRealAdmin/effectiveRuolo).
+const puoRicercaProfonda = computed(() => ['ADMIN', 'SUPERUSER', 'MASTER'].includes((authStore.effectiveRuolo || '').toUpperCase()))
+const deepMode = ref(false)
+const risultatiGlobali = ref<ItemSearchResult[]>([])
+const cercandoGlobale = ref(false)
+const globalExpandedId = ref<number | null>(null)
+const inRicercaGlobale = computed(() => puoRicercaProfonda.value && deepMode.value && filtroNome.value.trim().length >= 2)
+async function eseguiRicercaGlobale() {
+  const q = filtroNome.value.trim()
+  if (q.length < 2) { risultatiGlobali.value = []; return }
+  cercandoGlobale.value = true
+  try {
+    risultatiGlobali.value = (await searchCompendioDeep(q)).data
+  } catch (e) {
+    console.error('Errore ricerca profonda compendio:', e)
+    risultatiGlobali.value = []
+  } finally {
+    cercandoGlobale.value = false
+  }
+}
+function toggleGlobalExpand(id: number) {
+  globalExpandedId.value = globalExpandedId.value === id ? null : id
+}
 
 const pagina = ref<Page<Item> | null>(null)
 const loading = ref(true)
@@ -53,7 +82,13 @@ async function load() {
 }
 
 let filtroTimer: any = null
-watch([filtroNome, filtroTipo, filtroMondo], () => {
+let ricercaGlobaleTimer: any = null
+watch([filtroNome, filtroTipo, filtroMondo, deepMode], () => {
+  if (puoRicercaProfonda.value && deepMode.value) {
+    if (ricercaGlobaleTimer) clearTimeout(ricercaGlobaleTimer)
+    ricercaGlobaleTimer = setTimeout(eseguiRicercaGlobale, 350)
+    return
+  }
   if (filtroTimer) clearTimeout(filtroTimer)
   filtroTimer = setTimeout(() => {
     page.value = 0
@@ -93,31 +128,61 @@ onMounted(load)
       <button class="btn primary" @click="router.push('/itemcreate?compendio=1')">+ Crea oggetto</button>
     </header>
 
-    <!-- filtri -->
-    <div class="filters">
+    <!-- barra di ricerca unica: il tasto DEEP (solo admin/master) attiva la ricerca profonda -->
+    <div class="global-search">
       <input
           type="text"
           v-model="filtroNome"
-          placeholder="Cerca per nome…"
-          class="filter-nome"
+          :placeholder="deepMode ? '🔎 Cerca ovunque (nome, descrizione, label, note)…' : 'Cerca per nome…'"
       />
+      <button v-if="puoRicercaProfonda" type="button" class="btn-deep" :class="{ active: deepMode }"
+              title="Ricerca profonda: nome, descrizione, label, note" @click="deepMode = !deepMode">
+        DEEP
+      </button>
+    </div>
+
+    <!-- filtri (nascosti durante la ricerca profonda) -->
+    <div v-if="!inRicercaGlobale" class="filters">
       <SearchSelect v-model="filtroTipo" class="filter-tipo" :options="TIPI_FILTRO" :sort="false"/>
     </div>
-    <div v-if="haMultiMondi" class="filters">
+    <div v-if="!inRicercaGlobale && haMultiMondi" class="filters">
       <SearchSelect v-model="filtroMondo" :options="meiMondiOptions" :sort="false" class="filter-nome"/>
     </div>
 
+    <!-- risultati ricerca profonda -->
+    <template v-if="inRicercaGlobale">
+      <div v-if="cercandoGlobale" class="state">Ricerca…</div>
+      <ul v-else-if="risultatiGlobali.length" class="rows">
+        <li v-for="r in risultatiGlobali" :key="r.id" class="row-wrap">
+          <div class="row" :class="{ disabled: r.disabled }">
+            <button class="row-main global" @click="toggleGlobalExpand(r.id)">
+              <span class="pill tipo">{{ TIPO_ITEM_LABELS[r.tipo] ?? r.tipo }}</span>
+              <span class="nome" v-html="highlightMatch(r.nome, filtroNome)"></span>
+              <span v-if="r.matchTesto" class="match-snippet" v-html="highlightMatch(r.matchTesto, filtroNome)"></span>
+            </button>
+          </div>
+          <div v-if="globalExpandedId === r.id" class="detail">
+            <Mobile_DettaglioItem
+                :key="`gdet-${r.id}`"
+                :data="{item: {id: r.id, nome: r.nome, tipo: r.tipo, disabled: r.disabled}, personaggio: personaggioShim}"
+            />
+          </div>
+        </li>
+      </ul>
+      <div v-else class="state">Nessun item trovato.</div>
+    </template>
+
     <!-- paginator -->
-    <div v-if="pagina && pagina.totalPages > 1" class="paginator">
+    <div v-if="!inRicercaGlobale && pagina && pagina.totalPages > 1" class="paginator">
       <button class="btn" :disabled="page <= 0 || loading" @click="vaiPagina(page - 1)">‹</button>
       <span class="page-info">Pagina {{ page + 1 }} di {{ pagina.totalPages }}</span>
       <button class="btn" :disabled="page >= pagina.totalPages - 1 || loading" @click="vaiPagina(page + 1)">›</button>
     </div>
 
-    <div v-if="loading" class="state">Caricamento…</div>
-    <div v-else-if="errorMsg" class="state error">{{ errorMsg }}</div>
+    <div v-if="!inRicercaGlobale && loading" class="state">Caricamento…</div>
+    <div v-else-if="!inRicercaGlobale && errorMsg" class="state error">{{ errorMsg }}</div>
 
-    <template v-else-if="pagina">
+    <template v-else-if="!inRicercaGlobale && pagina">
       <ul class="rows">
         <li v-for="itm in pagina.content" :key="itm.id" class="row-wrap">
           <div class="row">
@@ -176,9 +241,63 @@ onMounted(load)
 .title h1 { margin: 0; font-size: 1.2rem; }
 .muted { opacity: .65; font-size: .85rem; }
 
+.global-search {
+  display: flex;
+  gap: .4rem;
+}
+.global-search input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: .55rem .7rem;
+  border: 1px solid #bfdbfe;
+  border-radius: .6rem;
+  background: #f8fbff;
+  font-size: .95rem;
+}
+.global-search input:focus { outline: none; border-color: #60a5fa; background: #fff; }
+
+.btn-deep {
+  flex: none;
+  padding: 0 .8rem;
+  border: 1px solid #bfdbfe;
+  border-radius: .6rem;
+  background: #f8fbff;
+  color: #3730a3;
+  font-weight: 700;
+  font-size: .8rem;
+  letter-spacing: .03em;
+  cursor: pointer;
+}
+.btn-deep.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+
+.row.disabled .nome { opacity: .5; text-decoration: line-through; }
+
+.row-main.global {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .4rem;
+}
+.row-main.global .nome { flex: 1 1 auto; }
+
+.match-snippet {
+  flex: 1 1 100%;
+  font-size: .82rem;
+  color: var(--color-text-secondary, #6b7280);
+  overflow-wrap: anywhere;
+}
+.match-snippet :deep(mark.hl),
+.nome :deep(mark.hl) {
+  background: #fef08a;
+  color: inherit;
+  border-radius: .2rem;
+  padding: 0 .1rem;
+}
+
 .filters {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: auto;
   gap: .4rem;
 }
 

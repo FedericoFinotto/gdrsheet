@@ -7,6 +7,7 @@ import it.fin8.gdrsheet.dto.ClasseDetailDTO;
 import it.fin8.gdrsheet.dto.ClassImportResultDTO;
 import it.fin8.gdrsheet.dto.ImportJsonlResultDTO;
 import it.fin8.gdrsheet.dto.ItemDTO;
+import it.fin8.gdrsheet.dto.ItemSearchResultDTO;
 import it.fin8.gdrsheet.dto.MondoDTO;
 import it.fin8.gdrsheet.dto.NotiziaDTO;
 import it.fin8.gdrsheet.dto.PageDTO;
@@ -30,6 +31,7 @@ import it.fin8.gdrsheet.service.ItemImportService;
 import it.fin8.gdrsheet.service.ItemService;
 import it.fin8.gdrsheet.service.NotiziaVisteService;
 import it.fin8.gdrsheet.service.PartyService;
+import it.fin8.gdrsheet.service.PersonaggioService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -57,8 +59,9 @@ public class ItemController {
     private final SistemaRepository sistemaRepository;
     private final PartyService partyService;
     private final NotiziaVisteService notiziaVisteService;
+    private final PersonaggioService personaggioService;
 
-    public ItemController(ItemRepository repo, ItemService itemService, ItemImportService itemImportService, ClassImportService classImportService, ItemMapper itemMapper, AuthzService authzService, ClasseService classeService, MondoRepository mondoRepository, SistemaRepository sistemaRepository, PartyService partyService, NotiziaVisteService notiziaVisteService) {
+    public ItemController(ItemRepository repo, ItemService itemService, ItemImportService itemImportService, ClassImportService classImportService, ItemMapper itemMapper, AuthzService authzService, ClasseService classeService, MondoRepository mondoRepository, SistemaRepository sistemaRepository, PartyService partyService, NotiziaVisteService notiziaVisteService, PersonaggioService personaggioService) {
         this.repo = repo;
         this.itemService = itemService;
         this.itemImportService = itemImportService;
@@ -70,6 +73,7 @@ public class ItemController {
         this.sistemaRepository = sistemaRepository;
         this.partyService = partyService;
         this.notiziaVisteService = notiziaVisteService;
+        this.personaggioService = personaggioService;
     }
 
     @Operation(
@@ -248,6 +252,19 @@ public class ItemController {
                 p.getContent().stream().map(itemMapper::toDTO).toList(),
                 p.getNumber(), p.getSize(), p.getTotalElements(), Math.max(1, p.getTotalPages())
         ));
+    }
+
+    @Operation(
+            summary = "Ricerca profonda tra gli item di compendio",
+            description = "Cerca in tutti gli item di compendio (nome, descrizione, label, note, note dei modificatori). " +
+                    "Visibile solo ad admin/master: per chiunque altro torna sempre lista vuota."
+    )
+    @GetMapping("/compendio/search-deep")
+    public ResponseEntity<List<ItemSearchResultDTO>> searchCompendioDeep(
+            @RequestParam String q,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        return ResponseEntity.ok(personaggioService.searchItemsCompendio(q, utente));
     }
 
     @Operation(

@@ -47,6 +47,28 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             """)
     List<Item> findTop20ByNomeOrEnNameContainingIgnoreCase(@Param("nome") String nome, org.springframework.data.domain.Pageable pageable);
 
+    /**
+     * Ricerca profonda tra gli item di compendio (personaggio IS NULL): nome, descrizione, valore
+     * di una label globale, o nota di un modificatore. Pre-filtro lato DB (a differenza della
+     * ricerca profonda per personaggio, che opera su un albero già in memoria): il compendio ha
+     * migliaia di item, qui serve la query a fare il lavoro pesante invece di caricarli tutti.
+     * Il match esatto/lo snippet vengono ricalcolati in Java solo sui risultati (pochi).
+     */
+    @Query("""
+            SELECT DISTINCT i FROM Item i
+            WHERE i.personaggio IS NULL
+              AND (
+                lower(i.nome) LIKE lower(concat('%', :q, '%'))
+                OR lower(i.descrizione) LIKE lower(concat('%', :q, '%'))
+                OR EXISTS (SELECT 1 FROM ItemLabel il WHERE il.item = i AND il.personaggio IS NULL
+                           AND lower(il.valore) LIKE lower(concat('%', :q, '%')))
+                OR EXISTS (SELECT 1 FROM Modificatore m WHERE m.item = i
+                           AND lower(m.nota) LIKE lower(concat('%', :q, '%')))
+              )
+            ORDER BY i.nome
+            """)
+    List<Item> searchCompendioDeep(@Param("q") String q, org.springframework.data.domain.Pageable pageable);
+
     @Query("SELECT i FROM Item i JOIN i.labels il WHERE il.label = 'CC' AND il.valore = :cc")
     List<Item> findContiByCc(@Param("cc") String cc);
 

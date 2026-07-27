@@ -110,9 +110,10 @@ public class PersonaggioController {
     @GetMapping("/{id}/search-items")
     public ResponseEntity<List<ItemSearchResultDTO>> searchItemsPersonaggio(
             @PathVariable Integer id,
-            @RequestParam String q
+            @RequestParam String q,
+            @AuthenticationPrincipal Utente utente
     ) {
-        return ResponseEntity.ok(personaggioService.searchItemsPersonaggio(id, q));
+        return ResponseEntity.ok(personaggioService.searchItemsPersonaggio(id, q, utente));
     }
 
     @Operation(

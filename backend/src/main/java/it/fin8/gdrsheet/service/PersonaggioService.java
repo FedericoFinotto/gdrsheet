@@ -78,6 +78,12 @@ public class PersonaggioService {
     private AuthzService authzService;
 
     @Autowired
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
+    @Autowired
+    private PartyRepository partyRepository;
+
+    @Autowired
     private CacheManager cacheManager;
 
     @Autowired
@@ -702,10 +708,11 @@ public class PersonaggioService {
 
     /**
      * Ricerca "profonda" tra TUTTI gli item di un personaggio (qualsiasi tipo: privilegi,
-     * razza, abilità, talenti, competenze, oggetti…). Il match avviene su nome, sul valore
-     * di una qualsiasi label o sulla nota di un qualsiasi modificatore.
+     * razza, abilità, talenti, competenze, oggetti…). Il match avviene su nome, descrizione,
+     * sul valore di una qualsiasi label testuale (le note, filtrate per visibilità rispetto a
+     * chi cerca), o sulla nota di un qualsiasi modificatore.
      */
-    public List<ItemSearchResultDTO> searchItemsPersonaggio(Integer idPersonaggio, String q) {
+    public List<ItemSearchResultDTO> searchItemsPersonaggio(Integer idPersonaggio, String q, Utente utente) {
         if (q == null || q.trim().isEmpty()) return List.of();
         String needle = q.trim().toLowerCase();
         Personaggio pg = personaggioRepository.findPersonaggioById(idPersonaggio);
@@ -717,26 +724,117 @@ public class PersonaggioService {
 
         List<ItemSearchResultDTO> out = new ArrayList<>();
         for (Item it : unici.values()) {
-            String match = matchItem(it, needle);
+            MatchResult match = matchItem(it, needle, pg, utente);
             if (match != null) {
                 out.add(new ItemSearchResultDTO(
                         it.getId(), it.getNome(),
                         it.getTipo() != null ? it.getTipo().name() : null,
-                        idPersonaggio, pgNome, match,
+                        idPersonaggio, pgNome, match.categoria(), match.testo(),
                         Boolean.TRUE.equals(it.isDisabled())));
             }
         }
         return out;
     }
 
-    /** Ricerca profonda su tutti i personaggi di un party. */
-    public List<ItemSearchResultDTO> searchItemsParty(Integer partyId, String q) {
+    /**
+     * Ricerca profonda tra gli item di COMPENDIO (personaggio IS NULL): stesso tipo di match di
+     * {@link #matchItem} (nome, descrizione, label, nota di modificatore), ma senza filtro di
+     * visibilità sulle NOTA — solo admin/master arrivano fin qui (il chiamante deve verificarlo,
+     * qui torna semplicemente lista vuota per chiunque altro), quindi vedono tutto.
+     */
+    public List<ItemSearchResultDTO> searchItemsCompendio(String q, Utente utente) {
+        if (!authzService.isMasterOrAdmin(utente)) return List.of();
         if (q == null || q.trim().isEmpty()) return List.of();
+        String needle = q.trim().toLowerCase();
+
         List<ItemSearchResultDTO> out = new ArrayList<>();
-        for (Personaggio pg : personaggioRepository.findAllByParty_IdOrderByNomeAsc(partyId)) {
-            out.addAll(searchItemsPersonaggio(pg.getId(), q));
+        for (Item it : itemRepository.searchCompendioDeep(needle, org.springframework.data.domain.PageRequest.of(0, 50))) {
+            MatchResult match = matchItemCompendio(it, needle);
+            if (match != null) {
+                out.add(new ItemSearchResultDTO(
+                        it.getId(), it.getNome(),
+                        it.getTipo() != null ? it.getTipo().name() : null,
+                        null, null, match.categoria(), match.testo(),
+                        Boolean.TRUE.equals(it.isDisabled())));
+            }
         }
         return out;
+    }
+
+    /** Come {@link #matchItem}, ma senza filtro di visibilità sulle NOTA (vedi searchItemsCompendio). */
+    private MatchResult matchItemCompendio(Item it, String needle) {
+        if (it.getNome() != null && it.getNome().toLowerCase().contains(needle)) return new MatchResult("nome", it.getNome());
+        if (it.getDescrizione() != null && it.getDescrizione().toLowerCase().contains(needle)) return new MatchResult("descrizione", it.getDescrizione());
+        if (it.getLabels() != null) {
+            for (ItemLabel l : it.getLabels()) {
+                if (l.getValore() == null) continue;
+                if (Constants.ITEM_LABEL_NOTA.equals(l.getLabel())) {
+                    NotaDTO nota = parseNotaSingola(l.getValore());
+                    if (nota == null || nota.getTesto() == null) continue;
+                    if (nota.getTesto().toLowerCase().contains(needle)) return new MatchResult("nota", nota.getTesto());
+                    continue;
+                }
+                if (l.getValore().toLowerCase().contains(needle)) return new MatchResult("label " + l.getLabel(), l.getValore());
+            }
+        }
+        if (it.getModificatori() != null) {
+            for (Modificatore m : it.getModificatori()) {
+                if (m.getNota() != null && m.getNota().toLowerCase().contains(needle)) {
+                    String statLabel = m.getStat() != null ? m.getStat().getLabel() : "";
+                    return new MatchResult("nota modificatore", (statLabel + " " + m.getValore() + " " + m.getNota()).trim());
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Ricerca profonda su tutti i personaggi di un party, incluse le quest di ambito PARTY/MONDO
+     * (non legate a nessun personaggio specifico, quindi mai raggiunte iterando i singoli
+     * personaggi: vedi QuestService.getQuestParty per lo stesso identico universo di quest).
+     */
+    public List<ItemSearchResultDTO> searchItemsParty(Integer partyId, String q, Utente utente) {
+        if (q == null || q.trim().isEmpty()) return List.of();
+        String needle = q.trim().toLowerCase();
+        List<ItemSearchResultDTO> out = new ArrayList<>();
+        for (Personaggio pg : personaggioRepository.findAllByParty_IdOrderByNomeAsc(partyId)) {
+            out.addAll(searchItemsPersonaggio(pg.getId(), q, utente));
+        }
+
+        Party party = partyRepository.findById(partyId).orElse(null);
+        if (party != null) {
+            for (Item quest : itemRepository.findQuestByPartyId(String.valueOf(partyId))) {
+                matchQuestTree(quest, needle, utente, party.getNome(), out);
+            }
+            if (party.getMondo() != null) {
+                for (Item quest : itemRepository.findQuestByMondoId(party.getMondo().getId())) {
+                    matchQuestTree(quest, needle, utente, "Mondo", out);
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Cerca ricorsivamente in una quest e nelle sue sotto-quest (child collegati di tipo QUEST,
+     * stessa struttura ad albero di QuestService.buildDTO). Nessun personaggio proprietario per
+     * queste quest (di ambito party/mondo): le note OWNER restano visibili solo al master.
+     */
+    private void matchQuestTree(Item quest, String needle, Utente utente, String ambitoLabel, List<ItemSearchResultDTO> out) {
+        MatchResult match = matchItem(quest, needle, null, utente);
+        if (match != null) {
+            out.add(new ItemSearchResultDTO(
+                    quest.getId(), quest.getNome(), quest.getTipo() != null ? quest.getTipo().name() : null,
+                    null, ambitoLabel, match.categoria(), match.testo(),
+                    Boolean.TRUE.equals(quest.isDisabled())));
+        }
+        if (quest.getChild() != null) {
+            for (Collegamento c : quest.getChild()) {
+                if (TipoItem.QUEST.equals(c.getItemTarget().getTipo())) {
+                    matchQuestTree(c.getItemTarget(), needle, utente, ambitoLabel, out);
+                }
+            }
+        }
     }
 
     /**
@@ -754,21 +852,58 @@ public class PersonaggioService {
         return 8 + (int) Math.ceil((livello - 30) / 5.0);
     }
 
-    private static String matchItem(Item it, String needle) {
-        if (it.getNome() != null && it.getNome().toLowerCase().contains(needle)) return "nome";
+    /** Dove e con quale testo è avvenuto un match di ricerca, vedi {@link #matchItem}. */
+    private record MatchResult(String categoria, String testo) {}
+
+    /**
+     * Match di ricerca su un item: nome, descrizione, valore di una qualsiasi label testuale
+     * (le NOTA sono un caso speciale: JSON {testo, visibilita}, il match avviene solo sul testo e
+     * solo se la nota è visibile a {@code utente} secondo la sua visibilità — mai sul JSON grezzo,
+     * altrimenti si esporrebbe anche il testo di note OWNER/MASTER a chi non dovrebbe vederle), o
+     * nota di un qualsiasi modificatore. Ritorna anche il testo intero in cui si è trovato il
+     * match (non solo la categoria), da mostrare come contesto a chi cerca.
+     */
+    private MatchResult matchItem(Item it, String needle, Personaggio rootOwner, Utente utente) {
+        if (it.getNome() != null && it.getNome().toLowerCase().contains(needle)) return new MatchResult("nome", it.getNome());
+        if (it.getDescrizione() != null && it.getDescrizione().toLowerCase().contains(needle)) return new MatchResult("descrizione", it.getDescrizione());
         if (it.getLabels() != null) {
             for (ItemLabel l : it.getLabels()) {
-                if (l.getValore() != null && l.getValore().toLowerCase().contains(needle))
-                    return "label " + l.getLabel();
+                if (l.getValore() == null) continue;
+                if (Constants.ITEM_LABEL_NOTA.equals(l.getLabel())) {
+                    NotaDTO nota = parseNotaSingola(l.getValore());
+                    if (nota == null || !authzService.canViewVisibilita(utente, rootOwner, nota.getVisibilita()))
+                        continue;
+                    if (nota.getTesto() != null && nota.getTesto().toLowerCase().contains(needle)) return new MatchResult("nota", nota.getTesto());
+                    continue;
+                }
+                if (l.getValore().toLowerCase().contains(needle)) return new MatchResult("label " + l.getLabel(), l.getValore());
             }
         }
         if (it.getModificatori() != null) {
             for (Modificatore m : it.getModificatori()) {
-                if (m.getNota() != null && m.getNota().toLowerCase().contains(needle))
-                    return "nota";
+                if (m.getNota() != null && m.getNota().toLowerCase().contains(needle)) {
+                    // Contesto completo (stat + valore + nota), non solo la nota da sola: es.
+                    // "Carisma +100 Se c'è nebbia", così chi cerca vede subito di che modificatore si tratta.
+                    String statLabel = m.getStat() != null ? m.getStat().getLabel() : "";
+                    String testo = (statLabel + " " + m.getValore() + " " + m.getNota()).trim();
+                    return new MatchResult("nota modificatore", testo);
+                }
             }
         }
         return null;
+    }
+
+    /** Una riga ItemLabel NOTA è un JSON {testo, visibilita}; null se malformata (dato legacy/corrotto). */
+    private NotaDTO parseNotaSingola(String valoreJson) {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> parsed = objectMapper.readValue(valoreJson, Map.class);
+            String testo = String.valueOf(parsed.getOrDefault("testo", ""));
+            String visibilita = String.valueOf(parsed.getOrDefault("visibilita", ""));
+            return new NotaDTO(testo, "null".equals(visibilita) ? "" : visibilita);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public AllPersonaggioItems getAllPersonaggioItemsByIdPersonaggio(Integer idPersonaggio) {

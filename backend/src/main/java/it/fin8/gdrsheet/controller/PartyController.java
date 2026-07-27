@@ -241,7 +241,7 @@ public class PartyController {
             @AuthenticationPrincipal Utente utente
     ) {
         partyService.assertMembroParty(id, utente); // verifica appartenenza al party
-        return ResponseEntity.ok(personaggioService.searchItemsParty(id, q));
+        return ResponseEntity.ok(personaggioService.searchItemsParty(id, q, utente));
     }
 
     @Operation(summary = "Gruppi del party", description = "Gruppi con membri e capogruppo. Accessibile ai membri del party.")

@@ -19,7 +19,9 @@ public class ItemSearchResultDTO {
     private String tipo;
     private Integer personaggioId;
     private String personaggioNome;
-    /** Dove è avvenuto il match: "nome", "label <KEY>", "nota". */
+    /** Dove è avvenuto il match: "nome", "descrizione", "label <KEY>", "nota", "nota modificatore". */
     private String match;
+    /** Il testo effettivo in cui è stato trovato il match (es. la nota intera), da mostrare come contesto. */
+    private String matchTesto;
     private boolean disabled;
 }
