@@ -27,6 +27,15 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             """)
     List<Item> findAllNotizie();
 
+    /** Notizie di un mondo specifico, per la ricerca profonda del party (che vive in quel mondo). */
+    @Query("""
+            SELECT i FROM Item i
+            LEFT JOIN FETCH i.labels
+            WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.NOTIZIA
+              AND i.mondo.id = :mondoId
+            """)
+    List<Item> findNotizieByMondoId(@Param("mondoId") Integer mondoId);
+
     @Query("SELECT i FROM Item i WHERE i.id IN :ids")
     List<Item> findItemsByIds(@Param("ids") List<Integer> ids);
 
@@ -68,6 +77,26 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             ORDER BY i.nome
             """)
     List<Item> searchCompendioDeep(@Param("q") String q, org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * Come {@link #searchCompendioDeep}, ma pre-filtrata lato DB su un insieme di id già noto
+     * (tipicamente {@code findReachableItemIds}) invece che su tutto il compendio: usata dalla
+     * ricerca profonda di un personaggio, per evitare di dover ricostruire l'intera scheda
+     * (flatten, livelli, classi...) solo per cercare del testo.
+     */
+    @Query("""
+            SELECT DISTINCT i FROM Item i
+            WHERE i.id IN :ids
+              AND (
+                lower(i.nome) LIKE lower(concat('%', :q, '%'))
+                OR lower(i.descrizione) LIKE lower(concat('%', :q, '%'))
+                OR EXISTS (SELECT 1 FROM ItemLabel il WHERE il.item = i AND il.personaggio IS NULL
+                           AND lower(il.valore) LIKE lower(concat('%', :q, '%')))
+                OR EXISTS (SELECT 1 FROM Modificatore m WHERE m.item = i
+                           AND lower(m.nota) LIKE lower(concat('%', :q, '%')))
+              )
+            """)
+    List<Item> searchByIdsDeep(@Param("ids") java.util.Collection<Integer> ids, @Param("q") String q);
 
     @Query("SELECT i FROM Item i JOIN i.labels il WHERE il.label = 'CC' AND il.valore = :cc")
     List<Item> findContiByCc(@Param("cc") String cc);
@@ -261,6 +290,30 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             """)
     List<Item> findQuestByPersonaggioId(@Param("personaggioId") Integer personaggioId);
 
+    /**
+     * Come {@link #findQuestByPersonaggioId}, ma filtrata sullo stato di archiviazione (label
+     * QUEST_ARCHIVIATA): usata dal caricamento "normale" delle sezioni quest, che mostra solo le
+     * non archiviate finché l'utente non attiva esplicitamente il filtro "solo archiviate". La
+     * ricerca profonda continua invece a usare {@link #findQuestByPersonaggioId} senza filtro:
+     * un'archiviata deve restare trovabile.
+     */
+    @Query("""
+            SELECT i FROM Item i
+            WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
+              AND i.personaggio.id = :personaggioId
+              AND NOT EXISTS (
+                  SELECT 1 FROM Collegamento c
+                  WHERE c.itemTarget = i AND c.itemSource.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
+              )
+              AND (
+                (:archiviate = true AND EXISTS (SELECT 1 FROM ItemLabel ila WHERE ila.item = i
+                    AND ila.label = 'QUEST_ARCHIVIATA' AND ila.valore = '1'))
+                OR (:archiviate = false AND NOT EXISTS (SELECT 1 FROM ItemLabel ila WHERE ila.item = i
+                    AND ila.label = 'QUEST_ARCHIVIATA' AND ila.valore = '1'))
+              )
+            """)
+    List<Item> findQuestByPersonaggioIdArchiviata(@Param("personaggioId") Integer personaggioId, @Param("archiviate") boolean archiviate);
+
     /** Quest radice di un party (label QUEST_PARTY = id del party). Esclude le sotto-quest. */
     @Query("""
             SELECT i FROM Item i JOIN i.labels il
@@ -273,6 +326,25 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
               )
             """)
     List<Item> findQuestByPartyId(@Param("partyId") String partyId);
+
+    /** Come {@link #findQuestByPartyId}, filtrata per stato di archiviazione: vedi la nota su {@link #findQuestByPersonaggioIdArchiviata}. */
+    @Query("""
+            SELECT i FROM Item i JOIN i.labels il
+            WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
+              AND i.personaggio IS NULL
+              AND il.label = 'QUEST_PARTY' AND il.valore = :partyId
+              AND NOT EXISTS (
+                  SELECT 1 FROM Collegamento c
+                  WHERE c.itemTarget = i AND c.itemSource.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
+              )
+              AND (
+                (:archiviate = true AND EXISTS (SELECT 1 FROM ItemLabel ila WHERE ila.item = i
+                    AND ila.label = 'QUEST_ARCHIVIATA' AND ila.valore = '1'))
+                OR (:archiviate = false AND NOT EXISTS (SELECT 1 FROM ItemLabel ila WHERE ila.item = i
+                    AND ila.label = 'QUEST_ARCHIVIATA' AND ila.valore = '1'))
+              )
+            """)
+    List<Item> findQuestByPartyIdArchiviata(@Param("partyId") String partyId, @Param("archiviate") boolean archiviate);
 
     /**
      * Quest radice di un intero mondo: visibili a tutti i party di quel mondo. Esclude le
@@ -293,4 +365,42 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
               )
             """)
     List<Item> findQuestByMondoId(@Param("mondoId") Integer mondoId);
+
+    /** Come {@link #findQuestByMondoId}, filtrata per stato di archiviazione: vedi la nota su {@link #findQuestByPersonaggioIdArchiviata}. */
+    @Query("""
+            SELECT i FROM Item i
+            WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
+              AND i.personaggio IS NULL
+              AND i.mondo.id = :mondoId
+              AND NOT EXISTS (SELECT 1 FROM ItemLabel il2 WHERE il2.item = i AND il2.label = 'QUEST_PARTY')
+              AND NOT EXISTS (
+                  SELECT 1 FROM Collegamento c
+                  WHERE c.itemTarget = i AND c.itemSource.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
+              )
+              AND (
+                (:archiviate = true AND EXISTS (SELECT 1 FROM ItemLabel ila WHERE ila.item = i
+                    AND ila.label = 'QUEST_ARCHIVIATA' AND ila.valore = '1'))
+                OR (:archiviate = false AND NOT EXISTS (SELECT 1 FROM ItemLabel ila WHERE ila.item = i
+                    AND ila.label = 'QUEST_ARCHIVIATA' AND ila.valore = '1'))
+              )
+            """)
+    List<Item> findQuestByMondoIdArchiviata(@Param("mondoId") Integer mondoId, @Param("archiviate") boolean archiviate);
+
+    /**
+     * Quest "radice" (non ancora figlie di nessun'altra quest) che corrispondono al testo cercato:
+     * candidate da collegare come sotto-quest di un'altra. Offrire solo radici è anche la garanzia
+     * anti-ciclo: i discendenti di una quest non sono mai radici, quindi non possono comparire tra
+     * i candidati e non si può creare un anello collegandone una.
+     */
+    @Query("""
+            SELECT i FROM Item i
+            WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
+              AND lower(i.nome) LIKE lower(concat('%', :q, '%'))
+              AND NOT EXISTS (
+                  SELECT 1 FROM Collegamento c
+                  WHERE c.itemTarget = i AND c.itemSource.tipo = it.fin8.gdrsheet.def.TipoItem.QUEST
+              )
+            ORDER BY i.nome
+            """)
+    List<Item> searchQuestRadici(@Param("q") String q, org.springframework.data.domain.Pageable pageable);
 }

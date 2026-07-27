@@ -716,21 +716,30 @@ public class PersonaggioService {
         if (q == null || q.trim().isEmpty()) return List.of();
         String needle = q.trim().toLowerCase();
         Personaggio pg = personaggioRepository.findPersonaggioById(idPersonaggio);
-        String pgNome = pg != null ? pg.getNome() : null;
+        if (pg == null) return List.of();
+        String pgNome = pg.getNome();
 
-        List<Item> items = getAllPersonaggioItemsByIdPersonaggio(idPersonaggio).getItems();
-        Map<Integer, Item> unici = new LinkedHashMap<>();
-        for (Item it : items) if (it.getId() != null) unici.putIfAbsent(it.getId(), it);
+        // Prima passava da getAllPersonaggioItemsByIdPersonaggio: ricostruiva l'INTERA scheda
+        // (flatten, livelli, classi, caster level, spellbook...) solo per cercare del testo — un
+        // ordine di grandezza più lento di una ricerca compendio, e ripetuto una volta per
+        // personaggio ad ogni ricerca party. Qui invece: id raggiungibili (query nativa leggera,
+        // stesso meccanismo di PartyService#giveItem) + un'unica query di ricerca pre-filtrata lato
+        // DB, esattamente come searchCompendioDeep.
+        List<Integer> reachableIds = itemRepository.findReachableItemIds(idPersonaggio);
+        if (reachableIds.isEmpty()) return List.of();
+
+        Set<Integer> disabilitati = itemLabelRepository.findItemIdsByLabelValoreTrueAndPersonaggio_Id(
+                Constants.ITEM_LABEL_DISABILITATO, idPersonaggio);
 
         List<ItemSearchResultDTO> out = new ArrayList<>();
-        for (Item it : unici.values()) {
+        for (Item it : itemRepository.searchByIdsDeep(reachableIds, needle)) {
             MatchResult match = matchItem(it, needle, pg, utente);
             if (match != null) {
                 out.add(new ItemSearchResultDTO(
                         it.getId(), it.getNome(),
                         it.getTipo() != null ? it.getTipo().name() : null,
                         idPersonaggio, pgNome, match.categoria(), match.testo(),
-                        Boolean.TRUE.equals(it.isDisabled())));
+                        disabilitati.contains(it.getId())));
             }
         }
         return out;
@@ -810,9 +819,29 @@ public class PersonaggioService {
                 for (Item quest : itemRepository.findQuestByMondoId(party.getMondo().getId())) {
                     matchQuestTree(quest, needle, utente, "Mondo", out);
                 }
+                matchNotizieMondo(party.getMondo().getId(), needle, utente, out);
             }
         }
         return out;
+    }
+
+    /**
+     * Notizie del mondo del party: escluse quelle disabilitate (ABILITATA != 1), incluse quelle
+     * archiviate (data di fine passata) — solo il flag di abilitazione conta, non lo stato
+     * temporale. Il master/admin vede anche le disabilitate ma SOLO dal compendio
+     * ({@link #searchItemsCompendio}), che non applica questo filtro: qui, ricerca "di gioco"
+     * dal party, restano nascoste come nel resto dell'interfaccia.
+     */
+    private void matchNotizieMondo(Integer idMondo, String needle, Utente utente, List<ItemSearchResultDTO> out) {
+        for (Item n : itemRepository.findNotizieByMondoId(idMondo)) {
+            if (!"1".equals(n.getLabel(Constants.LABEL_NOTIZIA_ABILITATA))) continue;
+            MatchResult match = matchItem(n, needle, null, utente);
+            if (match != null) {
+                out.add(new ItemSearchResultDTO(
+                        n.getId(), n.getNome(), n.getTipo() != null ? n.getTipo().name() : null,
+                        null, "Mondo", match.categoria(), match.testo(), false));
+            }
+        }
     }
 
     /**

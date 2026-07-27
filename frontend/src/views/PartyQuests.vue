@@ -15,12 +15,14 @@ const party = ref<PartyDetail | null>(null)
 const quests = ref<Quest[]>([])
 const loading = ref(true)
 const errorMsg = ref<string | null>(null)
+// false = solo le non archiviate (default all'ingresso nella sezione); true = SOLO le archiviate.
+const soloArchiviate = ref(false)
 
 async function load() {
   loading.value = true
   errorMsg.value = null
   try {
-    const [pRes, qRes] = await Promise.all([getParty(partyId), getQuestParty(partyId)])
+    const [pRes, qRes] = await Promise.all([getParty(partyId), getQuestParty(partyId, soloArchiviate.value)])
     party.value = pRes.data
     quests.value = qRes.data ?? []
   } catch (e: any) {
@@ -29,6 +31,11 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+function toggleArchiviate() {
+  soloArchiviate.value = !soloArchiviate.value
+  load()
 }
 
 function aggiungiQuest() {
@@ -46,6 +53,11 @@ onMounted(load)
         <h1>Quest del party</h1>
         <span v-if="party" class="sub">{{ party.nome }}</span>
       </div>
+      <button type="button" class="btn-icon" :class="{active: soloArchiviate}"
+              :title="soloArchiviate ? 'Mostra le quest attive' : 'Mostra le quest archiviate'"
+              @click="toggleArchiviate">
+        {{ soloArchiviate ? '🗃️' : '🗄️' }}
+      </button>
     </header>
 
     <div class="body">
@@ -56,7 +68,7 @@ onMounted(load)
 
       <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
       <div v-else-if="loading" class="stato">Caricamento…</div>
-      <div v-else-if="!quests.length" class="stato">Nessuna quest.</div>
+      <div v-else-if="!quests.length" class="stato">{{ soloArchiviate ? 'Nessuna quest archiviata.' : 'Nessuna quest.' }}</div>
       <QuestNode v-for="q in quests" :key="q.id" :quest="q" :id-party="partyId" @changed="load"/>
     </div>
   </section>
@@ -70,11 +82,17 @@ onMounted(load)
   padding: .75rem 1rem; border-bottom: 1px solid #e5e7eb; background: inherit;
   box-sizing: border-box;
 }
-.titolo { display: flex; flex-direction: column; }
+.titolo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .titolo h1 { margin: 0; font-size: 1.1rem; }
 .sub { font-size: .8rem; color: #6b7280; }
 .btn { padding: .4rem .7rem; border-radius: .5rem; border: 1px solid transparent; cursor: pointer; }
 .btn.ghost { border-color: #d0d5dd; background: #fff; }
+.btn-icon {
+  flex-shrink: 0; font-size: 1.1rem; line-height: 1;
+  padding: .4rem .55rem; border-radius: .5rem; border: 1px solid #d0d5dd;
+  background: #fff; cursor: pointer;
+}
+.btn-icon.active { border-color: #93c5fd; background: #eff6ff; }
 .body {
   box-sizing: border-box;
   padding: .75rem 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px)); display: grid; gap: .5rem; align-content: start;

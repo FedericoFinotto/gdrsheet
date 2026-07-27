@@ -3,6 +3,7 @@ import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import type {AxiosResponse} from 'axios'
 import {deleteItem, getItem, getItemDisabled, getItemParents, switchItemState, unlinkItem} from '../../../../../../service/PersonaggioService'
+import {deleteQuest} from '../../../../../../service/QuestService'
 import type {Item} from '../../../../../../models/dto/Item'
 import {useCharacterStore} from '../../../../../../stores/personaggio'
 import usePopup from '../../../../../../function/usePopup'
@@ -73,9 +74,11 @@ async function onToggleStato() {
   }
 }
 
-// scollegabile: c'è il contesto personaggio e non è un item intestato (es. livelli)
+// scollegabile: c'è il contesto personaggio e non è un item intestato (es. livelli). Le QUEST
+// sono escluse: non stanno nell'equipaggiamento, quindi unlinkItem fallirebbe sempre — per loro
+// l'unica azione sensata è l'eliminazione globale qui sotto.
 const canUnlink = computed(() =>
-    !!idPersonaggio.value && !!item.value && item.value.tipo !== 'LIVELLO')
+    !!idPersonaggio.value && !!item.value && item.value.tipo !== 'LIVELLO' && item.value.tipo !== 'QUEST')
 
 // eliminazione: solo master e admin
 const auth = useAuthStore()
@@ -102,13 +105,22 @@ async function onUnlink() {
   }
 }
 
+// Una quest non è "roba di un personaggio": si elimina globalmente, per tutti quelli che la
+// vedono, portandosi dietro l'intero albero di sotto-quest. Da qui il messaggio esplicito e
+// l'endpoint dedicato invece del delete generico (che scollegherebbe soltanto).
+const isQuest = computed(() => item.value?.tipo === 'QUEST')
+
 async function onDelete() {
   if (!item.value || deleting.value) return
-  const ok = window.confirm(`Sei sicuro di voler eliminare "${item.value.nome}"?`)
+  const ok = window.confirm(isQuest.value
+      ? `Eliminare la quest "${item.value.nome}" per TUTTI i giocatori che la vedono?\n\n` +
+        'Verranno eliminate anche tutte le sue sotto-quest. L\'operazione non è reversibile.'
+      : `Sei sicuro di voler eliminare "${item.value.nome}"?`)
   if (!ok) return
   deleting.value = true
   try {
-    await deleteItem(item.value.id, idPersonaggio.value)
+    if (isQuest.value) await deleteQuest(item.value.id)
+    else await deleteItem(item.value.id, idPersonaggio.value)
     // chiudi l'eventuale popup di dettaglio rimasto aperto sotto l'editor
     closePopup()
     if (idPersonaggio.value) {
@@ -200,8 +212,10 @@ async function onSaved() {
         <button v-if="canUnlink" type="button" class="btn-unlink" :disabled="unlinking || deleting" @click="onUnlink">
           {{ unlinking ? 'Scollegamento…' : 'Scollega' }}
         </button>
-        <button v-if="item && canDelete" type="button" class="btn-delete" :disabled="deleting || unlinking" @click="onDelete">
-          {{ deleting ? 'Eliminazione…' : 'Elimina' }}
+        <button v-if="item && canDelete" type="button" class="btn-delete" :disabled="deleting || unlinking"
+                :title="isQuest ? 'Elimina la quest e tutte le sue sotto-quest, per tutti i giocatori' : undefined"
+                @click="onDelete">
+          {{ deleting ? 'Eliminazione…' : (isQuest ? 'Elimina per tutti' : 'Elimina') }}
         </button>
       </div>
     </header>

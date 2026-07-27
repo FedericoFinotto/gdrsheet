@@ -235,6 +235,11 @@ public final class Constants {
     // "In carico": multi-valore, righe di testo libero (es. nome personaggio/party) mostrate come
     // chip in cima all'accordion della quest/sotto-quest in scheda.
     public static final String ITEM_LABEL_QUEST_IN_CARICO = "IN_CARICO";
+    // Archiviazione (solo quest radice: una sotto-quest non compare mai da sola nelle liste
+    // caricate automaticamente, quindi il flag su di lei è dormiente finché non lo è più): una
+    // quest archiviata non viene più caricata di default entrando in una sezione quest, ma resta
+    // recuperabile con l'apposito filtro "solo archiviate".
+    public static final String ITEM_LABEL_QUEST_ARCHIVIATA = "QUEST_ARCHIVIATA";
 
     // Note: generiche, disponibili su qualunque tipo di item (non solo QUEST). Ogni riga
     // ItemLabel (chiave NOTA, multi-valore) contiene un JSON {testo, visibilita} — stessa

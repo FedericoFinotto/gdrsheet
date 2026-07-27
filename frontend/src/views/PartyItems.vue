@@ -5,7 +5,10 @@ import {Destinatario, getParty, getPartyItems, giveItem, ItemSearchResult, searc
 import {highlightMatch} from '../function/textHighlight'
 import {formatKg, formatPesoTotale, Page, PartyDetail, PartyItem} from '../models/dto/Party'
 import Mobile_DettaglioItem from './sheets/cico/character/Dettaglio/Mobile_DettaglioItem.vue'
+import QuestNode from './sheets/cico/character/Cico/Sheet/QuestNode.vue'
 import SearchSelect from '../components/SearchSelect.vue'
+import {getQuestAlbero} from '../service/QuestService'
+import {Quest} from '../models/dto/Quest'
 
 const route = useRoute()
 const router = useRouter()
@@ -65,8 +68,23 @@ async function eseguiRicercaGlobale() {
     cercando.value = false
   }
 }
-function toggleGlobalExpand(key: string) {
+// Risultato QUEST: invece del dettaglio item generico, mostra lo stesso componente ad albero
+// della pagina Quest (radice + sotto-quest), risalendo alla radice se il match è una sotto-quest
+// a qualunque profondità, con il nodo trovato messo in evidenza ed espanso automaticamente.
+const alberiQuest = ref<Record<string, Quest>>({})
+const caricandoAlbero = ref<Record<string, boolean>>({})
+
+async function toggleGlobalExpand(r: ItemSearchResult, key: string) {
   globalExpandedKey.value = globalExpandedKey.value === key ? null : key
+  if (globalExpandedKey.value !== key || r.tipo !== 'QUEST' || alberiQuest.value[key] || caricandoAlbero.value[key]) return
+  caricandoAlbero.value[key] = true
+  try {
+    alberiQuest.value[key] = (await getQuestAlbero(r.id)).data
+  } catch (e) {
+    console.error('Errore caricamento albero quest:', e)
+  } finally {
+    caricandoAlbero.value[key] = false
+  }
 }
 function shimDaRisultato(r: ItemSearchResult) {
   return {modificatori: {id: r.personaggioId}, items: {trasformazioni: [], idoli: []}}
@@ -218,7 +236,7 @@ function personaggioShim(itm: PartyItem) {
       <ul v-else-if="risultatiGlobali.length" class="rows">
         <li v-for="r in risultatiGlobali" :key="`${r.personaggioId}-${r.id}`" class="row-wrap">
           <div class="row" :class="{ disabled: r.disabled }">
-            <button class="row-main global" @click="toggleGlobalExpand(`${r.personaggioId}-${r.id}`)">
+            <button class="row-main global" @click="toggleGlobalExpand(r, `${r.personaggioId}-${r.id}`)">
               <span class="nome" v-html="highlightMatch(r.nome, filtroNome)"></span>
               <span v-if="r.matchTesto" class="match-snippet" v-html="highlightMatch(r.matchTesto, filtroNome)"></span>
               <span class="pill tipo">{{ r.tipo }}</span>
@@ -227,7 +245,20 @@ function personaggioShim(itm: PartyItem) {
             </button>
           </div>
           <div v-if="globalExpandedKey === `${r.personaggioId}-${r.id}`" class="detail">
+            <template v-if="r.tipo === 'QUEST'">
+              <div v-if="caricandoAlbero[`${r.personaggioId}-${r.id}`]" class="state">Caricamento…</div>
+              <QuestNode
+                  v-else-if="alberiQuest[`${r.personaggioId}-${r.id}`]"
+                  :key="`galbero-${r.id}`"
+                  :quest="alberiQuest[`${r.personaggioId}-${r.id}`]"
+                  :evidenzia-id="r.id"
+                  :id-personaggio="r.personaggioId ?? undefined"
+                  :id-party="partyId"
+              />
+              <div v-else class="state">Quest non trovata.</div>
+            </template>
             <Mobile_DettaglioItem
+                v-else
                 :key="`gdet-${r.id}-${r.personaggioId}`"
                 :data="{item: {id: r.id, nome: r.nome, tipo: r.tipo, disabled: r.disabled}, personaggio: shimDaRisultato(r)}"
             />

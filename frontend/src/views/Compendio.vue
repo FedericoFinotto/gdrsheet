@@ -8,9 +8,12 @@ import {Page} from '../models/dto/Party'
 import {Item} from '../models/dto/Item'
 import {TIPO_ITEM_LABELS} from './sheets/cico/character/Cico/Editor/editorRegistry'
 import Mobile_DettaglioItem from './sheets/cico/character/Dettaglio/Mobile_DettaglioItem.vue'
+import QuestNode from './sheets/cico/character/Cico/Sheet/QuestNode.vue'
 import {useMondoSistema} from '../function/useMondoSistema'
 import {useAuthStore} from '../stores/auth'
 import {highlightMatch} from '../function/textHighlight'
+import {getQuestAlbero} from '../service/QuestService'
+import {Quest} from '../models/dto/Quest'
 
 const router = useRouter()
 const {meiMondi, meiMondiOptions} = useMondoSistema()
@@ -37,8 +40,22 @@ async function eseguiRicercaGlobale() {
     cercandoGlobale.value = false
   }
 }
-function toggleGlobalExpand(id: number) {
-  globalExpandedId.value = globalExpandedId.value === id ? null : id
+// Risultato QUEST: come nella ricerca del party, mostra l'albero radice+sotto-quest invece del
+// dettaglio item generico (vedi PartyItems.vue per lo stesso pattern).
+const alberiQuest = ref<Record<number, Quest>>({})
+const caricandoAlbero = ref<Record<number, boolean>>({})
+
+async function toggleGlobalExpand(r: ItemSearchResult) {
+  globalExpandedId.value = globalExpandedId.value === r.id ? null : r.id
+  if (globalExpandedId.value !== r.id || r.tipo !== 'QUEST' || alberiQuest.value[r.id] || caricandoAlbero.value[r.id]) return
+  caricandoAlbero.value[r.id] = true
+  try {
+    alberiQuest.value[r.id] = (await getQuestAlbero(r.id)).data
+  } catch (e) {
+    console.error('Errore caricamento albero quest:', e)
+  } finally {
+    caricandoAlbero.value[r.id] = false
+  }
 }
 
 const pagina = ref<Page<Item> | null>(null)
@@ -155,14 +172,21 @@ onMounted(load)
       <ul v-else-if="risultatiGlobali.length" class="rows">
         <li v-for="r in risultatiGlobali" :key="r.id" class="row-wrap">
           <div class="row" :class="{ disabled: r.disabled }">
-            <button class="row-main global" @click="toggleGlobalExpand(r.id)">
+            <button class="row-main global" @click="toggleGlobalExpand(r)">
               <span class="pill tipo">{{ TIPO_ITEM_LABELS[r.tipo] ?? r.tipo }}</span>
               <span class="nome" v-html="highlightMatch(r.nome, filtroNome)"></span>
               <span v-if="r.matchTesto" class="match-snippet" v-html="highlightMatch(r.matchTesto, filtroNome)"></span>
             </button>
           </div>
           <div v-if="globalExpandedId === r.id" class="detail">
+            <template v-if="r.tipo === 'QUEST'">
+              <div v-if="caricandoAlbero[r.id]" class="state">Caricamento…</div>
+              <QuestNode v-else-if="alberiQuest[r.id]" :key="`galbero-${r.id}`"
+                         :quest="alberiQuest[r.id]" :evidenzia-id="r.id"/>
+              <div v-else class="state">Quest non trovata.</div>
+            </template>
             <Mobile_DettaglioItem
+                v-else
                 :key="`gdet-${r.id}`"
                 :data="{item: {id: r.id, nome: r.nome, tipo: r.tipo, disabled: r.disabled}, personaggio: personaggioShim}"
             />

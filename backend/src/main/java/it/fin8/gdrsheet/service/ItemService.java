@@ -473,7 +473,55 @@ public class ItemService {
         em.createQuery("DELETE FROM PermessiItem p WHERE p.idItem.id = :id")
                 .setParameter("id", itm.getId())
                 .executeUpdate();
-        itemRepository.delete(itm); // le labels seguono in cascata
+        // Item.labels è filtrata da @Where(id_personaggio IS NULL): la cascata JPA copre solo le
+        // label globali, quindi quelle personaggio-scoped (QTA, DISABLED, UTILIZZI_USATI...)
+        // resterebbero orfane facendo fallire la FK fk_item_label_item. Le cancelliamo a parte.
+        em.createQuery("DELETE FROM ItemLabel il WHERE il.item.id = :id AND il.personaggio IS NOT NULL")
+                .setParameter("id", itm.getId())
+                .executeUpdate();
+        itemRepository.delete(itm); // le labels globali seguono in cascata
+    }
+
+    /**
+     * Elimina una QUEST e tutto il suo sottoalbero di sotto-quest, per TUTTI i giocatori che la
+     * vedono (a prescindere dall'ambito personaggio/party/mondo): di ogni quest coinvolta vengono
+     * cancellati anche modificatori, collegamenti, avanzamenti, permessi e item_label.
+     * <p>
+     * Gli eventuali figli NON di tipo QUEST (item di compendio collegati alla quest, es. una
+     * ricompensa) vengono soltanto scollegati: sono potenzialmente condivisi con altri
+     * personaggi/item e cancellarli sarebbe distruttivo oltre l'intenzione.
+     */
+    @Transactional
+    public void deleteQuestTree(Integer id) {
+        Item root = itemRepository.findById(id).orElseThrow(() -> new RuntimeException("Quest non trovata: " + id));
+        if (!TipoItem.QUEST.equals(root.getTipo()))
+            throw new RuntimeException("L'item " + id + " non è una quest");
+
+        // raccolgo l'albero PRIMA di toccare i collegamenti: dopo la cancellazione la
+        // navigazione non troverebbe più i figli
+        List<Item> daEliminare = new ArrayList<>();
+        raccogliSottoQuest(root, daEliminare, new HashSet<>());
+
+        // idem per la cache: la risalita ai personaggi passa dai collegamenti
+        for (Item q : daEliminare) personaggioCacheService.invalidaPerItem(q.getId());
+
+        // dalle foglie alla radice, così un eventuale vincolo residuo emerge sul figlio
+        for (int i = daEliminare.size() - 1; i >= 0; i--) {
+            hardDelete(daEliminare.get(i));
+        }
+    }
+
+    /** Visita in preordine dell'albero delle sotto-quest, a prova di ciclo. */
+    private void raccogliSottoQuest(Item quest, List<Item> out, Set<Integer> visti) {
+        if (quest == null || !visti.add(quest.getId())) return;
+        out.add(quest);
+        if (quest.getChild() == null) return;
+        for (Collegamento c : quest.getChild()) {
+            Item figlio = c.getItemTarget();
+            if (figlio != null && TipoItem.QUEST.equals(figlio.getTipo())) {
+                raccogliSottoQuest(figlio, out, visti);
+            }
+        }
     }
 
     /**

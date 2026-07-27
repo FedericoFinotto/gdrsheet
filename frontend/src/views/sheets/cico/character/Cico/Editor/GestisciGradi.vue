@@ -331,7 +331,7 @@ onMounted(carica)
         <tbody>
           <tr>
             <td class="sticky-col abil-col">Punti spesi</td>
-            <td v-for="c in colonne" :key="c.id" class="tot-col" :class="{ over: sforato(c) }">
+            <td v-for="c in colonne" :key="c.id" class="lvl-col spesi-cell" :class="{ over: sforato(c) }">
               {{ totaleColonna(c) }}<span class="slash">/{{ c.budget }}</span>
             </td>
             <td class="tot-col"></td>
@@ -426,7 +426,13 @@ onMounted(carica)
   border-radius: .6rem;
 }
 
-.gg-table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+/* table-layout: fixed è necessario perché la tabella "Punti spesi" (riepilogo) e quella delle
+   Professioni sono elementi <table> SEPARATI dalle tabelle per famiglia: con il layout automatico
+   di default ognuna calcola le larghezze colonna in base al proprio contenuto (es. "3/5" nel
+   riepilogo è diverso dagli stepper sopra), disallineando le colonne tra una tabella e l'altra.
+   Con layout fisso le larghezze sono quelle dichiarate su th/td (vedi .abil-col/.lvl-col/.tot-col),
+   identiche in ogni tabella perché condividono le stesse classi. */
+.gg-table { border-collapse: collapse; width: 100%; font-size: .85rem; table-layout: fixed; }
 
 .gg-table th, .gg-table td {
   border: 1px solid #eef2f7;
@@ -468,8 +474,15 @@ onMounted(carica)
 .sticky-col { position: sticky; left: 0; background: #fff; z-index: 2; }
 .gg-table thead .sticky-col { z-index: 3; background: #f8fafc; }
 
-.lvl-col { min-width: 4.2rem; }
-.tot-col { min-width: 2.8rem; font-weight: 700; background: #f9fafb; }
+/* con table-layout: fixed questa è la larghezza REALE della colonna (non solo un minimo): deve
+   contenere lo stepper (2 bottoni da 1.3rem + gap + valore) più il padding della cella, quindi
+   più larga del min-width usato prima con il layout automatico. */
+.lvl-col { width: 5.4rem; }
+.tot-col { width: 3.2rem; font-weight: 700; background: #f9fafb; }
+/* riga "Punti spesi": stessa LARGHEZZA delle colonne livello sopra (.lvl-col), ma stile visivo
+   da colonna-riepilogo (grassetto + sfondo) come .tot-col — da qui due classi separate invece
+   di riusare .tot-col anche per la larghezza, che la faceva più stretta e disallineata. */
+.spesi-cell { font-weight: 700; background: #f9fafb; }
 
 /* verde = abilità di classe (incl. trasversali), bianco = cross */
 .cell { background: #fff; }
@@ -493,6 +506,6 @@ onMounted(carica)
 .val { min-width: 1.6rem; font-variant-numeric: tabular-nums; font-weight: 700; }
 
 .slash { color: #94a3b8; font-weight: 600; }
-.tot-col.over { color: #b91c1c; }
-.tot-col.over .slash { color: #fca5a5; }
+.tot-col.over, .spesi-cell.over { color: #b91c1c; }
+.tot-col.over .slash, .spesi-cell.over .slash { color: #fca5a5; }
 </style>

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import {computed, defineAsyncComponent, ref} from 'vue'
+import {computed, defineAsyncComponent, onMounted, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {Quest} from '../../../../../../models/dto/Quest'
-import {toggleQuestCompletata} from '../../../../../../service/QuestService'
+import {getQuestDettaglio, toggleQuestCompletata} from '../../../../../../service/QuestService'
 import usePopup from '../../../../../../function/usePopup'
 import {coloreIncarico} from '../../../../../../function/coloreIncarico'
 
@@ -14,8 +14,19 @@ const props = withDefaults(defineProps<{
   idParty?: number
   depth?: number     // 0 = quest radice; passato in incremento ad ogni livello di sotto-quest
   ramoIndex?: number // posizione tra i fratelli nel figli del genitore; determina il colore del ramo
+  evidenziaId?: number // id della quest da mettere in evidenza (arrivo dalla ricerca profonda): il
+                       // percorso da qui fino a lei si apre da solo, e il nodo esatto è marcato
 }>(), {depth: 0, ramoIndex: 0})
 const emit = defineEmits<{ (e: 'changed'): void }>()
+
+// true se questo nodo È il target, o se il target è tra i suoi discendenti a qualunque profondità
+function contieneEvidenziato(q: Quest): boolean {
+  if (props.evidenziaId == null) return false
+  if (q.id === props.evidenziaId) return true
+  return (q.figli ?? []).some(contieneEvidenziato)
+}
+const suPercorsoEvidenziato = computed(() => contieneEvidenziato(props.quest))
+const eIlNodoEvidenziato = computed(() => props.evidenziaId != null && props.quest.id === props.evidenziaId)
 
 // Colore del "ramo" (linea che collega la sotto-quest al genitore e sottolinea il nome): un
 // colore diverso per ciascuna sotto-quest, assegnato per posizione (non per contenuto, a
@@ -36,8 +47,16 @@ const ramoColore = computed(() => props.depth > 0 ? coloreRamo(props.ramoIndex) 
 
 const router = useRouter()
 const {openPopup} = usePopup()
-const open = ref(false)
+const el = ref<HTMLElement | null>(null)
+const open = ref(suPercorsoEvidenziato.value)
 const busy = ref(false)
+
+onMounted(() => {
+  if (open.value) caricaDettaglio()
+  if (eIlNodoEvidenziato.value) {
+    el.value?.scrollIntoView({behavior: 'smooth', block: 'center'})
+  }
+})
 
 function apriInCarico() {
   azioniVisibili.value = false
@@ -77,12 +96,32 @@ function onPressEnd() {
     pressTimer = undefined
   }
 }
+// Descrizione e note non arrivano con l'albero: si scaricano alla prima apertura del nodo e
+// restano poi in memoria (dettaglioCaricato) per le aperture successive.
+const caricandoDettaglio = ref(false)
+
+async function caricaDettaglio() {
+  if (props.quest.dettaglioCaricato || caricandoDettaglio.value) return
+  caricandoDettaglio.value = true
+  try {
+    const {data} = await getQuestDettaglio(props.quest.id)
+    props.quest.descrizione = data.descrizione
+    props.quest.note = data.note ?? []
+    props.quest.dettaglioCaricato = true
+  } catch (e) {
+    console.error('Errore caricamento dettaglio quest:', e)
+  } finally {
+    caricandoDettaglio.value = false
+  }
+}
+
 function onHeadClick() {
   if (holdFired) {
     holdFired = false
     return
   }
   open.value = !open.value
+  if (open.value) caricaDettaglio()
 }
 
 const isLeaf = computed(() => !props.quest.figli.length)
@@ -149,7 +188,7 @@ function edit() {
 </script>
 
 <template>
-  <div class="quest-node" :class="{completa: pct === 100, 'is-nested': depth > 0}"
+  <div ref="el" class="quest-node" :class="{completa: pct === 100, 'is-nested': depth > 0, evidenziata: eIlNodoEvidenziato}"
        :style="ramoColore ? {'--ramo': ramoColore} : undefined">
     <div class="quest-head" :class="{'root-head': depth === 0, 'senza-padding-basso': depth > 0 && open && !isLeaf}"
          @click="onHeadClick"
@@ -180,6 +219,7 @@ function edit() {
       </button>
     </div>
     <div v-if="open" class="quest-body">
+      <div v-if="caricandoDettaglio" class="caricamento">Caricamento…</div>
       <div v-if="quest.descrizione" class="descrizione" v-safe-html="quest.descrizione"></div>
       <div v-if="quest.note.length" class="note">
         <strong>Note</strong>
@@ -190,7 +230,7 @@ function edit() {
       </div>
       <div v-if="quest.figli.length" class="figli">
         <QuestNode v-for="(f, i) in quest.figli" :key="f.id" :quest="f" :depth="depth + 1" :ramo-index="i"
-                   :id-personaggio="idPersonaggio" :id-party="idParty" @changed="emit('changed')"/>
+                   :id-personaggio="idPersonaggio" :id-party="idParty" :evidenzia-id="evidenziaId" @changed="emit('changed')"/>
       </div>
     </div>
   </div>
@@ -207,6 +247,13 @@ function edit() {
 .quest-node.completa {
   background: #eafbf0;
   border-color: #bfe8cc;
+}
+/* Nodo esatto raggiunto dalla ricerca profonda: bordo blu + alone, per ritrovarlo subito
+   nell'albero anche se il percorso fino a lì è profondo e già aperto automaticamente. */
+.quest-node.evidenziata {
+  border-color: #60a5fa;
+  border-width: 2px;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, .18);
 }
 
 .quest-head {
@@ -373,6 +420,7 @@ function edit() {
 }
 .btn-completata.done { border-color: #16a34a; background: #16a34a; color: #fff; }
 .btn-completata:disabled { opacity: .6; cursor: default; }
+.caricamento { font-size: .8rem; color: #94a3b8; }
 .descrizione { font-size: .88rem; color: #334155; white-space: pre-wrap; }
 .note strong {
   font-size: .75rem;

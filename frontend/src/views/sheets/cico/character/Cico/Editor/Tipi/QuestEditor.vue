@@ -39,7 +39,7 @@ const AMBITO_OPTS = [
       @cancel="emit('cancel')"
       @saved-stay="emit('savedStay')"
   >
-    <template #specifico="{disabled, questScope, setQuestScope, completata, setCompletata}">
+    <template #specifico="{disabled, questScope, setQuestScope, completata, setCompletata, archiviata, setArchiviata}">
       <template v-if="props.mode === 'create' && !isSubQuest && !questScope">
         {{ setQuestScope(props.idPersonaggio ? 'PERSONAGGIO' : 'PARTY') }}
       </template>
@@ -57,6 +57,11 @@ const AMBITO_OPTS = [
             <input type="checkbox" :checked="completata" :disabled="disabled"
                    @change="e => setCompletata((e.target as HTMLInputElement).checked)"/>
             <span>Completata (solo se senza sotto-quest)</span>
+          </label>
+          <label class="field-checkbox">
+            <input type="checkbox" :checked="archiviata" :disabled="disabled"
+                   @change="e => setArchiviata((e.target as HTMLInputElement).checked)"/>
+            <span>Archiviata (non caricata più in automatico entrando nelle quest)</span>
           </label>
         </div>
       </section>

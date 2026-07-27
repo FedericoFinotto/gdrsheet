@@ -101,6 +101,7 @@ const form = reactive<{
   idSistema: number
   questScope: string
   completata: boolean
+  archiviata: boolean
 }>({
   nome: '',
   enName: '',
@@ -130,6 +131,7 @@ const form = reactive<{
   idSistema: null as number | null,
   questScope: '',
   completata: false,
+  archiviata: false,
 })
 
 const open = reactive({
@@ -180,6 +182,7 @@ async function preload() {
   form.note = []
   form.inCarico = []
   form.completata = false
+  form.archiviata = false
   form.sezioniIncantesimi = []
   form.aggiunteClasse = []
   // righe SPELL_<n>* raccolte durante il giro delle label, riassemblate in sezioni a fine ciclo
@@ -243,6 +246,8 @@ async function preload() {
       form.descrAbilita.divina = val === '1'
     } else if (key === 'QUEST_COMPLETATA') {
       form.completata = val === '1'
+    } else if (key === 'QUEST_ARCHIVIATA') {
+      form.archiviata = val === '1'
     } else if (key === 'NOTA') {
       try {
         const parsed = JSON.parse(val)
@@ -521,6 +526,7 @@ function restoreSnapshot(snap: any) {
   form.idSistema = snap.idSistema ?? null
   form.questScope = snap.questScope ?? ''
   form.completata = !!snap.completata
+  form.archiviata = !!snap.archiviata
 }
 
 // Al mount: se sto tornando da una creazione di figlio (draft pendente e NON sono io
@@ -667,6 +673,8 @@ function buildPayload(): UpdateItemRequest {
   if (form.descrAbilita.divina) labels.push({label: 'DESCR_DIV', valore: '1'})
   // Quest: stato di completamento (significativo solo per una quest senza sotto-quest)
   if (form.completata) labels.push({label: 'QUEST_COMPLETATA', valore: '1'})
+  // Quest: archiviata (esclusa dal caricamento automatico delle sezioni quest)
+  if (form.archiviata) labels.push({label: 'QUEST_ARCHIVIATA', valore: '1'})
   // Note generiche (qualunque item): ogni riga è un JSON {testo, visibilita}
   for (const n of form.note) {
     if (n.testo.trim()) labels.push({label: 'NOTA', valore: JSON.stringify({testo: n.testo, visibilita: n.visibilita})})
@@ -800,6 +808,7 @@ function resetForNew() {
   form.inCarico = []
   form.qta = 1
   form.completata = false
+  form.archiviata = false
 }
 
 function onCancel() {
@@ -854,8 +863,10 @@ function onCancel() {
       </label>
     </div>
 
-    <!-- descrizione anticipata in modalità minimal (non per QUEST: niente descrizione) -->
-    <label v-if="minimal && !isQuest" class="field">
+    <!-- descrizione anticipata in modalità minimal: comprende anche QUEST/sotto-quest, che sono
+         sempre minimal e altrimenti non avrebbero NESSUN modo di modificare la descrizione dopo
+         la creazione (l'altro blocco, più sotto, è per !minimal e quindi non le raggiunge mai) -->
+    <label v-if="minimal" class="field">
       <span class="lbl">Descrizione</span>
       <HtmlEditor v-model="form.descrizione" :rows="10" :disabled="disabledAll"/>
     </label>
@@ -1040,7 +1051,8 @@ function onCancel() {
     <!-- slot per estensioni specifiche del tipo -->
     <slot name="specifico" :disabled="disabledAll"
           :quest-scope="form.questScope" :set-quest-scope="(v: string) => form.questScope = v"
-          :completata="form.completata" :set-completata="(v: boolean) => form.completata = v"/>
+          :completata="form.completata" :set-completata="(v: boolean) => form.completata = v"
+          :archiviata="form.archiviata" :set-archiviata="(v: boolean) => form.archiviata = v"/>
 
     <!-- mondo / sistema + visibilità: in non-minimal restano qui, in minimal vanno in fondo -->
     <template v-if="!minimal">

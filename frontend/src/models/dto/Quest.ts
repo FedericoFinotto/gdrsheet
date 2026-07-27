@@ -9,6 +9,8 @@ export interface Nota {
 export interface Quest {
     id: number;
     nome: string;
+    // Descrizione e note NON arrivano con l'albero (sono la parte pesante): il server le manda
+    // solo su /quest/{id}/dettaglio, quando la quest viene effettivamente aperta.
     descrizione: string | null;
     // Stato proprio di completamento: significativo solo per le quest foglia (senza figli).
     completata: boolean;
@@ -16,6 +18,8 @@ export interface Quest {
     totali: number;
     // già filtrate lato server in base a chi guarda: solo le note effettivamente visibili.
     note: Nota[];
+    // solo lato client: true una volta scaricato il dettaglio, per non richiederlo a ogni apertura.
+    dettaglioCaricato?: boolean;
     // "In carico": righe di testo libero (es. nome personaggio/party), mostrate come chip.
     inCarico: string[];
     figli: Quest[];

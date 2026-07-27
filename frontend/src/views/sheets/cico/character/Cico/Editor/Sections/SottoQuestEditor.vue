@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import {reactive, ref} from 'vue'
+import {computed, reactive, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {ChildRef} from '../../../../../../../models/dto/UpdateItemRequest'
 import {createItem} from '../../../../../../../service/PersonaggioService'
+import {QuestScelta, searchQuestRadici} from '../../../../../../../service/QuestService'
 import HtmlEditor from '../../../../../../../components/HtmlEditor.vue'
 import SearchSelect from '../../../../../../../components/SearchSelect.vue'
 
@@ -69,11 +70,71 @@ function openForm() {
   nuovo.descrizione = ''
   nuovo.visibilita = ''
   errorMsg.value = null
+  showLink.value = false
   showForm.value = true
 }
 
 function closeForm() {
   showForm.value = false
+}
+
+// --- Collega una quest già esistente -------------------------------------------------------
+// La ricerca torna solo quest "radice" (non già figlie di un'altra): oltre a essere l'insieme
+// sensato da offrire, è anche la garanzia anti-ciclo — i discendenti di questa quest non sono
+// radici, quindi non possono comparire tra i risultati.
+const showLink = ref(false)
+const ricerca = ref('')
+const risultati = ref<QuestScelta[]>([])
+const cercando = ref(false)
+
+// id della quest che si sta modificando: da escludere dai risultati (non può essere figlia di sé)
+const idCorrente = computed<number | undefined>(() => {
+  const n = Number(route.params.id)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+})
+
+function openLink() {
+  ricerca.value = ''
+  risultati.value = []
+  errorMsg.value = null
+  showForm.value = false
+  showLink.value = true
+}
+
+function closeLink() {
+  showLink.value = false
+}
+
+let ricercaTimer: any = null
+watch(ricerca, () => {
+  if (ricercaTimer) clearTimeout(ricercaTimer)
+  const q = ricerca.value.trim()
+  if (q.length < 2) {
+    risultati.value = []
+    return
+  }
+  ricercaTimer = setTimeout(async () => {
+    cercando.value = true
+    try {
+      risultati.value = (await searchQuestRadici(q, idCorrente.value)).data ?? []
+    } catch (e) {
+      console.error('Errore ricerca quest:', e)
+      risultati.value = []
+    } finally {
+      cercando.value = false
+    }
+  }, 300)
+})
+
+const giaCollegate = computed(() => new Set(props.modelValue.map(c => c.id)))
+
+function collega(scelta: QuestScelta) {
+  if (giaCollegate.value.has(scelta.id)) return
+  emit('update:modelValue', [...props.modelValue, {
+    id: scelta.id, nome: scelta.nome, tipo: 'QUEST' as any,
+    qty: null, formulaQty: null, scelta: null, condizione: null,
+  }])
+  showLink.value = false
 }
 
 async function salvaNuova() {
@@ -109,7 +170,7 @@ async function salvaNuova() {
 
 <template>
   <div class="sottoquest-editor">
-    <div v-if="!modelValue.length && !showForm" class="empty">Nessuna sotto-quest.</div>
+    <div v-if="!modelValue.length && !showForm && !showLink" class="empty">Nessuna sotto-quest.</div>
 
     <div v-for="(c, i) in modelValue" :key="c.id" class="sottoquest-row">
       <span class="nome">{{ c.nome }}</span>
@@ -137,9 +198,36 @@ async function salvaNuova() {
       </div>
     </div>
 
-    <button v-else type="button" class="btn-create" :disabled="disabled" @click="openForm">
-      + Aggiungi sotto-quest
-    </button>
+    <div v-if="showLink" class="new-form">
+      <label class="field">
+        <span class="lbl">Cerca una quest esistente</span>
+        <input type="text" v-model="ricerca" placeholder="Almeno 2 caratteri…" autocomplete="off"/>
+      </label>
+      <p class="hint">Solo quest che non sono già sotto-quest di un'altra.</p>
+      <div v-if="cercando" class="hint">Ricerca…</div>
+      <ul v-else-if="risultati.length" class="risultati">
+        <li v-for="r in risultati" :key="r.id">
+          <button type="button" class="risultato" :disabled="giaCollegate.has(r.id)" @click="collega(r)">
+            <span class="r-nome">{{ r.nome }}</span>
+            <span v-if="r.ambito" class="r-ambito">{{ r.ambito }}</span>
+            <span v-if="giaCollegate.has(r.id)" class="r-gia">già collegata</span>
+          </button>
+        </li>
+      </ul>
+      <div v-else-if="ricerca.trim().length >= 2" class="hint">Nessuna quest trovata.</div>
+      <div class="form-actions">
+        <button type="button" class="btn ghost" @click="closeLink">Chiudi</button>
+      </div>
+    </div>
+
+    <div v-if="!showForm && !showLink" class="add-actions">
+      <button type="button" class="btn-create" :disabled="disabled" @click="openForm">
+        + Aggiungi sotto-quest
+      </button>
+      <button type="button" class="btn-create secondaria" :disabled="disabled" @click="openLink">
+        ⇲ Collega quest esistente
+      </button>
+    </div>
   </div>
 </template>
 
@@ -178,12 +266,28 @@ async function salvaNuova() {
   color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; font-size: .82rem;
 }
 
+.add-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .15rem; }
 .btn-create {
-  justify-self: start; margin-top: .15rem;
   border: 1px dashed #93c5fd; background: #eff6ff; color: #1d4ed8;
   border-radius: .5rem; padding: .4rem .7rem; font-weight: 600; cursor: pointer;
 }
 .btn-create:hover { background: #dbeafe; }
+.btn-create.secondaria { border-color: #cbd5e1; background: #f8fafc; color: #475569; }
+.btn-create.secondaria:hover { background: #f1f5f9; }
+
+.hint { margin: 0; font-size: .78rem; color: #94a3b8; }
+
+.risultati { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; max-height: 16rem; overflow-y: auto; }
+.risultato {
+  width: 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem;
+  text-align: left; cursor: pointer;
+  border: 1px solid #e2e8f0; border-radius: .45rem; background: #fff; padding: .35rem .5rem;
+}
+.risultato:hover:not(:disabled) { background: #eff6ff; border-color: #bfdbfe; }
+.risultato:disabled { opacity: .55; cursor: default; }
+.r-nome { font-weight: 600; word-break: break-word; }
+.r-ambito { font-size: .72rem; color: #64748b; }
+.r-gia { font-size: .72rem; color: #b45309; }
 
 .btn { padding: .5rem .9rem; border-radius: .5rem; border: 1px solid transparent; cursor: pointer; }
 .btn.ghost { border-color: #d0d5dd; background: #fff; }
