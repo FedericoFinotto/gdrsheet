@@ -204,10 +204,11 @@ export function getCompendio(
     return api.get<Page<Item>>('/item/compendio', {params});
 }
 
-// Ricerca profonda tra gli item di compendio (nome, descrizione, label, note, note modificatori):
-// visibile solo ad admin/master, per chiunque altro il backend torna sempre lista vuota.
-export function searchCompendioDeep(q: string): Promise<AxiosResponse<ItemSearchResult[]>> {
-    return api.get<ItemSearchResult[]>('/item/compendio/search-deep', {params: {q}});
+// Ricerca profonda tra gli item di compendio DI UN MONDO (nome, descrizione, label, note, note
+// modificatori): visibile solo ad admin o al master di quel mondo, per chiunque altro il backend
+// torna sempre lista vuota. idMondo è quindi obbligatorio per chiunque non sia admin.
+export function searchCompendioDeep(q: string, idMondo?: number | null): Promise<AxiosResponse<ItemSearchResult[]>> {
+    return api.get<ItemSearchResult[]>('/item/compendio/search-deep', {params: {q, idMondo}});
 }
 
 let statsCache: Stat[] | null = null;

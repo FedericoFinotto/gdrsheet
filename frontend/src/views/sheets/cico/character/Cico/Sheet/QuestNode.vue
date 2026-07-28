@@ -150,13 +150,6 @@ const ambitoLabel = computed(() => {
   return null
 })
 
-const VISIBILITA_LABELS: Record<string, string> = {
-  OWNER: 'Visibile solo al proprietario del personaggio',
-  MASTER: 'Visibile solo al Master',
-}
-function visLabel(visibilita: string): string | null {
-  return VISIBILITA_LABELS[visibilita] ?? null
-}
 
 async function onToggle() {
   if (busy.value) return
@@ -224,7 +217,9 @@ function edit() {
       <div v-if="quest.note.length" class="note">
         <strong>Note</strong>
         <div v-for="(n, i) in quest.note" :key="i" class="nota-item">
-          <span v-if="visLabel(n.visibilita)" class="nota-vis">{{ visLabel(n.visibilita) }}</span>
+          <div v-if="n.chip.length" class="nota-vis-row">
+            <span v-for="c in n.chip" :key="c" class="nota-vis" :style="coloreIncarico(c)">{{ c }}</span>
+          </div>
           <div class="nota-html" v-safe-html="n.testo"></div>
         </div>
       </div>
@@ -429,16 +424,16 @@ function edit() {
   letter-spacing: .05em;
 }
 .nota-item { margin-top: .3rem; }
+.nota-vis-row { display: flex; flex-wrap: wrap; gap: .25rem; margin-bottom: .15rem; }
+/* colore assegnato da coloreIncarico() in base al testo (nome party/utente): stesso testo,
+   stesso colore, sempre — riusa il registro già condiviso con i chip "in carico". */
 .nota-vis {
   display: inline-block;
-  margin-bottom: .15rem;
   font-size: .68rem;
   font-weight: 700;
-  color: #b91c1c;
-  background: transparent;
-  border: 1px solid #b91c1c;
-  border-radius: .35rem;
-  padding: .05rem .4rem;
+  letter-spacing: .01em;
+  border-radius: 999px;
+  padding: .1rem .5rem;
 }
 .nota-html { margin: .2rem 0; font-size: .88rem; color: #334155; }
 

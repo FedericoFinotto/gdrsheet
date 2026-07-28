@@ -1,9 +1,12 @@
 package it.fin8.gdrsheet.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.List;
 
 @Getter
 @Setter
@@ -22,5 +25,9 @@ public class Party {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "mondo_id")
     private Mondo mondo;
+
+    @OneToMany(mappedBy = "party", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("party")
+    private List<PartyLabel> labels;
 
 }

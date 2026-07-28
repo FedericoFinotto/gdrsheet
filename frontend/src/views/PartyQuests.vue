@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {onMounted, ref} from 'vue'
+import {computed, onMounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {getParty} from '../service/PartyService'
 import {getQuestParty} from '../service/QuestService'
@@ -17,6 +17,18 @@ const loading = ref(true)
 const errorMsg = ref<string | null>(null)
 // false = solo le non archiviate (default all'ingresso nella sezione); true = SOLO le archiviate.
 const soloArchiviate = ref(false)
+
+// Filtri per ambito, tutti attivi di default: nascondono le quest radice di quel tipo (le
+// sotto-quest seguono comunque la propria radice, non hanno un ambito proprio).
+const mostraParty = ref(true)
+const mostraMondo = ref(true)
+const mostraGiocatori = ref(true)
+const questFiltrate = computed(() => quests.value.filter(q => {
+  if (q.ambito === 'PARTY') return mostraParty.value
+  if (q.ambito === 'MONDO') return mostraMondo.value
+  if (q.ambito === 'PERSONAGGIO') return mostraGiocatori.value
+  return true
+}))
 
 async function load() {
   loading.value = true
@@ -66,10 +78,23 @@ onMounted(load)
         <span>Aggiungi quest</span>
       </button>
 
+      <div class="filtri-ambito">
+        <button type="button" class="chip-filtro" :class="{active: mostraParty}" @click="mostraParty = !mostraParty">
+          Party
+        </button>
+        <button type="button" class="chip-filtro" :class="{active: mostraMondo}" @click="mostraMondo = !mostraMondo">
+          Mondo
+        </button>
+        <button type="button" class="chip-filtro" :class="{active: mostraGiocatori}" @click="mostraGiocatori = !mostraGiocatori">
+          Giocatori
+        </button>
+      </div>
+
       <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
       <div v-else-if="loading" class="stato">Caricamento…</div>
       <div v-else-if="!quests.length" class="stato">{{ soloArchiviate ? 'Nessuna quest archiviata.' : 'Nessuna quest.' }}</div>
-      <QuestNode v-for="q in quests" :key="q.id" :quest="q" :id-party="partyId" @changed="load"/>
+      <div v-else-if="!questFiltrate.length" class="stato">Nessuna quest per i filtri selezionati.</div>
+      <QuestNode v-for="q in questFiltrate" :key="q.id" :quest="q" :id-party="partyId" @changed="load"/>
     </div>
   </section>
 </template>
@@ -104,6 +129,12 @@ onMounted(load)
 }
 .btn-add-item:hover { background: #f8fafc; }
 .plus { font-weight: 800; color: #2563eb; }
+.filtri-ambito { display: flex; flex-wrap: wrap; gap: .4rem; }
+.chip-filtro {
+  padding: .3rem .7rem; border-radius: 999px; border: 1px solid #d0d5dd;
+  background: #fff; color: #6b7280; font-size: .8rem; font-weight: 600; cursor: pointer;
+}
+.chip-filtro.active { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; }
 .stato { padding: .6rem; color: #6b7280; font-size: .9rem; }
 .error {
   margin: 0; padding: .5rem .75rem; border-radius: .5rem;

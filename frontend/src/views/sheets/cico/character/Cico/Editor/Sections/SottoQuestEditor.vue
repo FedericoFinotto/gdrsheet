@@ -7,16 +7,18 @@ import {QuestScelta, searchQuestRadici} from '../../../../../../../service/Quest
 import HtmlEditor from '../../../../../../../components/HtmlEditor.vue'
 import SearchSelect from '../../../../../../../components/SearchSelect.vue'
 
-// Sezione dedicata alle sotto-quest: slegata dal meccanismo generico di "item collegati"
-// (niente ricerca/collegamento di item esistenti, niente navigazione su un'altra pagina).
-// Aggiungere una sotto-quest significa scegliere direttamente nome, descrizione e
-// visibilità: la QUEST figlia viene creata al volo e collegata.
-const props = defineProps<{
+// Sezione dedicata alle sotto-quest/sotto-info: slegata dal meccanismo generico di "item
+// collegati" (niente ricerca/collegamento di item esistenti generici, niente navigazione su
+// un'altra pagina). Aggiungere una sotto-quest/sotto-info significa scegliere direttamente nome,
+// descrizione e visibilità: l'item figlio viene creato al volo e collegato. "Collega esistente"
+// resta solo per le QUEST (ricerca dedicata lato backend, non generalizzata a INFO).
+const props = withDefaults(defineProps<{
   modelValue: ChildRef[]
   disabled?: boolean
+  tipo?: 'QUEST' | 'INFO'
   idPersonaggio?: number
   idParty?: number
-}>()
+}>(), {tipo: 'QUEST'})
 const emit = defineEmits<{
   (e: 'update:modelValue', v: ChildRef[]): void
 }>()
@@ -128,6 +130,8 @@ watch(ricerca, () => {
 
 const giaCollegate = computed(() => new Set(props.modelValue.map(c => c.id)))
 
+const etichetta = computed(() => props.tipo === 'INFO' ? 'sotto-info' : 'sotto-quest')
+
 function collega(scelta: QuestScelta) {
   if (giaCollegate.value.has(scelta.id)) return
   emit('update:modelValue', [...props.modelValue, {
@@ -146,7 +150,7 @@ async function salvaNuova() {
     const res = await createItem({
       nome,
       descrizione: nuovo.descrizione,
-      tipo: 'QUEST' as any,
+      tipo: props.tipo as any,
       idPersonaggio: resolveIdPersonaggio(),
       idParty: resolveIdParty(),
       skipFromCompendio: true,
@@ -161,7 +165,7 @@ async function salvaNuova() {
       showForm.value = false
     }
   } catch (e: any) {
-    errorMsg.value = e?.message ?? 'Errore nella creazione della sotto-quest'
+    errorMsg.value = e?.message ?? `Errore nella creazione della sotto-${props.tipo === 'INFO' ? 'info' : 'quest'}`
   } finally {
     creating.value = false
   }
@@ -170,7 +174,7 @@ async function salvaNuova() {
 
 <template>
   <div class="sottoquest-editor">
-    <div v-if="!modelValue.length && !showForm && !showLink" class="empty">Nessuna sotto-quest.</div>
+    <div v-if="!modelValue.length && !showForm && !showLink" class="empty">Nessuna {{ etichetta }}.</div>
 
     <div v-for="(c, i) in modelValue" :key="c.id" class="sottoquest-row">
       <span class="nome">{{ c.nome }}</span>
@@ -181,7 +185,7 @@ async function salvaNuova() {
     <div v-if="showForm" class="new-form">
       <label class="field">
         <span class="lbl">Nome</span>
-        <input type="text" v-model.trim="nuovo.nome" :disabled="creating" placeholder="Nome della sotto-quest" required/>
+        <input type="text" v-model.trim="nuovo.nome" :disabled="creating" :placeholder="`Nome della ${etichetta}`" required/>
       </label>
       <label class="field">
         <span class="lbl">Descrizione</span>
@@ -194,7 +198,7 @@ async function salvaNuova() {
       <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
       <div class="form-actions">
         <button type="button" class="btn ghost" :disabled="creating" @click="closeForm">Annulla</button>
-        <button type="button" class="btn primary" :disabled="creating || !nuovo.nome.trim()" @click="salvaNuova">Salva sotto-quest</button>
+        <button type="button" class="btn primary" :disabled="creating || !nuovo.nome.trim()" @click="salvaNuova">Salva {{ etichetta }}</button>
       </div>
     </div>
 
@@ -222,9 +226,10 @@ async function salvaNuova() {
 
     <div v-if="!showForm && !showLink" class="add-actions">
       <button type="button" class="btn-create" :disabled="disabled" @click="openForm">
-        + Aggiungi sotto-quest
+        + Aggiungi {{ etichetta }}
       </button>
-      <button type="button" class="btn-create secondaria" :disabled="disabled" @click="openLink">
+      <!-- "Collega esistente" resta solo per le QUEST: la ricerca radici dedicata non è generalizzata a INFO -->
+      <button v-if="props.tipo === 'QUEST'" type="button" class="btn-create secondaria" :disabled="disabled" @click="openLink">
         ⇲ Collega quest esistente
       </button>
     </div>

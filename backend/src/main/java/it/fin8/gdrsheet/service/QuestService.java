@@ -302,7 +302,8 @@ public class QuestService {
                 Map<String, Object> parsed = objectMapper.readValue(l.getValore(), Map.class);
                 String testo = String.valueOf(parsed.getOrDefault("testo", ""));
                 String visibilita = String.valueOf(parsed.getOrDefault("visibilita", ""));
-                result.add(new NotaDTO(testo, "null".equals(visibilita) ? "" : visibilita));
+                String v = "null".equals(visibilita) ? "" : visibilita;
+                result.add(new NotaDTO(testo, v, authzService.descriviVisibilitaChips(v)));
             } catch (Exception ignored) {
                 // valore non JSON (dato legacy o corrotto): ignora la nota
             }

@@ -91,6 +91,15 @@ public final class Constants {
     // PersonaggioService#getAllPersonaggioItemsDTOByIdPersonaggio).
     public static final String ITEM_LABEL_GRUPPO_PRIVILEGI = "GRUPPO_PRIVILEGI";
 
+    // UtenteLabel: id del mondo aperto l'ultima volta, per far ripartire lo switcher mondo del
+    // menu da dove l'utente l'aveva lasciato invece che dal primo disponibile.
+    public static final String UTENTE_LABEL_ULTIMO_MONDO = "ULTIMO_MONDO";
+
+    // PartyLabel: assente o "1" = party di personaggi giocanti (selezionabile nelle liste di
+    // visibilità N-party); "0" = altro tipo di party (es. NPC/staging).
+    public static final String PARTY_LABEL_GIOCATORI = "GIOCATORI";
+    public static final String PARTY_LABEL_GIOCATORI_VALORE_FALSE = "0";
+
     // Info Veicolo: campi descrittivi (solo tipo VEICOLO).
     public static final String ITEM_LABEL_VEICOLO_VELOCITA = "VEICOLO_VELOCITA";
     public static final String ITEM_LABEL_SPELL_SLOT = "SP_SLOT";
@@ -247,6 +256,13 @@ public final class Constants {
     // quest archiviata non viene più caricata di default entrando in una sezione quest, ma resta
     // recuperabile con l'apposito filtro "solo archiviate".
     public static final String ITEM_LABEL_QUEST_ARCHIVIATA = "QUEST_ARCHIVIATA";
+
+    // INFO: stesso albero/ambito/archiviazione della QUEST (vedi sopra), etichette separate solo
+    // per chiarezza dei dati (il tipo item disambigua comunque le query, ma tenerle distinte
+    // evita ambiguità leggendo la tabella a mano). Nessun completamento né "in carico": il
+    // contenuto di un INFO è la sezione Note (ITEM_LABEL_NOTA), generica e già condivisa.
+    public static final String ITEM_LABEL_INFO_PARTY = "INFO_PARTY";
+    public static final String ITEM_LABEL_INFO_ARCHIVIATA = "INFO_ARCHIVIATA";
 
     // Note: generiche, disponibili su qualunque tipo di item (non solo QUEST). Ogni riga
     // ItemLabel (chiave NOTA, multi-valore) contiene un JSON {testo, visibilita} — stessa

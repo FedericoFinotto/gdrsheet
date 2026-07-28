@@ -40,6 +40,7 @@ public class PartyService {
     private final UtenteRepository utenteRepository;
     private final AuthzService authzService;
     private final GruppoRepository gruppoRepository;
+    private final PartyLabelRepository partyLabelRepository;
     private final EntityManager em;
     private final PersonaggioCacheService personaggioCacheService;
 
@@ -56,6 +57,7 @@ public class PartyService {
                         UtenteRepository utenteRepository,
                         AuthzService authzService,
                         GruppoRepository gruppoRepository,
+                        PartyLabelRepository partyLabelRepository,
                         EntityManager em,
                         PersonaggioCacheService personaggioCacheService) {
         this.permessiPartyRepository = permessiPartyRepository;
@@ -71,8 +73,24 @@ public class PartyService {
         this.utenteRepository = utenteRepository;
         this.authzService = authzService;
         this.gruppoRepository = gruppoRepository;
+        this.partyLabelRepository = partyLabelRepository;
         this.em = em;
         this.personaggioCacheService = personaggioCacheService;
+    }
+
+    /**
+     * Party "giocanti" di un mondo: quelli selezionabili nel picker di visibilità N-party (vedi
+     * AuthzService#canViewVisibilita). Esclude i party con label GIOCATORI=0 (es. party usati per
+     * NPC/staging, non per personaggi giocanti) — assente o "1" = giocante.
+     */
+    public List<PartySelectDTO> getPartyGiocanti(Integer mondoId) {
+        if (mondoId == null) return List.of();
+        return partyRepository.findAllByMondo_IdOrderByNomeAsc(mondoId).stream()
+                .filter(p -> partyLabelRepository.findByParty_IdAndLabel(p.getId(), Constants.PARTY_LABEL_GIOCATORI)
+                        .map(l -> !Constants.PARTY_LABEL_GIOCATORI_VALORE_FALSE.equals(l.getValore()))
+                        .orElse(true))
+                .map(p -> new PartySelectDTO(p.getId(), p.getNome()))
+                .toList();
     }
 
     public PartyDetailDTO getPartyDetail(Integer partyId, Utente utente) {

@@ -281,7 +281,7 @@ public class ItemService {
             pg = personaggioRepository.findPersonaggioById(request.getIdPersonaggio());
             if (pg == null) throw new RuntimeException("Personaggio non trovato: " + request.getIdPersonaggio());
             if (TipoItem.LIVELLO.equals(request.getTipo())
-                    || (TipoItem.QUEST.equals(request.getTipo()) && "PERSONAGGIO".equals(request.getQuestScope()))) {
+                    || (isAmbitoTree(request.getTipo()) && "PERSONAGGIO".equals(request.getQuestScope()))) {
                 itm.setPersonaggio(pg);
             }
             if (pg.getParty() != null && pg.getParty().getMondo() != null) {
@@ -311,13 +311,15 @@ public class ItemService {
             if (sistema != null) itm.setSistema(sistema);
         }
 
-        // QUEST radice di ambito PARTY: memorizza l'id del Party come label (nessuna nuova
+        // QUEST/INFO radice di ambito PARTY: memorizza l'id del Party come label (nessuna nuova
         // tabella). L'id esplicito ha precedenza, altrimenti si usa il party del personaggio.
-        if (TipoItem.QUEST.equals(request.getTipo()) && "PARTY".equals(request.getQuestScope())) {
+        if (isAmbitoTree(request.getTipo()) && "PARTY".equals(request.getQuestScope())) {
             Integer partyId = request.getIdParty() != null ? request.getIdParty()
                     : (pg != null && pg.getParty() != null ? pg.getParty().getId() : null);
             if (partyId != null) {
-                addLabelRow(itm, Constants.ITEM_LABEL_QUEST_PARTY, String.valueOf(partyId));
+                String labelPartyAmbito = TipoItem.INFO.equals(request.getTipo())
+                        ? Constants.ITEM_LABEL_INFO_PARTY : Constants.ITEM_LABEL_QUEST_PARTY;
+                addLabelRow(itm, labelPartyAmbito, String.valueOf(partyId));
             }
         }
 
@@ -482,6 +484,11 @@ public class ItemService {
         itemRepository.delete(itm); // le labels globali seguono in cascata
     }
 
+    /** QUEST e INFO condividono lo stesso concetto di albero/ambito (vedi ItemService#createItem). */
+    private boolean isAmbitoTree(TipoItem tipo) {
+        return TipoItem.QUEST.equals(tipo) || TipoItem.INFO.equals(tipo);
+    }
+
     /**
      * Elimina una QUEST e tutto il suo sottoalbero di sotto-quest, per TUTTI i giocatori che la
      * vedono (a prescindere dall'ambito personaggio/party/mondo): di ogni quest coinvolta vengono
@@ -493,14 +500,24 @@ public class ItemService {
      */
     @Transactional
     public void deleteQuestTree(Integer id) {
-        Item root = itemRepository.findById(id).orElseThrow(() -> new RuntimeException("Quest non trovata: " + id));
-        if (!TipoItem.QUEST.equals(root.getTipo()))
-            throw new RuntimeException("L'item " + id + " non è una quest");
+        deleteAmbitoTree(id, TipoItem.QUEST);
+    }
+
+    /** Come {@link #deleteQuestTree}, ma per un INFO e il suo sottoalbero di sotto-info. */
+    @Transactional
+    public void deleteInfoTree(Integer id) {
+        deleteAmbitoTree(id, TipoItem.INFO);
+    }
+
+    private void deleteAmbitoTree(Integer id, TipoItem tipoAtteso) {
+        Item root = itemRepository.findById(id).orElseThrow(() -> new RuntimeException("Item non trovato: " + id));
+        if (!tipoAtteso.equals(root.getTipo()))
+            throw new RuntimeException("L'item " + id + " non è di tipo " + tipoAtteso);
 
         // raccolgo l'albero PRIMA di toccare i collegamenti: dopo la cancellazione la
         // navigazione non troverebbe più i figli
         List<Item> daEliminare = new ArrayList<>();
-        raccogliSottoQuest(root, daEliminare, new HashSet<>());
+        raccogliSottoAlbero(root, tipoAtteso, daEliminare, new HashSet<>());
 
         // idem per la cache: la risalita ai personaggi passa dai collegamenti
         for (Item q : daEliminare) personaggioCacheService.invalidaPerItem(q.getId());
@@ -511,15 +528,15 @@ public class ItemService {
         }
     }
 
-    /** Visita in preordine dell'albero delle sotto-quest, a prova di ciclo. */
-    private void raccogliSottoQuest(Item quest, List<Item> out, Set<Integer> visti) {
-        if (quest == null || !visti.add(quest.getId())) return;
-        out.add(quest);
-        if (quest.getChild() == null) return;
-        for (Collegamento c : quest.getChild()) {
+    /** Visita in preordine dell'albero delle sotto-quest/sotto-info, a prova di ciclo. */
+    private void raccogliSottoAlbero(Item item, TipoItem tipo, List<Item> out, Set<Integer> visti) {
+        if (item == null || !visti.add(item.getId())) return;
+        out.add(item);
+        if (item.getChild() == null) return;
+        for (Collegamento c : item.getChild()) {
             Item figlio = c.getItemTarget();
-            if (figlio != null && TipoItem.QUEST.equals(figlio.getTipo())) {
-                raccogliSottoQuest(figlio, out, visti);
+            if (figlio != null && tipo.equals(figlio.getTipo())) {
+                raccogliSottoAlbero(figlio, tipo, out, visti);
             }
         }
     }

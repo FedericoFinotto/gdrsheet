@@ -33,6 +33,19 @@ const idParty = computed<number | undefined>(() => {
   return Number.isFinite(n) && n > 0 ? n : undefined
 })
 
+// se presenti (creazione dal Compendio: mondo/sistema attualmente selezionati nello switcher),
+// pre-compilano i campi corrispondenti invece di lasciarli vuoti — BaseItemEditor legge i default
+// da props.item.mondo?.id/sistema?.id, da qui i placeholder minimali (mai inviati al backend as-is:
+// form.idMondo/form.idSistema li sostituiscono integralmente al salvataggio).
+const idMondoQuery = computed<number | undefined>(() => {
+  const n = Number(route.query.mondo)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+})
+const idSistemaQuery = computed<number | undefined>(() => {
+  const n = Number(route.query.sistema)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+})
+
 function parseTipo(v: unknown): TipoItem | null {
   const s = String(v ?? '').toUpperCase()
   return (Object.values(TIPO_ITEM) as string[]).includes(s) ? (s as TipoItem) : null
@@ -56,6 +69,8 @@ const blankItem = computed<ItemDB | null>(() => {
     modificatori: [],
     labels: [],
     avanzamento: [],
+    mondo: idMondoQuery.value ? ({id: idMondoQuery.value} as ItemDB['mondo']) : undefined,
+    sistema: idSistemaQuery.value ? ({id: idSistemaQuery.value} as ItemDB['sistema']) : undefined,
   }
 })
 
@@ -68,6 +83,8 @@ function onTipoChange(v: string) {
   if (route.query.nome) params.set('nome', String(route.query.nome)) // mantieni il nome pre-compilato
   if (idPersonaggio.value) params.set('personaggio', String(idPersonaggio.value))
   if (idParty.value) params.set('party', String(idParty.value))
+  if (idMondoQuery.value) params.set('mondo', String(idMondoQuery.value)) // mantieni il mondo pre-compilato
+  if (idSistemaQuery.value) params.set('sistema', String(idSistemaQuery.value))
   const q = params.toString() ? `?${params.toString()}` : ''
   router.replace(v ? `/itemcreate/${v}${q}` : `/itemcreate${q}`)
 }

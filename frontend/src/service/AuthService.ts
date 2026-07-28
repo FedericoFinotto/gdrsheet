@@ -25,3 +25,13 @@ export function updateMe(username: string, name: string): Promise<AxiosResponse<
 export function impersonate(id: number): Promise<AxiosResponse<LoginResponse>> {
     return api.post<LoginResponse>(`/users/${id}/impersonate`, {})
 }
+
+// Preferenze/stato UI dell'utente loggato (stessa logica di ItemLabel: una riga per chiave).
+// getMyLabel torna 204/undefined se la chiave non è ancora mai stata impostata.
+export function getMyLabel(label: string): Promise<AxiosResponse<string>> {
+    return api.get<string>(`/users/me/label/${label}`)
+}
+
+export function setMyLabel(label: string, valore: string): Promise<AxiosResponse<void>> {
+    return api.put<void>(`/users/me/label/${label}`, {valore})
+}

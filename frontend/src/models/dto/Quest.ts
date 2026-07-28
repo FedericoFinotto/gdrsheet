@@ -1,8 +1,13 @@
 // Nota testuale (rich text) con una propria visibilità, specchio di NotaDTO.java.
-// '' = tutti, 'OWNER' = solo proprietario del personaggio (+master/admin), 'MASTER' = solo master/admin.
+// '' = tutti, 'OWNER' = solo proprietario del personaggio (+master/admin), 'MASTER' = solo
+// master/admin, o un formato a tag ";P<idParty>;.../U<idUtente>;" (N party specifici / un
+// giocatore specifico) — vedi VisibilitaPicker.vue.
 export interface Nota {
     testo: string;
     visibilita: string;
+    // Etichette già pronte da mostrare come chip (nomi party/utente già risolti lato server, vedi
+    // AuthzService#descriviVisibilitaChips): vuoto se non c'è nulla da segnalare (visibile a tutti).
+    chip: string[];
 }
 
 // Nodo di un albero di quest (radice o sotto-quest), specchio di QuestDTO.java.

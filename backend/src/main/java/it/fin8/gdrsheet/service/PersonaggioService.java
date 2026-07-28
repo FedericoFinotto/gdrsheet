@@ -779,18 +779,20 @@ public class PersonaggioService {
     }
 
     /**
-     * Ricerca profonda tra gli item di COMPENDIO (personaggio IS NULL): stesso tipo di match di
-     * {@link #matchItem} (nome, descrizione, label, nota di modificatore), ma senza filtro di
-     * visibilità sulle NOTA — solo admin/master arrivano fin qui (il chiamante deve verificarlo,
-     * qui torna semplicemente lista vuota per chiunque altro), quindi vedono tutto.
+     * Ricerca profonda tra gli item di COMPENDIO (personaggio IS NULL) di UN mondo: stesso tipo
+     * di match di {@link #matchItem} (nome, descrizione, label, nota di modificatore), ma senza
+     * filtro di visibilità sulle NOTA — solo admin (sempre) o master di QUEL mondo arrivano fin
+     * qui, quindi vedono tutto ciò che c'è in quel mondo. idMondo è obbligatorio per chi non è
+     * admin: senza un mondo preciso non c'è nulla su cui essere autorizzati.
      */
-    public List<ItemSearchResultDTO> searchItemsCompendio(String q, Utente utente) {
-        if (!authzService.isMasterOrAdmin(utente)) return List.of();
+    public List<ItemSearchResultDTO> searchItemsCompendio(String q, Integer idMondo, Utente utente) {
+        boolean admin = authzService.isAdmin(utente);
+        if (!admin && !authzService.isMasterMondo(utente, idMondo)) return List.of();
         if (q == null || q.trim().isEmpty()) return List.of();
         String needle = q.trim().toLowerCase();
 
         List<ItemSearchResultDTO> out = new ArrayList<>();
-        for (Item it : itemRepository.searchCompendioDeep(needle, org.springframework.data.domain.PageRequest.of(0, 50))) {
+        for (Item it : itemRepository.searchCompendioDeep(needle, admin ? null : idMondo, org.springframework.data.domain.PageRequest.of(0, 50))) {
             MatchResult match = matchItemCompendio(it, needle);
             if (match != null) {
                 out.add(new ItemSearchResultDTO(
@@ -973,19 +975,28 @@ public class PersonaggioService {
             if (!Constants.ITEM_LABEL_NOTA.equals(l.getLabel()) || l.getValore() == null) continue;
             NotaDTO nota = parseNotaSingola(l.getValore());
             if (nota == null || !authzService.canViewVisibilita(utente, owner, nota.getVisibilita())) continue;
+            // i chip (nomi party/utente risolti) si calcolano solo qui, non in parseNotaSingola:
+            // quel metodo gira anche nella ricerca profonda (una nota alla volta per OGNI item
+            // scansionato), dove serve solo il testo — risolvere nomi lì sprecherebbe query per
+            // ogni nota incontrata durante una ricerca su centinaia di item.
+            nota.setChip(authzService.descriviVisibilitaChips(nota.getVisibilita()));
             out.add(nota);
         }
         return out;
     }
 
-    /** Una riga ItemLabel NOTA è un JSON {testo, visibilita}; null se malformata (dato legacy/corrotto). */
+    /**
+     * Una riga ItemLabel NOTA è un JSON {testo, visibilita}; null se malformata (dato legacy/
+     * corrotto). Chip sempre vuoto qui: lo valorizza solo {@link #getNoteItem} (vedi commento lì),
+     * i chiamanti dalla ricerca profonda (matchItem/matchItemCompendio) leggono solo il testo.
+     */
     private NotaDTO parseNotaSingola(String valoreJson) {
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> parsed = objectMapper.readValue(valoreJson, Map.class);
             String testo = String.valueOf(parsed.getOrDefault("testo", ""));
             String visibilita = String.valueOf(parsed.getOrDefault("visibilita", ""));
-            return new NotaDTO(testo, "null".equals(visibilita) ? "" : visibilita);
+            return new NotaDTO(testo, "null".equals(visibilita) ? "" : visibilita, List.of());
         } catch (Exception e) {
             return null;
         }

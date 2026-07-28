@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import HtmlEditor from '../../../../../../../components/HtmlEditor.vue'
-import SearchSelect from '../../../../../../../components/SearchSelect.vue'
+import VisibilitaPicker from '../../../../../../../components/VisibilitaPicker.vue'
 
 export interface NotaRow {
   testo: string
-  visibilita: string   // '' = tutti, 'OWNER' = solo proprietario del personaggio, 'MASTER' = solo master/admin
+  // '' = tutti, 'OWNER' = proprietario del personaggio, 'MASTER' = master/admin, oppure il
+  // formato a tag ";P<idParty>;...;U<idUtente>;" (N party / un giocatore specifico) — vedi
+  // VisibilitaPicker.vue
+  visibilita: string
 }
 
 const props = withDefaults(defineProps<{
@@ -14,12 +17,6 @@ const props = withDefaults(defineProps<{
   modelValue: () => [],
 })
 const emit = defineEmits<{ (e: 'update:modelValue', v: NotaRow[]): void }>()
-
-const VISIBILITA_OPTS = [
-  {value: '', label: 'Tutti'},
-  {value: 'OWNER', label: 'Proprietario del personaggio'},
-  {value: 'MASTER', label: 'Master'},
-]
 
 function update(idx: number, patch: Partial<NotaRow>) {
   const next = [...(props.modelValue ?? [])]
@@ -45,8 +42,8 @@ function remove(idx: number) {
       <div class="nota-footer">
         <label class="vis-field">
           <span class="lbl">Visibile a</span>
-          <SearchSelect :model-value="n.visibilita" :options="VISIBILITA_OPTS" :disabled="disabled" :sort="false"
-                        @update:model-value="val => update(i, {visibilita: String(val)})"/>
+          <VisibilitaPicker :model-value="n.visibilita" :disabled="disabled"
+                             @update:model-value="val => update(i, {visibilita: val})"/>
         </label>
         <button type="button" class="btn-del" :disabled="disabled" @click="remove(i)" title="Rimuovi nota">✕</button>
       </div>

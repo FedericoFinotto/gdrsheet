@@ -62,10 +62,13 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
      * ricerca profonda per personaggio, che opera su un albero già in memoria): il compendio ha
      * migliaia di item, qui serve la query a fare il lavoro pesante invece di caricarli tutti.
      * Il match esatto/lo snippet vengono ricalcolati in Java solo sui risultati (pochi).
+     * idMondo null = nessun filtro (solo per un vero admin, che vede ogni mondo); un master di
+     * un mondo specifico deve invece passarlo sempre, per restare confinato a quel mondo.
      */
     @Query("""
             SELECT DISTINCT i FROM Item i
             WHERE i.personaggio IS NULL
+              AND (:idMondo IS NULL OR (i.mondo IS NOT NULL AND i.mondo.id = :idMondo))
               AND (
                 lower(i.nome) LIKE lower(concat('%', :q, '%'))
                 OR lower(i.descrizione) LIKE lower(concat('%', :q, '%'))
@@ -76,7 +79,7 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
               )
             ORDER BY i.nome
             """)
-    List<Item> searchCompendioDeep(@Param("q") String q, org.springframework.data.domain.Pageable pageable);
+    List<Item> searchCompendioDeep(@Param("q") String q, @Param("idMondo") Integer idMondo, org.springframework.data.domain.Pageable pageable);
 
     /**
      * Come {@link #searchCompendioDeep}, ma pre-filtrata lato DB su un insieme di id già noto
@@ -403,4 +406,64 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             ORDER BY i.nome
             """)
     List<Item> searchQuestRadici(@Param("q") String q, org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * INFO radice di un personaggio: stesso criterio di {@link #findQuestByPersonaggioIdArchiviata},
+     * label dedicate (INFO_PARTY/INFO_ARCHIVIATA) — vedi Constants per il perché di label separate.
+     */
+    @Query("""
+            SELECT i FROM Item i
+            WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.INFO
+              AND i.personaggio.id = :personaggioId
+              AND NOT EXISTS (
+                  SELECT 1 FROM Collegamento c
+                  WHERE c.itemTarget = i AND c.itemSource.tipo = it.fin8.gdrsheet.def.TipoItem.INFO
+              )
+              AND (
+                (:archiviate = true AND EXISTS (SELECT 1 FROM ItemLabel ila WHERE ila.item = i
+                    AND ila.label = 'INFO_ARCHIVIATA' AND ila.valore = '1'))
+                OR (:archiviate = false AND NOT EXISTS (SELECT 1 FROM ItemLabel ila WHERE ila.item = i
+                    AND ila.label = 'INFO_ARCHIVIATA' AND ila.valore = '1'))
+              )
+            """)
+    List<Item> findInfoByPersonaggioIdArchiviata(@Param("personaggioId") Integer personaggioId, @Param("archiviate") boolean archiviate);
+
+    /** INFO radice di un party (label INFO_PARTY = id del party). Esclude i sotto-info. */
+    @Query("""
+            SELECT i FROM Item i JOIN i.labels il
+            WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.INFO
+              AND i.personaggio IS NULL
+              AND il.label = 'INFO_PARTY' AND il.valore = :partyId
+              AND NOT EXISTS (
+                  SELECT 1 FROM Collegamento c
+                  WHERE c.itemTarget = i AND c.itemSource.tipo = it.fin8.gdrsheet.def.TipoItem.INFO
+              )
+              AND (
+                (:archiviate = true AND EXISTS (SELECT 1 FROM ItemLabel ila WHERE ila.item = i
+                    AND ila.label = 'INFO_ARCHIVIATA' AND ila.valore = '1'))
+                OR (:archiviate = false AND NOT EXISTS (SELECT 1 FROM ItemLabel ila WHERE ila.item = i
+                    AND ila.label = 'INFO_ARCHIVIATA' AND ila.valore = '1'))
+              )
+            """)
+    List<Item> findInfoByPartyIdArchiviata(@Param("partyId") String partyId, @Param("archiviate") boolean archiviate);
+
+    /** INFO radice di un intero mondo: stesso criterio di {@link #findQuestByMondoIdArchiviata}. */
+    @Query("""
+            SELECT i FROM Item i
+            WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.INFO
+              AND i.personaggio IS NULL
+              AND i.mondo.id = :mondoId
+              AND NOT EXISTS (SELECT 1 FROM ItemLabel il2 WHERE il2.item = i AND il2.label = 'INFO_PARTY')
+              AND NOT EXISTS (
+                  SELECT 1 FROM Collegamento c
+                  WHERE c.itemTarget = i AND c.itemSource.tipo = it.fin8.gdrsheet.def.TipoItem.INFO
+              )
+              AND (
+                (:archiviate = true AND EXISTS (SELECT 1 FROM ItemLabel ila WHERE ila.item = i
+                    AND ila.label = 'INFO_ARCHIVIATA' AND ila.valore = '1'))
+                OR (:archiviate = false AND NOT EXISTS (SELECT 1 FROM ItemLabel ila WHERE ila.item = i
+                    AND ila.label = 'INFO_ARCHIVIATA' AND ila.valore = '1'))
+              )
+            """)
+    List<Item> findInfoByMondoIdArchiviata(@Param("mondoId") Integer mondoId, @Param("archiviate") boolean archiviate);
 }

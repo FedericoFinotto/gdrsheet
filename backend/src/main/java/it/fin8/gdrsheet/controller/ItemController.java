@@ -20,10 +20,14 @@ import it.fin8.gdrsheet.dto.UpdatePreparedRequest;
 import it.fin8.gdrsheet.dto.UpdateSpellRequest;
 import it.fin8.gdrsheet.dto.UpdateSpellUsageRequest;
 import it.fin8.gdrsheet.entity.Item;
+import it.fin8.gdrsheet.entity.Party;
+import it.fin8.gdrsheet.entity.Personaggio;
 import it.fin8.gdrsheet.entity.Utente;
 import it.fin8.gdrsheet.mapper.ItemMapper;
 import it.fin8.gdrsheet.repository.ItemRepository;
 import it.fin8.gdrsheet.repository.MondoRepository;
+import it.fin8.gdrsheet.repository.PartyRepository;
+import it.fin8.gdrsheet.repository.PersonaggioRepository;
 import it.fin8.gdrsheet.repository.SistemaRepository;
 import it.fin8.gdrsheet.service.AuthzService;
 import it.fin8.gdrsheet.service.ClassImportService;
@@ -61,8 +65,10 @@ public class ItemController {
     private final PartyService partyService;
     private final NotiziaVisteService notiziaVisteService;
     private final PersonaggioService personaggioService;
+    private final PersonaggioRepository personaggioRepository;
+    private final PartyRepository partyRepository;
 
-    public ItemController(ItemRepository repo, ItemService itemService, ItemImportService itemImportService, ClassImportService classImportService, ItemMapper itemMapper, AuthzService authzService, ClasseService classeService, MondoRepository mondoRepository, SistemaRepository sistemaRepository, PartyService partyService, NotiziaVisteService notiziaVisteService, PersonaggioService personaggioService) {
+    public ItemController(ItemRepository repo, ItemService itemService, ItemImportService itemImportService, ClassImportService classImportService, ItemMapper itemMapper, AuthzService authzService, ClasseService classeService, MondoRepository mondoRepository, SistemaRepository sistemaRepository, PartyService partyService, NotiziaVisteService notiziaVisteService, PersonaggioService personaggioService, PersonaggioRepository personaggioRepository, PartyRepository partyRepository) {
         this.repo = repo;
         this.itemService = itemService;
         this.itemImportService = itemImportService;
@@ -75,6 +81,8 @@ public class ItemController {
         this.partyService = partyService;
         this.notiziaVisteService = notiziaVisteService;
         this.personaggioService = personaggioService;
+        this.personaggioRepository = personaggioRepository;
+        this.partyRepository = partyRepository;
     }
 
     @Operation(
@@ -254,7 +262,10 @@ public class ItemController {
         String nomeQ = nome == null ? "" : nome.trim();
         var pr = org.springframework.data.domain.PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 50)));
         org.springframework.data.domain.Page<it.fin8.gdrsheet.entity.Item> p;
-        if (authzService.isMasterOrAdmin(utente)) {
+        // admin: sempre tutto. Master di un mondo specifico: tutto, ma SOLO di quel mondo — per
+        // questo la richiesta deve indicare idMondo, altrimenti non c'è un mondo su cui essere
+        // autorizzati (isMasterMondo con mondoId null ritorna false per chiunque non sia admin).
+        if (authzService.isAdmin(utente) || (idMondo != null && authzService.isMasterMondo(utente, idMondo))) {
             p = repo.findCompendioAll(nomeQ, tipo, idMondo, pr);
         } else {
             var mieiMondi = partyService.getMieiMondi(utente);
@@ -269,16 +280,17 @@ public class ItemController {
     }
 
     @Operation(
-            summary = "Ricerca profonda tra gli item di compendio",
-            description = "Cerca in tutti gli item di compendio (nome, descrizione, label, note, note dei modificatori). " +
-                    "Visibile solo ad admin/master: per chiunque altro torna sempre lista vuota."
+            summary = "Ricerca profonda tra gli item di compendio di un mondo",
+            description = "Cerca in tutti gli item di compendio di un mondo (nome, descrizione, label, note, note dei modificatori). " +
+                    "Visibile solo ad admin o al master di QUEL mondo: per chiunque altro torna sempre lista vuota."
     )
     @GetMapping("/compendio/search-deep")
     public ResponseEntity<List<ItemSearchResultDTO>> searchCompendioDeep(
             @RequestParam String q,
+            @RequestParam(required = false) Integer idMondo,
             @AuthenticationPrincipal Utente utente
     ) {
-        return ResponseEntity.ok(personaggioService.searchItemsCompendio(q, utente));
+        return ResponseEntity.ok(personaggioService.searchItemsCompendio(q, idMondo, utente));
     }
 
     @Operation(
@@ -328,11 +340,30 @@ public class ItemController {
         if (dto.getIdPersonaggio() != null)
             authzService.assertCanEditPersonaggio(utente, dto.getIdPersonaggio());
         if (TipoItem.NOTIZIA.equals(dto.getTipo())) {
-            String r = utente.getRuolo() == null ? "" : utente.getRuolo().toUpperCase();
-            if (!r.equals("MASTER") && !r.equals("ADMIN") && !r.equals("SUPERUSER"))
+            Integer mondoId = risolviMondoDaContesto(dto);
+            if (!authzService.isMasterMondo(utente, mondoId))
                 return ResponseEntity.status(403).build();
         }
         return ResponseEntity.ok(itemService.createItem(dto));
+    }
+
+    /**
+     * Stesso ordine di risoluzione mondo/sistema usato da ItemService#createItem (esplicito
+     * nella richiesta, poi party del personaggio, poi party diretto): serve QUI, prima ancora di
+     * creare l'item, per sapere di quale mondo controllare il permesso Master.
+     */
+    private Integer risolviMondoDaContesto(UpdateItemRequest dto) {
+        if (dto.getIdMondo() != null) return dto.getIdMondo();
+        if (dto.getIdPersonaggio() != null) {
+            Personaggio pg = personaggioRepository.findPersonaggioById(dto.getIdPersonaggio());
+            if (pg != null && pg.getParty() != null && pg.getParty().getMondo() != null)
+                return pg.getParty().getMondo().getId();
+        }
+        if (dto.getIdParty() != null) {
+            Party party = partyRepository.findById(dto.getIdParty()).orElse(null);
+            if (party != null && party.getMondo() != null) return party.getMondo().getId();
+        }
+        return null;
     }
 
     @Operation(
@@ -361,9 +392,15 @@ public class ItemController {
             @RequestParam(required = false) Integer idPersonaggio,
             @AuthenticationPrincipal Utente utente
     ) {
-        if (!authzService.isMasterOrAdmin(utente))
+        // master del mondo a cui appartiene l'item (se ne ha uno); un item senza mondo (contenuto
+        // condiviso tra più mondi) richiede un vero admin, dato che nessun master-di-un-mondo
+        // specifico ha titolo su qualcosa che non appartiene a un mondo solo.
+        it.fin8.gdrsheet.entity.Item itm = repo.findItemById(id);
+        Integer mondoId = itm != null && itm.getMondo() != null ? itm.getMondo().getId() : null;
+        boolean autorizzato = mondoId != null ? authzService.isMasterMondo(utente, mondoId) : authzService.isAdmin(utente);
+        if (!autorizzato)
             throw new org.springframework.web.server.ResponseStatusException(
-                    org.springframework.http.HttpStatus.FORBIDDEN, "Solo master e admin possono eliminare gli item");
+                    org.springframework.http.HttpStatus.FORBIDDEN, "Solo il master di questo mondo (o un admin) può eliminare gli item");
         if (idPersonaggio != null)
             authzService.assertCanEditPersonaggio(utente, idPersonaggio);
         itemService.deleteItem(id, idPersonaggio);

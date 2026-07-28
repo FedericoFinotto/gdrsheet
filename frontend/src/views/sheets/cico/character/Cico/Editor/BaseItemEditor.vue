@@ -17,6 +17,7 @@ import useChildCreate from '../../../../../../function/useChildCreate'
 import {useMondoSistema} from '../../../../../../function/useMondoSistema'
 import HtmlEditor from '../../../../../../components/HtmlEditor.vue'
 import SearchSelect from '../../../../../../components/SearchSelect.vue'
+import VisibilitaPicker from '../../../../../../components/VisibilitaPicker.vue'
 import LabelsEditor from './Sections/LabelsEditor.vue'
 import MultiValueField from './Sections/MultiValueField.vue'
 import ModificatoriEditor from './Sections/ModificatoriEditor.vue'
@@ -56,6 +57,11 @@ const showQta = computed(() => TIPI_CON_QTA.includes(props.item.tipo))
 // la quest RADICE: personaggio/party/mondo) si sceglie solo in creazione e solo per la radice
 // (le sotto-quest, create dal flusso "crea e collega", non hanno un ambito proprio).
 const isQuest = computed(() => props.item.tipo === 'QUEST')
+// INFO: stesso albero/ambito/archiviazione della QUEST (vedi sopra), ma senza completamento né
+// "in carico" — il contenuto è la sezione Note qui sotto (già generica, N note con visibilità
+// ciascuna diversa). isAmbito raggruppa le sezioni condivise da entrambi i tipi.
+const isInfo = computed(() => props.item.tipo === 'INFO')
+const isAmbito = computed(() => isQuest.value || isInfo.value)
 const isVeicolo = computed(() => props.item.tipo === 'VEICOLO')
 // Sezione "Incantesimi" su item generico (non classe): stessa lettura SPELL_<n>* del backend,
 // ma slot/conosciuti sono un valore fisso (una riga), non una progressione a 20 livelli.
@@ -246,7 +252,7 @@ async function preload() {
       form.descrAbilita.divina = val === '1'
     } else if (key === 'QUEST_COMPLETATA') {
       form.completata = val === '1'
-    } else if (key === 'QUEST_ARCHIVIATA') {
+    } else if (key === 'QUEST_ARCHIVIATA' || key === 'INFO_ARCHIVIATA') {
       form.archiviata = val === '1'
     } else if (key === 'NOTA') {
       try {
@@ -673,8 +679,9 @@ function buildPayload(): UpdateItemRequest {
   if (form.descrAbilita.divina) labels.push({label: 'DESCR_DIV', valore: '1'})
   // Quest: stato di completamento (significativo solo per una quest senza sotto-quest)
   if (form.completata) labels.push({label: 'QUEST_COMPLETATA', valore: '1'})
-  // Quest: archiviata (esclusa dal caricamento automatico delle sezioni quest)
-  if (form.archiviata) labels.push({label: 'QUEST_ARCHIVIATA', valore: '1'})
+  // Quest/INFO: archiviata (esclusa dal caricamento automatico delle rispettive sezioni) — label
+  // separate solo per chiarezza dei dati, il tipo item disambiguerebbe comunque le query.
+  if (form.archiviata) labels.push({label: isInfo.value ? 'INFO_ARCHIVIATA' : 'QUEST_ARCHIVIATA', valore: '1'})
   // Note generiche (qualunque item): ogni riga è un JSON {testo, visibilita}
   for (const n of form.note) {
     if (n.testo.trim()) labels.push({label: 'NOTA', valore: JSON.stringify({testo: n.testo, visibilita: n.visibilita})})
@@ -737,9 +744,9 @@ function buildPayload(): UpdateItemRequest {
     idSistema: form.idSistema ?? undefined,
     // creazione "al volo" di un figlio: tieni mondo/sistema ma non agganciare al FromCompendio
     skipFromCompendio: isLinkCreate.value ? true : undefined,
-    // QUEST radice (non sotto-quest): ambito a cui associare la quest
-    questScope: (props.mode === 'create' && isQuest.value && !isLinkCreate.value && form.questScope) ? form.questScope : undefined,
-    idParty: (props.mode === 'create' && isQuest.value && !isLinkCreate.value) ? props.idParty : undefined,
+    // QUEST/INFO radice (non sotto-quest/sotto-info): ambito a cui associare la radice
+    questScope: (props.mode === 'create' && isAmbito.value && !isLinkCreate.value && form.questScope) ? form.questScope : undefined,
+    idParty: (props.mode === 'create' && isAmbito.value && !isLinkCreate.value) ? props.idParty : undefined,
     labels,
     modificatori: form.modificatori.filter(m => m.statId.trim()),
     attacchi: form.attacchi.filter(a => a.nome.trim()),
@@ -1072,8 +1079,7 @@ function onCancel() {
       </label>
       <label class="field">
         <span class="lbl">Visibilità</span>
-        <SearchSelect v-model="form.visibilita" :disabled="disabledAll" :sort="false"
-                      :options="[{value:'',label:'Tutti'},{value:'OWNER',label:'Proprietario'},{value:'MASTER',label:'Master'}]"/>
+        <VisibilitaPicker v-model="form.visibilita" :disabled="disabledAll"/>
       </label>
     </template>
 
@@ -1104,17 +1110,18 @@ function onCancel() {
       </div>
     </section>
 
-    <!-- Item collegati (child) — per una QUEST, solo altre QUEST (sotto-quest): resta visibile anche in minimal -->
-    <section v-if="!minimal || isQuest" class="fold">
+    <!-- Item collegati (child) — per QUEST/INFO, solo altri item dello stesso tipo (sotto-quest/
+         sotto-info): resta visibile anche in minimal -->
+    <section v-if="!minimal || isAmbito" class="fold">
       <button type="button" class="fold-head" @click="open.children = !open.children"
               :aria-expanded="open.children ? 'true' : 'false'">
-        <span class="fold-title">{{ isQuest ? 'Sotto-quest' : 'Item collegati' }}</span>
+        <span class="fold-title">{{ isQuest ? 'Sotto-quest' : isInfo ? 'Sotto-info' : 'Item collegati' }}</span>
         <span class="fold-summary">{{ sumChildren }}</span>
         <span class="chev" :class="{ open: open.children }">▸</span>
       </button>
       <div v-show="open.children" class="fold-body">
-        <SottoQuestEditor v-if="isQuest" v-model="form.children" :disabled="disabledAll"
-                          :id-personaggio="props.idPersonaggio" :id-party="props.idParty"/>
+        <SottoQuestEditor v-if="isAmbito" v-model="form.children" :disabled="disabledAll"
+                          :tipo="props.item.tipo" :id-personaggio="props.idPersonaggio" :id-party="props.idParty"/>
         <ChildrenEditor v-else v-model="form.children" :disabled="disabledAll" :exclude-id="props.item.id"
                         :exclude-tipo="separateForme ? 'FORMA' : undefined"
                         @create-new="(t, n) => onCreateChild('children', t, n)"/>
@@ -1368,8 +1375,7 @@ function onCancel() {
       </div>
       <label class="field">
         <span class="lbl">Visibilità</span>
-        <SearchSelect v-model="form.visibilita" :disabled="disabledAll" :sort="false"
-                      :options="[{value:'',label:'Tutti'},{value:'OWNER',label:'Proprietario'},{value:'MASTER',label:'Master'}]"/>
+        <VisibilitaPicker v-model="form.visibilita" :disabled="disabledAll"/>
       </label>
     </template>
 

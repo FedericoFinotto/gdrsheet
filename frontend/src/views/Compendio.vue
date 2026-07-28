@@ -9,19 +9,32 @@ import {Item} from '../models/dto/Item'
 import {TIPO_ITEM_LABELS} from './sheets/cico/character/Cico/Editor/editorRegistry'
 import Mobile_DettaglioItem from './sheets/cico/character/Dettaglio/Mobile_DettaglioItem.vue'
 import QuestNode from './sheets/cico/character/Cico/Sheet/QuestNode.vue'
-import {useMondoSistema} from '../function/useMondoSistema'
-import {useAuthStore} from '../stores/auth'
+import {useMondoStore} from '../stores/mondo'
 import {highlightMatch} from '../function/textHighlight'
 import {getQuestAlbero} from '../service/QuestService'
 import {Quest} from '../models/dto/Quest'
 
 const router = useRouter()
-const {meiMondi, meiMondiOptions} = useMondoSistema()
-const authStore = useAuthStore()
+const mondoStore = useMondoStore()
+// Il compendio si riferisce sempre al mondo selezionato nello switcher del menu (vedi
+// stores/mondo.ts): niente più selettore mondo locale a questa pagina.
+const filtroMondo = computed(() => mondoStore.corrente)
 
-// Ricerca profonda (nome, descrizione, label, note, note modificatori): visibile solo ad
-// admin/master, stesso ruolo effettivo già usato per il resto dell'app (isRealAdmin/effectiveRuolo).
-const puoRicercaProfonda = computed(() => ['ADMIN', 'SUPERUSER', 'MASTER'].includes((authStore.effectiveRuolo || '').toUpperCase()))
+// "+ Crea oggetto": pre-compila mondo E sistema del mondo corrente (mondoStore.disponibili porta
+// già il sistemaId, niente da richiedere di nuovo al backend).
+const urlCreaOggetto = computed(() => {
+  if (mondoStore.corrente === null) return '/itemcreate?compendio=1'
+  const sistemaId = mondoStore.disponibili.find(m => m.id === mondoStore.corrente)?.sistemaId
+  const params = new URLSearchParams({compendio: '1', mondo: String(mondoStore.corrente)})
+  if (sistemaId) params.set('sistema', String(sistemaId))
+  return `/itemcreate?${params.toString()}`
+})
+
+// Ricerca profonda (nome, descrizione, label, note, note modificatori): visibile solo se si è
+// master del mondo corrente (o admin) — mondoStore.corrente è per costruzione sempre uno dei
+// mondi disponibili per l'utente (vedi stores/mondo.ts), quindi null qui significa "nessun mondo
+// di cui sono master", cioè niente ricerca profonda.
+const puoRicercaProfonda = computed(() => mondoStore.corrente !== null)
 const deepMode = ref(false)
 const risultatiGlobali = ref<ItemSearchResult[]>([])
 const cercandoGlobale = ref(false)
@@ -32,7 +45,7 @@ async function eseguiRicercaGlobale() {
   if (q.length < 2) { risultatiGlobali.value = []; return }
   cercandoGlobale.value = true
   try {
-    risultatiGlobali.value = (await searchCompendioDeep(q)).data
+    risultatiGlobali.value = (await searchCompendioDeep(q, filtroMondo.value)).data
   } catch (e) {
     console.error('Errore ricerca profonda compendio:', e)
     risultatiGlobali.value = []
@@ -64,11 +77,8 @@ const errorMsg = ref<string | null>(null)
 
 const filtroNome = ref('')
 const filtroTipo = ref('')
-const filtroMondo = ref<number | null>(null)
 const page = ref(0)
 const PAGE_SIZE = 10
-
-const haMultiMondi = computed(() => meiMondi.value.length > 1)
 
 const TIPI_FILTRO = [
   {value: '', label: 'Tutti i tipi'},
@@ -142,7 +152,7 @@ onMounted(load)
         <h1>📖 Compendio</h1>
         <span v-if="pagina" class="muted">{{ pagina.totalElements }} item</span>
       </div>
-      <button class="btn primary" @click="router.push('/itemcreate?compendio=1')">+ Crea oggetto</button>
+      <button class="btn primary" @click="router.push(urlCreaOggetto)">+ Crea oggetto</button>
     </header>
 
     <!-- barra di ricerca unica: il tasto DEEP (solo admin/master) attiva la ricerca profonda -->
@@ -161,9 +171,6 @@ onMounted(load)
     <!-- filtri (nascosti durante la ricerca profonda) -->
     <div v-if="!inRicercaGlobale" class="filters">
       <SearchSelect v-model="filtroTipo" class="filter-tipo" :options="TIPI_FILTRO" :sort="false"/>
-    </div>
-    <div v-if="!inRicercaGlobale && haMultiMondi" class="filters">
-      <SearchSelect v-model="filtroMondo" :options="meiMondiOptions" :sort="false" class="filter-nome"/>
     </div>
 
     <!-- risultati ricerca profonda -->
@@ -325,7 +332,7 @@ onMounted(load)
   gap: .4rem;
 }
 
-.filter-nome, .filter-tipo {
+.filter-tipo {
   padding: .45rem .6rem;
   border: 1px solid #d0d5dd;
   border-radius: .5rem;

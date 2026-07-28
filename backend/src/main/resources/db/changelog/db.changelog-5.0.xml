@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        PARTY_LABEL: coppie label/valore legate a un party, stessa logica di item_label/
+        personaggio_label/collegamento_label/utente_label. Primo utilizzo: GIOCATORI (0/1) —
+        assente o "1" = party di personaggi giocanti (selezionabile nelle liste di visibilità
+        N-party); "0" = altro tipo di party (es. NPC/staging), escluso da quelle liste.
+    -->
+    <changeSet id="400" author="developer">
+        <createTable tableName="party_label">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_party" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="label" type="varchar"/>
+            <column name="valore" type="varchar"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="401" author="developer">
+        <addForeignKeyConstraint
+                baseTableName="party_label"
+                baseColumnNames="id_party"
+                referencedTableName="party"
+                referencedColumnNames="id"
+                constraintName="fk_party_label_party"/>
+    </changeSet>
+
+</databaseChangeLog>

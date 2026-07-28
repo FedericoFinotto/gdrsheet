@@ -6,6 +6,17 @@ export function getParty(id: number): Promise<AxiosResponse<PartyDetail>> {
     return api.get<PartyDetail>(`/party/${id}`)
 }
 
+export interface PartySelect {
+    id: number;
+    nome: string;
+}
+
+// Party "giocanti" di un mondo (esclude quelli con label GIOCATORI=0, es. NPC/staging): usato dal
+// picker di visibilità N-party.
+export function getPartyGiocanti(idMondo: number): Promise<AxiosResponse<PartySelect[]>> {
+    return api.get<PartySelect[]>('/party/giocanti', {params: {idMondo}})
+}
+
 export interface ItemSearchResult {
     id: number;
     nome: string;

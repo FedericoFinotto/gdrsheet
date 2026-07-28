@@ -30,6 +30,7 @@ import PrivilegioEditor from './Tipi/PrivilegioEditor.vue'
 import ContenitoreEditor from './Tipi/ContenitoreEditor.vue'
 import NotiziaEditor from './Tipi/NotiziaEditor.vue'
 import QuestEditor from './Tipi/QuestEditor.vue'
+import InfoEditor from './Tipi/InfoEditor.vue'
 
 export const EDITOR_BY_TYPE: Record<TipoItem, Component> = {
     [TIPO_ITEM.ABILITA]: AbilitaEditor,
@@ -61,6 +62,7 @@ export const EDITOR_BY_TYPE: Record<TipoItem, Component> = {
     [TIPO_ITEM.EFFETTO]: BaseItemEditor,
     [TIPO_ITEM.QUEST]: QuestEditor,
     [TIPO_ITEM.VEICOLO]: BaseItemEditor,
+    [TIPO_ITEM.INFO]: InfoEditor,
 }
 
 // Fallback per eventuali tipi non mappati
@@ -102,6 +104,7 @@ export const TIPO_ITEM_LABELS: Record<TipoItem, string> = {
     [TIPO_ITEM.EFFETTO]: 'Effetto',
     [TIPO_ITEM.QUEST]: 'Quest',
     [TIPO_ITEM.VEICOLO]: 'Veicolo',
+    [TIPO_ITEM.INFO]: 'Info',
 }
 
 // Tipi creabili dalla pagina di creazione.

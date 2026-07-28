@@ -6,6 +6,7 @@ import DiceD20Overlay from "./DiceD20Overlay.vue";
 import usePopup from "../function/usePopup";
 import useDiceRoll from "../function/useDiceRoll";
 import {useAuthStore} from '../stores/auth'
+import {useMondoStore} from '../stores/mondo'
 import {getNotizie, getViste as getVisteNotizie, segnaViste as segnaVisteNotizie, type NotiziaDTO} from '../service/NotizieService'
 import NotiziePopup from './NotiziePopup.vue'
 import {catturaScreenshot} from '../function/reportScreenshot'
@@ -18,6 +19,7 @@ const SegnalazioneCreatePopup = defineAsyncComponent(() => import('./Segnalazion
 
 const router = useRouter()
 const auth = useAuthStore()
+const mondoStore = useMondoStore()
 const {openPopup, isVisible: popupAperto} = usePopup()
 const {risultato, mostraOverlay, lanciaD20, annulla} = useDiceRoll()
 
@@ -91,6 +93,7 @@ async function forzaAggiornamento() {
 
 function onLogout() {
   auth.logout()
+  mondoStore.reset()
   router.replace('/login')
 }
 
@@ -120,6 +123,20 @@ async function caricaNotizie() {
 }
 
 onMounted(caricaNotizie)
+
+// Mondi tra cui l'utente può switchare (master di più mondi, o admin con più mondi esistenti):
+// caricati una volta all'avvio, come notizie/segnalazioni sopra.
+onMounted(() => {
+  if (!localStorage.getItem('auth_token')) return
+  mondoStore.carica()
+})
+
+const mondoAperto = ref(false)
+function selezionaMondo(mondoId: number) {
+  mondoStore.seleziona(mondoId)
+  mondoAperto.value = false
+  chiudiMenu()
+}
 
 function apriNotizie() {
   notizieAperte.value = true
@@ -281,11 +298,39 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
             </button>
           </div>
 
+          <!-- Switcher mondo: solo se ce n'è più di uno tra cui scegliere (master di più mondi,
+               o admin con più mondi esistenti). Le pagine che dipendono dal mondo (compendio,
+               creazione item, ricerca profonda...) seguono questa selezione. -->
+          <div v-if="mondoStore.mostraSwitcher" class="mondo-switch-row">
+            <button type="button" class="mondo-switch-head" @click="mondoAperto = !mondoAperto">
+              <i class="fa-solid fa-globe menu-icon"></i>
+              <span class="mondo-switch-label">Mondo</span>
+              <span class="mondo-corrente">
+                {{ mondoStore.disponibili.find(m => m.id === mondoStore.corrente)?.descrizione ?? '—' }}
+              </span>
+              <i class="fa-solid fa-chevron-down mondo-switch-chevron" :class="{open: mondoAperto}"></i>
+            </button>
+            <div v-if="mondoAperto" class="mondo-switch-list">
+              <button
+                  v-for="m in mondoStore.disponibili" :key="m.id" type="button"
+                  class="mondo-switch-item" :class="{active: m.id === mondoStore.corrente}"
+                  @click="selezionaMondo(m.id)"
+              >{{ m.descrizione }}</button>
+            </div>
+          </div>
+
           <button v-if="canManageUsers" class="menu-item" @click="naviga('/users')">
             <i class="fa-solid fa-users menu-icon"></i> Gestione Utenti
           </button>
           <button v-if="canManageUsers" class="menu-item" @click="naviga('/stats-admin')">
             <i class="fa-solid fa-chart-bar menu-icon"></i> Gestione Statistiche
+          </button>
+          <!-- Assegnare il permesso Master di un mondo è una decisione riservata agli admin, non
+               delegabile: a differenza delle altre voci qui sopra non basta il ruolo MASTER, e non
+               basta nemmeno essere admin — serve la modalità admin attiva (coerente con
+               AuthzService.isAdmin lato backend, che sarebbe l'unico a bloccarla comunque). -->
+          <button v-if="auth.isRealAdmin && auth.adminMode" class="menu-item" @click="naviga('/mondi-admin')">
+            <i class="fa-solid fa-globe menu-icon"></i> Permessi per mondo
           </button>
           <button class="menu-item" @click="naviga('/compendio')">
             <i class="fa-solid fa-book menu-icon"></i> Compendio
@@ -523,6 +568,55 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
 }
 
 .menu-sep { border: 0; border-top: 1px solid #e5e7eb; margin: .35rem 0; }
+
+/* Switcher mondo */
+.mondo-switch-row { margin: .15rem 0; }
+.mondo-switch-head {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  width: 100%;
+  padding: .75rem .9rem;
+  border: 0;
+  border-radius: .5rem;
+  background: transparent;
+  text-align: left;
+  font-size: .95rem;
+  cursor: pointer;
+  color: inherit;
+}
+.mondo-switch-head:hover { background: #f3f4f6; }
+.mondo-switch-label { flex-shrink: 0; }
+.mondo-corrente {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: .7;
+  font-size: .85rem;
+  text-align: right;
+}
+.mondo-switch-chevron { flex-shrink: 0; font-size: .8rem; opacity: .6; transition: transform .15s ease; }
+.mondo-switch-chevron.open { transform: rotate(180deg); }
+.mondo-switch-list {
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+  padding: .2rem .3rem .2rem 2.2rem;
+}
+.mondo-switch-item {
+  padding: .5rem .6rem;
+  border: 0;
+  border-radius: .4rem;
+  background: transparent;
+  text-align: left;
+  font-size: .88rem;
+  cursor: pointer;
+  color: inherit;
+}
+.mondo-switch-item:hover { background: #f3f4f6; }
+.mondo-switch-item.active { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
 
 /* Admin toggle */
 .admin-toggle-row {

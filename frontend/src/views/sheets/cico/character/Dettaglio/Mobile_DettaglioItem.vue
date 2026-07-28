@@ -23,6 +23,7 @@ import {Modificatore} from "../../../../../models/entity/Modificatore";
 import {Avanzamento} from "../../../../../models/entity/Avanzamento";
 import {Item} from "../../../../../models/dto/Item";
 import {getItemLabel, getItemLabels, LABELS, thereIsValoreLabel} from "../../../../../models/entity/ItemLabel";
+import {coloreIncarico} from "../../../../../function/coloreIncarico";
 import {useHp} from "../../../../../function/useHp";
 
 const DaiOggettoPopup = defineAsyncComponent(() => import("../../../../../components/DaiOggettoPopup.vue"))
@@ -70,13 +71,6 @@ const loading = ref(true);
 // dell'item — stesso significato di OWNER usato ovunque nell'app per queste note.
 const note = ref<Nota[]>([]);
 
-const VISIBILITA_LABELS: Record<string, string> = {
-  OWNER: 'Visibile solo al proprietario del personaggio',
-  MASTER: 'Visibile solo al Master',
-};
-function visLabel(visibilita: string): string | null {
-  return VISIBILITA_LABELS[visibilita] ?? null;
-}
 
 // Mappe per labels
 const labelMap = ref<Record<string, string>>({});
@@ -670,7 +664,9 @@ function toggleExpand(key: string) {
     <div v-if="note.length" class="note-box">
       <strong>Note</strong>
       <div v-for="(n, i) in note" :key="i" class="nota-item">
-        <span v-if="visLabel(n.visibilita)" class="nota-vis">{{ visLabel(n.visibilita) }}</span>
+        <div v-if="n.chip.length" class="nota-vis-row">
+          <span v-for="c in n.chip" :key="c" class="nota-vis" :style="coloreIncarico(c)">{{ c }}</span>
+        </div>
         <div class="nota-html" v-safe-html="n.testo"></div>
       </div>
       <div class="spazietto"/>
@@ -835,16 +831,16 @@ function toggleExpand(key: string) {
   letter-spacing: .05em;
 }
 .nota-item { margin-top: .3rem; }
+.nota-vis-row { display: flex; flex-wrap: wrap; gap: .25rem; margin-bottom: .15rem; }
+/* colore assegnato da coloreIncarico() in base al testo (nome party/utente): stesso testo,
+   stesso colore, sempre. */
 .nota-vis {
   display: inline-block;
-  margin-bottom: .15rem;
   font-size: .68rem;
   font-weight: 700;
-  color: #b91c1c;
-  background: transparent;
-  border: 1px solid #b91c1c;
-  border-radius: .35rem;
-  padding: .05rem .4rem;
+  letter-spacing: .01em;
+  border-radius: 999px;
+  padding: .1rem .5rem;
 }
 .nota-html {
   margin: .2rem 0;

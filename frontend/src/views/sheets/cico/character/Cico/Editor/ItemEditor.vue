@@ -4,6 +4,7 @@ import {useRoute, useRouter} from 'vue-router'
 import type {AxiosResponse} from 'axios'
 import {deleteItem, getItem, getItemDisabled, getItemParents, switchItemState, unlinkItem} from '../../../../../../service/PersonaggioService'
 import {deleteQuest} from '../../../../../../service/QuestService'
+import {deleteInfo} from '../../../../../../service/InfoService'
 import type {Item} from '../../../../../../models/dto/Item'
 import {useCharacterStore} from '../../../../../../stores/personaggio'
 import usePopup from '../../../../../../function/usePopup'
@@ -74,18 +75,19 @@ async function onToggleStato() {
   }
 }
 
-// scollegabile: c'è il contesto personaggio e non è un item intestato (es. livelli). Le QUEST
-// sono escluse: non stanno nell'equipaggiamento, quindi unlinkItem fallirebbe sempre — per loro
+// scollegabile: c'è il contesto personaggio e non è un item intestato (es. livelli). QUEST/INFO
+// sono esclusi: non stanno nell'equipaggiamento, quindi unlinkItem fallirebbe sempre — per loro
 // l'unica azione sensata è l'eliminazione globale qui sotto.
 const canUnlink = computed(() =>
-    !!idPersonaggio.value && !!item.value && item.value.tipo !== 'LIVELLO' && item.value.tipo !== 'QUEST')
+    !!idPersonaggio.value && !!item.value && item.value.tipo !== 'LIVELLO'
+    && item.value.tipo !== 'QUEST' && item.value.tipo !== 'INFO')
 
-// eliminazione: solo master e admin, TRANNE per le quest — "elimina per tutti" è un'azione
+// eliminazione: solo master e admin, TRANNE per QUEST/INFO — "elimina per tutti" è un'azione
 // pensata per essere disponibile a qualunque giocatore che la veda, non solo a master/admin
-// (coerente col backend, che per le quest non applica la stessa restrizione).
+// (coerente col backend, che per questi due tipi non applica la stessa restrizione).
 const auth = useAuthStore()
 const canDelete = computed(() => {
-  if (isQuest.value) return true
+  if (isAmbito.value) return true
   const r = (auth.utente?.ruolo ?? '').toUpperCase()
   return r === 'MASTER' || r === 'ADMIN' || r === 'SUPERUSER'
 })
@@ -108,21 +110,27 @@ async function onUnlink() {
   }
 }
 
-// Una quest non è "roba di un personaggio": si elimina globalmente, per tutti quelli che la
-// vedono, portandosi dietro l'intero albero di sotto-quest. Da qui il messaggio esplicito e
-// l'endpoint dedicato invece del delete generico (che scollegherebbe soltanto).
+// Una quest/info non è "roba di un personaggio": si elimina globalmente, per tutti quelli che la
+// vedono, portandosi dietro l'intero albero di sotto-quest/sotto-info. Da qui il messaggio
+// esplicito e l'endpoint dedicato invece del delete generico (che scollegherebbe soltanto).
 const isQuest = computed(() => item.value?.tipo === 'QUEST')
+const isInfo = computed(() => item.value?.tipo === 'INFO')
+const isAmbito = computed(() => isQuest.value || isInfo.value)
 
 async function onDelete() {
   if (!item.value || deleting.value) return
   const ok = window.confirm(isQuest.value
       ? `Eliminare la quest "${item.value.nome}" per TUTTI i giocatori che la vedono?\n\n` +
         'Verranno eliminate anche tutte le sue sotto-quest. L\'operazione non è reversibile.'
+      : isInfo.value
+      ? `Eliminare l'info "${item.value.nome}" per TUTTI i giocatori che lo vedono?\n\n` +
+        'Verranno eliminati anche tutti i suoi sotto-info. L\'operazione non è reversibile.'
       : `Sei sicuro di voler eliminare "${item.value.nome}"?`)
   if (!ok) return
   deleting.value = true
   try {
     if (isQuest.value) await deleteQuest(item.value.id)
+    else if (isInfo.value) await deleteInfo(item.value.id)
     else await deleteItem(item.value.id, idPersonaggio.value)
     // chiudi l'eventuale popup di dettaglio rimasto aperto sotto l'editor
     closePopup()
@@ -216,9 +224,10 @@ async function onSaved() {
           {{ unlinking ? 'Scollegamento…' : 'Scollega' }}
         </button>
         <button v-if="item && canDelete" type="button" class="btn-delete" :disabled="deleting || unlinking"
-                :title="isQuest ? 'Elimina la quest e tutte le sue sotto-quest, per tutti i giocatori' : undefined"
+                :title="isQuest ? 'Elimina la quest e tutte le sue sotto-quest, per tutti i giocatori'
+                    : isInfo ? 'Elimina l\'info e tutti i suoi sotto-info, per tutti i giocatori' : undefined"
                 @click="onDelete">
-          {{ deleting ? 'Eliminazione…' : (isQuest ? 'Elimina per tutti' : 'Elimina') }}
+          {{ deleting ? 'Eliminazione…' : (isAmbito ? 'Elimina per tutti' : 'Elimina') }}
         </button>
       </div>
     </header>

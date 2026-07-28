@@ -16,6 +16,7 @@ import it.fin8.gdrsheet.dto.MondoDTO;
 import it.fin8.gdrsheet.dto.PageDTO;
 import it.fin8.gdrsheet.dto.PartyDetailDTO;
 import it.fin8.gdrsheet.dto.PartyItemDTO;
+import it.fin8.gdrsheet.dto.PartySelectDTO;
 import it.fin8.gdrsheet.dto.ItemSearchResultDTO;
 import it.fin8.gdrsheet.dto.MilestonePersonaggioDTO;
 import it.fin8.gdrsheet.dto.ApplyMilestoneRequest;
@@ -48,6 +49,15 @@ public class PartyController {
     @GetMapping("/mondi")
     public ResponseEntity<List<MondoDTO>> getMieiMondi(@AuthenticationPrincipal Utente utente) {
         return ResponseEntity.ok(partyService.getMieiMondi(utente));
+    }
+
+    @Operation(
+            summary = "Party giocanti di un mondo",
+            description = "Party selezionabili nel picker di visibilità N-party: esclude quelli con label GIOCATORI=0 (es. NPC/staging)."
+    )
+    @GetMapping("/giocanti")
+    public ResponseEntity<List<PartySelectDTO>> getPartyGiocanti(@RequestParam Integer idMondo) {
+        return ResponseEntity.ok(partyService.getPartyGiocanti(idMondo));
     }
 
     @Operation(

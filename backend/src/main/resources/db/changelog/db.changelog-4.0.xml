@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        PERMESSI_MONDO: il ruolo MASTER smette di essere un flag globale sull'account
+        (utente.ruolo) e diventa un permesso per-mondo, sul modello di permessi_party
+        (permesso per-party) e permessi_personaggi (permesso per-personaggio). La colonna
+        "permesso" è già pensata per ospitare altri valori futuri oltre a MASTER (es.
+        EDIT_STAT per abilitare solo la modifica delle stat_default di un mondo), senza
+        richiedere una nuova tabella: vedi def.TipoPermessoMondo.
+    -->
+    <changeSet id="300" author="developer">
+        <createTable tableName="permessi_mondo">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_utente" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="id_mondo" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permesso" type="varchar(30)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="301" author="developer">
+        <addForeignKeyConstraint
+                baseTableName="permessi_mondo"
+                baseColumnNames="id_utente"
+                referencedTableName="utente"
+                referencedColumnNames="id"
+                constraintName="fk_permessi_mondo_utente"/>
+        <addForeignKeyConstraint
+                baseTableName="permessi_mondo"
+                baseColumnNames="id_mondo"
+                referencedTableName="mondo"
+                referencedColumnNames="id"
+                constraintName="fk_permessi_mondo_mondo"/>
+    </changeSet>
+
+    <changeSet id="302" author="developer">
+        <comment>Un utente non può avere lo stesso permesso duplicato sullo stesso mondo.</comment>
+        <addUniqueConstraint
+                tableName="permessi_mondo"
+                columnNames="id_utente, id_mondo, permesso"
+                constraintName="uq_permessi_mondo_utente_mondo_permesso"/>
+    </changeSet>
+
+    <!--
+        Migrazione: chi ha oggi ruolo globale MASTER diventa master di TUTTI i mondi a cui ha
+        già accesso (tramite i suoi party) — così nessuno perde di colpo la possibilità di
+        gestire il compendio dei mondi che già segue. Da qui in avanti il ruolo globale MASTER
+        non viene più consultato per queste autorizzazioni (vedi AuthzService#isMasterMondo);
+        resta nella tabella "utente" solo come valore storico/etichetta.
+    -->
+    <changeSet id="303" author="developer">
+        <sql>
+            INSERT INTO permessi_mondo (id_utente, id_mondo, permesso)
+            SELECT DISTINCT u.id, p.mondo_id, 'MASTER'
+            FROM utente u
+            JOIN permessi_party pp ON pp.id_utente = u.id
+            JOIN party p ON p.id = pp.id_party
+            WHERE upper(trim(u.ruolo)) = 'MASTER'
+              AND p.mondo_id IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM permessi_mondo pm
+                  WHERE pm.id_utente = u.id AND pm.id_mondo = p.mondo_id AND pm.permesso = 'MASTER'
+              )
+        </sql>
+    </changeSet>
+
+    <!--
+        UTENTE_LABEL: coppie label/valore legate a un utente, stessa logica di item_label/
+        personaggio_label/collegamento_label. Primo utilizzo: ricordare l'ultimo mondo aperto
+        (per lo switcher mondo nel menu), ma pensata per ospitare altre preferenze future senza
+        bisogno di una nuova tabella o di una nuova migrazione.
+    -->
+    <changeSet id="304" author="developer">
+        <createTable tableName="utente_label">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_utente" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="label" type="varchar"/>
+            <column name="valore" type="varchar"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="305" author="developer">
+        <addForeignKeyConstraint
+                baseTableName="utente_label"
+                baseColumnNames="id_utente"
+                referencedTableName="utente"
+                referencedColumnNames="id"
+                constraintName="fk_utente_label_utente"/>
+    </changeSet>
+
+</databaseChangeLog>

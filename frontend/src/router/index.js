@@ -5,10 +5,12 @@ import Party from '@/views/Party.vue';
 import PartyItems from '@/views/PartyItems.vue';
 import PartyBanche from '@/views/PartyBanche.vue';
 import PartyQuests from '@/views/PartyQuests.vue';
+import PartyInfo from '@/views/PartyInfo.vue';
 import BancaDetail from '@/views/BancaDetail.vue';
 import Compendio from '@/views/Compendio.vue';
 import Users from '@/views/Users.vue';
 import StatsAdmin from '@/views/StatsAdmin.vue';
+import MondiAdmin from '@/views/MondiAdmin.vue';
 import SetPassword from '@/views/SetPassword.vue';
 import Mobile_Cico_0_CharacterSheet from "../views/sheets/cico/character/Cico/Sheet/Mobile_Cico_0_CharacterSheet.vue";
 import ItemEditor from "../views/sheets/cico/character/Cico/Editor/ItemEditor.vue";
@@ -26,12 +28,14 @@ const routes = [
   {path: '/party/:id/items', name: 'PartyItems', component: PartyItems},
   {path: '/party/:id/banche', name: 'PartyBanche', component: PartyBanche},
   {path: '/party/:id/quests', name: 'PartyQuests', component: PartyQuests},
+  {path: '/party/:id/info', name: 'PartyInfo', component: PartyInfo},
   {path: '/party/:id/gruppi', name: 'GestisciGruppi', component: GestisciGruppi},
   {path: '/party/:id/gruppo/:gruppoId/milestone', name: 'MilestoneGruppo', component: MilestoneGruppo},
   {path: '/banca/:id', name: 'BancaDetail', component: BancaDetail},
   {path: '/compendio', name: 'Compendio', component: Compendio},
   {path: '/users', name: 'Users', component: Users},
   {path: '/stats-admin', name: 'StatsAdmin', component: StatsAdmin},
+  {path: '/mondi-admin', name: 'MondiAdmin', component: MondiAdmin},
   {path: '/set-password', name: 'SetPassword', component: SetPassword},
   {path: '/account', name: 'Account', component: Account},
   {path: '/segnalazioni', name: 'Segnalazioni', component: Segnalazioni},
