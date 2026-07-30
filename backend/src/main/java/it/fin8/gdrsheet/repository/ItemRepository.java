@@ -39,6 +39,22 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
     @Query("SELECT i FROM Item i WHERE i.id IN :ids")
     List<Item> findItemsByIds(@Param("ids") List<Integer> ids);
 
+    /**
+     * Tag (item di tipo TAG) appartenenti alle categorie indicate, con l'id della categoria
+     * di appartenenza (label CATEGORIA, confrontata come stringa perché il valore è testuale).
+     * Ritorna righe [Item tag, String idCategoria].
+     */
+    @Query("""
+            SELECT i, il.valore FROM Item i
+            JOIN i.labels il
+            WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.TAG
+              AND il.label = :labelCategoria
+              AND il.valore IN :idCategorie
+            ORDER BY i.nome
+            """)
+    List<Object[]> findTagPerCategorie(@Param("labelCategoria") String labelCategoria,
+                                       @Param("idCategorie") List<String> idCategorie);
+
 
     @Query("SELECT i FROM Item i LEFT JOIN FETCH i.child c WHERE i.personaggio.id = :personaggioId")
     List<Item> findAllByPersonaggioIdWithChild(@Param("personaggioId") Integer id);

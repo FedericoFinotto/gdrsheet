@@ -19,6 +19,10 @@ import HtmlEditor from '../../../../../../components/HtmlEditor.vue'
 import SearchSelect from '../../../../../../components/SearchSelect.vue'
 import VisibilitaPicker from '../../../../../../components/VisibilitaPicker.vue'
 import LabelsEditor from './Sections/LabelsEditor.vue'
+import TagEditor from './Sections/TagEditor.vue'
+import TriggerRandomizzatoriEditor from './Sections/TriggerRandomizzatoriEditor.vue'
+import MultiSelectField from './Sections/MultiSelectField.vue'
+import {getTagsItem, ItemTag, setTagsItem} from '../../../../../../service/RandomizzatoreService'
 import MultiValueField from './Sections/MultiValueField.vue'
 import ModificatoriEditor from './Sections/ModificatoriEditor.vue'
 import AttacchiEditor from './Sections/AttacchiEditor.vue'
@@ -84,6 +88,7 @@ const form = reactive<{
   infoOggetto: { taglia: string; costo: string; materiale: string; prefisso: string }
   infoVeicolo: { velocita: string }
   descrAbilita: { straordinaria: boolean; magica: boolean; soprannaturale: boolean; naturale: boolean; divina: boolean }
+  randTrigger: string[]
   labels: LabelRow[]
   modificatori: ModificatoreRow[]
   attacchi: AttaccoRow[]
@@ -119,6 +124,7 @@ const form = reactive<{
   infoOggetto: {taglia: '', costo: '', materiale: '', prefisso: ''},
   infoVeicolo: {velocita: ''},
   descrAbilita: {straordinaria: false, magica: false, soprannaturale: false, naturale: false, divina: false},
+  randTrigger: [],
   labels: [],
   modificatori: [],
   attacchi: [],
@@ -143,8 +149,34 @@ const form = reactive<{
 const open = reactive({
   labels: false, modificatori: false, attacchi: false, children: false, forme: false, effetti: false,
   campiLabel: false, descrOggetto: false, infoOggetto: false, infoVeicolo: false, descrAbilita: false, note: false,
-  incantesimi: false, inCarico: false, aggiunteClasse: false,
+  incantesimi: false, inCarico: false, aggiunteClasse: false, tags: false, randTrigger: false,
 })
+
+/* Tag pesati per i randomizzatori: vivono su una tabella a parte (item_tag), non tra le
+ * labels, quindi hanno un caricamento e un salvataggio propri.
+ * Il salvataggio avviene solo se l'utente li ha davvero toccati: l'endpoint richiede i
+ * permessi di master del mondo, e chi non usa questa sezione non deve inciamparci. */
+const tags = ref<ItemTag[]>([])
+const tagsModificati = ref(false)
+
+function onTagsChange(v: ItemTag[]) {
+  tags.value = v
+  tagsModificati.value = true
+}
+
+async function caricaTags() {
+  tags.value = []
+  tagsModificati.value = false
+  if (props.mode !== 'edit' || !props.item?.id) return
+  try {
+    tags.value = (await getTagsItem(props.item.id)).data
+  } catch (e) {
+    console.error('Errore caricamento tag item:', e)
+  }
+}
+
+const sumTags = computed(() =>
+    tags.value.filter(t => t.idTag != null).map(t => t.tag ?? `#${t.idTag}`).join(', ') || '—')
 
 // Taglia fisica dell'oggetto (es. arma taglia Grande): puramente descrittiva, non modifica
 // la taglia del personaggio (a differenza del campo TAGLIA usato altrove per quello scopo).
@@ -164,6 +196,7 @@ const TAGLIE_OGGETTO = [
 async function preload() {
   form.nome = props.item.nome ?? ''
   form.descrizione = props.item.descrizione ?? ''
+  caricaTags()
 
   const campoKeys = new Set(props.campiLabel.filter(c => !c.multiValore).map(c => c.key))
   const campoKeysMulti = new Set(props.campiLabel.filter(c => c.multiValore).map(c => c.key))
@@ -185,6 +218,7 @@ async function preload() {
   form.infoOggetto = {taglia: '', costo: '', materiale: '', prefisso: ''}
   form.infoVeicolo = {velocita: ''}
   form.descrAbilita = {straordinaria: false, magica: false, soprannaturale: false, naturale: false, divina: false}
+  form.randTrigger = []
   form.note = []
   form.inCarico = []
   form.completata = false
@@ -246,6 +280,8 @@ async function preload() {
       form.descrAbilita.magica = val === '1'
     } else if (key === 'DESCR_SOP') {
       form.descrAbilita.soprannaturale = val === '1'
+    } else if (key === 'RAND_TRIGGER') {
+      form.randTrigger.push(val)
     } else if (key === 'DESCR_NAT') {
       form.descrAbilita.naturale = val === '1'
     } else if (key === 'DESCR_DIV') {
@@ -676,6 +712,10 @@ function buildPayload(): UpdateItemRequest {
   if (form.descrAbilita.magica) labels.push({label: 'DESCR_MAG', valore: '1'})
   if (form.descrAbilita.soprannaturale) labels.push({label: 'DESCR_SOP', valore: '1'})
   if (form.descrAbilita.naturale) labels.push({label: 'DESCR_NAT', valore: '1'})
+  // randomizzatori innescati da questo oggetto (catene)
+  for (const idRand of form.randTrigger) {
+    if (String(idRand).trim()) labels.push({label: 'RAND_TRIGGER', valore: String(idRand).trim()})
+  }
   if (form.descrAbilita.divina) labels.push({label: 'DESCR_DIV', valore: '1'})
   // Quest: stato di completamento (significativo solo per una quest senza sotto-quest)
   if (form.completata) labels.push({label: 'QUEST_COMPLETATA', valore: '1'})
@@ -762,7 +802,14 @@ async function doSave(): Promise<ItemDB | null> {
     const res = props.mode === 'create'
         ? await createItem(payload)
         : await updateItem(props.item.id, payload, props.idPersonaggio)
-    return res.data ?? null
+    const saved = res.data ?? null
+    // i tag stanno su una tabella a parte: si salvano dopo, e solo se toccati (in creazione
+    // servirebbe comunque l'id, disponibile appunto solo ora)
+    if (saved?.id && tagsModificati.value) {
+      await setTagsItem(saved.id, tags.value.filter(t => t.idTag != null && Number(t.peso) > 0))
+      tagsModificati.value = false
+    }
+    return saved
   } catch (e: any) {
     errorMsg.value = e?.response?.status === 403
         ? 'Non hai i permessi per modificare questo personaggio'
@@ -805,6 +852,7 @@ function resetForNew() {
   form.infoOggetto = {taglia: '', costo: '', materiale: '', prefisso: ''}
   form.infoVeicolo = {velocita: ''}
   form.descrAbilita = {straordinaria: false, magica: false, soprannaturale: false, naturale: false, divina: false}
+  form.randTrigger = []
   form.labels = []
   form.modificatori = []
   form.attacchi = []
@@ -1005,7 +1053,11 @@ function onCancel() {
           <div class="row two">
             <label v-for="c in campiLabel" :key="c.key" class="field"
                    :class="{ full: c.textarea || c.multiValore, 'field-checkbox': c.tipo === 'checkbox' }">
-              <template v-if="c.multiValore">
+              <template v-if="c.multiValore && c.options">
+                <span class="lbl">{{ c.label }}</span>
+                <MultiSelectField v-model="form.campiMulti[c.key]" :options="c.options" :disabled="disabledAll"/>
+              </template>
+              <template v-else-if="c.multiValore">
                 <span class="lbl">{{ c.label }}</span>
                 <MultiValueField v-model="form.campiMulti[c.key]" :textarea="c.textarea" :html="c.html"
                                   :disabled="disabledAll" :placeholder="c.placeholder"/>
@@ -1016,6 +1068,13 @@ function onCancel() {
                        :checked="form.campi[c.key] === '1'"
                        :disabled="disabledAll"
                        @change="(e) => form.campi[c.key] = (e.target as HTMLInputElement).checked ? '1' : ''"/>
+              </template>
+              <template v-else-if="c.tipo === 'select'">
+                <span class="lbl">{{ c.label }}</span>
+                <SearchSelect :model-value="form.campi[c.key] || null"
+                              :options="[{value: '', label: '—'}, ...(c.options ?? [])]"
+                              :disabled="disabledAll" :placeholder="c.placeholder"
+                              @update:model-value="(v) => form.campi[c.key] = v == null ? '' : String(v)"/>
               </template>
               <template v-else>
                 <span class="lbl">{{ c.label }}</span>
@@ -1032,7 +1091,11 @@ function onCancel() {
       <div v-else class="row two">
         <label v-for="c in campiLabel" :key="c.key" class="field"
                :class="{ full: c.textarea || c.multiValore, 'field-checkbox': c.tipo === 'checkbox' }">
-          <template v-if="c.multiValore">
+          <template v-if="c.multiValore && c.options">
+            <span class="lbl">{{ c.label }}</span>
+            <MultiSelectField v-model="form.campiMulti[c.key]" :options="c.options" :disabled="disabledAll"/>
+          </template>
+          <template v-else-if="c.multiValore">
             <span class="lbl">{{ c.label }}</span>
             <MultiValueField v-model="form.campiMulti[c.key]" :textarea="c.textarea"
                               :disabled="disabledAll" :placeholder="c.placeholder"/>
@@ -1043,6 +1106,13 @@ function onCancel() {
                    :checked="form.campi[c.key] === '1'"
                    :disabled="disabledAll"
                    @change="(e) => form.campi[c.key] = (e.target as HTMLInputElement).checked ? '1' : ''"/>
+          </template>
+          <template v-else-if="c.tipo === 'select'">
+            <span class="lbl">{{ c.label }}</span>
+            <SearchSelect :model-value="form.campi[c.key] || null"
+                          :options="[{value: '', label: '—'}, ...(c.options ?? [])]"
+                          :disabled="disabledAll" :placeholder="c.placeholder"
+                          @update:model-value="(v) => form.campi[c.key] = v == null ? '' : String(v)"/>
           </template>
           <template v-else>
             <span class="lbl">{{ c.label }}</span>
@@ -1340,6 +1410,33 @@ function onCancel() {
       </button>
       <div v-show="open.labels" class="fold-body">
         <LabelsEditor v-model="form.labels" :suggested-keys="suggestedKeys" :disabled="disabledAll"/>
+      </div>
+    </section>
+
+    <!-- Tag pesati (randomizzatori) -->
+    <section v-if="!minimal" class="fold">
+      <button type="button" class="fold-head" @click="open.tags = !open.tags"
+              :aria-expanded="open.tags ? 'true' : 'false'">
+        <span class="fold-title">Tag</span>
+        <span class="fold-summary">{{ sumTags }}</span>
+        <span class="chev" :class="{ open: open.tags }">▸</span>
+      </button>
+      <div v-show="open.tags" class="fold-body">
+        <TagEditor :model-value="tags" :disabled="disabledAll" @update:model-value="onTagsChange"/>
+      </div>
+    </section>
+
+    <!-- Randomizzatori innescati da questo oggetto (catene) -->
+    <section v-if="!minimal" class="fold">
+      <button type="button" class="fold-head" @click="open.randTrigger = !open.randTrigger"
+              :aria-expanded="open.randTrigger ? 'true' : 'false'">
+        <span class="fold-title">Randomizzatori innescati</span>
+        <span class="fold-summary">{{ form.randTrigger.length || '—' }}</span>
+        <span class="chev" :class="{ open: open.randTrigger }">▸</span>
+      </button>
+      <div v-show="open.randTrigger" class="fold-body">
+        <TriggerRandomizzatoriEditor v-model="form.randTrigger" :disabled="disabledAll"
+                                     :id-corrente="props.item?.id"/>
       </div>
     </section>
 

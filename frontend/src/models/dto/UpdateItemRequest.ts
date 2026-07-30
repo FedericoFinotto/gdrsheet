@@ -22,11 +22,15 @@ export interface CampoLabel {
     label: string;
     placeholder?: string;
     textarea?: boolean;
-    tipo?: 'text' | 'checkbox' | 'datetime-local'; // default: text
+    tipo?: 'text' | 'checkbox' | 'datetime-local' | 'select'; // default: text
     // se true, la key ammette più righe (es. CATEGORY): editor a lista invece di singolo campo
     multiValore?: boolean;
     // solo con multiValore: ogni riga è editata con l'editor HTML (rich text) invece di una textarea
     html?: boolean;
+    // solo con tipo 'select': opzioni della tendina. Devono essere note al PRIMO render, perché
+    // BaseItemEditor legge campiLabel in preload(): chi le carica via API deve montare l'editor
+    // solo a caricamento finito, altrimenti la label esistente finisce tra quelle generiche.
+    options?: Array<{ value: string | number | null; label: string }>;
 }
 
 // Un danno di un attacco: formula + tipo, un attacco può averne N

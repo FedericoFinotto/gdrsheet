@@ -31,6 +31,9 @@ import ContenitoreEditor from './Tipi/ContenitoreEditor.vue'
 import NotiziaEditor from './Tipi/NotiziaEditor.vue'
 import QuestEditor from './Tipi/QuestEditor.vue'
 import InfoEditor from './Tipi/InfoEditor.vue'
+import CategoriaEditor from './Tipi/CategoriaEditor.vue'
+import TagItemEditor from './Tipi/TagItemEditor.vue'
+import RandomizzatoreEditor from './Tipi/RandomizzatoreEditor.vue'
 
 export const EDITOR_BY_TYPE: Record<TipoItem, Component> = {
     [TIPO_ITEM.ABILITA]: AbilitaEditor,
@@ -63,6 +66,9 @@ export const EDITOR_BY_TYPE: Record<TipoItem, Component> = {
     [TIPO_ITEM.QUEST]: QuestEditor,
     [TIPO_ITEM.VEICOLO]: BaseItemEditor,
     [TIPO_ITEM.INFO]: InfoEditor,
+    [TIPO_ITEM.CATEGORIA]: CategoriaEditor,
+    [TIPO_ITEM.TAG]: TagItemEditor,
+    [TIPO_ITEM.RANDOMIZZATORE]: RandomizzatoreEditor,
 }
 
 // Fallback per eventuali tipi non mappati
@@ -105,6 +111,9 @@ export const TIPO_ITEM_LABELS: Record<TipoItem, string> = {
     [TIPO_ITEM.QUEST]: 'Quest',
     [TIPO_ITEM.VEICOLO]: 'Veicolo',
     [TIPO_ITEM.INFO]: 'Info',
+    [TIPO_ITEM.CATEGORIA]: 'Categoria',
+    [TIPO_ITEM.TAG]: 'Tag',
+    [TIPO_ITEM.RANDOMIZZATORE]: 'Randomizzatore',
 }
 
 // Tipi creabili dalla pagina di creazione.

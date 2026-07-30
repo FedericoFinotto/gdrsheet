@@ -40,6 +40,14 @@ public class CalcoloService {
     private static final Pattern PATTERN_DICE = Pattern.compile("\\d+d\\d+(?:\\d+)?");
     private static final Pattern PATTERN_NUMBER = Pattern.compile("^[+-]?\\d+$");
 
+    // Calcolo a scaglioni progressivi (tipo scaglioni IRPEF): "x=<espr>;[{'<=N','formula con x'}, ...]".
+    // Ogni scaglione applica la SUA formula solo alla porzione di x compresa tra la soglia
+    // precedente e la propria; oltre l'ultimo scaglione definito il contributo è 0.
+    private static final Pattern PATTERN_SCAGLIONI =
+            Pattern.compile("^x\\s*=\\s*([^;]+);\\s*\\[(.*)]\\s*$", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern PATTERN_SCAGLIONE =
+            Pattern.compile("\\{\\s*'<=\\s*([-+]?[0-9]*\\.?[0-9]+)'\\s*,\\s*'([^']*)'\\s*}");
+
     // Funzioni di arrotondamento utilizzabili nelle formule
     private static final Function FN_ECCESSO = new Function("ECCESSO", 1) {
         @Override public double apply(double... args) { return Math.ceil(args[0]); }
@@ -77,6 +85,13 @@ public class CalcoloService {
             }
         }
 
+        // Calcolo a scaglioni progressivi: intercetta la sintassi PRIMA di exp4j,
+        // che non può valutare array/oggetti letterali come "[{'<=50','x*50/1000'},...]".
+        Matcher scaglioniMatcher = PATTERN_SCAGLIONI.matcher(replaced.trim());
+        if (scaglioniMatcher.matches()) {
+            return String.valueOf(calcolaScaglioni(scaglioniMatcher));
+        }
+
         // 2. Estrai e salva la parte col dado (es: 1d8)
         Matcher diceMatcher = PATTERN_DICE.matcher(replaced);
         String dicePart = "";
@@ -105,6 +120,52 @@ public class CalcoloService {
         } else {
             return String.valueOf(result);
         }
+    }
+
+    /**
+     * Valuta la sintassi a scaglioni progressivi "x=&lt;espr&gt;;[{'&lt;=N','formula con x'}, ...]".
+     * Ogni scaglione riceve come "x" solo la porzione del valore compresa tra la soglia
+     * precedente e la propria (non il valore intero); la porzione oltre l'ultimo scaglione
+     * definito non contribuisce (equivale a moltiplicarla per 0).
+     */
+    private long calcolaScaglioni(Matcher scaglioniMatcher) {
+        double x;
+        try {
+            String xExpr = scaglioniMatcher.group(1).trim().replaceAll("\\s+", "");
+            x = new ExpressionBuilder(xExpr).functions(FUNZIONI).build().evaluate();
+        } catch (Exception e) {
+            return 0;
+        }
+
+        record Scaglione(double soglia, String formula) {}
+        List<Scaglione> scaglioni = new ArrayList<>();
+        Matcher sm = PATTERN_SCAGLIONE.matcher(scaglioniMatcher.group(2));
+        while (sm.find()) {
+            try {
+                scaglioni.add(new Scaglione(Double.parseDouble(sm.group(1)), sm.group(2)));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        scaglioni.sort(Comparator.comparingDouble(Scaglione::soglia));
+
+        double totale = 0;
+        double sogliaPrecedente = 0;
+        for (Scaglione s : scaglioni) {
+            double porzione = Math.max(0, Math.min(x, s.soglia()) - sogliaPrecedente);
+            if (porzione > 0 && !s.formula().isBlank()) {
+                String exprScaglione = s.formula()
+                        .replaceAll("\\bx\\b", String.valueOf(porzione))
+                        .replaceAll("\\s+", "");
+                try {
+                    totale += new ExpressionBuilder(exprScaglione).functions(FUNZIONI).build().evaluate();
+                } catch (Exception ignored) {
+                }
+            }
+            sogliaPrecedente = s.soglia();
+        }
+        // porzione oltre l'ultimo scaglione definito: nessun contributo (implicitamente "x*0")
+
+        return (long) Math.floor(totale);
     }
 
     /**

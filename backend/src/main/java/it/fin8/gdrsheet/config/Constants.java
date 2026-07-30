@@ -236,6 +236,25 @@ public final class Constants {
     public static final String ITEM_LABEL_COSTO = "COSTO";
     public static final String ITEM_LABEL_MATERIALE = "MATERIALE";
 
+    // Randomizzatori: categorie/tag e configurazione (vedi RandomizzatoreService)
+    public static final String ITEM_LABEL_TAG_CATEGORIA = "CATEGORIA";      // sul TAG: id della sua CATEGORIA
+    public static final String ITEM_LABEL_RAND_SCELTA = "RAND_SCELTA";      // multi-valore: id categoria da scegliere all'uso
+    public static final String ITEM_LABEL_RAND_PRESENTE = "RAND_PRESENTE";  // multi-valore: id categoria che deve essere presente
+    public static final String ITEM_LABEL_RAND_COMBINA = "RAND_COMBINA";    // PRODOTTO (default) | SOMMA
+    public static final String RAND_COMBINA_PRODOTTO = "PRODOTTO";
+    public static final String RAND_COMBINA_SOMMA = "SOMMA";
+    /** Estrazioni conservate per randomizzatore: le più vecchie vengono eliminate alla scrittura. */
+    public static final int RAND_STORICO_MAX = 5;
+    /** Sull'OGGETTO, multi-valore: randomizzatori da innescare quando viene estratto. */
+    public static final String ITEM_LABEL_RAND_TRIGGER = "RAND_TRIGGER";
+    /**
+     * Limiti dell'annidamento. Servono davvero: le catene possono essere ricorsive
+     * (un carico che ne innesca un altro dello stesso tipo) e ogni livello può generare
+     * più figli, quindi senza tetto la crescita è esponenziale.
+     */
+    public static final int RAND_PROFONDITA_MAX = 5;
+    public static final int RAND_NODI_MAX = 40;
+
     // Descrittori Abilità (flag booleani, possono essere attivi insieme)
     public static final String ITEM_LABEL_DESCR_STRAORDINARIA = "DESCR_STR";
     public static final String ITEM_LABEL_DESCR_MAGICA = "DESCR_MAG";

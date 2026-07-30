@@ -33,7 +33,10 @@ public enum TipoItem {
     EFFETTO("Effetto"),
     QUEST("Quest"),
     VEICOLO("Veicolo"),
-    INFO("Info")
+    INFO("Info"),
+    CATEGORIA("Categoria"),
+    TAG("Tag"),
+    RANDOMIZZATORE("Randomizzatore")
     ;
 
     private final String label;

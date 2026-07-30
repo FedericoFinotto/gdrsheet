@@ -20,6 +20,7 @@ import Account from "@/views/Account.vue";
 import GestisciGruppi from "@/views/GestisciGruppi.vue";
 import MilestoneGruppo from "@/views/MilestoneGruppo.vue";
 import Segnalazioni from "@/views/Segnalazioni.vue";
+import Randomizzatore from "@/views/Randomizzatore.vue";
 
 const routes = [
   {path: '/', component: Home},
@@ -33,6 +34,7 @@ const routes = [
   {path: '/party/:id/gruppo/:gruppoId/milestone', name: 'MilestoneGruppo', component: MilestoneGruppo},
   {path: '/banca/:id', name: 'BancaDetail', component: BancaDetail},
   {path: '/compendio', name: 'Compendio', component: Compendio},
+  {path: '/randomizzatore/:id', name: 'Randomizzatore', component: Randomizzatore},
   {path: '/users', name: 'Users', component: Users},
   {path: '/stats-admin', name: 'StatsAdmin', component: StatsAdmin},
   {path: '/mondi-admin', name: 'MondiAdmin', component: MondiAdmin},

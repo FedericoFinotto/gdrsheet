@@ -33,6 +33,8 @@ public class ItemService {
     @Autowired
     private ItemLabelRepository itemLabelRepository;
     @Autowired
+    private ItemTagService itemTagService;
+    @Autowired
     EntityManager em;
     @Autowired
     private CollegamentoLabelRepository collegamentoLabelRepository;
@@ -669,6 +671,9 @@ public class ItemService {
         applyChildren(itm, request.getChildren());
 
         Item saved = itemRepository.save(itm);
+        // se è un TAG e la sua categoria è cambiata, riallinea la colonna denormalizzata
+        // su tutte le associazioni item_tag già esistenti
+        if (TipoItem.TAG.equals(saved.getTipo())) itemTagService.riallineaCategoria(saved);
         personaggioCacheService.invalidaPerItem(saved.getId());
         return saved;
     }

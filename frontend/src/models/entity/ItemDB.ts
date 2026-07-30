@@ -53,6 +53,9 @@ export const TIPO_ITEM = {
     QUEST: 'QUEST',
     VEICOLO: 'VEICOLO',
     INFO: 'INFO',
+    CATEGORIA: 'CATEGORIA',
+    TAG: 'TAG',
+    RANDOMIZZATORE: 'RANDOMIZZATORE',
 } as const;
 export type TipoItem = typeof TIPO_ITEM[keyof typeof TIPO_ITEM];
 

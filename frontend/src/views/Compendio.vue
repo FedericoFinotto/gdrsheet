@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
-import {useRouter} from 'vue-router'
+import {useRoute, useRouter} from 'vue-router'
 import {getCompendio, searchCompendioDeep} from '../service/PersonaggioService'
 import {ItemSearchResult} from '../service/PartyService'
 import SearchSelect from '../components/SearchSelect.vue'
@@ -15,6 +15,7 @@ import {getQuestAlbero} from '../service/QuestService'
 import {Quest} from '../models/dto/Quest'
 
 const router = useRouter()
+const route = useRoute()
 const mondoStore = useMondoStore()
 // Il compendio si riferisce sempre al mondo selezionato nello switcher del menu (vedi
 // stores/mondo.ts): niente più selettore mondo locale a questa pagina.
@@ -35,7 +36,10 @@ const urlCreaOggetto = computed(() => {
 // mondi disponibili per l'utente (vedi stores/mondo.ts), quindi null qui significa "nessun mondo
 // di cui sono master", cioè niente ricerca profonda.
 const puoRicercaProfonda = computed(() => mondoStore.corrente !== null)
-const deepMode = ref(false)
+// I filtri vivono nella query string: così uscendo verso un editor o un randomizzatore e
+// tornando indietro (router.back()) si ritrova la stessa vista, senza stato da conservare
+// altrove. Inizializzati qui, cioè PRIMA che i watch siano registrati, per non farli scattare.
+const deepMode = ref(route.query.deep === '1')
 const risultatiGlobali = ref<ItemSearchResult[]>([])
 const cercandoGlobale = ref(false)
 const globalExpandedId = ref<number | null>(null)
@@ -75,9 +79,9 @@ const pagina = ref<Page<Item> | null>(null)
 const loading = ref(true)
 const errorMsg = ref<string | null>(null)
 
-const filtroNome = ref('')
-const filtroTipo = ref('')
-const page = ref(0)
+const filtroNome = ref(String(route.query.nome ?? ''))
+const filtroTipo = ref(String(route.query.tipo ?? ''))
+const page = ref(Math.max(0, Number(route.query.page) || 0))
 const PAGE_SIZE = 10
 
 const TIPI_FILTRO = [
@@ -123,6 +127,21 @@ watch([filtroNome, filtroTipo, filtroMondo, deepMode], () => {
   }, 300)
 })
 
+// Riflette i filtri nella URL. replace e non push: la cronologia non deve riempirsi di una voce
+// per ogni tasto premuto, ma la voce corrente va aggiornata così che il back dall'editor torni
+// alla vista giusta.
+watch([filtroNome, filtroTipo, deepMode, page], () => {
+  const q: Record<string, string> = {}
+  if (filtroNome.value.trim()) q.nome = filtroNome.value.trim()
+  if (filtroTipo.value) q.tipo = filtroTipo.value
+  if (deepMode.value) q.deep = '1'
+  if (page.value > 0) q.page = String(page.value)
+  // niente replace se la query è già quella (confronto per chiave: l'ordine nella URL non conta)
+  const uguale = (['nome', 'tipo', 'deep', 'page'] as const)
+      .every(k => String(route.query[k] ?? '') === (q[k] ?? ''))
+  if (!uguale) router.replace({query: q})
+})
+
 function vaiPagina(p: number) {
   if (!pagina.value) return
   const np = Math.min(Math.max(0, p), pagina.value.totalPages - 1)
@@ -141,7 +160,12 @@ const personaggioShim = {
   items: {trasformazioni: [], idoli: []},
 }
 
-onMounted(load)
+// Al ritorno da un editor i filtri arrivano dalla URL: se erano in ricerca profonda va rilanciata
+// quella, altrimenti il pannello resterebbe visibile ma vuoto.
+onMounted(() => {
+  if (inRicercaGlobale.value) eseguiRicercaGlobale()
+  else load()
+})
 </script>
 
 <template>
@@ -225,6 +249,11 @@ onMounted(load)
                 </div>
                 <span class="nome">{{ itm.nome }}</span>
               </div>
+            </button>
+            <button v-if="itm.tipo === 'RANDOMIZZATORE'" class="btn-edit btn-rand"
+                    title="Apri il randomizzatore"
+                    @click="router.push(`/randomizzatore/${itm.id}`)">
+              🎲
             </button>
             <button class="btn-edit" title="Modifica" @click="router.push(`/itemeditor/${itm.id}`)">
               ✎
@@ -420,6 +449,7 @@ onMounted(load)
   cursor: pointer;
 }
 .btn-edit:hover { background: #eef2ff; }
+.btn-rand { border-right: 1px solid #e5e7eb; }
 
 .detail {
   margin-top: .25rem;

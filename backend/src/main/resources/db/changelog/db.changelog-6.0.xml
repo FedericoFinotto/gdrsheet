@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        ITEM_TAG: associazione pesata (oggetto, tag, peso) usata dai Randomizzatori.
+        Categorie e tag sono normali items (TipoItem.CATEGORIA / TipoItem.TAG); il tag porta
+        la label CATEGORIA=<idCategoria> (stesso idioma di LIVELLO che porta CLASSE=<idClasse>).
+
+        id_categoria è DENORMALIZZATA dal tag: è ciò che permette di risolvere l'intera
+        selezione ("almeno un tag della categoria X") con un solo scan di questa tabella,
+        senza risalire a items/item_label. Va riallineata se un tag viene spostato di categoria.
+
+        peso > 0 per invariante: "peso 0" e "tag assente" sono la stessa cosa, quindi in quel
+        caso la riga non deve esistere. Questo rende anche sempre definito ln(peso), usato per
+        il calcolo del peso combinato "a prodotto".
+    -->
+    <changeSet id="500" author="developer">
+        <createTable tableName="item_tag">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_item" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="id_tag" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="id_categoria" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="peso" type="numeric(10,3)" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="501" author="developer">
+        <addForeignKeyConstraint
+                baseTableName="item_tag" baseColumnNames="id_item"
+                referencedTableName="items" referencedColumnNames="id"
+                constraintName="fk_item_tag_item" onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="item_tag" baseColumnNames="id_tag"
+                referencedTableName="items" referencedColumnNames="id"
+                constraintName="fk_item_tag_tag" onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="item_tag" baseColumnNames="id_categoria"
+                referencedTableName="items" referencedColumnNames="id"
+                constraintName="fk_item_tag_categoria" onDelete="CASCADE"/>
+    </changeSet>
+
+    <changeSet id="502" author="developer">
+        <!-- un tag non può essere associato due volte allo stesso oggetto -->
+        <addUniqueConstraint tableName="item_tag"
+                             columnNames="id_item, id_tag"
+                             constraintName="uq_item_tag_item_tag"/>
+        <!-- indice principale del percorso caldo: filtro per categoria, group by oggetto -->
+        <createIndex tableName="item_tag" indexName="ix_item_tag_cat_item">
+            <column name="id_categoria"/>
+            <column name="id_item"/>
+        </createIndex>
+        <!-- lettura dei tag di un singolo oggetto (seconda fase dell'estrazione) -->
+        <createIndex tableName="item_tag" indexName="ix_item_tag_item">
+            <column name="id_item"/>
+        </createIndex>
+        <!-- filtro per tag scelto -->
+        <createIndex tableName="item_tag" indexName="ix_item_tag_tag">
+            <column name="id_tag"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="503" author="developer">
+        <sql>ALTER TABLE item_tag ADD CONSTRAINT ck_item_tag_peso_positivo CHECK (peso > 0)</sql>
+        <rollback>ALTER TABLE item_tag DROP CONSTRAINT ck_item_tag_peso_positivo</rollback>
+    </changeSet>
+
+    <!--
+        RANDOMIZZATORE_RUN: storico delle estrazioni. Tabella dedicata e non item_label perché
+        updateItem() svuota e ricrea l'intero set di label dell'item a ogni salvataggio: uno
+        storico su label verrebbe mostrato nell'editor come label generiche e riscritto (o perso)
+        a ogni modifica, oltre a crescere senza limite su una tabella letta ovunque.
+        Il risultato è JSON serializzato (mai interrogato lato SQL): basta text.
+    -->
+    <changeSet id="510" author="developer">
+        <createTable tableName="randomizzatore_run">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_item" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="id_utente" type="int"/>
+            <column name="eseguito_il" type="timestamp" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="risultato" type="text"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="511" author="developer">
+        <addForeignKeyConstraint
+                baseTableName="randomizzatore_run" baseColumnNames="id_item"
+                referencedTableName="items" referencedColumnNames="id"
+                constraintName="fk_rand_run_item" onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="randomizzatore_run" baseColumnNames="id_utente"
+                referencedTableName="utente" referencedColumnNames="id"
+                constraintName="fk_rand_run_utente"/>
+        <createIndex tableName="randomizzatore_run" indexName="ix_rand_run_item_data">
+            <column name="id_item"/>
+            <column name="eseguito_il" descending="true"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
