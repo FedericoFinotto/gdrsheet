@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        INDICI SULLE CHIAVI ESTERNE E SUI FILTRI PIU' USATI.
+
+        Postgres NON crea indici automatici per le colonne FK (a differenza di MySQL): fino a qui
+        lo schema non ne aveva nessuno, quindi ogni lettura delle label di un item era un
+        sequential scan di ~75.000 righe, e ogni caricamento di quest/info ne faceva parecchi.
+
+        Misurato su dati reali prima di aggiungerli:
+          - quest radice di un party:      242 ms  ->  0,4 ms
+          - label di un singolo item:       26 ms  ->  0,2 ms
+          - modificatori di un item:        12 ms  ->  0,2 ms
+        Costo in spazio: ~7 MB in tutto.
+
+        Le due colonne di item_label sono in indice composito (id_item, label) perche' le letture
+        sono o "tutte le label dell'item" o "quella label di quell'item": la sola colonna guida
+        copre il primo caso, il composito anche il secondo.
+    -->
+
+    <changeSet id="700" author="developer">
+        <comment>item_label: la tabella piu' grande e la piu' letta di tutte</comment>
+        <createIndex tableName="item_label" indexName="ix_item_label_item_label">
+            <column name="id_item"/>
+            <column name="label"/>
+        </createIndex>
+        <!-- ricerche per label/valore: INFO_PARTY, QUEST_PARTY, COMPENDIO, CATEGORIA... -->
+        <createIndex tableName="item_label" indexName="ix_item_label_label_valore">
+            <column name="label"/>
+            <column name="valore"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="701" author="developer">
+        <comment>modificatori e avanzamento: letti per ogni item della scheda</comment>
+        <createIndex tableName="modificatori" indexName="ix_modificatori_item">
+            <column name="id_item"/>
+        </createIndex>
+        <createIndex tableName="avanzamento" indexName="ix_avanzamento_source">
+            <column name="id_item_source"/>
+        </createIndex>
+        <createIndex tableName="avanzamento" indexName="ix_avanzamento_target">
+            <column name="id_item_target"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="702" author="developer">
+        <comment>items: filtri per tipo, personaggio e mondo, presenti in quasi ogni query</comment>
+        <createIndex tableName="items" indexName="ix_items_tipo">
+            <column name="tipo"/>
+        </createIndex>
+        <createIndex tableName="items" indexName="ix_items_personaggio">
+            <column name="personaggio_id"/>
+        </createIndex>
+        <createIndex tableName="items" indexName="ix_items_mondo">
+            <column name="id_mondo"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="703" author="developer">
+        <comment>collegamento: percorso di risalita/discesa degli alberi (quest, info, frutti)</comment>
+        <createIndex tableName="collegamento" indexName="ix_collegamento_source">
+            <column name="id_item_source"/>
+        </createIndex>
+        <createIndex tableName="collegamento" indexName="ix_collegamento_target">
+            <column name="id_item_target"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

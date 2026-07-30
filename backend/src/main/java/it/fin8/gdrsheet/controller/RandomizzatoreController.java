@@ -89,7 +89,7 @@ public class RandomizzatoreController {
     @GetMapping("/{id}/storico")
     public ResponseEntity<List<RandomizzatoreDTO.StoricoDTO>> getStorico(
             @PathVariable Integer id,
-            @RequestParam(defaultValue = "20") int limite
+            @RequestParam(defaultValue = "5") int limite
     ) {
         return ResponseEntity.ok(randomizzatoreService.getStorico(id, limite));
     }

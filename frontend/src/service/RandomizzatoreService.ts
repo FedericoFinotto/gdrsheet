@@ -94,6 +94,6 @@ export function estrai(
     return api.post<Esito>(`/randomizzatore/${idRandomizzatore}/estrai`, {tagScelti, idMondo, idSistema});
 }
 
-export function getStorico(idRandomizzatore: number, limite = 20): Promise<AxiosResponse<StoricoVoce[]>> {
+export function getStorico(idRandomizzatore: number, limite = 5): Promise<AxiosResponse<StoricoVoce[]>> {
     return api.get<StoricoVoce[]>(`/randomizzatore/${idRandomizzatore}/storico`, {params: {limite}});
 }
