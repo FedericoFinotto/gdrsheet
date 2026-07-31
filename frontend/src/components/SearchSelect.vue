@@ -89,8 +89,11 @@ function toggle() {
 
 function scegli(o: Opt) {
   if (o.disabled) return
-  emit('update:modelValue', o.value)
+  // prima si chiude, poi si emette: se il genitore reagisce al cambio ridisegnando la lista
+  // (succede quando la scelta ne condiziona un'altra), il pannello è già fuori dai giochi
   open.value = false
+  query.value = ''
+  emit('update:modelValue', o.value)
 }
 
 function onDocClick(e: MouseEvent) {
@@ -131,7 +134,7 @@ watch(() => props.disabled, d => { if (d) open.value = false })
             :key="String(o.value)"
             class="ss-item"
             :class="{ selected: o.value === modelValue, disabled: o.disabled }"
-            @click="scegli(o)"
+            @mousedown.prevent="scegli(o)"
         ><span class="ss-item-label">{{ o.label }}</span><span v-if="o.hint" class="ss-hint"
               :style="o.hintColor ? {background: o.hintColor, color: '#fff'} : undefined">{{ o.hint }}</span></li>
       </ul>
