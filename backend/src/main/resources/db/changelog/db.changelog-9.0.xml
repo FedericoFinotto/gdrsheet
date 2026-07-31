@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        Passaggio da Imgur a imgbb come host delle immagini: Imgur ha dismesso le API pubbliche
+        e non è più possibile registrare un'applicazione.
+
+        Cambia la natura del dato di cancellazione: Imgur restituiva un "deletehash" da usare via
+        API, imgbb restituisce una "delete_url", cioè una pagina web da aprire nel browser. Quindi
+        la colonna cambia nome e si allarga per contenere un URL.
+
+        La tabella era vuota (la funzionalità non è mai stata usata), quindi non c'è nulla da
+        convertire.
+    -->
+    <changeSet id="900" author="developer">
+        <renameColumn tableName="item_immagine"
+                      oldColumnName="deletehash" newColumnName="delete_url"/>
+        <modifyDataType tableName="item_immagine" columnName="delete_url" newDataType="varchar(500)"/>
+    </changeSet>
+
+</databaseChangeLog>

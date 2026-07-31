@@ -25,6 +25,8 @@ import {Item} from "../../../../../models/dto/Item";
 import {getItemLabel, getItemLabels, LABELS, thereIsValoreLabel} from "../../../../../models/entity/ItemLabel";
 import {coloreIncarico} from "../../../../../function/coloreIncarico";
 import {useHp} from "../../../../../function/useHp";
+import {getImmagini, ItemImmagine} from "../../../../../service/ImmagineService";
+import ImmagineAllegatoPopup from "../../../../../components/ImmagineAllegatoPopup.vue";
 
 const DaiOggettoPopup = defineAsyncComponent(() => import("../../../../../components/DaiOggettoPopup.vue"))
 
@@ -146,8 +148,18 @@ async function caricaNote() {
   }
 }
 
+// Immagini dell'item (ospitate su un host esterno): richiesta a parte, non appesantisce getItem
+const immagini = ref<ItemImmagine[]>([]);
+
+function apriImmagine(img: ItemImmagine) {
+  openPopup(ImmagineAllegatoPopup, {src: img.url}, {closable: true, autoClose: 0});
+}
+
 onMounted(async () => {
   caricaNote();
+  getImmagini(item.id)
+      .then(r => immagini.value = r.data)
+      .catch(e => console.error('Errore caricamento immagini item:', e));
   try {
     const response = await getItem(item.id);
     const data = response.data;
@@ -652,6 +664,12 @@ function toggleExpand(key: string) {
       <span><strong>Velocità:</strong> {{ infoVeicolo.velocita }}</span>
     </div>
 
+    <!-- Immagini (host esterno): click per ingrandire -->
+    <div v-if="immagini.length" class="immagini-item">
+      <img v-for="img in immagini" :key="img.id" :src="img.url" :alt="img.titolo ?? ''"
+           :title="img.titolo ?? 'Ingrandisci'" loading="lazy" @click="apriImmagine(img)"/>
+    </div>
+
     <!-- Descrizione -->
     <div v-if="itemDetail.descrizione">
       <strong>Descrizione</strong><br>
@@ -818,6 +836,21 @@ function toggleExpand(key: string) {
 </template>
 
 <style scoped>
+.immagini-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-bottom: .6rem;
+}
+.immagini-item img {
+  height: 6rem;
+  max-width: 100%;
+  object-fit: cover;
+  border-radius: .5rem;
+  border: 1px solid #e5e7eb;
+  cursor: zoom-in;
+}
+
 .descrizione-html { display: inline-block; width: 100%; white-space: pre-wrap; }
 .descrizione-html :deep(ul),
 .descrizione-html :deep(ol) { margin: .3rem 0 .3rem 1.2rem; padding: 0; }

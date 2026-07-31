@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        ITEM_IMMAGINE: immagini associate a un item. I file NON stanno nel database ne' sul
+        server: vengono caricati su Imgur e qui resta solo il riferimento.
+
+        Tabella dedicata e non item_label perche' ogni immagine e' una coppia (url, deletehash)
+        piu' un ordine: appaiare piu' label per indice sarebbe fragile, e il deletehash serve a
+        cancellare davvero il file su Imgur quando l'immagine viene rimossa (altrimenti resterebbe
+        li' per sempre).
+    -->
+    <changeSet id="800" author="developer">
+        <createTable tableName="item_immagine">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_item" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <!-- url diretto del file su Imgur (i.imgur.com/xxxx.png) -->
+            <column name="url" type="varchar(500)">
+                <constraints nullable="false"/>
+            </column>
+            <!-- token restituito da Imgur per gli upload anonimi: unico modo per cancellare il file -->
+            <column name="deletehash" type="varchar(100)"/>
+            <column name="titolo" type="varchar(200)"/>
+            <column name="ordine" type="int" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="caricata_il" type="timestamp" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="801" author="developer">
+        <addForeignKeyConstraint
+                baseTableName="item_immagine" baseColumnNames="id_item"
+                referencedTableName="items" referencedColumnNames="id"
+                constraintName="fk_item_immagine_item" onDelete="CASCADE"/>
+        <createIndex tableName="item_immagine" indexName="ix_item_immagine_item">
+            <column name="id_item"/>
+            <column name="ordine"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

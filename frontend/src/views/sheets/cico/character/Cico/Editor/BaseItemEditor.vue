@@ -21,6 +21,7 @@ import VisibilitaPicker from '../../../../../../components/VisibilitaPicker.vue'
 import LabelsEditor from './Sections/LabelsEditor.vue'
 import TagEditor from './Sections/TagEditor.vue'
 import TriggerRandomizzatoriEditor from './Sections/TriggerRandomizzatoriEditor.vue'
+import ImmaginiEditor from './Sections/ImmaginiEditor.vue'
 import MultiSelectField from './Sections/MultiSelectField.vue'
 import {getTagsItem, ItemTag, setTagsItem} from '../../../../../../service/RandomizzatoreService'
 import MultiValueField from './Sections/MultiValueField.vue'
@@ -149,7 +150,7 @@ const form = reactive<{
 const open = reactive({
   labels: false, modificatori: false, attacchi: false, children: false, forme: false, effetti: false,
   campiLabel: false, descrOggetto: false, infoOggetto: false, infoVeicolo: false, descrAbilita: false, note: false,
-  incantesimi: false, inCarico: false, aggiunteClasse: false, tags: false, randTrigger: false,
+  incantesimi: false, inCarico: false, aggiunteClasse: false, tags: false, randTrigger: false, immagini: false,
 })
 
 /* Tag pesati per i randomizzatori: vivono su una tabella a parte (item_tag), non tra le
@@ -1423,6 +1424,21 @@ function onCancel() {
       </button>
       <div v-show="open.tags" class="fold-body">
         <TagEditor :model-value="tags" :disabled="disabledAll" @update:model-value="onTagsChange"/>
+      </div>
+    </section>
+
+    <!-- Immagini (caricate su un host esterno, non sul database) -->
+    <section v-if="!minimal" class="fold">
+      <button type="button" class="fold-head" @click="open.immagini = !open.immagini"
+              :aria-expanded="open.immagini ? 'true' : 'false'">
+        <span class="fold-title">Immagini</span>
+        <span class="fold-summary">&nbsp;</span>
+        <span class="chev" :class="{ open: open.immagini }">▸</span>
+      </button>
+      <div v-show="open.immagini" class="fold-body">
+        <!-- montato solo all'apertura: evita una chiamata di rete per ogni editor aperto -->
+        <ImmaginiEditor v-if="open.immagini" :id-item="props.mode === 'edit' ? props.item?.id : null"
+                        :disabled="disabledAll"/>
       </div>
     </section>
 

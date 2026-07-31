@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        Passaggio a Cloudinary come host delle immagini: imgbb tiene le API dietro abbonamento
+        (errore 103 su account gratuito), Imgur le ha dismesse del tutto.
+
+        Cambia di nuovo la natura del dato di cancellazione: imgbb dava una pagina web da aprire
+        a mano, Cloudinary dà un identificatore del file (public_id) da passare alla sua API di
+        destroy. Il nome della colonna diventa quindi neutro rispetto all'host, così un eventuale
+        prossimo cambio non richiede un'altra migrazione.
+
+        La tabella è ancora vuota (la funzionalità non è mai stata usata), niente da convertire.
+    -->
+    <changeSet id="1000" author="developer">
+        <renameColumn tableName="item_immagine"
+                      oldColumnName="delete_url" newColumnName="riferimento_esterno"/>
+    </changeSet>
+
+</databaseChangeLog>
