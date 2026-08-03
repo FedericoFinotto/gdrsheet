@@ -83,7 +83,7 @@ function edit() {
       <span v-if="ambitoLabel" class="ambito-chip">{{ ambitoLabel }}</span>
       <button type="button" class="btn-edit" @click.stop="edit" title="Modifica">✎</button>
     </div>
-    <div v-if="open" class="info-body">
+    <div v-if="open" class="info-body" :class="{'con-linea': info.figli.length > 0}">
       <div v-if="caricandoDettaglio" class="caricamento">Caricamento…</div>
       <div v-if="info.descrizione" class="descrizione" v-safe-html="info.descrizione"></div>
       <div v-if="info.note.length" class="note">
@@ -127,7 +127,7 @@ function edit() {
 
 .nome { flex: 1; min-width: 0; font-weight: 600; color: var(--text-strong); word-break: break-word; background: none; border-radius: 0; }
 .root-head .nome { font-weight: 700; font-size: 1.02rem; }
-.nome.nome-ramo { border-bottom: 2px solid var(--ramo); padding-bottom: 0; }
+.nome.nome-ramo { border-bottom: 2px solid color-mix(in srgb, var(--ramo) 30%, transparent); padding-bottom: 0; }
 
 .ambito-chip {
   flex-shrink: 0;
@@ -153,7 +153,21 @@ function edit() {
   font-size: .8rem;
 }
 
-.info-body { padding: 0 .65rem .55rem; display: grid; gap: .45rem; }
+.info-body { position: relative; padding: 0 .65rem .55rem; display: grid; gap: .45rem; }
+/* Quando il nodo ha sotto-elementi, la riga colorata (stesso --ramo dell'underline del titolo,
+   vedi .nome-ramo) attraversa TUTTO il corpo — descrizione e note comprese — non solo i figli,
+   così risulta un'unica linea continua dal titolo fino all'ultimo sotto-elemento. */
+.info-body.con-linea { padding-left: 1.15rem; }
+.info-body.con-linea::before {
+  content: '';
+  position: absolute;
+  left: .65rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--ramo, #bfdbfe);
+  opacity: .3;
+}
 .caricamento { font-size: .8rem; color: var(--text-muted); }
 .descrizione { font-size: .88rem; color: var(--text-muted); white-space: pre-wrap; }
 .note strong {
@@ -177,20 +191,9 @@ function edit() {
 .nota-html { margin: .2rem 0; font-size: .88rem; color: var(--text-muted); }
 
 .figli {
-  position: relative;
   margin-top: 0;
   padding-top: .3rem;
-  padding-left: .32rem;
   display: grid;
   gap: .4rem;
-}
-.figli::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--ramo, #bfdbfe);
 }
 </style>

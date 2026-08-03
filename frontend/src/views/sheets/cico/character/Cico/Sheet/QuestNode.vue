@@ -211,7 +211,7 @@ function edit() {
         <span v-if="quest.completata">✓</span>
       </button>
     </div>
-    <div v-if="open" class="quest-body">
+    <div v-if="open" class="quest-body" :class="{'con-linea': quest.figli.length > 0}">
       <div v-if="caricandoDettaglio" class="caricamento">Caricamento…</div>
       <div v-if="quest.descrizione" class="descrizione" v-safe-html="quest.descrizione"></div>
       <div v-if="quest.note.length" class="note">
@@ -308,7 +308,7 @@ function edit() {
    della sua linea di collegamento (vedi .figli::before). border-radius: 0 sopra è necessario:
    .nome è anche una classe globale (badge "pill", border-radius grande) e un border-bottom su un
    box con angoli molto arrotondati appare come un arco invece che una linea dritta. */
-.nome.nome-ramo { border-bottom: 2px solid var(--ramo); padding-bottom: 0; }
+.nome.nome-ramo { border-bottom: 2px solid color-mix(in srgb, var(--ramo) 30%, transparent); padding-bottom: 0; }
 
 .incarico-chip {
   font-size: .66rem;
@@ -373,7 +373,21 @@ function edit() {
   font-variant-numeric: tabular-nums;
 }
 
-.quest-body { padding: 0 .65rem .55rem; display: grid; gap: .45rem; }
+.quest-body { position: relative; padding: 0 .65rem .55rem; display: grid; gap: .45rem; }
+/* Quando il nodo ha sotto-quest, la riga colorata (stesso --ramo dell'underline del titolo,
+   vedi .nome-ramo) attraversa TUTTO il corpo — descrizione e note comprese — non solo i figli,
+   così risulta un'unica linea continua dal titolo fino all'ultima sotto-quest. */
+.quest-body.con-linea { padding-left: 1.15rem; }
+.quest-body.con-linea::before {
+  content: '';
+  position: absolute;
+  left: .65rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--ramo, #bfdbfe);
+  opacity: .3;
+}
 .btn-incarico {
   display: inline-flex;
   align-items: center;
@@ -440,28 +454,12 @@ function edit() {
 }
 .nota-html { margin: .2rem 0; font-size: .88rem; color: var(--text-muted); }
 
-/* Linea di connessione ad albero: una verticale continua per ciascuna quest, dal primo
-   all'ultimo dei suoi figli — il colore (--ramo) è quello assegnato a QUESTA quest dal suo
-   genitore (vedi ramoColore/ramoIndex), quindi ogni sotto-albero ha la propria linea colorata. */
+/* La linea di connessione ad albero ora vive su .quest-body.con-linea (vedi sopra): attraversa
+   tutto il corpo del nodo, descrizione/note comprese, non solo questo contenitore dei figli. */
 .figli {
-  position: relative;
   margin-top: 0;
   padding-top: .3rem;
-  padding-left: .32rem;
   display: grid;
   gap: .4rem;
-}
-/* Allineata sulla stessa X del nome/sottolineato nel proprio quest-head (stesso padding
-   sinistro), così la linea sembra proseguire dritta da lì verso il basso. La linea stessa parte
-   comunque da top:0 (non dal padding-top qui sopra) per restare congiunta al sottolineato senza
-   stacco, anche se il primo figlio ha un po' di respiro sopra di sé. */
-.figli::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--ramo, #bfdbfe);
 }
 </style>
