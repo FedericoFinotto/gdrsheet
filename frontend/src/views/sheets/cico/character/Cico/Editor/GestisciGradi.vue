@@ -4,11 +4,13 @@ import {useRouter} from 'vue-router'
 import {useCharacterStore} from '../../../../../../stores/personaggio'
 import {
   getAbilitaClasseByPersonaggioLivelloClasse,
+  getCompendio,
   getListaAbilitaPerPersonaggio,
   saveRanghiBulk,
 } from '../../../../../../service/PersonaggioService'
 import {Abilita} from '../../../../../../models/dto/Abilita'
 import {AbilitaClasse} from '../../../../../../models/dto/AbilitaClasse'
+import TabExpandable from '../../../../../../components/TabExpandable.vue'
 
 const props = defineProps<{ idPersonaggio: number }>()
 const router = useRouter()
@@ -53,9 +55,10 @@ function aggiornaSnapshot() {
   for (const uid of Object.keys(model)) snapshot[uid] = {...model[uid]}
 }
 
-// un livello (colonna) è modificato se almeno un'abilità differisce dallo snapshot
+// un livello (colonna) è modificato se almeno un'abilità (o uno Skill Trick) differisce dallo snapshot
 function colonnaModificata(col: Colonna): boolean {
   return righe.value.some(r => (model[r.uid]?.[col.id] ?? 0) !== (snapshot[r.uid]?.[col.id] ?? 0))
+      || stColonnaModificata(col)
 }
 
 const punti = (uid: string, livId: number): number => model[uid]?.[livId] ?? 0
@@ -75,12 +78,16 @@ const dec = (uid: string, col: Colonna) => setPunti(uid, col.id, punti(uid, col.
 // azzera tutte le celle
 function azzeraTutto() {
   for (const r of righe.value) for (const c of colonne.value) setPunti(r.uid, c.id, 0)
+  for (const r of righeSkillTrick.value) for (const c of colonne.value) setStPunti(r.itemId, c.id, 0)
 }
 
 // ripristina la situazione di quando si è aperta la pagina (snapshot iniziale)
 function ripristina() {
   for (const r of righe.value) for (const c of colonne.value) {
     setPunti(r.uid, c.id, snapshot[r.uid]?.[c.id] ?? 0)
+  }
+  for (const r of righeSkillTrick.value) for (const c of colonne.value) {
+    setStPunti(r.itemId, c.id, stSnapshot[r.itemId]?.[c.id] ?? 0)
   }
 }
 
@@ -92,6 +99,11 @@ const isClasse = (col: Colonna, uid: string) => col.classSet.has(uid.toLowerCase
 // budget del livello, non rientrano nel conteggio e non hanno concetto di "abilità
 // di classe" — 1 punto investito vale sempre 1 grado, punto e basta.
 const isProfessione = (uid: string) => uid.toUpperCase().startsWith('PR')
+// La stat unica "TRICK" (Skill Trick) non va mostrata come riga normale: la sua ripartizione
+// per singolo trucco vive nella sezione dedicata più sotto (vedi righeSkillTrick/stModel),
+// che scrive più modificatori RANK sulla stessa stat distinti dal campo "nota" (id item). Una
+// riga generica qui scriverebbe invece un unico modificatore senza nota, in conflitto.
+const STAT_SKILL_TRICK = 'TRICK'
 const righeNormali = computed(() => righe.value.filter(r => !isProfessione(r.uid)))
 const righeProfessioni = computed(() => righe.value.filter(r => isProfessione(r.uid)))
 
@@ -127,9 +139,11 @@ function applicato(col: Colonna, uid: string): number {
 const livId = (col: Colonna) => col.id
 const fmt = (n: number) => Number.isInteger(n) ? String(n) : n.toFixed(1)
 
-// totale punti spesi a quel livello (solo abilità non-professione, confronto col budget)
+// totale punti spesi a quel livello (abilità non-professione + Skill Trick, confronto col budget:
+// gli Skill Trick condividono lo stesso pool di punti abilità del livello)
 const totaleColonna = (col: Colonna) =>
     righeNormali.value.reduce((s, r) => s + punti(r.uid, col.id), 0)
+    + righeSkillTrick.value.reduce((s, r) => s + stPunti(r.itemId, col.id), 0)
 const sforato = (col: Colonna) => totaleColonna(col) > col.budget
 // somma dei valori APPLICATI per riga (effetto totale sull'abilità)
 const totaleRiga = (uid: string) =>
@@ -148,6 +162,53 @@ function canInc(col: Colonna, uid: string): boolean {
     if (j >= idx && cum + delta > colonne.value[j].maxRank) return false
   }
   return true
+}
+
+// ---------- Skill Trick (Complete Scoundrel) ----------
+// Un'unica stat reale "TRICK" in stats/stat_default (nessuna riga per singolo trucco): i punti di
+// ogni trucco vengono salvati come modificatori RANK su quella stat, distinti dal campo "nota"
+// (= id dell'item SKILL_TRICK nel compendio). Qui in UI si mostra 1 riga per trucco, cap 2 punti
+// ciascuna; al raggiungimento di 2 il backend collega automaticamente l'item al livello.
+interface RigaSkillTrick {
+  itemId: number
+  nome: string
+}
+
+const SKILL_TRICK_MAX = 2
+const righeSkillTrick = ref<RigaSkillTrick[]>([])
+// stModel[itemId][livelloId] = punti assegnati a quel trucco a quel livello
+const stModel = reactive<Record<number, Record<number, number>>>({})
+let stSnapshot: Record<number, Record<number, number>> = {}
+
+function aggiornaStSnapshot() {
+  stSnapshot = {}
+  for (const itemId of Object.keys(stModel)) stSnapshot[Number(itemId)] = {...stModel[Number(itemId)]}
+}
+
+const stPunti = (itemId: number, livId: number): number => stModel[itemId]?.[livId] ?? 0
+
+function setStPunti(itemId: number, livId: number, v: number) {
+  const n = Math.max(0, Math.floor(v) || 0)
+  if (!stModel[itemId]) stModel[itemId] = {}
+  stModel[itemId][livId] = n
+}
+
+const stTotaleRiga = (itemId: number) =>
+    colonne.value.reduce((s, c) => s + stPunti(itemId, c.id), 0)
+
+function stCanInc(col: Colonna, itemId: number): boolean {
+  if (totaleColonna(col) >= col.budget) return false
+  return stTotaleRiga(itemId) < SKILL_TRICK_MAX
+}
+
+function stInc(itemId: number, col: Colonna) {
+  if (!stCanInc(col, itemId)) return
+  setStPunti(itemId, col.id, stPunti(itemId, col.id) + 1)
+}
+const stDec = (itemId: number, col: Colonna) => setStPunti(itemId, col.id, stPunti(itemId, col.id) - 1)
+
+function stColonnaModificata(col: Colonna): boolean {
+  return righeSkillTrick.value.some(r => (stModel[r.itemId]?.[col.id] ?? 0) !== (stSnapshot[r.itemId]?.[col.id] ?? 0))
 }
 
 async function carica() {
@@ -173,6 +234,7 @@ async function carica() {
 
     righe.value = abilita
         .filter(a => a.abilita?.rankable !== false)
+        .filter(a => String(a.abilita?.id ?? '').toUpperCase() !== STAT_SKILL_TRICK)
         .map(a => ({uid: String(a.abilita?.id ?? ''), nome: a.abilita?.nome ?? ''}))
         .filter(r => r.uid)
         .sort((a, b) => a.nome.localeCompare(b.nome))
@@ -180,7 +242,7 @@ async function carica() {
     // pre-valorizza la matrice dai rank esistenti (sommati per livello)
     for (const a of abilita) {
       const uid = String(a.abilita?.id ?? '')
-      if (!uid) continue
+      if (!uid || uid.toUpperCase() === STAT_SKILL_TRICK) continue
       model[uid] = {}
       const ranks = a.rank?.ranks ?? []
       for (const c of baseColonne) {
@@ -190,6 +252,28 @@ async function carica() {
       }
     }
     aggiornaSnapshot()
+
+    // Skill Trick: lista dal compendio (item di tipo SKILL_TRICK) + prefill dei punti già
+    // spesi per livello (LivelloDTO.skillTrick, popolato dal backend dai modificatori con nota).
+    try {
+      const stRes = await getCompendio({tipo: 'SKILL_TRICK', size: 50})
+      righeSkillTrick.value = (stRes.data?.content ?? [])
+          .map((i: any) => ({itemId: i.id, nome: i.nome ?? ''}))
+          .sort((a, b) => a.nome.localeCompare(b.nome))
+    } catch (e) {
+      console.error('Errore caricamento Skill Trick:', e)
+      righeSkillTrick.value = []
+    }
+    for (const r of righeSkillTrick.value) stModel[r.itemId] = {}
+    for (const l of livelli as any[]) {
+      const punti = l.skillTrick ?? {}
+      for (const [itemIdStr, val] of Object.entries(punti)) {
+        const itemId = Number(itemIdStr)
+        if (!stModel[itemId]) stModel[itemId] = {}
+        stModel[itemId][l.id] = Number(val) || 0
+      }
+    }
+    aggiornaStSnapshot()
 
     // budget = valore congelato GRADI_LIVELLO (0 se non impostato);
     // cap per-abilità = livello + 3; abilità di classe dal backend (per il verde).
@@ -239,9 +323,13 @@ async function salva() {
       ranghi: righe.value
           .map(r => ({abilitaId: r.uid, punti: punti(r.uid, c.id)}))
           .filter(x => x.punti > 0),
+      skillTrick: righeSkillTrick.value
+          .map(r => ({itemId: r.itemId, punti: stPunti(r.itemId, c.id)}))
+          .filter(x => x.punti > 0),
     }))
     await saveRanghiBulk(props.idPersonaggio, livelli)
     aggiornaSnapshot()
+    aggiornaStSnapshot()
     await characterStore.fetchCharacter(props.idPersonaggio, true)
     messaggio.value = `Salvati ${daSalvare.length} livell${daSalvare.length === 1 ? 'o' : 'i'}.`
   } catch (e) {
@@ -326,7 +414,46 @@ onMounted(carica)
         </table>
       </template>
 
-      <!-- Riepilogo punti: budget condiviso da Abilità/Conoscenze/Intrattenere/Artigianato -->
+      <!-- Skill Trick (Complete Scoundrel): condivide il budget punti del livello con le abilità
+           sopra, ma ogni trucco ha un cap fisso di 2 punti invece del cap livello+3. Sezione
+           apribile/chiudibile perché la lista è lunga; al raggiungimento di 2 punti il backend
+           collega automaticamente l'item corrispondente al personaggio. -->
+      <TabExpandable v-if="righeSkillTrick.length" title="Skill Trick" :default-open="false">
+        <template #summary>
+          {{ righeSkillTrick.filter(r => stTotaleRiga(r.itemId) >= SKILL_TRICK_MAX).length }}/{{ righeSkillTrick.length }} sbloccati
+        </template>
+        <template #content>
+          <table class="gg-table">
+            <thead>
+              <tr>
+                <th class="sticky-col abil-col">Skill Trick</th>
+                <th v-for="c in colonne" :key="c.id" class="lvl-col" :title="c.classe">
+                  <div class="lvl-head">
+                    <span>Lv {{ c.livello }}</span>
+                    <span class="lvl-max">gradi {{ c.budget }}</span>
+                  </div>
+                </th>
+                <th class="tot-col">Tot</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in righeSkillTrick" :key="r.itemId">
+                <td class="sticky-col abil-col" :title="r.nome">{{ r.nome }}</td>
+                <td v-for="c in colonne" :key="c.id" class="cell">
+                  <div class="stepper">
+                    <button type="button" class="step" @click="stDec(r.itemId, c)" :disabled="stPunti(r.itemId, c.id) <= 0">−</button>
+                    <span class="val">{{ fmt(stPunti(r.itemId, c.id)) }}</span>
+                    <button type="button" class="step" @click="stInc(r.itemId, c)" :disabled="!stCanInc(c, r.itemId)">+</button>
+                  </div>
+                </td>
+                <td class="tot-col" :class="{ classe: stTotaleRiga(r.itemId) >= SKILL_TRICK_MAX }">{{ fmt(stTotaleRiga(r.itemId)) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
+      </TabExpandable>
+
+      <!-- Riepilogo punti: budget condiviso da Abilità/Conoscenze/Intrattenere/Artigianato/Skill Trick -->
       <table v-if="righePerFamiglia.length" class="gg-table gg-summary">
         <tbody>
           <tr>
@@ -487,6 +614,8 @@ onMounted(carica)
 /* verde = abilità di classe (incl. trasversali), bianco = cross */
 .cell { background: var(--surface-0); }
 .cell.classe { background: var(--success-bg); }
+/* Skill Trick sbloccato (2/2 punti): stesso verde usato per "abilità di classe" sopra */
+.tot-col.classe { background: var(--success-bg); }
 
 .stepper { display: inline-flex; align-items: center; gap: .2rem; }
 

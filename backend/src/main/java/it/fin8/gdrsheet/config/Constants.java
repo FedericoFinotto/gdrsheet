@@ -196,6 +196,10 @@ public final class Constants {
     public static final String ITEM_LABEL_RANK_PRIMO = "RANK_1"; // formula gradi quando è il livello 1 del personaggio
     public static final String ITEM_LABEL_RANK = "RANK";         // formula gradi per tutti gli altri livelli
     public static final String ITEM_LABEL_GRADI_LIVELLO = "GRADI_LIVELLO"; // valore gradi congelato sul livello (non retroattivo)
+    // Unica stat (tabella stats) usata per gli Skill Trick (pagina "Gestisci gradi"): tutti i punti
+    // vanno su questa stat, distinti per singolo Skill Trick tramite il campo "nota" del
+    // modificatore RANK (= id dell'item SKILL_TRICK nel compendio). Niente stat per-trick.
+    public static final String STAT_SKILL_TRICK = "TRICK";
     public static final String ITEM_LABEL_NUM_LIVELLI_CLASSE = "LIVELLI_CLASSE"; // numero di livelli della classe (default 20)
     public static final String ITEM_LABEL_EN_NAME = "EN_NAME";         // nome originale in inglese
     public static final String ITEM_LABEL_MANUALE = "MANUALE_SP";      // manuale di provenienza

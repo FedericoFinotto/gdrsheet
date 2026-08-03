@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -21,4 +22,7 @@ public class LivelloDTO extends ItemDTO {
     // Modificatore di Intelligenza che, nella formula RANK/RANK_1 della classe, produrrebbe
     // esattamente "gradi" (reverse-solve): null se manca la classe/formula o nessun match esatto.
     Integer intModEquivalente;
+    // Punti spesi in Skill Trick a questo livello: idItem (compendio, tipo SKILL_TRICK) -> punti.
+    // Salvati come label SKILL_TRICK_PUNTI su questo item LIVELLO, non nella tabella stats.
+    Map<Integer, Integer> skillTrick;
 }

@@ -29,5 +29,22 @@ public class UpdateRanghiBulkRequest {
     public static class LivelloRanghi {
         private Integer livelloId;
         private List<UpdateLivelloRequest.RangoSpesoDTO> ranghi;
+        /**
+         * Punti spesi in Skill Trick a questo livello. Tutti sulla stessa stat
+         * {@link it.fin8.gdrsheet.config.Constants#STAT_SKILL_TRICK}, distinti per singolo
+         * Skill Trick tramite {@code itemId} (salvato come "nota" del modificatore RANK).
+         */
+        private List<SkillTrickPuntoDTO> skillTrick;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class SkillTrickPuntoDTO {
+        /** Id dell'item SKILL_TRICK nel compendio. */
+        private Integer itemId;
+        private Integer punti;
     }
 }

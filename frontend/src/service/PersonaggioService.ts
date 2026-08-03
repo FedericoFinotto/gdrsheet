@@ -163,9 +163,15 @@ export function saveRanghiLivello(
 }
 
 // Salva i ranghi di più livelli in un'unica transazione (un solo persist).
+// skillTrick: punti su singoli Skill Trick (tutti sulla stessa stat "TRICK", distinti da itemId
+// salvato come "nota" del modificatore) — vedi GestisciGradi.vue.
 export function saveRanghiBulk(
     personaggioId: number,
-    livelli: Array<{ livelloId: number; ranghi: Array<{ abilitaId: string; punti: number }> }>
+    livelli: Array<{
+      livelloId: number
+      ranghi: Array<{ abilitaId: string; punti: number }>
+      skillTrick?: Array<{ itemId: number; punti: number }>
+    }>
 ): Promise<AxiosResponse<void>> {
     return api.post<void>('/item/editranghi-bulk', {personaggioId, livelli});
 }

@@ -11,6 +11,7 @@ import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -177,6 +178,24 @@ public class ItemMapper {
             int numLivelliClasse = dto.getLivelliClasse() != null && !dto.getLivelliClasse().isEmpty()
                     ? dto.getLivelliClasse().size() : 1;
             dto.setIntModEquivalente(risolviModIntPerGradi(classeItem, dto.getLivello(), numLivelliClasse, dto.getGradi()));
+        }
+
+        // Punti Skill Trick: modificatori RANK sulla stat unica "TRICK", uno per Skill Trick
+        // sbloccabile, distinti dal campo "nota" (= id dell'item Skill Trick nel compendio).
+        if (entity.getModificatori() != null) {
+            Map<Integer, Integer> skillTrick = new HashMap<>();
+            for (var m : entity.getModificatori()) {
+                if (!it.fin8.gdrsheet.def.TipoModificatore.RANK.equals(m.getTipo())) continue;
+                if (m.getStat() == null || !Constants.STAT_SKILL_TRICK.equals(m.getStat().getId())) continue;
+                if (m.getNota() == null) continue;
+                try {
+                    int itemId = Integer.parseInt(m.getNota().trim());
+                    int punti = Integer.parseInt(m.getValore().trim());
+                    skillTrick.put(itemId, punti);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            if (!skillTrick.isEmpty()) dto.setSkillTrick(skillTrick);
         }
         return dto;
     }

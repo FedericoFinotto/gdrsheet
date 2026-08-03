@@ -1079,9 +1079,141 @@ public class ItemService {
             if (l.getLivelloId() == null) continue;
             Item livello = caricaLivello(l.getLivelloId(), request.getPersonaggioId());
             applicaRanghi(livello, l.getRanghi());
+            applicaSkillTrickRanghi(livello, l.getSkillTrick());
             itemRepository.save(livello);
         }
+        reconcileSkillTricks(request.getPersonaggioId());
         personaggioCacheService.invalidaPersonaggio(request.getPersonaggioId());
+    }
+
+    private static final int SKILL_TRICK_PUNTI_SBLOCCO = 2;
+
+    /**
+     * Sostituisce i modificatori RANK sull'unica stat {@link Constants#STAT_SKILL_TRICK} di questo
+     * livello: uno per ogni Skill Trick su cui il personaggio ha investito punti, distinti dal
+     * campo "nota" (= id dell'item SKILL_TRICK nel compendio). A differenza di
+     * {@link #applicaRanghi}, qui più modificatori condividono la stessa stat, quindi non si può
+     * riusare {@link #replaceModificatoriPerTipo} (che sincronizza per statId).
+     */
+    private void applicaSkillTrickRanghi(Item livello, List<UpdateRanghiBulkRequest.SkillTrickPuntoDTO> punti) {
+        if (punti == null) return; // null = non toccare (coerente con applicaRanghi/applyGrants)
+        Map<String, String> desiderati = punti.stream()
+                .filter(p -> p.getItemId() != null && p.getPunti() != null && p.getPunti() > 0)
+                .collect(Collectors.toMap(p -> String.valueOf(p.getItemId()),
+                        p -> String.valueOf(p.getPunti()), (a, b) -> a));
+
+        List<Modificatore> esistenti = livello.getModificatori() != null
+                ? livello.getModificatori().stream()
+                    .filter(m -> TipoModificatore.RANK.equals(m.getTipo())
+                            && m.getStat() != null && Constants.STAT_SKILL_TRICK.equals(m.getStat().getId()))
+                    .toList()
+                : List.of();
+
+        Map<String, String> rimanenti = new HashMap<>(desiderati);
+        for (Modificatore m : esistenti) {
+            String nuovoValore = rimanenti.remove(m.getNota());
+            if (nuovoValore == null) {
+                modificatoreRepository.delete(m);
+                if (livello.getModificatori() != null) livello.getModificatori().remove(m);
+            } else if (!nuovoValore.equals(m.getValore())) {
+                m.setValore(nuovoValore);
+                modificatoreRepository.save(m);
+            }
+        }
+
+        if (rimanenti.isEmpty()) return;
+        Stat stat = findStat(Constants.STAT_SKILL_TRICK);
+        for (Map.Entry<String, String> e : rimanenti.entrySet()) {
+            Modificatore m = new Modificatore();
+            m.setItem(livello);
+            m.setStat(stat);
+            m.setTipo(TipoModificatore.RANK);
+            m.setValore(e.getValue());
+            m.setNota(e.getKey());
+            m.setSempreAttivo(true);
+            modificatoreRepository.save(m);
+        }
+    }
+
+    /**
+     * Ogni volta che si salvano i ranghi (pagina "Gestisci gradi"), sincronizza gli Skill Trick
+     * sbloccati: se un personaggio ha investito almeno {@value #SKILL_TRICK_PUNTI_SBLOCCO} punti
+     * complessivi (su tutti i livelli) in un dato Skill Trick (modificatori RANK sulla stat
+     * {@link Constants#STAT_SKILL_TRICK}, raggruppati per "nota" = id item), l'item corrispondente
+     * viene collegato (Collegamento) al livello più alto in cui ha ranghi > 0 su quel trick, come
+     * se fosse un contenuto concesso da quel livello. Se i punti scendono sotto la soglia, il
+     * collegamento viene rimosso.
+     */
+    private void reconcileSkillTricks(Integer personaggioId) {
+        if (personaggioId == null) return;
+        List<Item> livelli = itemRepository.findAllByPersonaggio_IdAndTipo(personaggioId, TipoItem.LIVELLO);
+        if (livelli.isEmpty()) return;
+
+        Map<Integer, Integer> numeroLivello = new HashMap<>();
+        for (Item liv : livelli) {
+            int lv = 0;
+            try {
+                lv = Integer.parseInt(liv.getLabel(Constants.ITEM_LIVELLO_LVL));
+            } catch (Exception ignored) {
+            }
+            numeroLivello.put(liv.getId(), lv);
+        }
+
+        Map<Integer, Integer> totali = new HashMap<>();   // itemId -> punti totali
+        Map<Integer, Item> livelloMax = new HashMap<>();  // itemId -> livello più alto con punti > 0
+        for (Item liv : livelli) {
+            if (liv.getModificatori() == null) continue;
+            int lv = numeroLivello.getOrDefault(liv.getId(), 0);
+            for (Modificatore m : liv.getModificatori()) {
+                if (!TipoModificatore.RANK.equals(m.getTipo()) || m.getStat() == null) continue;
+                if (!Constants.STAT_SKILL_TRICK.equals(m.getStat().getId()) || m.getNota() == null) continue;
+                Integer itemId;
+                int punti;
+                try {
+                    itemId = Integer.valueOf(m.getNota().trim());
+                    punti = Integer.parseInt(m.getValore());
+                } catch (Exception e) {
+                    continue;
+                }
+                if (punti <= 0) continue;
+                totali.merge(itemId, punti, Integer::sum);
+                Item corrente = livelloMax.get(itemId);
+                if (corrente == null || lv > numeroLivello.getOrDefault(corrente.getId(), 0)) {
+                    livelloMax.put(itemId, liv);
+                }
+            }
+        }
+
+        for (Map.Entry<Integer, Integer> entry : totali.entrySet()) {
+            Integer itemId = entry.getKey();
+            int totale = entry.getValue();
+
+            Collegamento esistente = null;
+            for (Item liv : livelli) {
+                if (liv.getChild() == null) continue;
+                for (Collegamento c : liv.getChild()) {
+                    if (c.getItemTarget() != null && itemId.equals(c.getItemTarget().getId())) {
+                        esistente = c;
+                        break;
+                    }
+                }
+                if (esistente != null) break;
+            }
+
+            if (totale >= SKILL_TRICK_PUNTI_SBLOCCO) {
+                if (esistente == null) {
+                    Item livelloTarget = livelloMax.get(itemId);
+                    Item target = itemRepository.findById(itemId).orElse(null);
+                    if (target == null || livelloTarget == null) continue;
+                    Collegamento c = new Collegamento();
+                    c.setItemSource(livelloTarget);
+                    c.setItemTarget(target);
+                    collegamentoRepository.save(c);
+                }
+            } else if (esistente != null) {
+                collegamentoRepository.delete(esistente);
+            }
+        }
     }
 
     /** Carica un item LIVELLO verificando il tipo e (se passato) l'appartenenza al personaggio. */
@@ -1110,8 +1242,14 @@ public class ItemService {
      * eliminati; quelli mancanti vengono creati.
      */
     private void replaceModificatoriPerTipo(Item itm, TipoModificatore tipo, Map<String, String> desiderati) {
+        // La stat Skill Trick ha una semantica diversa (più modificatori per stat, distinti da
+        // "nota": vedi applicaSkillTrickRanghi) e viene sincronizzata separatamente — non deve mai
+        // essere toccata da questo metodo, pensato per una stat = un modificatore.
         List<Modificatore> esistenti = itm.getModificatori() != null
-                ? itm.getModificatori().stream().filter(m -> tipo.equals(m.getTipo())).toList()
+                ? itm.getModificatori().stream()
+                    .filter(m -> tipo.equals(m.getTipo())
+                            && (m.getStat() == null || !Constants.STAT_SKILL_TRICK.equals(m.getStat().getId())))
+                    .toList()
                 : List.of();
 
         Map<String, String> rimanenti = new HashMap<>(desiderati);

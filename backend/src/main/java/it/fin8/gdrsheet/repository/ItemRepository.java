@@ -59,6 +59,8 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
     @Query("SELECT i FROM Item i LEFT JOIN FETCH i.child c WHERE i.personaggio.id = :personaggioId")
     List<Item> findAllByPersonaggioIdWithChild(@Param("personaggioId") Integer id);
 
+    List<Item> findAllByPersonaggio_IdAndTipo(Integer personaggioId, it.fin8.gdrsheet.def.TipoItem tipo);
+
     Item findItemByNomeAndPersonaggio_Id(String name, Integer personaggioId);
 
     // Cerca sia nel nome sia nella label EN_NAME (nome originale inglese), non solo nel nome.
