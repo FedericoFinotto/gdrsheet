@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, reactive, ref} from 'vue'
+import {computed, markRaw, onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {useCharacterStore} from '../../../../../../stores/personaggio'
 import {
@@ -11,10 +11,13 @@ import {
 import {Abilita} from '../../../../../../models/dto/Abilita'
 import {AbilitaClasse} from '../../../../../../models/dto/AbilitaClasse'
 import TabExpandable from '../../../../../../components/TabExpandable.vue'
+import usePopup from '../../../../../../function/usePopup'
+import Mobile_DettaglioItem from '../../Dettaglio/Mobile_DettaglioItem.vue'
 
 const props = defineProps<{ idPersonaggio: number }>()
 const router = useRouter()
 const characterStore = useCharacterStore()
+const {openPopup} = usePopup()
 
 interface Colonna {
   id: number              // id dell'item LIVELLO
@@ -42,7 +45,10 @@ const righe = ref<Riga[]>([])
 // conoscenze, intrattenere, artigianato, professioni) così ogni tabella ha la stessa larghezza
 // e nessun nome viene troncato.
 const abilColWidth = computed(() => {
-  const maxLen = righe.value.reduce((m, r) => Math.max(m, r.nome.length), 0)
+  const maxLenAbilita = righe.value.reduce((m, r) => Math.max(m, r.nome.length), 0)
+  // gli Skill Trick hanno anche il pulsante "info": qualche carattere in più di margine
+  const maxLenTrick = righeSkillTrick.value.reduce((m, r) => Math.max(m, r.nome.length + 3), 0)
+  const maxLen = Math.max(maxLenAbilita, maxLenTrick)
   return maxLen > 0 ? `${maxLen + 1}ch` : '9rem'
 })
 // model[uid][livelloId] = punti rank spesi (valore grezzo salvato)
@@ -209,6 +215,23 @@ const stDec = (itemId: number, col: Colonna) => setStPunti(itemId, col.id, stPun
 
 function stColonnaModificata(col: Colonna): boolean {
   return righeSkillTrick.value.some(r => (stModel[r.itemId]?.[col.id] ?? 0) !== (stSnapshot[r.itemId]?.[col.id] ?? 0))
+}
+
+// popup di sola lettura con la descrizione (prerequisito/beneficio) dello Skill Trick, stesso
+// componente/pattern usato per il dettaglio degli item altrove (es. TabContenutiLivello.vue)
+function mostraDescrizioneSkillTrick(r: RigaSkillTrick) {
+  const personaggio = characterStore.cache[props.idPersonaggio]
+  openPopup(
+      markRaw(Mobile_DettaglioItem),
+      {
+        data: {
+          item: {id: r.itemId, nome: r.nome, tipo: 'SKILL_TRICK'},
+          personaggio,
+        },
+        readonly: true,
+      },
+      {closable: true},
+  )
 }
 
 async function carica() {
@@ -438,7 +461,12 @@ onMounted(carica)
             </thead>
             <tbody>
               <tr v-for="r in righeSkillTrick" :key="r.itemId">
-                <td class="sticky-col abil-col" :title="r.nome">{{ r.nome }}</td>
+                <td class="sticky-col abil-col" :title="r.nome">
+                  <div class="st-name-row">
+                    <span class="st-name">{{ r.nome }}</span>
+                    <button type="button" class="btn-info" title="Vedi descrizione" @click="mostraDescrizioneSkillTrick(r)">ℹ</button>
+                  </div>
+                </td>
                 <td v-for="c in colonne" :key="c.id" class="cell">
                   <div class="stepper">
                     <button type="button" class="step" @click="stDec(r.itemId, c)" :disabled="stPunti(r.itemId, c.id) <= 0">−</button>
@@ -594,6 +622,21 @@ onMounted(carica)
   color: var(--text-muted);
 }
 .fam-title:first-child { margin-top: 0; }
+
+.st-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .3rem;
+}
+.st-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-info {
+  flex-shrink: 0;
+  width: 1.4rem; height: 1.4rem; padding: 0;
+  border: 1px solid var(--info-border); background: var(--info-bg); color: var(--info-text);
+  border-radius: .4rem; cursor: pointer; font-size: .75rem; line-height: 1;
+}
+.btn-info:hover { background: var(--info-border); }
 
 .gg-summary { margin-top: -1px; }
 .gg-summary .abil-col { font-weight: 700; }
