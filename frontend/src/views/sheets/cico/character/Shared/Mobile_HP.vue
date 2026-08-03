@@ -83,13 +83,17 @@ function apriPopup() {
   padding: 0 .3rem;
 }
 
+/* Colore fisso (non legato al tema) + alone chiaro: questi bottoni siedono sopra la barra HP,
+   che ha sempre sfondo verde/arancio/azzurro a prescindere dal tema — la stessa tecnica di
+   .hp-text qui sotto, non var(--text-muted) che in dark mode ha contrasto scarso sul verde. */
 .hp-mod {
   background: transparent;
   border: 0;
   font-weight: 700;
   font-size: .8rem;
   cursor: pointer;
-  color: var(--text-muted);
+  color: #0f172a;
+  text-shadow: 0 0 3px rgba(255, 255, 255, .9), 0 0 3px rgba(255, 255, 255, .9);
   flex-shrink: 0;
 }
 
@@ -158,6 +162,7 @@ function apriPopup() {
   flex-shrink: 0;
   cursor: pointer;
   font-size: .9rem;
-  color: var(--text-muted);
+  color: #0f172a;
+  text-shadow: 0 0 3px rgba(255, 255, 255, .9), 0 0 3px rgba(255, 255, 255, .9);
 }
 </style>

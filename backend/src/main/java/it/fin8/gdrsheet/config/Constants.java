@@ -243,6 +243,15 @@ public final class Constants {
     public static final String ITEM_LABEL_RAND_COMBINA = "RAND_COMBINA";    // PRODOTTO (default) | SOMMA
     public static final String RAND_COMBINA_PRODOTTO = "PRODOTTO";
     public static final String RAND_COMBINA_SOMMA = "SOMMA";
+    // RAND_MODO: SINGOLO (default) = un solo oggetto che deve avere TUTTI i tag scelti insieme
+    // (es. Incontri: "Isola" taggato sia su Area che su Difficoltà). COMBO = ogni categoria in
+    // RAND_SCELTA viene estratta IN MODO INDIPENDENTE (un vincitore per categoria, tra gli item
+    // taggati in quella sola categoria), i risultati vengono presentati insieme come un'unica
+    // estrazione a più facce — usato per il Meteo, dove Zona Climatica/Stato Cielo/Direzione
+    // Vento/ecc. sono assi scorrelati, non un oggetto solo che li riassume tutti.
+    public static final String ITEM_LABEL_RAND_MODO = "RAND_MODO";
+    public static final String RAND_MODO_SINGOLO = "SINGOLO";
+    public static final String RAND_MODO_COMBO = "COMBO";
     /** Estrazioni conservate per randomizzatore: le più vecchie vengono eliminate alla scrittura. */
     public static final int RAND_STORICO_MAX = 5;
     /** Sull'OGGETTO, multi-valore: randomizzatori da innescare quando viene estratto. */

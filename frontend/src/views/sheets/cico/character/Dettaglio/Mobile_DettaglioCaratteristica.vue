@@ -64,8 +64,27 @@ const displayedMods = computed(() => {
   return mods;
 });
 
-const modsSempre = computed(() => displayedMods.value.filter(x => x?.sempreAttivo));
-const modsSituaz = computed(() => displayedMods.value.filter(x => !x?.sempreAttivo));
+// Righe "Livello N" (es. Dadi Vita): ordinate per numero di livello invece che nell'ordine
+// (arbitrario) in cui arrivano dal backend. Le altre righe non vengono toccate (sort stabile:
+// a parità di confronto restano dove sono).
+const numeroLivello = (m) => {
+  const match = /Livello\s+(\d+)/i.exec(String(m?.item ?? ''));
+  return match ? Number(match[1]) : null;
+};
+const ordinaPerLivello = (lista) => [...lista].sort((a, b) => {
+  const la = numeroLivello(a), lb = numeroLivello(b);
+  if (la == null || lb == null) return 0;
+  return la - lb;
+});
+
+// Una riga "Livello N" (es. Dadi Vita) che non aggiunge nulla (nessuna formula, valore 0) è
+// solo rumore in questa lista di dettaglio: il livello esiste comunque nella scheda, ma qui
+// interessa solo cosa contribuisce davvero al totale.
+const nonInformativa = (x) =>
+    x?.tipoItem === 'LIVELLO' && !x?.formula && Number(x?.valore ?? 0) === 0;
+
+const modsSempre = computed(() => ordinaPerLivello(displayedMods.value.filter(x => x?.sempreAttivo && !nonInformativa(x))));
+const modsSituaz = computed(() => ordinaPerLivello(displayedMods.value.filter(x => !x?.sempreAttivo && !nonInformativa(x))));
 
 // ---------- UI interazione ----------
 function scheduleSave() {

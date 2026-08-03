@@ -39,6 +39,16 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        // Il dispatch interno /error (innescato da response.sendError, es. da
+                        // ResponseStatusException) rilancia l'intera catena di sicurezza come
+                        // una richiesta NUOVA e NON autenticata (JwtAuthFilter viene saltato di
+                        // default sui dispatch ERROR). Senza questo permitAll, anyRequest()
+                        // .authenticated() qui sotto blocca anche quel dispatch e l'entry point
+                        // sotto scrive 401 al posto del vero status code (es. un 404 applicativo
+                        // diventava sempre 401 al client). Vedi anche GlobalExceptionHandler, che
+                        // evita il redispatch scrivendo la risposta direttamente per le eccezioni
+                        // applicative note.
+                        .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex

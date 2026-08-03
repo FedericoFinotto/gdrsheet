@@ -2,12 +2,12 @@
 import {computed, onMounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useAuthStore} from '../stores/auth'
+import {usePartyStore} from '../stores/party'
 import {
   addMembro,
   createPersonaggio,
   deleteParty,
   getMembri,
-  getParty,
   MembroParty,
   TIPI_PERSONAGGIO
 } from '../service/PartyService'
@@ -22,9 +22,12 @@ import {UtenteAdmin} from '../models/dto/Auth'
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const partyStore = usePartyStore()
 
-const party = ref<PartyDetail | null>(null)
-const loading = ref(true)
+const idParty = computed(() => Number(route.params.id))
+const party = computed<PartyDetail | null>(() => partyStore.cache[idParty.value]?.party ?? null)
+const idNonValido = ref(false)
+const loading = computed(() => !idNonValido.value && (!partyStore.cache[idParty.value] || partyStore.cache[idParty.value].loading))
 const errorMsg = ref<string | null>(null)
 
 // membri del party (utenti) — usati sia per la gestione sia per il proprietario del PG
@@ -55,10 +58,9 @@ async function apriCreaPg() {
   }
 }
 
-async function caricaParty() {
-  const id = Number(route.params.id)
-  const res = await getParty(id)
-  party.value = res.data
+async function caricaParty(reset: boolean = false) {
+  await partyStore.fetchParty(idParty.value, reset)
+  if (!party.value) return
   // apri di default solo i gruppi con capogruppo di mia proprietà
   const gruppiMiei = (party.value.gruppi ?? [])
       .filter(g => (party.value?.personaggi ?? [])
@@ -76,7 +78,7 @@ async function onCreaPg() {
     nuovoNome.value = ''
     nuovoTipo.value = 'PG'
     showCreaPg.value = false
-    await caricaParty()
+    await caricaParty(true)
   } catch (e) {
     console.error('Errore creazione personaggio:', e)
     errorMsg.value = 'Errore nella creazione del personaggio'
@@ -171,10 +173,9 @@ async function onEliminaParty() {
 }
 
 onMounted(async () => {
-  const id = Number(route.params.id)
-  if (!Number.isFinite(id)) {
+  if (!Number.isFinite(idParty.value)) {
     errorMsg.value = 'Id party non valido'
-    loading.value = false
+    idNonValido.value = true
     return
   }
   try {
@@ -184,8 +185,6 @@ onMounted(async () => {
         ? 'Non fai parte di questo party'
         : 'Errore nel caricamento del party'
     console.error('Errore caricamento party:', e)
-  } finally {
-    loading.value = false
   }
 })
 

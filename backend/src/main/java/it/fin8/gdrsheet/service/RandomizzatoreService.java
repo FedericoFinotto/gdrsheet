@@ -141,12 +141,17 @@ public class RandomizzatoreService {
         Map<Integer, Integer> contesto = new LinkedHashMap<>();
         for (int i = 0; i < idScelte.size(); i++) contesto.put(idScelte.get(i), tagScelti.get(i));
 
-        int[] budgetNodi = {Constants.RAND_NODI_MAX};
-        RandomizzatoreDTO.EsitoDTO esito = estraiRicorsivo(
-                rand, contesto, request.getIdMondo(), request.getIdSistema(), 0, budgetNodi);
+        boolean combo = Constants.RAND_MODO_COMBO.equalsIgnoreCase(rand.getLabel(Constants.ITEM_LABEL_RAND_MODO));
+        RandomizzatoreDTO.EsitoDTO esito = combo
+                ? estraiCombo(rand, contesto, request.getIdMondo(), request.getIdSistema())
+                : estraiRicorsivo(rand, contesto, request.getIdMondo(), request.getIdSistema(),
+                        0, new int[]{Constants.RAND_NODI_MAX});
         // nei rami annidati un buco è tollerato (resta come avviso nell'albero), ma se è il
-        // primo livello a non produrre nulla l'estrazione è fallita a tutti gli effetti
-        if (esito.getIdItem() == null)
+        // primo livello a non produrre nulla l'estrazione è fallita a tutti gli effetti — in
+        // modalità combo "nulla" vuol dire nessun figlio (il contenitore stesso non ha mai un
+        // idItem proprio, è normale che sia null)
+        boolean vuoto = combo ? (esito.getFigli() == null || esito.getFigli().isEmpty()) : esito.getIdItem() == null;
+        if (vuoto)
             throw new ResponseStatusException(NOT_FOUND,
                     esito.getAvviso() != null ? esito.getAvviso() : "Nessun oggetto corrisponde ai criteri scelti");
 
@@ -272,6 +277,65 @@ public class RandomizzatoreService {
             if (e != null) figli.add(e);
         }
         if (!figli.isEmpty()) esito.setFigli(figli);
+        return esito;
+    }
+
+    /**
+     * Estrazione COMBO: ogni categoria in RAND_SCELTA viene risolta in modo indipendente (un
+     * vincitore pesato tra gli item taggati in QUELLA SOLA categoria — nessun item deve
+     * appartenere a più categorie insieme, a differenza della modalità SINGOLO). Se l'utente ha
+     * fissato un tag per una categoria (vedi {@code contesto}), i candidati di quella categoria
+     * si restringono a chi ha esattamente quel tag; altrimenti partecipano tutti gli item della
+     * categoria, pesati.
+     * <p>
+     * Il risultato è un "contenitore" (idItem null: non esiste un oggetto unico che riassuma
+     * tutte le categorie) con un figlio per categoria, ciascuno etichettato col nome della
+     * categoria stessa invece che con quello del randomizzatore.
+     */
+    private RandomizzatoreDTO.EsitoDTO estraiCombo(Item rand, Map<Integer, Integer> contesto,
+                                                    Integer idMondo, Integer idSistema) {
+        List<Integer> idScelte = leggiIdDaLabel(rand, Constants.ITEM_LABEL_RAND_SCELTA);
+        if (idScelte.isEmpty())
+            return esitoVuoto(rand, "Randomizzatore combo non configurato: nessuna categoria in RAND_SCELTA");
+
+        boolean prodotto = !Constants.RAND_COMBINA_SOMMA.equalsIgnoreCase(
+                rand.getLabel(Constants.ITEM_LABEL_RAND_COMBINA));
+        Map<Integer, String> nomiCategorie = caricaNomiCategorie(idScelte);
+
+        List<RandomizzatoreDTO.EsitoDTO> figli = new ArrayList<>();
+        for (Integer idCat : idScelte) {
+            Integer tagFissato = contesto.get(idCat);
+            List<Integer> tagScelti = tagFissato == null ? List.of() : List.of(tagFissato);
+
+            List<Object[]> righe = itemTagRepository.trovaCandidati(
+                    nonVuota(tagScelti), tagScelti.size(),
+                    nonVuota(List.of()), 0,
+                    List.of(idCat), idMondo, idSistema);
+
+            String nomeCategoria = nomiCategorie.getOrDefault(idCat, "Categoria " + idCat);
+            if (righe.isEmpty()) {
+                RandomizzatoreDTO.EsitoDTO vuoto = esitoVuoto(rand,
+                        "Nessun oggetto per la categoria '" + nomeCategoria + "'");
+                vuoto.setRandomizzatore(nomeCategoria);
+                figli.add(vuoto);
+                continue;
+            }
+
+            Integer idVincitore = (Integer) estraiPesato(righe, r -> pesoDi(r, prodotto))[0];
+            Item vincitore = itemRepository.findItemById(idVincitore);
+            RandomizzatoreDTO.EsitoDTO figlio = new RandomizzatoreDTO.EsitoDTO(
+                    vincitore.getId(), vincitore.getNome(), vincitore.getDescrizione(),
+                    List.of(), List.of(), righe.size(), LocalDateTime.now());
+            figlio.setIdRandomizzatore(rand.getId());
+            figlio.setRandomizzatore(nomeCategoria);
+            figli.add(figlio);
+        }
+
+        RandomizzatoreDTO.EsitoDTO esito = new RandomizzatoreDTO.EsitoDTO(
+                null, rand.getNome(), null, List.of(), List.of(), 0, LocalDateTime.now());
+        esito.setIdRandomizzatore(rand.getId());
+        esito.setRandomizzatore(rand.getNome());
+        esito.setFigli(figli);
         return esito;
     }
 

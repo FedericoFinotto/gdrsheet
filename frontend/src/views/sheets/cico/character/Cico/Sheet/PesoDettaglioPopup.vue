@@ -265,8 +265,9 @@ function pesoEffettivo(slot: Slot) {
 <style scoped>
 .peso-popup {
   padding: .75rem;
+  width: 100%;
   min-width: 280px;
-  max-width: 420px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: .1rem;

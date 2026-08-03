@@ -9,17 +9,20 @@ defineProps<{ esito: Esito; livello?: number }>()
 </script>
 
 <template>
-  <div class="nodo" :class="{ annidato: (livello ?? 0) > 0, vuoto: !esito.idItem }">
+  <div class="nodo" :class="{ annidato: (livello ?? 0) > 0, vuoto: !esito.idItem && !(esito.figli && esito.figli.length), contenitore: !esito.idItem && !!(esito.figli && esito.figli.length) }">
     <div v-if="esito.randomizzatore && (livello ?? 0) > 0" class="da-randomizzatore">
       da <strong>{{ esito.randomizzatore }}</strong>
     </div>
 
-    <template v-if="esito.idItem">
-      <div class="testa">
-        <span class="nome">{{ esito.nome }}</span>
-        <span class="muted candidati">tra {{ esito.candidati }} candidat{{ esito.candidati === 1 ? 'o' : 'i' }}</span>
-      </div>
+    <!-- il nome si mostra sempre quando presente: sia per un vero oggetto estratto, sia per il
+         "contenitore" di un'estrazione COMBO (idItem null, solo un titolo + i figli sotto,
+         uno per categoria/asse) -->
+    <div v-if="esito.nome" class="testa">
+      <span class="nome">{{ esito.nome }}</span>
+      <span v-if="esito.idItem" class="muted candidati">tra {{ esito.candidati }} candidat{{ esito.candidati === 1 ? 'o' : 'i' }}</span>
+    </div>
 
+    <template v-if="esito.idItem">
       <div v-if="esito.scelti.length || esito.estratti.length" class="tag-riga">
         <span v-for="t in esito.scelti" :key="'s'+t.idTag" class="chip scelto"
               :title="`${t.categoria}${t.automatico ? ' (sorteggiato d\'ufficio)' : ''}`">
@@ -49,6 +52,10 @@ defineProps<{ esito: Esito; livello?: number }>()
 }
 .nodo.annidato { border-color: var(--hairline); background: var(--surface-0); }
 .nodo.vuoto { border-color: var(--coin-mr-border); background: var(--coin-mr-bg); }
+/* Contenitore di un'estrazione COMBO: solo un titolo, il risultato vero è nei figli sotto —
+   niente sfondo "successo", è solo un'intestazione. */
+.nodo.contenitore { border-color: var(--hairline); background: var(--surface-0); }
+.nodo.contenitore > .testa .nome { font-size: 1.2rem; }
 
 .da-randomizzatore { font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; opacity: .6; }
 .testa { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
