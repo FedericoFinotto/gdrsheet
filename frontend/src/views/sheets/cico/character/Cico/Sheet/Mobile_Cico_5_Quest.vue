@@ -74,17 +74,17 @@ onMounted(load)
 .quest-tab { display: grid; gap: 0; }
 .top-bar { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .spazietto { height: .5rem; }
-.stato { padding: .6rem; color: #6b7280; font-size: .9rem; }
+.stato { padding: .6rem; color: var(--text-muted); font-size: .9rem; }
 .btn-icon {
   flex-shrink: 0; font-size: 1.05rem; line-height: 1;
-  padding: .35rem .5rem; border-radius: .5rem; border: 1px solid #d0d5dd;
-  background: #fff; cursor: pointer;
+  padding: .35rem .5rem; border-radius: .5rem; border: 1px solid var(--hairline);
+  background: var(--surface-0); cursor: pointer;
 }
-.btn-icon.active { border-color: #93c5fd; background: #eff6ff; }
+.btn-icon.active { border-color: var(--info-border); background: var(--info-bg); }
 .filtri-ambito { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
 .chip-filtro {
-  padding: .3rem .7rem; border-radius: 999px; border: 1px solid #d0d5dd;
-  background: #fff; color: #6b7280; font-size: .8rem; font-weight: 600; cursor: pointer;
+  padding: .3rem .7rem; border-radius: 999px; border: 1px solid var(--hairline);
+  background: var(--surface-0); color: var(--text-muted); font-size: .8rem; font-weight: 600; cursor: pointer;
 }
-.chip-filtro.active { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; }
+.chip-filtro.active { border-color: var(--info-border); background: var(--info-bg); color: var(--info-text); }
 </style>

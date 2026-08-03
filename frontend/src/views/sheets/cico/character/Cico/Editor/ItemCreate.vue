@@ -112,6 +112,17 @@ async function onSaved() {
 function onSavedStay() {
   refreshPersonaggio()
 }
+
+/* Floppy: salvato restando nell'editor. Qui l'item è appena stato CREATO, quindi si passa
+ * subito alla sua modifica: restare in "creazione" farebbe creare un doppione al click
+ * successivo. replace e non push, così Annulla torna da dove si era arrivati. */
+async function onSavedResta(item: { id: number }) {
+  await refreshPersonaggio()
+  const params = new URLSearchParams()
+  if (idPersonaggio.value) params.set('personaggio', String(idPersonaggio.value))
+  const q = params.toString() ? `?${params.toString()}` : ''
+  router.replace(`/itemeditor/${item.id}${q}`)
+}
 </script>
 
 <template>
@@ -142,6 +153,7 @@ function onSavedStay() {
           @cancel="goBack"
           @saved="onSaved"
           @saved-stay="onSavedStay"
+          @saved-resta="onSavedResta"
       />
 
       <div v-else class="state empty">
@@ -157,7 +169,7 @@ function onSavedStay() {
   max-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--surface-0);
 }
 
 .head {
@@ -171,7 +183,7 @@ function onSavedStay() {
   gap: .5rem .75rem;
   padding: .75rem 1rem;
   background: inherit;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--hairline);
 }
 
 .head h1 {
@@ -187,8 +199,8 @@ function onSavedStay() {
   font-size: .8rem;
   padding: .1rem .5rem;
   border-radius: .5rem;
-  background: #eef2ff;
-  color: #3730a3;
+  background: var(--info-bg);
+  color: var(--info-text);
 }
 
 .editor-scroll {
@@ -206,12 +218,12 @@ function onSavedStay() {
 .field { display: grid; gap: .35rem; }
 .lbl { font-size: .8rem; font-weight: 600; opacity: .85; }
 select {
-  width: 100%; padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff;
+  width: 100%; padding: .5rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0);
 }
 
 .state {
   padding: .75rem;
-  border: 1px dashed #e5e7eb;
+  border: 1px dashed var(--hairline);
   border-radius: .5rem;
   margin: 0;
 }

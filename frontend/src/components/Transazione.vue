@@ -74,21 +74,21 @@ function applica(segno: 1 | -1) {
 .btn-trans {
   justify-self: start;
   padding: .3rem .7rem;
-  border: 1px dashed #94a3b8;
+  border: 1px dashed var(--hairline);
   border-radius: .5rem;
-  background: #fff;
-  color: #334155;
+  background: var(--surface-0);
+  color: var(--text-strong);
   font-weight: 600;
   font-size: .8rem;
   cursor: pointer;
 }
-.btn-trans:hover { background: #f8fafc; }
+.btn-trans:hover { background: var(--btn-bg-hover); }
 .btn-trans:disabled { opacity: .5; cursor: default; }
 
 .trans-panel {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #f8fafc;
+  background: var(--btn-bg);
   padding: .5rem;
   display: grid;
   gap: .4rem;
@@ -107,8 +107,8 @@ function applica(segno: 1 | -1) {
   gap: .5rem;
   padding: .25rem .35rem;
   border-radius: .4rem;
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  border: 1px solid var(--hairline);
+  background: var(--surface-0);
 }
 
 .trans-moneta .sigla { font-size: .65rem; font-weight: 700; opacity: .8; }
@@ -118,15 +118,15 @@ function applica(segno: 1 | -1) {
   min-width: 0;
   text-align: center;
   padding: .25rem .15rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .35rem;
   font-variant-numeric: tabular-nums;
 }
 
-.trans-moneta.mp { background: #ecfeff; border-color: #a5f3fc; }
-.trans-moneta.mo { background: #fefce8; border-color: #fde68a; }
-.trans-moneta.ma { background: #f8fafc; border-color: #cbd5e1; }
-.trans-moneta.mr { background: #fff7ed; border-color: #fed7aa; }
+.trans-moneta.mp { background: var(--coin-mp-bg); border-color: var(--coin-mp-border); color: var(--coin-mp-text); }
+.trans-moneta.mo { background: var(--coin-mo-bg); border-color: var(--coin-mo-border); color: var(--coin-mo-text); }
+.trans-moneta.ma { background: var(--coin-ma-bg); border-color: var(--coin-ma-border); color: var(--coin-ma-text); }
+.trans-moneta.mr { background: var(--coin-mr-bg); border-color: var(--coin-mr-border); color: var(--coin-mr-text); }
 
 .trans-actions {
   display: flex;
@@ -142,7 +142,7 @@ function applica(segno: 1 | -1) {
   font-weight: 600;
   font-size: .8rem;
 }
-.btn.aggiungi { background: #f0fdf4; color: #166534; border-color: #86efac; }
-.btn.rimuovi { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+.btn.aggiungi { background: var(--success-bg); color: var(--success-text); border-color: var(--success-border); }
+.btn.rimuovi { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger-border); }
 .btn:disabled { opacity: .5; cursor: default; }
 </style>

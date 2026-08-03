@@ -161,8 +161,6 @@ function apriScheda(p: {id: number; tipoPersonaggio?: string | null}) {
 <style scoped>
 .home {
   width: 100%;
-  max-width: 40rem;
-  margin: 0 auto;
   padding: 1rem;
   display: grid;
   gap: 1rem;
@@ -195,37 +193,39 @@ function apriScheda(p: {id: number; tipoPersonaggio?: string | null}) {
   align-items: center;
   gap: .5rem;
   padding: .7rem .9rem;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface-0);
+  color: var(--text-strong);
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
   text-align: left;
 }
 
 .card .nome { flex: 1; font-weight: 600; }
 .card.clickable { cursor: pointer; }
-.card.clickable:hover { background: #f9fafb; }
+.card.clickable:hover { background: var(--btn-bg); }
 
 .pill {
   font-size: .75rem;
   padding: .15rem .5rem;
   border-radius: .5rem;
 }
-.pill.master { background: #fef3c7; color: #92400e; }
-.pill.giocatore { background: #dbeafe; color: #1e40af; }
-.pill.viewer { background: #f3f4f6; color: #374151; }
+.pill.master { background: var(--warning-bg); color: var(--warning-text); }
+.pill.giocatore { background: var(--info-bg); color: var(--info-text); }
+.pill.viewer { background: var(--btn-bg); color: var(--text-muted); }
 
 .state {
   padding: .75rem;
-  border: 1px dashed #e5e7eb;
+  border: 1px dashed var(--hairline);
   border-radius: .5rem;
 }
-.state.error { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+.state.error { color: var(--error-color); background: var(--surface-warn); border-color: var(--hairline); }
 
 .btn {
   padding: .45rem .8rem;
   border-radius: .5rem;
-  border: 1px solid #d0d5dd;
-  background: #fff;
+  border: 1px solid var(--hairline);
+  background: var(--surface-0);
+  color: var(--text-strong);
   cursor: pointer;
 }
 .btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
@@ -237,10 +237,10 @@ function apriScheda(p: {id: number; tipoPersonaggio?: string | null}) {
   align-items: center;
   gap: .35rem;
   padding: .4rem .8rem;
-  border: 1px dashed #94a3b8;
+  border: 1px dashed var(--text-muted);
   border-radius: .5rem;
-  background: #fff;
-  color: #334155;
+  background: var(--surface-0);
+  color: var(--text-strong);
   font-weight: 600;
   font-size: .85rem;
   cursor: pointer;
@@ -251,13 +251,15 @@ function apriScheda(p: {id: number; tipoPersonaggio?: string | null}) {
   display: grid;
   gap: .4rem;
   padding: .6rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
-  background: #fff;
+  background: var(--surface-0);
 }
 .crea-form input {
   padding: .45rem .6rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
+  background: var(--surface-0);
+  color: var(--text-strong);
 }
 </style>

@@ -103,16 +103,16 @@ function gestisciGradi() {
   align-items: center;
   gap: .35rem;
   padding: .4rem .8rem;
-  border: 1px dashed #94a3b8;
+  border: 1px dashed var(--hairline);
   border-radius: .5rem;
-  background: #fff;
-  color: #334155;
+  background: var(--surface-0);
+  color: var(--text-muted);
   font-weight: 600;
   font-size: .85rem;
   cursor: pointer;
 }
 
-.btn-add-livello:hover { background: #f8fafc; }
+.btn-add-livello:hover { background: var(--btn-bg-hover); }
 .btn-add-livello:disabled { opacity: .6; cursor: default; }
 .plus { font-weight: 800; color: #2563eb; }
 
@@ -127,12 +127,12 @@ function gestisciGradi() {
   padding: .4rem .8rem;
   border: 1px solid #2563eb;
   border-radius: .5rem;
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--info-bg);
+  color: var(--info-text);
   font-weight: 600;
   font-size: .85rem;
   cursor: pointer;
 }
 
-.btn-gestisci-gradi:hover { background: #dbeafe; }
+.btn-gestisci-gradi:hover { background: var(--info-border); }
 </style>

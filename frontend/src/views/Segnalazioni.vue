@@ -364,8 +364,6 @@ async function invia(s: Segnalazione) {
 <style scoped>
 .segnalazioni-page {
   width: 100%;
-  max-width: 44rem;
-  margin: 0 auto;
   padding: 1rem;
   display: grid;
   gap: 1rem;
@@ -384,9 +382,9 @@ async function invia(s: Segnalazione) {
   display: grid;
   gap: .6rem;
   padding: .75rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
-  background: #fff;
+  background: var(--surface-0);
 }
 .seg-head { display: flex; gap: .5rem; align-items: center; cursor: pointer; }
 .seg-head .chev { font-size: .8rem; opacity: .6; transition: transform .15s; flex-shrink: 0; }
@@ -397,27 +395,27 @@ async function invia(s: Segnalazione) {
   font-size: .7rem; font-weight: 700;
   border-radius: 999px; padding: .1rem .5rem; flex-shrink: 0;
 }
-.seg-descrizione { margin: 0; font-size: .9rem; color: #374151; white-space: pre-wrap; }
+.seg-descrizione { margin: 0; font-size: .9rem; color: var(--text-strong); white-space: pre-wrap; }
 .icona-modifica { padding: .2rem .45rem; flex-shrink: 0; }
 
 .modifica-form { display: flex; flex-direction: column; gap: .6rem; }
-.modifica-form .campo { display: flex; flex-direction: column; gap: .3rem; font-size: .85rem; color: #374151; }
+.modifica-form .campo { display: flex; flex-direction: column; gap: .3rem; font-size: .85rem; color: var(--text-strong); }
 .modifica-form input, .modifica-form textarea {
-  padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; font: inherit; resize: vertical;
+  padding: .5rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; font: inherit; resize: vertical;
 }
 .modifica-form .azioni { display: flex; justify-content: flex-end; gap: .5rem; }
 
 .allegati { display: flex; flex-wrap: wrap; gap: .5rem; }
 .allegato {
-  font: inherit; font-size: .8rem; color: #2563eb; background: #fff; cursor: pointer;
-  border: 1px solid #d0d5dd; border-radius: .5rem; padding: .3rem .6rem;
+  font: inherit; font-size: .8rem; color: #2563eb; background: var(--surface-0); cursor: pointer;
+  border: 1px solid var(--hairline); border-radius: .5rem; padding: .3rem .6rem;
 }
 .allegato:hover { text-decoration: underline; }
 
-.commenti { display: flex; flex-direction: column; gap: .5rem; border-top: 1px solid #f1f3f5; padding-top: .5rem; }
+.commenti { display: flex; flex-direction: column; gap: .5rem; border-top: 1px solid var(--hairline); padding-top: .5rem; }
 .commento { display: flex; flex-direction: column; gap: .1rem; font-size: .85rem; padding: .3rem; border-radius: .4rem; }
-.commento.nuovo { background: #eff6ff; border-left: 3px solid #2563eb; padding-left: .5rem; }
-.commento-autore { font-weight: 700; color: #1f2937; display: flex; align-items: center; gap: .4rem; }
+.commento.nuovo { background: var(--info-bg); border-left: 3px solid var(--info-border); padding-left: .5rem; }
+.commento-autore { font-weight: 700; color: var(--text-strong); display: flex; align-items: center; gap: .4rem; }
 .commento-testo { white-space: pre-wrap; }
 .img-inline { max-width: 100%; height: auto; display: block; margin: .3rem 0; border-radius: .4rem; }
 .badge-nuovo {
@@ -427,15 +425,15 @@ async function invia(s: Segnalazione) {
 
 .nuovo-commento { display: flex; gap: .5rem; align-items: flex-end; }
 .nuovo-commento textarea {
-  flex: 1; padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; font: inherit; resize: vertical;
+  flex: 1; padding: .5rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; font: inherit; resize: vertical;
 }
 
-.btn { padding: .45rem .8rem; border-radius: .5rem; border: 1px solid #d0d5dd; background: #fff; cursor: pointer; }
+.btn { padding: .45rem .8rem; border-radius: .5rem; border: 1px solid var(--hairline); background: var(--surface-0); cursor: pointer; }
 .btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
 .btn.primary:disabled { opacity: .6; cursor: default; }
-.btn.ghost { background: #fff; }
+.btn.ghost { background: var(--surface-0); }
 
-.state { padding: .75rem; border: 1px dashed #e5e7eb; border-radius: .5rem; }
-.state.error { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
-.state.small { padding: .35rem; border: 0; font-size: .8rem; color: #6b7280; }
+.state { padding: .75rem; border: 1px dashed var(--hairline); border-radius: .5rem; }
+.state.error { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
+.state.small { padding: .35rem; border: 0; font-size: .8rem; color: var(--text-muted); }
 </style>

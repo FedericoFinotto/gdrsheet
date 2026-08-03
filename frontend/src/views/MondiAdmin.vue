@@ -255,8 +255,6 @@ onMounted(async () => {
 <style scoped>
 .mondi-admin {
   width: 100%;
-  max-width: 40rem;
-  margin: 0 auto;
   padding: 1rem;
   display: grid;
   gap: 1rem;
@@ -277,7 +275,7 @@ onMounted(async () => {
 .add-form { display: flex; gap: .4rem; }
 .add-form input {
   flex: 1;
-  padding: .45rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem;
+  padding: .45rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem;
 }
 .add-form-mondo { flex-wrap: wrap; }
 .add-form-mondo input { flex: 1 1 12rem; }
@@ -285,22 +283,22 @@ onMounted(async () => {
 .cards { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
 .card {
   display: flex; align-items: center; gap: .5rem;
-  padding: .6rem .8rem; background: #fff; border: 1px solid #e5e7eb; border-radius: .6rem;
+  padding: .6rem .8rem; background: var(--surface-0); border: 1px solid var(--hairline); border-radius: .6rem;
 }
 .info { flex: 1; display: grid; }
 .info .nome { font-weight: 600; }
 
-.state { padding: .6rem; border: 1px dashed #e5e7eb; border-radius: .5rem; }
+.state { padding: .6rem; border: 1px dashed var(--hairline); border-radius: .5rem; }
 .error {
   margin: 0; padding: .5rem .7rem; border-radius: .5rem;
-  color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; font-size: .85rem;
+  color: var(--danger-text); background: var(--danger-bg); border: 1px solid var(--danger-border); font-size: .85rem;
 }
 
 .btn {
-  padding: .45rem .8rem; border-radius: .5rem; border: 1px solid #d0d5dd; background: #fff; cursor: pointer;
+  padding: .45rem .8rem; border-radius: .5rem; border: 1px solid var(--hairline); background: var(--surface-0); cursor: pointer;
 }
 .btn.small { padding: .3rem .6rem; font-size: .85rem; }
 .btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
-.btn.danger { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+.btn.danger { border-color: var(--danger-border); background: var(--danger-bg); color: var(--danger-text); }
 .btn:disabled { opacity: .6; cursor: default; }
 </style>

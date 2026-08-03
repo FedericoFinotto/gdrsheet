@@ -4,7 +4,7 @@ import {ItemDB} from '../../../../../../../models/entity/ItemDB'
 import {CampoLabel} from '../../../../../../../models/dto/UpdateItemRequest'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
-const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
+const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedResta', item: { id: number }): void }>()
 
 const CAMPI: CampoLabel[] = [
   {key: 'PESO', label: 'Peso (kg)', placeholder: 'Es.: 1.5'},
@@ -20,6 +20,7 @@ const CAMPI: CampoLabel[] = [
       titolo="Oggetto"
       :campi-label="CAMPI"
       @saved="emit('saved')"
+      @saved-resta="emit('savedResta', $event)"
       @cancel="emit('cancel')"
   />
 </template>

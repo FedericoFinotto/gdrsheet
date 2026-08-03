@@ -129,7 +129,7 @@ function modLabel(mod: any): {prefix: string; suffix: string} | string {
   align-items: center;
   padding-bottom: .6rem;
   margin-bottom: .6rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--hairline);
 }
 
 .action-btn {
@@ -146,9 +146,9 @@ function modLabel(mod: any): {prefix: string; suffix: string} | string {
 }
 
 .action-btn.edit {
-  border-color: #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-color: var(--info-border);
+  background: var(--info-bg);
+  color: var(--info-text);
   margin-left: auto;
 }
 
@@ -169,9 +169,9 @@ function modLabel(mod: any): {prefix: string; suffix: string} | string {
 
 .field input, .field select {
   padding: .35rem .5rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .4rem;
-  background: #fff;
+  background: var(--surface-0);
   font-size: .85rem;
   width: 100%;
 }
@@ -183,21 +183,21 @@ function modLabel(mod: any): {prefix: string; suffix: string} | string {
 }
 
 .btn-save {
-  border: 1px solid #6ee7b7;
-  background: #ecfdf5;
-  color: #065f46;
+  border: 1px solid var(--success-border);
+  background: var(--success-bg);
+  color: var(--success-text);
   border-radius: .5rem;
   padding: .35rem .8rem;
   cursor: pointer;
   font-size: .82rem;
 }
 
-.btn-save:hover { background: #d1fae5; }
+.btn-save:hover { filter: brightness(.97); }
 
 .btn-cancel {
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  color: #374151;
+  border: 1px solid var(--hairline);
+  background: var(--btn-bg);
+  color: var(--text-muted);
   border-radius: .5rem;
   padding: .35rem .8rem;
   cursor: pointer;

@@ -106,8 +106,9 @@ function edit() {
 <style scoped>
 .info-node {
   position: relative;
-  background: #fff;
-  border: 1px solid #e5eaf0;
+  background: var(--surface-0);
+  color: var(--text-strong);
+  border: 1px solid var(--hairline);
   border-radius: .7rem;
   margin-bottom: .45rem;
 }
@@ -124,7 +125,7 @@ function edit() {
 .info-head.root-head { padding: .65rem .8rem; }
 .info-head.senza-padding-basso { padding-bottom: 0; }
 
-.nome { flex: 1; min-width: 0; font-weight: 600; color: #1e293b; word-break: break-word; background: none; border-radius: 0; }
+.nome { flex: 1; min-width: 0; font-weight: 600; color: var(--text-strong); word-break: break-word; background: none; border-radius: 0; }
 .root-head .nome { font-weight: 700; font-size: 1.02rem; }
 .nome.nome-ramo { border-bottom: 2px solid var(--ramo); padding-bottom: 0; }
 
@@ -134,8 +135,8 @@ function edit() {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .03em;
-  border: 1px solid #cbd5e1;
-  color: #64748b;
+  border: 1px solid var(--hairline);
+  color: var(--text-muted);
   background: transparent;
   border-radius: 999px;
   padding: .1rem .55rem;
@@ -143,9 +144,9 @@ function edit() {
 
 .btn-edit {
   flex-shrink: 0;
-  border: 1px solid #93c5fd;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border: 1px solid var(--info-border);
+  background: var(--info-bg);
+  color: var(--info-text);
   border-radius: .4rem;
   padding: .25rem .55rem;
   cursor: pointer;
@@ -153,11 +154,11 @@ function edit() {
 }
 
 .info-body { padding: 0 .65rem .55rem; display: grid; gap: .45rem; }
-.caricamento { font-size: .8rem; color: #94a3b8; }
-.descrizione { font-size: .88rem; color: #334155; white-space: pre-wrap; }
+.caricamento { font-size: .8rem; color: var(--text-muted); }
+.descrizione { font-size: .88rem; color: var(--text-muted); white-space: pre-wrap; }
 .note strong {
   font-size: .75rem;
-  color: #64748b;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: .05em;
 }
@@ -173,7 +174,7 @@ function edit() {
   border-radius: 999px;
   padding: .1rem .5rem;
 }
-.nota-html { margin: .2rem 0; font-size: .88rem; color: #334155; }
+.nota-html { margin: .2rem 0; font-size: .88rem; color: var(--text-muted); }
 
 .figli {
   position: relative;

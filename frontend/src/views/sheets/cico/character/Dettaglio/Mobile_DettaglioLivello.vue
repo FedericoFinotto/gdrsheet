@@ -312,7 +312,7 @@ function showInfoAbilitaPopup(itm) {
   gap: .5rem;
   align-items: center;
   padding-bottom: .6rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--hairline);
 }
 
 .action-btn {
@@ -327,9 +327,9 @@ function showInfoAbilitaPopup(itm) {
   border: 1px solid transparent;
 }
 .action-btn:hover { filter: brightness(.97); }
-.action-btn.toggle.enable  { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
-.action-btn.toggle.disable { border-color: #fed7aa; background: #fff7ed; color: #9a3412; }
-.action-btn.edit           { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; margin-left: auto; }
+.action-btn.toggle.enable  { border-color: var(--success-border); background: var(--success-bg); color: var(--success-text); }
+.action-btn.toggle.disable { border-color: var(--coin-mr-border); background: var(--coin-mr-bg); color: var(--coin-mr-text); }
+.action-btn.edit           { border-color: var(--info-border); background: var(--info-bg); color: var(--info-text); margin-left: auto; }
 
 /* ---- Sezioni ---- */
 .detail-section {
@@ -343,11 +343,11 @@ function showInfoAbilitaPopup(itm) {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .06em;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .section-title--prof {
-  color: #7c3aed;
+  color: var(--accent-purple-text);
 }
 
 /* ---- Item list (classe/maledizione/abilità) ---- */
@@ -363,25 +363,25 @@ function showInfoAbilitaPopup(itm) {
   gap: .5rem;
   padding: .3rem .5rem;
   border-radius: .4rem;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: var(--btn-bg);
+  border: 1px solid var(--hairline);
   cursor: pointer;
 }
-.item-row:hover { background: #f3f4f6; }
+.item-row:hover { background: var(--btn-bg-hover); }
 
 .item-row--ottenuto {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
+  background: var(--success-bg);
+  border-color: var(--success-border);
 }
-.item-row--ottenuto:hover { background: #dcfce7; }
+.item-row--ottenuto:hover { background: var(--success-border); }
 
 .item-tipo-badge {
   font-size: .65rem;
   font-weight: 700;
   padding: .1rem .35rem;
   border-radius: .3rem;
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--success-bg);
+  color: var(--success-text);
   white-space: nowrap;
 }
 
@@ -393,7 +393,7 @@ function showInfoAbilitaPopup(itm) {
 
 .item-info-ico {
   font-size: .8rem;
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-left: auto;
 }
 
@@ -410,33 +410,33 @@ function showInfoAbilitaPopup(itm) {
   gap: .3rem;
   padding: .25rem .5rem;
   border-radius: .4rem;
-  border: 1px solid #e0e7ff;
-  background: #eef2ff;
+  border: 1px solid var(--info-border);
+  background: var(--info-bg);
   font-size: .85rem;
 }
 
 .mod-chip--base {
-  border-color: #fde68a;
-  background: #fffbeb;
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
 }
 
 .mod-chip-label {
   font-weight: 600;
-  color: #374151;
+  color: var(--text-muted);
 }
 
 .mod-chip-val {
   font-weight: 700;
-  color: #4338ca;
+  color: var(--info-text);
 }
 
 .mod-chip--base .mod-chip-val {
-  color: #92400e;
+  color: var(--warning-text);
 }
 
 .mod-chip-nota {
   font-size: .75rem;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 /* ---- Rank list ---- */
@@ -447,7 +447,7 @@ function showInfoAbilitaPopup(itm) {
 }
 
 .rank-list--prof {
-  border-left: 3px solid #a78bfa;
+  border-left: 3px solid var(--accent-purple-border);
   padding-left: .5rem;
 }
 
@@ -460,29 +460,29 @@ function showInfoAbilitaPopup(itm) {
 }
 
 .rank-row:nth-child(even) {
-  background: #f9fafb;
+  background: var(--surface-zebra-odd);
 }
 
 .rank-label {
   flex: 1;
   font-size: .88rem;
-  color: #374151;
+  color: var(--text-muted);
 }
 
 .rank-val {
   font-weight: 700;
   font-size: .9rem;
-  color: #1d4ed8;
+  color: var(--info-text);
   min-width: 2rem;
   text-align: right;
 }
 
 .rank-list--prof .rank-val {
-  color: #7c3aed;
+  color: var(--accent-purple-text);
 }
 
 .rank-nota {
   font-size: .75rem;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 </style>

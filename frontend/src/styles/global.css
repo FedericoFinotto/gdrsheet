@@ -4,6 +4,12 @@
 html, body, #app {
     height: 100%;
     margin: 0;
+    /* sfondo/testo espliciti: senza, il browser userebbe il proprio default
+       legato a color-scheme/OS per le zone non coperte da nessun componente,
+       che può restare scuro anche quando l'app è passata a tema chiaro (o
+       viceversa) */
+    background: var(--primary-color);
+    color: var(--text-strong);
 }
 
 *, *::before, *::after {
@@ -53,7 +59,7 @@ input, select, textarea {
     --space-4: 8px;
     --radius: 10px;
 
-    /* Palette moderna */
+    /* Palette moderna (tema chiaro, default) */
     --text-strong: #0B1220;
     --text-muted: #5B6573;
 
@@ -66,8 +72,188 @@ input, select, textarea {
     --tile-gap: #DDE4ED;
     --border-color: #060607;
 
+    /* superfici aggiuntive (card, popup, bottoni, tabelle) */
+    --surface-0: #FFFFFF;
+    --surface-0-rgb: 255, 255, 255;
+    --surface-hover: #EAF2FF;
+    --surface-zebra-odd: #F8FAFD;
+    --surface-zebra-even: #F3F7FB;
+    --surface-warn: #FFFDF5;
+
+    --btn-bg: #F3F4F6;
+    --btn-bg-hover: #EAECEF;
+    --btn-primary-bg: #111827;
+    --btn-primary-bg-hover: #0F172A;
+    --btn-primary-text: #FFFFFF;
+
+    --badge-bg: #E8EEFC;
+    --badge-text: #1F3375;
+
+    --counter-btn-bg: #FAFAFA;
+    --counter-btn-hover: #EEEEEE;
+
+    --hairline: rgba(0, 0, 0, .08);
+    --table-border: rgba(0, 0, 0, .08);
+    --overlay-bg: rgba(0, 0, 0, .5);
+
+    --error-color: #C0392B;
+    --always-badge-bg: rgba(16, 185, 129, .12);
+    --always-badge-text: #065F46;
+    --bar-delta-shadow: rgba(255, 255, 255, .6);
+    --nota-badge-bg: #F59E0B;
+    --nota-badge-text: #FFFFFF;
+
+    /* =========================
+       PALETTE SEMANTICA (successo/attenzione/pericolo/info/viola/valute)
+       Stessi ruoli riusati ovunque nell'app invece di colori hex ripetuti a
+       mano in ogni componente — cambiano insieme passando tema.
+       ========================= */
+    --success-bg: #DCFCE7;
+    --success-text: #166534;
+    --success-border: #BBF7D0;
+
+    --warning-bg: #FEF3C7;
+    --warning-text: #92400E;
+    --warning-border: #FDE68A;
+
+    --danger-bg: #FEF2F2;
+    --danger-text: #991B1B;
+    --danger-border: #FECACA;
+
+    --info-bg: #EFF6FF;
+    --info-text: #1D4ED8;
+    --info-border: #93C5FD;
+
+    --accent-purple-bg: #F5F3FF;
+    --accent-purple-text: #6D28D9;
+    --accent-purple-border: #DDD6FE;
+
+    --accent-teal-bg: #CCFBF1;
+    --accent-teal-text: #0F766E;
+    --accent-teal-border: #99F6E4;
+
+    --accent-pink-bg: #FCE7F3;
+    --accent-pink-text: #9D174D;
+    --accent-pink-border: #FBCFE8;
+
+    /* Valute (riusate in SoldiView, Mobile_Cico_8_Soldi, Mobile_Borsellino) */
+    --coin-mp-bg: #ECFEFF;
+    --coin-mp-text: #155E75;
+    --coin-mp-border: #A5F3FC;
+    --coin-mo-bg: #FEFCE8;
+    --coin-mo-text: #854D0E;
+    --coin-mo-border: #FDE68A;
+    --coin-ma-bg: #F1F5F9;
+    --coin-ma-text: #334155;
+    --coin-ma-border: #CBD5E1;
+    --coin-mr-bg: #FFEDD5;
+    --coin-mr-text: #9A3412;
+    --coin-mr-border: #FED7AA;
+
     /* layout */
     --topbar-h: 36px;
+}
+
+/* Tema scuro: applicato mettendo data-theme="dark" su <html> (vedi function/useTheme.js) */
+:root[data-theme="dark"] {
+    --text-strong: #E8EAED;
+    --text-muted: #9AA4B2;
+
+    --primary-color: #12151C;
+    --secondary-color: #17321F;
+    --tertiary-color: #16283B;
+    --accent-color: #FFD166;
+
+    --tile-gap: #232A35;
+    --border-color: rgba(255, 255, 255, .14);
+
+    --surface-0: #1B1F27;
+    --surface-0-rgb: 27, 31, 39;
+    --surface-hover: #1E2B3D;
+    --surface-zebra-odd: #171A21;
+    --surface-zebra-even: #1B1F27;
+    --surface-warn: #2A2415;
+
+    --btn-bg: #232732;
+    --btn-bg-hover: #2C303C;
+    --btn-primary-bg: #E8EAED;
+    --btn-primary-bg-hover: #FFFFFF;
+    --btn-primary-text: #12151C;
+
+    --badge-bg: #1E2B4A;
+    --badge-text: #AFC3FF;
+
+    --counter-btn-bg: #232732;
+    --counter-btn-hover: #2C303C;
+
+    --hairline: rgba(255, 255, 255, .10);
+    --table-border: rgba(255, 255, 255, .08);
+    --overlay-bg: rgba(0, 0, 0, .65);
+
+    --error-color: #FF6B6B;
+    --always-badge-bg: rgba(16, 185, 129, .18);
+    --always-badge-text: #6EE7B7;
+    --bar-delta-shadow: rgba(0, 0, 0, .6);
+
+    --success-bg: #14301F;
+    --success-text: #6EE7B7;
+    --success-border: #1F4A30;
+
+    --warning-bg: #3A2A0A;
+    --warning-text: #FBBF24;
+    --warning-border: #52380F;
+
+    --danger-bg: #3A1414;
+    --danger-text: #FCA5A5;
+    --danger-border: #522020;
+
+    --info-bg: #16283B;
+    --info-text: #93C5FD;
+    --info-border: #1E3A5F;
+
+    --accent-purple-bg: #241A3A;
+    --accent-purple-text: #C4B5FD;
+    --accent-purple-border: #382A54;
+
+    --accent-teal-bg: #0F2E2B;
+    --accent-teal-text: #5EEAD4;
+    --accent-teal-border: #134E4A;
+
+    --accent-pink-bg: #3A1830;
+    --accent-pink-text: #F9A8D4;
+    --accent-pink-border: #55234A;
+
+    --coin-mp-bg: #0D2B33;
+    --coin-mp-text: #67E8F9;
+    --coin-mp-border: #155E63;
+    --coin-mo-bg: #332B0D;
+    --coin-mo-text: #FDE68A;
+    --coin-mo-border: #5C4A12;
+    --coin-ma-bg: #1E2530;
+    --coin-ma-text: #CBD5E1;
+    --coin-ma-border: #334155;
+    --coin-mr-bg: #3A2412;
+    --coin-mr-text: #FDBA74;
+    --coin-mr-border: #5C3A1A;
+}
+
+/* color-scheme esplicito per entrambi i temi: senza, un browser con
+   preferenza di sistema dark userebbe comunque i propri default scuri
+   (scrollbar, controlli nativi, sfondo canvas) anche a tema chiaro attivo */
+:root[data-theme="light"] {
+    color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+/* Anche senza preferenza salvata, rispetta il tema di sistema al primo render
+   (evita un flash chiaro prima che JS applichi [data-theme]) */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        color-scheme: dark;
+    }
 }
 
 /* =========================
@@ -160,7 +346,7 @@ input, select, textarea {
 }
 
 .tab-header button.active {
-    background: #EEF4FF;
+    background: var(--surface-hover);
 }
 
 .tab-content {
@@ -291,8 +477,8 @@ input, select, textarea {
     line-height: 1;
     padding: 1px 4px;
     border-radius: 999px;
-    background: #f59e0b;
-    color: #fff;
+    background: var(--nota-badge-bg);
+    color: var(--nota-badge-text);
     align-self: flex-start;
     margin-top: -1px;
 }
@@ -331,19 +517,16 @@ input, select, textarea {
     color: var(--text-strong);
 }
 
-/* Box titolo piatto */
+/* Etichetta nome generica: SOLO testo, nessuno sfondo/box proprio.
+   ".nome" è riusata come classe generica per il testo del titolo in ~19
+   componenti diversi (card di liste, righe di tabella, nodi ad albero...);
+   prima aveva un proprio sfondo/altezza/bordo fissi che, non combaciando
+   con lo sfondo del contenitore che la ospita (card, riga, accordion...),
+   creava un doppio sfondo visibile — molto più evidente in dark mode dove
+   i due sfondi non sono quasi uguali come lo erano in chiaro. */
 .nome {
-    border: 0;
-    background: var(--primary-color);
-    text-align: center;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 34px;
     color: var(--text-strong);
     font-size: var(--fs-sm);
-    border-radius: var(--radius);
-    box-shadow: none;
 }
 
 /* =========================
@@ -354,7 +537,7 @@ input, select, textarea {
     border-radius: var(--radius);
     padding: var(--space-3);
     margin-bottom: var(--space-3);
-    background: #fff;
+    background: var(--surface-0);
     box-shadow: none;
 }
 
@@ -401,7 +584,8 @@ input, select, textarea {
 .btn {
     appearance: none;
     border: 0;
-    background: #F3F4F6;
+    background: var(--btn-bg);
+    color: var(--text-strong);
     border-radius: 8px;
     padding: .25rem .5rem;
     cursor: pointer;
@@ -410,7 +594,7 @@ input, select, textarea {
 }
 
 .btn:hover {
-    background: #EAECEF;
+    background: var(--btn-bg-hover);
 }
 
 .btn:disabled {
@@ -427,12 +611,12 @@ input, select, textarea {
 }
 
 .btn.primary {
-    background: #111827;
-    color: #fff;
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
 }
 
 .btn.primary:hover {
-    background: #0f172a;
+    background: var(--btn-primary-bg-hover);
 }
 
 .btn.subtle {
@@ -484,21 +668,22 @@ input, select, textarea {
 .custom-table td,
 .custom-table .tbl-td {
     padding: .42rem .6rem;
-    border-bottom: 1px solid rgb(0, 0, 0);
+    border-bottom: 1px solid var(--table-border);
     vertical-align: middle;
+    color: var(--text-strong);
 }
 
 /* Zebra + hover */
 .custom-table tbody tr:nth-child(odd) td {
-    background: #F8FAFD;
+    background: var(--surface-zebra-odd);
 }
 
 .custom-table tbody tr:nth-child(even) td {
-    background: #F3F7FB;
+    background: var(--surface-zebra-even);
 }
 
 .custom-table tbody tr:hover td {
-    background: #EAF2FF;
+    background: var(--surface-hover);
 }
 
 /* Righe con stati */
@@ -513,7 +698,7 @@ input, select, textarea {
 
 .custom-table .expansion-row .expansion-cell {
     padding: .5rem;
-    background: #FFFDF5;
+    background: var(--surface-warn);
 }
 
 /* Allineamenti rapidi */
@@ -564,8 +749,8 @@ input, select, textarea {
     border-radius: 999px;
     font-weight: 800;
     letter-spacing: .02em;
-    background: #e8eefc;
-    color: #1f3375;
+    background: var(--badge-bg);
+    color: var(--badge-text);
 }
 
 /* =========================
@@ -594,7 +779,8 @@ input, select, textarea {
     place-items: center;
     border-radius: 0;
     border: 1px solid var(--border-color);
-    background: #FAFAFA;
+    background: var(--counter-btn-bg);
+    color: var(--text-strong);
     line-height: 1;
     cursor: pointer;
     font-weight: 800;
@@ -602,7 +788,7 @@ input, select, textarea {
 }
 
 .counter-btn:hover {
-    background: #EEE;
+    background: var(--counter-btn-hover);
 }
 
 .counter-btn:active {
@@ -666,13 +852,13 @@ input, select, textarea {
     align-items: center;
     gap: var(--space-2);
     padding: 8px 0 0;
-    background: linear-gradient(to top, rgba(255, 255, 255, 1) 70%, rgba(255, 255, 255, 0));
+    background: linear-gradient(to top, rgba(var(--surface-0-rgb), 1) 70%, rgba(var(--surface-0-rgb), 0));
 }
 
 .popup-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, .5);
+    background: var(--overlay-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -681,7 +867,8 @@ input, select, textarea {
 
 .popup-content {
     position: relative;
-    background: white;
+    background: var(--surface-0);
+    color: var(--text-strong);
     border-radius: 0;
     padding: 1rem;
     overflow: auto;
@@ -713,7 +900,7 @@ input, select, textarea {
     border: 1px solid var(--border-color);
     border-radius: 0;
     overflow: hidden;
-    background: #fff;
+    background: var(--surface-0);
     gap: .5rem;
 }
 
@@ -758,8 +945,8 @@ input, select, textarea {
     font-weight: bold;
     font-size: var(--fs-sm);
     z-index: 2;
-    color: #000;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, .6);
+    color: var(--text-strong);
+    text-shadow: 0 1px 0 var(--bar-delta-shadow);
     padding: 0 .25rem;
 }
 
@@ -791,7 +978,7 @@ input, select, textarea {
 }
 
 .error {
-    color: #c0392b;
+    color: var(--error-color);
 }
 
 .state {
@@ -806,7 +993,7 @@ input, select, textarea {
 }
 
 .spell-row {
-    border-bottom: 1px solid rgba(0, 0, 0, .08);
+    border-bottom: 1px solid var(--hairline);
     padding: 6px 0;
 }
 
@@ -872,8 +1059,8 @@ input, select, textarea {
     font-size: .78rem;
     padding: 2px 6px;
     border-radius: 8px;
-    background: rgba(16, 185, 129, .12);
-    color: #065f46;
+    background: var(--always-badge-bg);
+    color: var(--always-badge-text);
 }
 
 /* Expand transition */
@@ -906,7 +1093,7 @@ p {
     outline: none; /* removes the focus outline if you don’t want it */
 
     /* 3️⃣ Text appearance */
-    color: #000; /* black */
+    color: var(--text-strong);
     font-weight: bold; /* bold */
     font-size: 1rem; /* adjust as needed */
     padding: 0; /* no extra inner spacing */
@@ -917,5 +1104,5 @@ p {
 }
 
 .hp-mod:focus-visible {
-    outline: 2px dashed #000;
+    outline: 2px dashed var(--text-strong);
 }

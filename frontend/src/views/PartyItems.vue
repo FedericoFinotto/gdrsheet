@@ -327,8 +327,6 @@ function personaggioShim(itm: PartyItem) {
 <style scoped>
 .party-items-page {
   width: 100%;
-  max-width: 44rem;
-  margin: 0 auto;
   padding: 1rem;
   display: grid;
   gap: .75rem;
@@ -363,8 +361,8 @@ function personaggioShim(itm: PartyItem) {
 .row {
   display: flex;
   align-items: stretch;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface-0);
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
   overflow: hidden;
 }
@@ -385,7 +383,7 @@ function personaggioShim(itm: PartyItem) {
   min-width: 0;
 }
 
-.row-main:hover { background: #f9fafb; }
+.row-main:hover { background: var(--surface-hover); }
 
 .nome {
   font-weight: 600;
@@ -407,8 +405,8 @@ function personaggioShim(itm: PartyItem) {
   padding: .15rem .5rem;
   border-radius: .5rem;
 }
-.pill.owner { background: #eef2ff; color: #3730a3; white-space: nowrap; }
-.pill.qta { background: #f0fdf4; color: #166534; margin-left: .3rem; font-weight: 700; }
+.pill.owner { background: var(--info-bg); color: var(--info-text); white-space: nowrap; }
+.pill.qta { background: var(--success-bg); color: var(--success-text); margin-left: .3rem; font-weight: 700; }
 
 .global-search {
   display: flex;
@@ -419,19 +417,19 @@ function personaggioShim(itm: PartyItem) {
   min-width: 0;
   box-sizing: border-box;
   padding: .55rem .7rem;
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--info-border);
   border-radius: .6rem;
-  background: #f8fbff;
+  background: var(--info-bg);
   font-size: .95rem;
 }
-.global-search input:focus { outline: none; border-color: #60a5fa; background: #fff; }
+.global-search input:focus { outline: none; border-color: #60a5fa; background: var(--surface-0); }
 
 .btn-deep {
   padding: 0 .9rem;
   border-radius: .6rem;
-  border: 1px solid #d0d5dd;
-  background: #fff;
-  color: #6b7280;
+  border: 1px solid var(--hairline);
+  background: var(--surface-0);
+  color: var(--text-muted);
   font-weight: 700;
   font-size: .78rem;
   letter-spacing: .04em;
@@ -454,7 +452,7 @@ function personaggioShim(itm: PartyItem) {
 .match-snippet {
   flex: 1 1 100%;
   font-size: .82rem;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
   overflow-wrap: anywhere;
 }
 .match-snippet :deep(mark.hl),
@@ -464,8 +462,8 @@ function personaggioShim(itm: PartyItem) {
   border-radius: .2rem;
   padding: 0 .1rem;
 }
-.pill.tipo { background: #eef2ff; color: #3730a3; white-space: nowrap; }
-.match { font-size: .72rem; color: #9ca3af; font-style: italic; margin-left: auto; }
+.pill.tipo { background: var(--info-bg); color: var(--info-text); white-space: nowrap; }
+.match { font-size: .72rem; color: var(--text-muted); font-style: italic; margin-left: auto; }
 
 .filters {
   display: grid;
@@ -475,9 +473,9 @@ function personaggioShim(itm: PartyItem) {
 
 .filter-tipo, .filter-possessore {
   padding: .45rem .6rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #fff;
+  background: var(--surface-0);
 }
 
 .paginator {
@@ -491,13 +489,13 @@ function personaggioShim(itm: PartyItem) {
 
 .btn-give {
   border: 0;
-  border-left: 1px solid #e5e7eb;
-  background: #fefce8;
+  border-left: 1px solid var(--hairline);
+  background: var(--coin-mo-bg);
   padding: 0 .8rem;
   font-size: 1.1rem;
   cursor: pointer;
 }
-.btn-give:hover { background: #fef9c3; }
+.btn-give:hover { background: var(--warning-bg); }
 
 .give-panel {
   display: flex;
@@ -505,8 +503,9 @@ function personaggioShim(itm: PartyItem) {
   align-items: center;
   gap: .4rem;
   padding: .5rem .75rem;
-  background: #fefce8;
-  border: 1px solid #fde68a;
+  background: var(--coin-mo-bg);
+  border: 1px solid var(--coin-mo-border);
+  color: var(--coin-mo-text);
   border-radius: .6rem;
   margin-top: .25rem;
 }
@@ -516,26 +515,26 @@ function personaggioShim(itm: PartyItem) {
 .btn {
   padding: .4rem .8rem;
   border-radius: .5rem;
-  border: 1px solid #d0d5dd;
-  background: #fff;
+  border: 1px solid var(--hairline);
+  background: var(--surface-0);
   cursor: pointer;
 }
 .btn.dest { font-weight: 600; }
-.btn.dest:hover { background: #f0fdf4; border-color: #86efac; }
+.btn.dest:hover { background: var(--success-bg); border-color: var(--success-border); }
 .btn:disabled { opacity: .6; cursor: default; }
 
 .detail {
   margin-top: .25rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
   padding: .5rem;
-  background: #fff;
+  background: var(--surface-0);
 }
 
 .state {
   padding: .75rem;
-  border: 1px dashed #e5e7eb;
+  border: 1px dashed var(--hairline);
   border-radius: .5rem;
 }
-.state.error { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+.state.error { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
 </style>

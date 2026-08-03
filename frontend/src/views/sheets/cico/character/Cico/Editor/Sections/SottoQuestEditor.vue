@@ -242,60 +242,63 @@ async function salvaNuova() {
 
 .sottoquest-row {
   display: grid; grid-template-columns: 1fr auto auto; gap: .4rem; align-items: center;
-  padding: .35rem .5rem; border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff;
+  padding: .35rem .5rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0);
+  color: var(--text-strong);
 }
 .nome { white-space: normal; word-break: break-word; }
 
 .btn-edit {
-  border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8;
+  border: 1px solid var(--info-border); background: var(--info-bg); color: var(--info-text);
   border-radius: .5rem; padding: .3rem .55rem; cursor: pointer;
 }
-.btn-edit:hover { background: #dbeafe; }
+.btn-edit:hover { background: var(--info-border); }
 
 .btn-del {
-  border: 1px solid #fecaca; background: #fef2f2; color: #991b1b;
+  border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger-text);
   border-radius: .5rem; padding: .3rem .55rem; cursor: pointer;
 }
 
 .new-form {
-  display: grid; gap: .5rem; padding: .6rem; border: 1px dashed #93c5fd; border-radius: .5rem; background: #f8fafc;
+  display: grid; gap: .5rem; padding: .6rem; border: 1px dashed var(--info-border); border-radius: .5rem; background: var(--surface-0);
+  color: var(--text-strong);
 }
 .field { display: grid; gap: .3rem; }
 .lbl { font-size: .8rem; font-weight: 600; opacity: .85; }
 .field input {
-  width: 100%; padding: .45rem .55rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff;
+  width: 100%; padding: .45rem .55rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0);
+  color: var(--text-strong);
 }
 .form-actions { display: flex; justify-content: flex-end; gap: .5rem; }
 .error {
   margin: 0; padding: .4rem .6rem; border-radius: .4rem;
-  color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; font-size: .82rem;
+  color: var(--danger-text); background: var(--danger-bg); border: 1px solid var(--danger-border); font-size: .82rem;
 }
 
 .add-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .15rem; }
 .btn-create {
-  border: 1px dashed #93c5fd; background: #eff6ff; color: #1d4ed8;
+  border: 1px dashed var(--info-border); background: var(--info-bg); color: var(--info-text);
   border-radius: .5rem; padding: .4rem .7rem; font-weight: 600; cursor: pointer;
 }
-.btn-create:hover { background: #dbeafe; }
-.btn-create.secondaria { border-color: #cbd5e1; background: #f8fafc; color: #475569; }
-.btn-create.secondaria:hover { background: #f1f5f9; }
+.btn-create:hover { background: var(--info-border); }
+.btn-create.secondaria { border-color: var(--hairline); background: var(--surface-0); color: var(--text-muted); }
+.btn-create.secondaria:hover { background: var(--btn-bg-hover); }
 
-.hint { margin: 0; font-size: .78rem; color: #94a3b8; }
+.hint { margin: 0; font-size: .78rem; color: var(--text-muted); }
 
 .risultati { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; max-height: 16rem; overflow-y: auto; }
 .risultato {
   width: 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem;
   text-align: left; cursor: pointer;
-  border: 1px solid #e2e8f0; border-radius: .45rem; background: #fff; padding: .35rem .5rem;
+  border: 1px solid var(--hairline); border-radius: .45rem; background: var(--surface-0); color: var(--text-strong); padding: .35rem .5rem;
 }
-.risultato:hover:not(:disabled) { background: #eff6ff; border-color: #bfdbfe; }
+.risultato:hover:not(:disabled) { background: var(--info-bg); border-color: var(--info-border); }
 .risultato:disabled { opacity: .55; cursor: default; }
 .r-nome { font-weight: 600; word-break: break-word; }
-.r-ambito { font-size: .72rem; color: #64748b; }
-.r-gia { font-size: .72rem; color: #b45309; }
+.r-ambito { font-size: .72rem; color: var(--text-muted); }
+.r-gia { font-size: .72rem; color: var(--warning-text); }
 
 .btn { padding: .5rem .9rem; border-radius: .5rem; border: 1px solid transparent; cursor: pointer; }
-.btn.ghost { border-color: #d0d5dd; background: #fff; }
+.btn.ghost { border-color: var(--hairline); background: var(--surface-0); color: var(--text-strong); }
 .btn.primary { background: #2563eb; color: white; }
 button:disabled { opacity: .6; cursor: default; }
 </style>

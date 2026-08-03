@@ -369,44 +369,44 @@ const columnsEffetti = col('Effetti');
   width: 100%;
   box-sizing: border-box;
   padding: .5rem .7rem;
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--info-border);
   border-radius: .5rem;
-  background: #f8fbff;
+  background: var(--info-bg);
   font-size: .9rem;
 }
-.ricerca-input:focus { outline: none; border-color: #60a5fa; background: #fff; }
-.stato-ricerca { padding: .6rem; color: #6b7280; font-size: .9rem; }
+.ricerca-input:focus { outline: none; border-color: #60a5fa; background: var(--surface-0); }
+.stato-ricerca { padding: .6rem; color: var(--text-muted); font-size: .9rem; }
 .separato-titolo {
   font-size: .8rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .04em;
-  color: #6b7280;
+  color: var(--text-muted);
   padding: .2rem 0;
 }
 .btn-compendio {
   flex-shrink: 0;
   padding: .35rem .75rem;
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border: 1px solid var(--info-border);
+  background: var(--info-bg);
+  color: var(--info-text);
   border-radius: .5rem;
   font-size: .8rem;
   font-weight: 600;
   cursor: pointer;
 }
-.btn-compendio:hover { background: #dbeafe; }
+.btn-compendio:hover { background: var(--info-border); }
 .btn-reset {
   flex-shrink: 0;
   padding: .35rem .75rem;
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
+  border: 1px solid var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-text);
   border-radius: .5rem;
   font-size: .8rem;
   font-weight: 600;
   cursor: pointer;
 }
-.btn-reset:hover { background: #fee2e2; }
+.btn-reset:hover { background: var(--danger-border); }
 .btn-reset:disabled { opacity: .5; cursor: default; }
 </style>

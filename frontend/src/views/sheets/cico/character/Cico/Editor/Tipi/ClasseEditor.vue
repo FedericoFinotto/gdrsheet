@@ -7,6 +7,7 @@ import {Item} from '../../../../../../../models/dto/Item'
 import api from '../../../../../../../service/api'
 import {getItem, getStats, searchItems, updateItem} from '../../../../../../../service/PersonaggioService'
 import HtmlEditor from '../../../../../../../components/HtmlEditor.vue'
+import Icona from '../../../../../../../components/Icona/Icona.vue'
 import {SPELL_LIST_CODES, spellListLabel} from '../../../../../../../function/spellLists'
 import SearchSelect from '../../../../../../../components/SearchSelect.vue'
 import {useMondoSistema} from '../../../../../../../function/useMondoSistema'
@@ -14,7 +15,11 @@ import {LABELS} from '../../../../../../../models/entity/ItemLabel'
 import {LabelRow} from '../../../../../../../models/dto/UpdateItemRequest'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
-const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
+const emit = defineEmits<{
+  (e: 'saved'): void
+  (e: 'cancel'): void
+  (e: 'savedResta', item: { id: number }): void
+}>()
 
 const router = useRouter()
 const route = useRoute()
@@ -445,21 +450,41 @@ function buildClassePayload() {
   }
 }
 
-async function onSave() {
-  if (!canSave.value) return
+/** Esegue il salvataggio; ritorna la classe salvata (con id, utile in creazione) o null se
+ *  fallito. Separato dall'emit così serve sia al "Salva classe" che chiude sia al floppy. */
+async function salva(): Promise<{ id: number } | null> {
+  if (!canSave.value) return null
   busy.value = true
   errorMsg.value = null
   try {
-    await api.post('/item/classe', buildClassePayload())
-    emit('saved')
+    const {data} = await api.post('/item/classe', buildClassePayload())
+    return data ?? {id: props.item.id}
   } catch (e: any) {
     errorMsg.value = e?.response?.status === 403
         ? 'Non hai i permessi'
         : 'Errore nel salvataggio della classe'
     console.error('Errore salvataggio classe:', e)
+    return null
   } finally {
     busy.value = false
   }
+}
+
+async function onSave() {
+  if (await salva()) emit('saved')
+}
+
+// floppy: salva senza uscire dall'editor
+const salvato = ref(false)
+let timerSalvato: ReturnType<typeof setTimeout> | null = null
+
+async function onSalvaResta() {
+  const salvataClasse = await salva()
+  if (!salvataClasse) return
+  emit('savedResta', salvataClasse)
+  salvato.value = true
+  if (timerSalvato) clearTimeout(timerSalvato)
+  timerSalvato = setTimeout(() => salvato.value = false, 2000)
 }
 
 // Salvataggio della singola riga "Privilegi di Classe" in modalità avanzata: persiste
@@ -1034,6 +1059,9 @@ const sumInfoRazza = computed(() => {
 
       <div class="actions">
         <button type="button" class="btn ghost" @click="emit('cancel')" :disabled="busy">Annulla</button>
+        <span v-if="salvato" class="salvato">Salvato</span>
+        <button type="button" class="btn icona" :disabled="!canSave" title="Salva e resta qui"
+                aria-label="Salva e resta qui" @click="onSalvaResta"><Icona name="SALVA"/></button>
         <button type="submit" class="btn primary" :disabled="!canSave">
           {{ busy ? 'Salvataggio…' : 'Salva classe' }}
         </button>
@@ -1048,17 +1076,17 @@ const sumInfoRazza = computed(() => {
 .rank-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
 @media (max-width: 700px) { .rank-grid { grid-template-columns: 1fr; } }
 
-.sez-card { border: 1px solid #e5e7eb; border-radius: .5rem; padding: .5rem; display: grid; gap: .5rem; margin-bottom: .4rem; background: #fafafa; }
+.sez-card { border: 1px solid var(--hairline); border-radius: .5rem; padding: .5rem; display: grid; gap: .5rem; margin-bottom: .4rem; background: var(--btn-bg); }
 .sez-head { display: flex; align-items: center; justify-content: space-between; }
 .sez-title { font-weight: 700; font-size: .9rem; }
 .chips { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .3rem; }
-.chip { display: inline-flex; align-items: center; gap: .3rem; background: #eef2ff; color: #3730a3; border-radius: 1rem; padding: .1rem .5rem; font-size: .8rem; font-weight: 600; }
+.chip { display: inline-flex; align-items: center; gap: .3rem; background: var(--info-bg); color: var(--info-text); border-radius: 1rem; padding: .1rem .5rem; font-size: .8rem; font-weight: 600; }
 .chip-x { border: 0; background: transparent; color: #6366f1; cursor: pointer; font-size: .75rem; padding: 0; }
 .custom-lista-row { display: flex; gap: .4rem; margin-top: .35rem; }
-.custom-lista-row input { flex: 1; padding: .4rem .5rem; border: 1px solid #d0d5dd; border-radius: .4rem; }
+.custom-lista-row input { flex: 1; padding: .4rem .5rem; border: 1px solid var(--hairline); border-radius: .4rem; }
 .slot-list { display: grid; gap: .25rem; max-height: 16rem; overflow-y: auto; }
 .slot-row { display: grid; grid-template-columns: 2rem 1fr; gap: .4rem; align-items: center; }
-.slot-liv { font-weight: 700; font-size: .8rem; color: #3730a3; text-align: center; }
+.slot-liv { font-weight: 700; font-size: .8rem; color: var(--info-text); text-align: center; }
 .ab-tools { display: flex; gap: .4rem; align-items: center; }
 .ab-tools .grow { flex: 1; }
 .btn.sm { padding: .3rem .6rem; font-size: .8rem; }
@@ -1074,19 +1102,19 @@ const sumInfoRazza = computed(() => {
 
 input[type="text"], input[type="number"], input:not([type]), textarea, select {
   width: 100%; min-width: 0; padding: .5rem .6rem;
-  border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff;
+  border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0);
 }
 textarea { resize: vertical; }
 
-.fold { border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff; }
+.fold { border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0); }
 .fold-head {
   width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .5rem;
-  padding: .5rem .75rem; background: #f9fafb; border: 0; border-bottom: 1px solid #e5e7eb;
+  padding: .5rem .75rem; background: var(--btn-bg); border: 0; border-bottom: 1px solid var(--hairline);
   cursor: pointer; text-align: left;
 }
 .fold-title { font-weight: 600; }
 .fold-summary {
-  color: #374151; opacity: .8; white-space: nowrap; overflow: hidden;
+  color: var(--text-muted); opacity: .8; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; text-align: right; font-size: .85rem;
 }
 .chev { transition: transform .15s ease; }
@@ -1097,15 +1125,15 @@ textarea { resize: vertical; }
 .hint-pg { margin: 0; }
 .ab-list {
   display: grid; gap: .3rem; max-height: 18rem; overflow-y: auto;
-  padding: .15rem; border: 1px solid #eef2f7; border-radius: .5rem;
+  padding: .15rem; border: 1px solid var(--hairline); border-radius: .5rem;
 }
 .ab-famiglie {
   max-height: none; overflow: visible; margin-bottom: .5rem;
-  border-style: dashed; background: #f8fafc;
+  border-style: dashed; background: var(--primary-color);
 }
 .ab-riga {
   display: flex; align-items: center; gap: .4rem;
-  border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff; padding: .15rem .35rem;
+  border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0); padding: .15rem .35rem;
 }
 .ab-riga.sel { border-color: #c7d2fe; background: #eef2ff; }
 .ab-toggle {
@@ -1117,30 +1145,30 @@ textarea { resize: vertical; }
 .ab-riga.sel .ab-toggle .dot { color: #4338ca; }
 .ab-nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ab-pg {
-  flex: 0 0 auto; border: 1px solid #c7d2fe; background: #fff; color: #4338ca;
+  flex: 0 0 auto; border: 1px solid var(--info-border); background: var(--surface-0); color: var(--info-text);
   border-radius: 1rem; padding: .1rem .55rem; font-size: .75rem; font-weight: 700; cursor: pointer;
 }
 .ab-pg.on { background: #4338ca; border-color: #4338ca; color: #fff; }
 .ab-cap {
-  flex: 0 0 auto; border: 1px solid #fbcfe8; background: #fff; color: #9d174d;
+  flex: 0 0 auto; border: 1px solid var(--accent-pink-border); background: var(--surface-0); color: var(--accent-pink-text);
   border-radius: 1rem; padding: .1rem .55rem; font-size: .75rem; font-weight: 700; cursor: pointer;
 }
 .ab-cap.on { background: #9d174d; border-color: #9d174d; color: #fff; }
 .ab-toggle:disabled, .ab-pg:disabled, .ab-cap:disabled { opacity: .6; cursor: default; }
 
 /* generatore */
-.gen { display: grid; gap: .5rem; border: 1px dashed #cbd5e1; border-radius: .5rem; padding: .5rem; background: #f8fafc; }
+.gen { display: grid; gap: .5rem; border: 1px dashed var(--hairline); border-radius: .5rem; padding: .5rem; background: var(--primary-color); }
 .gen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
 
 /* tabella livelli */
 .liv-list { display: grid; gap: .4rem; }
 .liv-card {
   display: grid; grid-template-columns: 2rem 1fr; gap: .5rem; align-items: start;
-  border: 1px solid #e5e7eb; border-radius: .5rem; padding: .4rem .5rem;
+  border: 1px solid var(--hairline); border-radius: .5rem; padding: .4rem .5rem;
 }
 .liv-num {
-  font-weight: 800; font-size: .95rem; color: #3730a3;
-  background: #eef2ff; border-radius: .4rem; text-align: center; padding: .3rem 0;
+  font-weight: 800; font-size: .95rem; color: var(--info-text);
+  background: var(--info-bg); border-radius: .4rem; text-align: center; padding: .3rem 0;
 }
 .liv-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: .3rem; }
 .liv-fields label { display: grid; gap: .1rem; min-width: 0; }
@@ -1151,7 +1179,7 @@ textarea { resize: vertical; }
 /* abilità concesse */
 .conc-row {
   display: grid; grid-template-columns: auto 1fr auto auto auto; gap: .4rem; align-items: center;
-  border: 1px solid #e5e7eb; border-radius: .5rem; padding: .35rem .5rem; background: #fff;
+  border: 1px solid var(--hairline); border-radius: .5rem; padding: .35rem .5rem; background: var(--surface-0);
 }
 .conc-row .nome {
   white-space: normal !important; word-break: break-word; overflow: visible !important;
@@ -1159,10 +1187,10 @@ textarea { resize: vertical; }
 }
 .conc-row .qty-input {
   width: 2.4rem !important; min-width: 0; padding: .25rem .2rem !important;
-  border: 1px solid #d0d5dd; border-radius: .4rem; text-align: center; font-size: .8rem;
+  border: 1px solid var(--hairline); border-radius: .4rem; text-align: center; font-size: .8rem;
 }
 .btn-edit {
-  border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8;
+  border: 1px solid var(--info-border); background: var(--info-bg); color: var(--info-text);
   border-radius: .5rem; padding: .25rem .5rem; cursor: pointer;
 }
 .btn-edit:hover { background: #dbeafe; }
@@ -1175,7 +1203,7 @@ textarea { resize: vertical; }
 }
 .liv-pill {
   font-size: .72rem; padding: .1rem .45rem; border-radius: .5rem;
-  background: #f0fdf4; color: #166534; font-weight: 700; white-space: nowrap;
+  background: var(--success-bg); color: var(--success-text); font-weight: 700; white-space: nowrap;
 }
 .conc-add { display: grid; grid-template-columns: 5rem 1fr; gap: .4rem; align-items: end; }
 .conc-add .grow { min-width: 0; }
@@ -1185,12 +1213,12 @@ textarea { resize: vertical; }
 .switch { position: relative; display: inline-flex; flex-shrink: 0; width: 2.4rem; height: 1.3rem; }
 .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
 .switch-track {
-  position: absolute; inset: 0; border-radius: 999px; background: #d0d5dd;
+  position: absolute; inset: 0; border-radius: 999px; background: var(--btn-bg);
   transition: background-color .15s;
 }
 .switch-thumb {
   position: absolute; top: .15rem; left: .15rem; width: 1rem; height: 1rem;
-  border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3);
+  border-radius: 50%; background: var(--surface-0); box-shadow: 0 1px 2px rgba(0,0,0,.3);
   transition: transform .15s;
 }
 .switch input:checked + .switch-track { background: #2563eb; }
@@ -1198,7 +1226,7 @@ textarea { resize: vertical; }
 .switch input:disabled + .switch-track { opacity: .6; cursor: default; }
 .conc-item { display: flex; flex-direction: column; gap: .3rem; }
 .conc-adv {
-  border: 1px dashed #93c5fd; border-radius: .5rem; padding: .5rem; background: #f8fafc;
+  border: 1px dashed var(--info-border); border-radius: .5rem; padding: .5rem; background: var(--primary-color);
   display: flex; flex-direction: column; gap: .5rem;
 }
 .conc-adv .liv-input { max-width: 6rem; }
@@ -1208,7 +1236,7 @@ textarea { resize: vertical; }
 .conc-adv-body .grow { flex: 1; min-width: 0; }
 .conc-adv-flags {
   flex: 0 0 auto; display: flex; flex-direction: column; gap: .3rem;
-  border: 1px solid #e5e7eb; border-radius: .5rem; padding: .5rem; background: #fff; min-width: 9rem;
+  border: 1px solid var(--hairline); border-radius: .5rem; padding: .5rem; background: var(--surface-0); min-width: 9rem;
 }
 .chk-row { display: flex; align-items: center; gap: .4rem; font-size: .8rem; }
 .conc-adv-actions { display: flex; justify-content: flex-end; }
@@ -1216,20 +1244,20 @@ textarea { resize: vertical; }
 
 .results {
   list-style: none; margin: 0; padding: 0;
-  border: 1px solid #e5e7eb; border-radius: .5rem; overflow: hidden;
+  border: 1px solid var(--hairline); border-radius: .5rem; overflow: hidden;
   max-height: 14rem; overflow-y: auto;
 }
-.results li + li { border-top: 1px solid #f3f4f6; }
+.results li + li { border-top: 1px solid var(--hairline); }
 .result {
   width: 100%; display: grid; grid-template-columns: 1fr auto auto; gap: .4rem; align-items: center;
-  padding: .4rem .5rem; background: #fff; border: 0; cursor: pointer; text-align: left;
+  padding: .4rem .5rem; background: var(--surface-0); border: 0; cursor: pointer; text-align: left;
 }
-.result:hover { background: #f9fafb; }
+.result:hover { background: var(--surface-hover); }
 .result .nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .plus { color: #2563eb; font-weight: 700; }
 
 .btn-del {
-  border: 1px solid #fecaca; background: #fef2f2; color: #991b1b;
+  border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger-text);
   border-radius: .5rem; padding: .25rem .5rem; cursor: pointer;
 }
 
@@ -1237,18 +1265,29 @@ textarea { resize: vertical; }
 
 .error {
   margin: 0; padding: .5rem .75rem; border-radius: .5rem;
-  color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; font-size: .85rem;
+  color: var(--danger-text); background: var(--danger-bg); border: 1px solid var(--danger-border); font-size: .85rem;
 }
 
 .actions {
-  position: sticky; bottom: 0; background: #fff;
+  position: sticky; bottom: 0; background: var(--surface-0);
   padding: .5rem 0 calc(.5rem + env(safe-area-inset-bottom, 0px));
-  border-top: 1px solid #e5e7eb;
-  display: flex; justify-content: flex-end; gap: .5rem;
+  border-top: 1px solid var(--hairline);
+  display: flex; justify-content: flex-end; gap: .5rem; align-items: center;
 }
 .btn { padding: .5rem .9rem; border-radius: .5rem; border: 1px solid transparent; cursor: pointer; }
-.btn.ghost { border-color: #d0d5dd; background: #fff; }
-.btn.outline { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; font-weight: 600; justify-self: start; }
+.btn.ghost { border-color: var(--hairline); background: var(--surface-0); }
+/* salva senza uscire: solo icona, per distinguerlo a colpo d'occhio dal Salva che chiude */
+.btn.icona {
+  border-color: var(--hairline); background: var(--surface-0); color: var(--text-muted);
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 2.4rem; padding: .5rem;
+}
+.btn.icona:hover:not(:disabled) { background: var(--btn-bg); }
+.salvato {
+  font-size: .8rem; font-weight: 600; color: var(--success-text);
+  margin-right: auto; padding-left: .25rem;
+}
+.btn.outline { border-color: var(--info-border); background: var(--info-bg); color: var(--info-text); font-weight: 600; justify-self: start; }
 .btn.primary { background: #2563eb; color: white; }
 .btn:disabled { opacity: .6; cursor: default; }
 </style>

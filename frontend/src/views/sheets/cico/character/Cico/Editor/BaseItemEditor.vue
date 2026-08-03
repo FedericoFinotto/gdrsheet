@@ -19,6 +19,7 @@ import HtmlEditor from '../../../../../../components/HtmlEditor.vue'
 import SearchSelect from '../../../../../../components/SearchSelect.vue'
 import VisibilitaPicker from '../../../../../../components/VisibilitaPicker.vue'
 import LabelsEditor from './Sections/LabelsEditor.vue'
+import Icona from '../../../../../../components/Icona/Icona.vue'
 import TagEditor from './Sections/TagEditor.vue'
 import TriggerRandomizzatoriEditor from './Sections/TriggerRandomizzatoriEditor.vue'
 import ImmaginiEditor from './Sections/ImmaginiEditor.vue'
@@ -52,7 +53,14 @@ const props = withDefaults(defineProps<{
   mode: 'edit',
 })
 
-const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedStay'): void }>()
+const emit = defineEmits<{
+  (e: 'saved'): void
+  (e: 'cancel'): void
+  (e: 'savedStay'): void
+  /** salvato restando nell'editor; porta l'item salvato perché in creazione il contenitore
+   *  deve passare alla modifica di quello appena creato (vedi onSalvaResta) */
+  (e: 'savedResta', item: ItemDB): void
+}>()
 
 // tipi con gestione quantità (label QTA, moltiplica il peso)
 const TIPI_CON_QTA = ['OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO']
@@ -844,6 +852,24 @@ async function onSaveAndNew() {
   }
 }
 
+/* Salva restando nell'editor (pulsante floppy).
+ * In creazione il salvataggio CREA l'item: restare qui senza avvisare il contenitore
+ * significherebbe che un secondo click ne crea un altro. Per questo si emette l'item
+ * salvato, così chi ci contiene può passare alla modifica di quello appena creato. */
+const salvato = ref(false)
+let timerSalvato: ReturnType<typeof setTimeout> | null = null
+
+async function onSalvaResta() {
+  if (!canSave.value) return
+  const item = await doSave()
+  if (!item) return
+  childCreate.clearDraft()
+  emit('savedResta', item)
+  salvato.value = true
+  if (timerSalvato) clearTimeout(timerSalvato)
+  timerSalvato = setTimeout(() => salvato.value = false, 2000)
+}
+
 function resetForNew() {
   form.nome = ''
   form.descrizione = ''
@@ -1496,6 +1522,12 @@ function onCancel() {
 
     <div class="actions">
       <button type="button" class="btn ghost" @click="onCancel" :disabled="busy">Annulla</button>
+      <span v-if="salvato" class="salvato">Salvato</span>
+      <!-- salva senza uscire dall'editor -->
+      <button type="button" class="btn icona" :disabled="!canSave" title="Salva e resta qui"
+              aria-label="Salva e resta qui" @click="onSalvaResta">
+        <Icona name="SALVA"/>
+      </button>
       <button v-if="mode === 'create' && !isLinkCreate" type="button" class="btn outline" :disabled="!canSave" @click="onSaveAndNew">
         Salva e continua
       </button>
@@ -1519,31 +1551,42 @@ function onCancel() {
 .lbl { font-size: .8rem; font-weight: 600; opacity: .85; margin: 0; }
 
 input[type="text"], input[type="number"], input[type="datetime-local"], textarea, select {
-  width: 100%; padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff; margin: 0;
+  width: 100%; padding: .5rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0); margin: 0;
 }
 textarea { resize: vertical; }
 
-.fold { border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff; }
+.fold { border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0); }
 .fold-head {
   width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .5rem;
-  padding: .5rem .75rem; background: #f9fafb; border: 0; border-bottom: 1px solid #e5e7eb; cursor: pointer; text-align: left;
+  padding: .5rem .75rem; background: var(--btn-bg); border: 0; border-bottom: 1px solid var(--hairline); cursor: pointer; text-align: left;
 }
 .fold-title { font-weight: 600; }
-.fold-summary { color: #374151; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fold-summary { color: var(--text-muted); opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chev { transition: transform .15s ease; }
 .chev.open { transform: rotate(90deg); }
 .fold-body { padding: .6rem .75rem; }
 
 .error {
   margin: 0; padding: .5rem .75rem; border-radius: .5rem;
-  color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; font-size: .85rem;
+  color: var(--danger-text); background: var(--danger-bg); border: 1px solid var(--danger-border); font-size: .85rem;
 }
 
 .actions {
-  position: sticky; bottom: 0; background: #fff;
+  position: sticky; bottom: 0; background: var(--surface-0);
   padding: .5rem 0 calc(.5rem + env(safe-area-inset-bottom, 0px));
-  margin-top: .25rem; border-top: 1px solid #e5e7eb;
-  display: flex; justify-content: flex-end; gap: .5rem;
+  margin-top: .25rem; border-top: 1px solid var(--hairline);
+  display: flex; justify-content: flex-end; gap: .5rem; align-items: center;
+}
+/* salva senza uscire: solo icona, per distinguerlo a colpo d'occhio dal Salva che chiude */
+.btn.icona {
+  border-color: var(--hairline); background: var(--surface-0); color: var(--text-muted);
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 2.4rem; padding: .5rem;
+}
+.btn.icona:hover:not(:disabled) { background: var(--btn-bg); }
+.salvato {
+  font-size: .8rem; font-weight: 600; color: var(--success-text);
+  margin-right: auto; padding-left: .25rem;
 }
 .compendio-flag {
   display: inline-flex; align-items: center; gap: .5rem;
@@ -1552,49 +1595,49 @@ textarea { resize: vertical; }
 .compendio-flag input { width: auto; }
 
 .btn { padding: .5rem .9rem; border-radius: .5rem; border: 1px solid transparent; cursor: pointer; }
-.btn.ghost { border-color: #d0d5dd; background: #fff; }
-.btn.outline { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+.btn.ghost { border-color: var(--hairline); background: var(--surface-0); }
+.btn.outline { border-color: var(--info-border); background: var(--info-bg); color: var(--info-text); font-weight: 600; }
 .btn.primary { background: #2563eb; color: white; }
 .btn:disabled { opacity: .6; cursor: default; }
 .btn-del {
-  border: 1px solid #fecaca; background: #fef2f2; color: #991b1b;
+  border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger-text);
   border-radius: .5rem; padding: .25rem .5rem; cursor: pointer;
 }
 .btn-add {
-  justify-self: start; border: 1px dashed #d0d5dd; background: #fff;
+  justify-self: start; border: 1px dashed var(--hairline); background: var(--surface-0);
   border-radius: .5rem; padding: .4rem .7rem; cursor: pointer; font-size: .85rem;
 }
 .incarico-row { display: flex; gap: .4rem; margin-bottom: .4rem; }
 .incarico-input {
-  flex: 1; padding: .45rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; font: inherit;
+  flex: 1; padding: .45rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; font: inherit;
 }
 
 .rank-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
 @media (max-width: 700px) { .rank-grid { grid-template-columns: 1fr; } }
 
-.sez-card { border: 1px solid #e5e7eb; border-radius: .5rem; padding: .5rem; display: grid; gap: .5rem; margin-bottom: .4rem; background: #fafafa; }
+.sez-card { border: 1px solid var(--hairline); border-radius: .5rem; padding: .5rem; display: grid; gap: .5rem; margin-bottom: .4rem; background: var(--btn-bg); }
 .sez-head { display: flex; align-items: center; justify-content: space-between; }
 .sez-title { font-weight: 700; font-size: .9rem; }
 .chips { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .3rem; }
-.chip { display: inline-flex; align-items: center; gap: .3rem; background: #eef2ff; color: #3730a3; border-radius: 1rem; padding: .1rem .5rem; font-size: .8rem; font-weight: 600; }
+.chip { display: inline-flex; align-items: center; gap: .3rem; background: var(--info-bg); color: var(--info-text); border-radius: 1rem; padding: .1rem .5rem; font-size: .8rem; font-weight: 600; }
 .chip-x { border: 0; background: transparent; color: #6366f1; cursor: pointer; font-size: .75rem; padding: 0; }
 .custom-lista-row { display: flex; gap: .4rem; margin-top: .35rem; }
-.custom-lista-row input { flex: 1; padding: .4rem .5rem; border: 1px solid #d0d5dd; border-radius: .4rem; }
+.custom-lista-row input { flex: 1; padding: .4rem .5rem; border: 1px solid var(--hairline); border-radius: .4rem; }
 
 .conc-add { display: grid; grid-template-columns: 5rem 1fr; gap: .4rem; align-items: end; }
-.conc-add .grow { min-width: 0; padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; }
+.conc-add .grow { min-width: 0; padding: .5rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; }
 .liv-input { max-width: 6rem; }
 .results {
   list-style: none; margin: 0; padding: 0;
-  border: 1px solid #e5e7eb; border-radius: .5rem; overflow: hidden;
+  border: 1px solid var(--hairline); border-radius: .5rem; overflow: hidden;
   max-height: 14rem; overflow-y: auto;
 }
-.results li + li { border-top: 1px solid #f3f4f6; }
+.results li + li { border-top: 1px solid var(--hairline); }
 .result {
   width: 100%; display: grid; grid-template-columns: 1fr auto; gap: .4rem; align-items: center;
-  padding: .4rem .5rem; background: #fff; border: 0; cursor: pointer; text-align: left;
+  padding: .4rem .5rem; background: var(--surface-0); border: 0; cursor: pointer; text-align: left;
 }
-.result:hover { background: #f9fafb; }
+.result:hover { background: var(--surface-hover); }
 .result .nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .plus { color: #2563eb; font-weight: 700; }
 .checkbox-field { grid-auto-flow: column; justify-content: start; align-items: center; gap: .5rem; }
@@ -1608,26 +1651,26 @@ textarea { resize: vertical; }
 .qta-stepper { display: grid; grid-template-columns: auto 1fr auto; gap: .25rem; align-items: stretch; }
 .qta-stepper input {
   width: 100%; text-align: center; padding: .5rem .25rem;
-  border: 1px solid #d0d5dd; border-radius: .5rem; font-variant-numeric: tabular-nums;
+  border: 1px solid var(--hairline); border-radius: .5rem; font-variant-numeric: tabular-nums;
 }
 .qta-btn {
-  width: 2.1rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #f9fafb;
+  width: 2.1rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--btn-bg);
   font-weight: 800; font-size: 1rem; cursor: pointer;
 }
 .qta-btn:disabled { opacity: .5; cursor: default; }
 .field-checkbox { flex-direction: row; align-items: center; gap: .5rem; }
 .field-checkbox input[type="checkbox"] { width: 1.1rem; height: 1.1rem; cursor: pointer; }
 .section-card {
-  border: 1px solid var(--color-border, #e5e7eb);
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
   overflow: hidden;
 }
 .section-card-header {
-  background: var(--color-surface-2, #f3f4f6);
+  background: var(--btn-bg);
   padding: .4rem .75rem;
   font-size: .78rem;
   font-weight: 600;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: .04em;
 }

@@ -6,7 +6,7 @@ import {CampoLabel} from '../../../../../../../models/dto/UpdateItemRequest'
 import {Categoria, getCategorie} from '../../../../../../../service/RandomizzatoreService'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
-const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
+const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedResta', item: { id: number }): void }>()
 
 // Le opzioni della tendina devono essere note al PRIMO render di BaseItemEditor: preload()
 // legge campiLabel una volta sola, e una key non ancora dichiarata finirebbe tra le label
@@ -46,6 +46,7 @@ const CAMPI = computed<CampoLabel[]>(() => [
       :campi-label="CAMPI"
       campi-label-titolo="Dati Tag"
       @saved="emit('saved')"
+      @saved-resta="emit('savedResta', $event)"
       @cancel="emit('cancel')"
   />
 </template>

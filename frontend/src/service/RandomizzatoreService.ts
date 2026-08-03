@@ -87,7 +87,7 @@ export function getConfig(idRandomizzatore: number): Promise<AxiosResponse<Rando
 
 export function estrai(
     idRandomizzatore: number,
-    tagScelti: number[],
+    tagScelti: (number | null)[],
     idMondo?: number | null,
     idSistema?: number | null,
 ): Promise<AxiosResponse<Esito>> {

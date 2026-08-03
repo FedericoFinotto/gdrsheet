@@ -28,15 +28,15 @@ function vai() {
   align-items: center;
   gap: .35rem;
   padding: .4rem .8rem;
-  border: 1px dashed #94a3b8;
+  border: 1px dashed var(--hairline);
   border-radius: .5rem;
-  background: #fff;
-  color: #334155;
+  background: var(--surface-0);
+  color: var(--text-muted);
   font-weight: 600;
   font-size: .85rem;
   cursor: pointer;
 }
 
-.btn-add-item:hover { background: #f8fafc; }
+.btn-add-item:hover { background: var(--btn-bg-hover); }
 .plus { font-weight: 800; color: #2563eb; }
 </style>

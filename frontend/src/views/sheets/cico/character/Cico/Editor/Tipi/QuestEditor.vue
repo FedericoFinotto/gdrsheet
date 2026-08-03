@@ -12,7 +12,7 @@ const props = defineProps<{
   idPersonaggio?: number
   idParty?: number
 }>()
-const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedStay'): void }>()
+const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedStay'): void; (e: 'savedResta', item: { id: number }): void }>()
 
 const route = useRoute()
 // sotto-quest creata dal flusso "crea e collega": nessun ambito da scegliere, eredita
@@ -36,6 +36,7 @@ const AMBITO_OPTS = [
       titolo="Quest"
       :minimal="true"
       @saved="emit('saved')"
+      @saved-resta="emit('savedResta', $event)"
       @cancel="emit('cancel')"
       @saved-stay="emit('savedStay')"
   >
@@ -70,9 +71,9 @@ const AMBITO_OPTS = [
 </template>
 
 <style scoped>
-.quest-info { border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff; }
+.quest-info { border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0); }
 .fold-head.static {
-  padding: .5rem .75rem; background: #f9fafb; border-bottom: 1px solid #e5e7eb;
+  padding: .5rem .75rem; background: var(--btn-bg); border-bottom: 1px solid var(--hairline);
 }
 .fold-title { font-weight: 600; }
 .fold-body { padding: .6rem .75rem; display: grid; gap: .6rem; }

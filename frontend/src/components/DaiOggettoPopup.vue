@@ -72,20 +72,21 @@ async function dai(dest: Destinatario) {
 <style scoped>
 .dai-popup { display: flex; flex-direction: column; gap: .6rem; min-width: 14rem; }
 .dai-titolo { margin: 0; font-size: 1.05rem; }
-.dai-sotto { margin: -.3rem 0 0; font-size: .85rem; color: #6b7280; }
-.dai-stato { padding: .5rem 0; font-size: .85rem; color: #6b7280; }
-.dai-stato.errore { color: #991b1b; }
+.dai-sotto { margin: -.3rem 0 0; font-size: .85rem; color: var(--text-muted); }
+.dai-stato { padding: .5rem 0; font-size: .85rem; color: var(--text-muted); }
+.dai-stato.errore { color: var(--danger-text); }
 .dai-lista { display: flex; flex-direction: column; gap: .4rem; }
 .dai-dest {
   padding: .5rem .75rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #fff;
+  background: var(--surface-0);
+  color: var(--text-strong);
   font-weight: 600;
   font-size: .9rem;
   text-align: left;
   cursor: pointer;
 }
-.dai-dest:hover:not(:disabled) { background: #f0fdf4; border-color: #86efac; }
+.dai-dest:hover:not(:disabled) { background: var(--success-bg); border-color: var(--success-border); }
 .dai-dest:disabled { opacity: .6; cursor: default; }
 </style>

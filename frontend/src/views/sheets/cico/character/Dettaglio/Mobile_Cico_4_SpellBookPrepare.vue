@@ -260,9 +260,9 @@ const confirm = () => {
   width: 100%;
   box-sizing: border-box;
   padding: .4rem .55rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
   font-size: .85rem;
-  background: #fff;
+  background: var(--surface-0);
 }
 </style>

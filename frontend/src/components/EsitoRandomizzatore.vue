@@ -44,11 +44,11 @@ defineProps<{ esito: Esito; livello?: number }>()
 
 <style scoped>
 .nodo {
-  border: 1px solid #bbf7d0; background: #f0fdf4;
+  border: 1px solid var(--success-border); background: var(--success-bg);
   border-radius: .6rem; padding: .6rem .75rem; display: grid; gap: .4rem;
 }
-.nodo.annidato { border-color: #e5e7eb; background: #fff; }
-.nodo.vuoto { border-color: #fed7aa; background: #fff7ed; }
+.nodo.annidato { border-color: var(--hairline); background: var(--surface-0); }
+.nodo.vuoto { border-color: var(--coin-mr-border); background: var(--coin-mr-bg); }
 
 .da-randomizzatore { font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; opacity: .6; }
 .testa { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
@@ -59,20 +59,20 @@ defineProps<{ esito: Esito; livello?: number }>()
 .tag-riga { display: flex; flex-wrap: wrap; gap: .3rem; }
 .chip {
   font-size: .72rem; font-weight: 600; padding: .12rem .5rem;
-  border-radius: 999px; background: #f3f4f6; color: #374151; white-space: nowrap;
+  border-radius: 999px; background: var(--btn-bg); color: var(--text-muted); white-space: nowrap;
 }
-.chip.scelto { background: #dbeafe; color: #1d4ed8; }
-.chip.estratto { background: #dcfce7; color: #166534; }
+.chip.scelto { background: var(--info-bg); color: var(--info-text); }
+.chip.estratto { background: var(--success-bg); color: var(--success-text); }
 .auto { opacity: .7; margin-left: .1rem; }
 
 .descrizione { font-size: .88rem; white-space: pre-wrap; }
 .descrizione :deep(p) { margin: .25rem 0; }
 
-.avviso { font-size: .8rem; color: #9a3412; }
+.avviso { font-size: .8rem; color: var(--coin-mr-text); }
 
 .figli {
   display: grid; gap: .4rem;
   margin-top: .2rem; padding-left: .6rem;
-  border-left: 2px solid #d1d5db;
+  border-left: 2px solid var(--hairline);
 }
 </style>

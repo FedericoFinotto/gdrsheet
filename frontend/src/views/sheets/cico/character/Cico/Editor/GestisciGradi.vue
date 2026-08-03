@@ -388,9 +388,9 @@ onMounted(carica)
 
 .btn {
   padding: .45rem .8rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #fff;
+  background: var(--surface-0);
   font-weight: 700;
   font-size: .85rem;
   cursor: pointer;
@@ -398,22 +398,22 @@ onMounted(carica)
 }
 .btn.primary { border-color: #2563eb; background: #2563eb; color: #fff; }
 .btn.primary:hover { background: #1d4ed8; }
-.btn.ghost { color: #334155; }
+.btn.ghost { color: var(--text-muted); }
 .btn:disabled { opacity: .55; cursor: default; }
 
 .btn.small { padding: .35rem .7rem; font-size: .8rem; }
-.btn.danger { border-color: #ef4444; color: #b91c1c; }
-.btn.danger:hover:not(:disabled) { background: #fef2f2; }
+.btn.danger { border-color: var(--danger-border); color: var(--danger-text); }
+.btn.danger:hover:not(:disabled) { background: var(--danger-bg); }
 
 .gg-tools { display: flex; gap: .5rem; }
 
 .gg-msg { margin: 0; font-size: .85rem; font-weight: 600; }
-.gg-msg.ok { color: #15803d; }
-.gg-msg.err { color: #b91c1c; }
+.gg-msg.ok { color: var(--success-text); }
+.gg-msg.err { color: var(--danger-text); }
 .gg-msg.warn {
-  color: #92400e;
-  background: #fef3c7;
-  border: 1px solid #fde68a;
+  color: var(--warning-text);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
   border-radius: .5rem;
   padding: .5rem .7rem;
   font-weight: 600;
@@ -422,7 +422,7 @@ onMounted(carica)
 
 .gg-table-wrap {
   overflow-x: auto;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
 }
 
@@ -435,13 +435,13 @@ onMounted(carica)
 .gg-table { border-collapse: collapse; width: 100%; font-size: .85rem; table-layout: fixed; }
 
 .gg-table th, .gg-table td {
-  border: 1px solid #eef2f7;
+  border: 1px solid var(--table-border);
   padding: .3rem .4rem;
   text-align: center;
 }
 
 .gg-table thead th {
-  background: #f8fafc;
+  background: var(--primary-color);
   font-weight: 700;
   position: sticky;
   top: 0;
@@ -449,7 +449,7 @@ onMounted(carica)
 }
 
 .lvl-head { display: flex; flex-direction: column; line-height: 1.1; }
-.lvl-max { font-size: .68rem; font-weight: 600; color: #64748b; }
+.lvl-max { font-size: .68rem; font-weight: 600; color: var(--text-muted); }
 
 /* larghezza calcolata sul nome più lungo tra tutte le tabelle (--abil-col-w, impostata
    dinamicamente), così ogni tabella resta allineata e nessun nome viene troncato */
@@ -464,38 +464,38 @@ onMounted(carica)
 .fam-title {
   margin: .8rem 0 .3rem;
   font-size: .95rem;
-  color: #475569;
+  color: var(--text-muted);
 }
 .fam-title:first-child { margin-top: 0; }
 
 .gg-summary { margin-top: -1px; }
 .gg-summary .abil-col { font-weight: 700; }
 
-.sticky-col { position: sticky; left: 0; background: #fff; z-index: 2; }
-.gg-table thead .sticky-col { z-index: 3; background: #f8fafc; }
+.sticky-col { position: sticky; left: 0; background: var(--surface-0); z-index: 2; }
+.gg-table thead .sticky-col { z-index: 3; background: var(--primary-color); }
 
 /* con table-layout: fixed questa è la larghezza REALE della colonna (non solo un minimo): deve
    contenere lo stepper (2 bottoni da 1.3rem + gap + valore) più il padding della cella, quindi
    più larga del min-width usato prima con il layout automatico. */
 .lvl-col { width: 5.4rem; }
-.tot-col { width: 3.2rem; font-weight: 700; background: #f9fafb; }
+.tot-col { width: 3.2rem; font-weight: 700; background: var(--btn-bg); }
 /* riga "Punti spesi": stessa LARGHEZZA delle colonne livello sopra (.lvl-col), ma stile visivo
    da colonna-riepilogo (grassetto + sfondo) come .tot-col — da qui due classi separate invece
    di riusare .tot-col anche per la larghezza, che la faceva più stretta e disallineata. */
-.spesi-cell { font-weight: 700; background: #f9fafb; }
+.spesi-cell { font-weight: 700; background: var(--btn-bg); }
 
 /* verde = abilità di classe (incl. trasversali), bianco = cross */
-.cell { background: #fff; }
-.cell.classe { background: #dcfce7; }
+.cell { background: var(--surface-0); }
+.cell.classe { background: var(--success-bg); }
 
 .stepper { display: inline-flex; align-items: center; gap: .2rem; }
 
 .step {
   width: 1.3rem;
   height: 1.3rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--hairline);
   border-radius: .3rem;
-  background: #fff;
+  background: var(--surface-0);
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
@@ -505,7 +505,7 @@ onMounted(carica)
 
 .val { min-width: 1.6rem; font-variant-numeric: tabular-nums; font-weight: 700; }
 
-.slash { color: #94a3b8; font-weight: 600; }
-.tot-col.over, .spesi-cell.over { color: #b91c1c; }
-.tot-col.over .slash, .spesi-cell.over .slash { color: #fca5a5; }
+.slash { color: var(--text-muted); font-weight: 600; }
+.tot-col.over, .spesi-cell.over { color: var(--danger-text); }
+.tot-col.over .slash, .spesi-cell.over .slash { color: var(--danger-border); }
 </style>

@@ -49,9 +49,9 @@ const panelId = `tabexp-${Math.random().toString(36).slice(2)}`
 
 <style scoped>
 .fold {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #fff;
+  background: var(--surface-0);
 }
 
 .fold + .fold {
@@ -65,9 +65,9 @@ const panelId = `tabexp-${Math.random().toString(36).slice(2)}`
   align-items: center;
   gap: .5rem;
   padding: .5rem .75rem;
-  background: #f9fafb;
+  background: var(--btn-bg);
   border: 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--hairline);
   cursor: pointer;
   text-align: left;
 }
@@ -82,7 +82,7 @@ const panelId = `tabexp-${Math.random().toString(36).slice(2)}`
 }
 
 .fold-summary {
-  color: #374151;
+  color: var(--text-strong);
   opacity: .8;
   white-space: nowrap;
   overflow: hidden;
@@ -111,8 +111,8 @@ const panelId = `tabexp-${Math.random().toString(36).slice(2)}`
   display: inline-block;
   width: .9rem;
   height: .9rem;
-  border: 2px solid #d1d5db;
-  border-top-color: #6b7280;
+  border: 2px solid var(--hairline);
+  border-top-color: var(--text-muted);
   border-radius: 50%;
   animation: spin .7s linear infinite;
   vertical-align: middle;

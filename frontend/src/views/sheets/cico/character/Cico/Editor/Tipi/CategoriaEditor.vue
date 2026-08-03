@@ -4,7 +4,7 @@ import {ItemDB} from '../../../../../../../models/entity/ItemDB'
 import {CampoLabel} from '../../../../../../../models/dto/UpdateItemRequest'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
-const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
+const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedResta', item: { id: number }): void }>()
 
 // Una categoria è solo un contenitore di tag: nome e descrizione bastano.
 const CAMPI: CampoLabel[] = []
@@ -18,6 +18,7 @@ const CAMPI: CampoLabel[] = []
       titolo="Categoria"
       :campi-label="CAMPI"
       @saved="emit('saved')"
+      @saved-resta="emit('savedResta', $event)"
       @cancel="emit('cancel')"
   />
 </template>

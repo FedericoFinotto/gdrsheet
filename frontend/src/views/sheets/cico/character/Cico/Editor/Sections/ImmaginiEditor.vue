@@ -146,9 +146,9 @@ async function sposta(idx: number, delta: number) {
 <style scoped>
 .immagini-editor { display: grid; gap: .5rem; }
 .stato { font-size: .85rem; opacity: .7; }
-.errore { margin: 0; font-size: .85rem; color: #991b1b; }
+.errore { margin: 0; font-size: .85rem; color: var(--danger-text); }
 .nota { margin: 0; font-size: .75rem; opacity: .6; }
-.nota.avviso { color: #9a3412; opacity: .9; }
+.nota.avviso { color: var(--warning-text); opacity: .9; }
 
 .griglia {
   display: grid;
@@ -156,10 +156,10 @@ async function sposta(idx: number, delta: number) {
   gap: .5rem;
 }
 .miniatura {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
   overflow: hidden;
-  background: #f9fafb;
+  background: var(--btn-bg);
   display: grid;
   gap: 0;
 }
@@ -174,8 +174,8 @@ async function sposta(idx: number, delta: number) {
   justify-content: center;
   gap: .1rem;
   padding: .15rem;
-  background: #fff;
-  border-top: 1px solid #e5e7eb;
+  background: var(--surface-0);
+  border-top: 1px solid var(--hairline);
 }
 .azioni button, .azioni a {
   border: 0;
@@ -185,11 +185,11 @@ async function sposta(idx: number, delta: number) {
   line-height: 1;
   padding: .2rem .3rem;
   border-radius: .3rem;
-  color: #374151;
+  color: var(--text-strong);
   text-decoration: none;
 }
-.azioni button:hover, .azioni a:hover { background: #f3f4f6; }
-.azioni .del { color: #991b1b; }
+.azioni button:hover, .azioni a:hover { background: var(--btn-bg); }
+.azioni .del { color: var(--danger-text); }
 .azioni button:disabled { opacity: .35; cursor: default; }
 
 .carica input[type="file"] { font-size: .85rem; max-width: 100%; }

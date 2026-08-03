@@ -234,8 +234,6 @@ async function onApriConto(banca: Banca) {
 <style scoped>
 .banche-page {
   width: 100%;
-  max-width: 44rem;
-  margin: 0 auto;
   padding: 1rem;
   display: grid;
   gap: 1rem;
@@ -255,21 +253,21 @@ async function onApriConto(banca: Banca) {
 .banca {
   display: grid;
   gap: .5rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .75rem;
-  background: #fff;
+  background: var(--surface-0);
   padding: .75rem;
 }
 
 .banca h2 { margin: 0; font-size: 1.05rem; }
 
 .conto {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
   padding: .5rem .6rem;
   display: grid;
   gap: .5rem;
-  background: #fafafa;
+  background: var(--btn-bg);
 }
 
 .conto-head {
@@ -286,8 +284,8 @@ async function onApriConto(banca: Banca) {
   padding: .15rem .5rem;
   border-radius: .5rem;
 }
-.pill.party { background: #fef3c7; color: #92400e; }
-.pill.giocatore { background: #dbeafe; color: #1e40af; }
+.pill.party { background: var(--warning-bg); color: var(--warning-text); }
+.pill.giocatore { background: var(--info-bg); color: var(--info-text); }
 
 .monete {
   display: grid;
@@ -302,16 +300,16 @@ async function onApriConto(banca: Banca) {
   gap: .5rem;
   padding: .3rem .4rem;
   border-radius: .5rem;
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  border: 1px solid var(--hairline);
+  background: var(--surface-0);
 }
 
 .moneta .sigla { font-size: .7rem; font-weight: 700; opacity: .8; }
 
-.moneta.mp { background: #ecfeff; border-color: #a5f3fc; }
-.moneta.mo { background: #fefce8; border-color: #fde68a; }
-.moneta.ma { background: #f8fafc; border-color: #cbd5e1; }
-.moneta.mr { background: #fff7ed; border-color: #fed7aa; }
+.moneta.mp { background: var(--coin-mp-bg); border-color: var(--coin-mp-border); color: var(--coin-mp-text); }
+.moneta.mo { background: var(--coin-mo-bg); border-color: var(--coin-mo-border); color: var(--coin-mo-text); }
+.moneta.ma { background: var(--coin-ma-bg); border-color: var(--coin-ma-border); color: var(--coin-ma-text); }
+.moneta.mr { background: var(--coin-mr-bg); border-color: var(--coin-mr-border); color: var(--coin-mr-text); }
 
 .stepper {
   display: grid;
@@ -324,16 +322,16 @@ async function onApriConto(banca: Banca) {
   min-width: 0;
   text-align: center;
   padding: .3rem .15rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .4rem;
   font-variant-numeric: tabular-nums;
 }
 
 .step-btn {
   width: 1.7rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .4rem;
-  background: #f9fafb;
+  background: var(--btn-bg);
   font-weight: 800;
   cursor: pointer;
 }
@@ -353,9 +351,9 @@ async function onApriConto(banca: Banca) {
 
 .apri-conto select {
   padding: .45rem .6rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #fff;
+  background: var(--surface-0);
 }
 
 .btn {
@@ -364,14 +362,14 @@ async function onApriConto(banca: Banca) {
   border: 1px solid transparent;
   cursor: pointer;
 }
-.btn.ghost { border-color: #d0d5dd; background: #fff; }
+.btn.ghost { border-color: var(--hairline); background: var(--surface-0); }
 .btn.primary { background: #2563eb; color: #fff; }
 .btn:disabled { opacity: .6; cursor: default; }
 
 .state {
   padding: .75rem;
-  border: 1px dashed #e5e7eb;
+  border: 1px dashed var(--hairline);
   border-radius: .5rem;
 }
-.state.error { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+.state.error { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
 </style>

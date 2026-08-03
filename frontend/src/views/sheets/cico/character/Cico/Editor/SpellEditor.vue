@@ -6,11 +6,12 @@ import {ItemDB} from "../../../../../../models/entity/ItemDB";
 import {UpdateSpellRequest} from "../../../../../../models/dto/UpdateSpellRequest";
 import HtmlEditor from "../../../../../../components/HtmlEditor.vue";
 import SearchSelect from "../../../../../../components/SearchSelect.vue";
+import Icona from "../../../../../../components/Icona/Icona.vue";
 import {useMondoSistema} from '../../../../../../function/useMondoSistema'
 
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean }>()
-const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
+const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedResta', item: ItemDB): void }>()
 const {mondoOptions, sistemaOptions} = useMondoSistema()
 
 /* ========= Labels chiavi ========= */
@@ -581,8 +582,10 @@ function buildScuolaStringIT(scuole: string[], sub: string[], desc: string[]) {
   const right = desc.length ? ` [${desc.join(', ')}]` : ''
   return `${left}${mid}${right}`.trim()
 }
-async function onSave() {
-  if (!canSave.value) return
+/** Esegue il salvataggio; ritorna l'item salvato, o null se non è andato a buon fine. Separato
+ *  dall'emit così può servire sia al Salva che chiude sia al floppy che resta nell'editor. */
+async function salva(): Promise<ItemDB | null> {
+  if (!canSave.value) return null
   try {
     busy.value = true
     const scuoleArr = arrFromBoolMap(form.scuole)
@@ -626,14 +629,33 @@ async function onSave() {
       }
     })
 
-    await saveSpell(props.item.id, payload)
-    emit('saved')
+    const {data} = await saveSpell(props.item.id, payload)
+    return data ?? props.item
   } catch (e) {
     console.error('Errore salvataggio spell:', e)
+    return null
   } finally {
     busy.value = false
   }
 }
+
+async function onSave() {
+  if (await salva()) emit('saved')
+}
+
+// floppy: salva senza uscire dall'editor
+const salvato = ref(false)
+let timerSalvato: ReturnType<typeof setTimeout> | null = null
+
+async function onSalvaResta() {
+  const item = await salva()
+  if (!item) return
+  emit('savedResta', item)
+  salvato.value = true
+  if (timerSalvato) clearTimeout(timerSalvato)
+  timerSalvato = setTimeout(() => salvato.value = false, 2000)
+}
+
 function onCancel() { emit('cancel') }
 </script>
 
@@ -822,6 +844,9 @@ function onCancel() { emit('cancel') }
 
     <div class="actions">
       <button type="button" class="btn ghost" @click="onCancel" :disabled="busy">Annulla</button>
+      <span v-if="salvato" class="salvato">Salvato</span>
+      <button type="button" class="btn icona" :disabled="!canSave" title="Salva e resta qui"
+              aria-label="Salva e resta qui" @click="onSalvaResta"><Icona name="SALVA"/></button>
       <button type="submit" class="btn primary" :disabled="!canSave">Salva</button>
     </div>
   </form>
@@ -841,19 +866,19 @@ function onCancel() { emit('cancel') }
 .lbl { font-size: .8rem; font-weight: 600; opacity: .85; margin: 0; }
 
 input[type="text"], select, textarea {
-  width: 100%; padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff; margin: 0;
+  width: 100%; padding: .5rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0); margin: 0;
 }
 textarea { resize: vertical; min-height: 16rem; }
 
 /* folds */
-.fold { border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff; }
+.fold { border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0); }
 .fold + .fold { margin-top: .25rem; }
 .fold-head {
   width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .5rem;
-  padding: .5rem .75rem; background: #f9fafb; border: 0; border-bottom: 1px solid #e5e7eb; cursor: pointer; text-align: left;
+  padding: .5rem .75rem; background: var(--btn-bg); border: 0; border-bottom: 1px solid var(--hairline); cursor: pointer; text-align: left;
 }
 .fold-title { font-weight: 600; }
-.fold-summary { color: #374151; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fold-summary { color: var(--text-muted); opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chev { transition: transform .15s ease; transform: rotate(0deg); }
 .chev.open { transform: rotate(90deg); }
 .fold-body { padding: .6rem .75rem; }
@@ -867,30 +892,41 @@ textarea { resize: vertical; min-height: 16rem; }
 .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .5rem .75rem; }
 .class-row {
   display: grid; grid-template-columns: 1fr 5rem; align-items: center; gap: .5rem;
-  padding: .25rem .4rem; border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff;
+  padding: .25rem .4rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0);
 }
 .class-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .level-select { width: 100%; }
 
-.custom-classi { margin-top: .75rem; padding-top: .6rem; border-top: 1px dashed #e5e7eb; display: grid; gap: .5rem; }
+.custom-classi { margin-top: .75rem; padding-top: .6rem; border-top: 1px dashed var(--hairline); display: grid; gap: .5rem; }
 .custom-row { grid-template-columns: 1fr 5rem auto; }
-.custom-code { width: 100%; padding: .35rem .5rem; border: 1px solid #d0d5dd; border-radius: .4rem; }
+.custom-code { width: 100%; padding: .35rem .5rem; border: 1px solid var(--hairline); border-radius: .4rem; }
 .btn-del {
-  border: 1px solid #fecaca; background: #fef2f2; color: #991b1b;
+  border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger-text);
   border-radius: .5rem; padding: .25rem .5rem; cursor: pointer;
 }
 
 /* actions sticky */
 .actions {
-  position: sticky; bottom: 0; background: #fff;
+  position: sticky; bottom: 0; background: var(--surface-0);
   padding: .5rem 0 calc(.5rem + env(safe-area-inset-bottom, 0px));
-  margin-top: .25rem; border-top: 1px solid #e5e7eb;
-  display: flex; justify-content: flex-end; gap: .5rem;
+  margin-top: .25rem; border-top: 1px solid var(--hairline);
+  display: flex; justify-content: flex-end; gap: .5rem; align-items: center;
 }
 
 .btn { padding: .5rem .9rem; border-radius: .5rem; border: 1px solid transparent; cursor: pointer; }
-.btn.ghost { border-color: #d0d5dd; background: #fff; }
-.btn.outline { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+.btn.ghost { border-color: var(--hairline); background: var(--surface-0); }
+/* salva senza uscire: solo icona, per distinguerlo a colpo d'occhio dal Salva che chiude */
+.btn.icona {
+  border-color: var(--hairline); background: var(--surface-0); color: var(--text-muted);
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 2.4rem; padding: .5rem;
+}
+.btn.icona:hover:not(:disabled) { background: var(--btn-bg); }
+.salvato {
+  font-size: .8rem; font-weight: 600; color: var(--success-text);
+  margin-right: auto; padding-left: .25rem;
+}
+.btn.outline { border-color: var(--info-border); background: var(--info-bg); color: var(--info-text); font-weight: 600; }
 .btn.primary { background: #2563eb; color: white; }
 .btn:disabled { opacity: .6; cursor: default; }
 

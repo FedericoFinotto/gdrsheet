@@ -4,7 +4,7 @@ import {ItemDB} from '../../../../../../../models/entity/ItemDB'
 import {CampoLabel} from '../../../../../../../models/dto/UpdateItemRequest'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
-const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
+const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedResta', item: { id: number }): void }>()
 
 // Campi tipici di un talento stile dndtools.org (vedi scripts/dndtools-scraper).
 // EN_NAME e MANUALE_SP sono già gestiti da BaseItemEditor, non vanno ripetuti qui.
@@ -30,6 +30,7 @@ const CAMPI: CampoLabel[] = [
       :campi-label="CAMPI"
       campi-label-titolo="Dati Talento"
       @saved="emit('saved')"
+      @saved-resta="emit('savedResta', $event)"
       @cancel="emit('cancel')"
   />
 </template>

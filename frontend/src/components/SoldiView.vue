@@ -49,10 +49,10 @@ const moneteVisibili = computed(() => MONETE.filter(m => (props.soldi[m.key] ?? 
 
 .coin small { opacity: .75; font-size: .7em; }
 
-.coin.mp { background: #ecfeff; color: #155e75; border-color: #a5f3fc; }
-.coin.mo { background: #fef9c3; color: #854d0e; border-color: #fde68a; }
-.coin.ma { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
-.coin.mr { background: #ffedd5; color: #9a3412; border-color: #fed7aa; }
+.coin.mp { background: var(--coin-mp-bg); color: var(--coin-mp-text); border-color: var(--coin-mp-border); }
+.coin.mo { background: var(--coin-mo-bg); color: var(--coin-mo-text); border-color: var(--coin-mo-border); }
+.coin.ma { background: var(--coin-ma-bg); color: var(--coin-ma-text); border-color: var(--coin-ma-border); }
+.coin.mr { background: var(--coin-mr-bg); color: var(--coin-mr-text); border-color: var(--coin-mr-border); }
 
 .tot {
   margin-left: .25rem;

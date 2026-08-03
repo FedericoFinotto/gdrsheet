@@ -461,9 +461,10 @@ async function salvaInfo() {
 <style scoped>
 /* ── Accordion Info Personaggio ── */
 .info-card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
-  background: #fff;
+  background: var(--surface-0);
+  color: var(--text-strong);
   overflow: hidden;
   margin-bottom: .6rem;
 }
@@ -473,12 +474,13 @@ async function salvaInfo() {
   align-items: center;
   gap: .5rem;
   padding: .5rem .75rem;
-  background: #f9fafb;
+  background: var(--btn-bg);
+  color: inherit;
   border: 0;
   cursor: pointer;
   text-align: left;
 }
-.info-head:hover { background: #f3f4f6; }
+.info-head:hover { background: var(--btn-bg-hover); }
 .info-nome { margin: 0; font-size: 1.2rem; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .btn-preferito {
   flex-shrink: 0;
@@ -488,47 +490,47 @@ async function salvaInfo() {
   font-size: 1.1rem;
   line-height: 1;
   padding: .1rem .2rem;
-  color: #d1d5db;
+  color: var(--text-muted);
 }
-.btn-preferito.on { color: #f59e0b; }
+.btn-preferito.on { color: var(--warning-text); }
 .btn-preferito:disabled { opacity: .6; cursor: default; }
 .info-peso-badge {
   font-size: .75rem;
   font-weight: 600;
   padding: .15rem .5rem;
   border-radius: .4rem;
-  background: #ecfccb;
-  color: #3f6212;
+  background: var(--success-bg);
+  color: var(--success-text);
   cursor: pointer;
 }
-.info-peso-badge:hover { background: #d9f99d; }
+.info-peso-badge:hover { filter: brightness(0.95); }
 .info-livello-badge {
   font-size: .75rem;
   font-weight: 700;
   padding: .15rem .5rem;
   border-radius: .4rem;
-  background: #eef2ff;
-  color: #3730a3;
+  background: var(--info-bg);
+  color: var(--info-text);
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: .25rem;
 }
-.info-livello-badge.warn { background: #fef3c7; color: #92400e; }
+.info-livello-badge.warn { background: var(--warning-bg); color: var(--warning-text); }
 .info-divino-badge {
   font-size: .75rem;
   font-weight: 700;
   padding: .15rem .5rem;
   border-radius: .4rem;
-  background: #fef9c3;
-  color: #854d0e;
+  background: var(--warning-bg);
+  color: var(--warning-text);
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: .25rem;
 }
 .info-body {
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--hairline);
   padding: .75rem;
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -541,15 +543,17 @@ async function salvaInfo() {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .04em;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 .info-input {
   width: 100%;
   box-sizing: border-box;
   min-width: 0;
   padding: .4rem .55rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .45rem;
+  background: var(--surface-0);
+  color: var(--text-strong);
   font-size: .9rem;
 }
 .info-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px #e0e7ff; }
@@ -560,9 +564,10 @@ async function salvaInfo() {
   justify-content: space-between;
   padding: .5rem .55rem;
   border-radius: .45rem;
-  background: #f0fdf4;
+  background: var(--success-bg);
+  color: var(--success-text);
 }
-.info-peso-val { font-weight: 700; color: #166534; }
+.info-peso-val { font-weight: 700; color: var(--success-text); }
 .info-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
 .btn-salva {
   padding: .45rem 1.2rem;
@@ -581,9 +586,10 @@ async function salvaInfo() {
 .frutti-list { display: grid; gap: .4rem; }
 
 .frutto-card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
-  background: #fff;
+  background: var(--surface-0);
+  color: var(--text-strong);
   overflow: hidden;
 }
 
@@ -595,13 +601,13 @@ async function salvaInfo() {
   flex-wrap: wrap;
   gap: .5rem;
   padding: .55rem .75rem;
-  background: #f9fafb;
+  background: var(--btn-bg);
+  color: inherit;
   border: 0;
   cursor: pointer;
   text-align: left;
-  text-align: left;
 }
-.frutto-head:hover { background: #f3f4f6; }
+.frutto-head:hover { background: var(--btn-bg-hover); }
 
 .chev {
   font-size: .75rem;
@@ -622,18 +628,18 @@ async function salvaInfo() {
   font-size: .75rem;
   padding: .15rem .5rem;
   border-radius: .4rem;
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--info-bg);
+  color: var(--info-text);
   font-weight: 600;
   white-space: normal;
   overflow-wrap: anywhere;
 }
 /* Colori chip: forme per numero (pastello), trasformazioni grigio chiaro */
-.pill-attiva.pill-forma-1 { background: #dcfce7; color: #166534; }   /* verdina */
-.pill-attiva.pill-forma-2 { background: #dbeafe; color: #1e40af; }   /* azzurrina */
-.pill-attiva.pill-forma-3 { background: #fef9c3; color: #854d0e; }   /* giallina */
-.pill-attiva.pill-forma-altro { background: #ede9fe; color: #5b21b6; } /* forma 4+ */
-.pill-attiva.pill-trasf { background: #f3f4f6; color: #4b5563; }     /* grigetto chiaro */
+.pill-attiva.pill-forma-1 { background: var(--success-bg); color: var(--success-text); }   /* verdina */
+.pill-attiva.pill-forma-2 { background: var(--info-bg); color: var(--info-text); }   /* azzurrina */
+.pill-attiva.pill-forma-3 { background: var(--warning-bg); color: var(--warning-text); }   /* giallina */
+.pill-attiva.pill-forma-altro { background: var(--accent-purple-bg); color: var(--accent-purple-text); } /* forma 4+ */
+.pill-attiva.pill-trasf { background: var(--btn-bg); color: var(--text-muted); }     /* grigetto chiaro */
 .pill-nessuna { font-size: .8rem; opacity: .45; }
 
 /* pillole attive spinte a destra (l'ultima = la forma) */
@@ -647,15 +653,15 @@ async function salvaInfo() {
 }
 
 /* Body */
-.frutto-body { border-top: 1px solid #e5e7eb; }
+.frutto-body { border-top: 1px solid var(--hairline); }
 
 .trasf-riga {
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--hairline);
 }
 .trasf-riga:last-child { border-bottom: 0; }
-.trasf-riga.attiva { background: #eff6ff; }
+.trasf-riga.attiva { background: var(--info-bg); }
 
 .trasf-toggle {
   flex: 1;
@@ -673,12 +679,12 @@ async function salvaInfo() {
 
 .dot {
   font-size: 1rem;
-  color: #9ca3af;
+  color: var(--text-muted);
   flex-shrink: 0;
   width: 1rem;
   text-align: center;
 }
-.trasf-riga.attiva .dot { color: #2563eb; }
+.trasf-riga.attiva .dot { color: var(--info-text); }
 
 .trasf-nome {
   font-size: .9rem;
@@ -687,21 +693,21 @@ async function salvaInfo() {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.trasf-riga.attiva .trasf-nome { font-weight: 700; color: #1e40af; }
+.trasf-riga.attiva .trasf-nome { font-weight: 700; color: var(--info-text); }
 
 .btn-info {
   flex-shrink: 0;
   padding: .55rem .75rem;
   border: 0;
-  border-left: 1px solid #e5e7eb;
+  border-left: 1px solid var(--hairline);
   background: transparent;
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: .9rem;
   cursor: pointer;
 }
-.btn-info:hover { background: #eef2ff; color: #3730a3; }
-.trasf-riga.attiva .btn-info { border-left-color: #bfdbfe; }
-.trasf-riga.attiva .btn-info:hover { background: #dbeafe; color: #1e40af; }
+.btn-info:hover { background: var(--info-bg); color: var(--info-text); }
+.trasf-riga.attiva .btn-info { border-left-color: var(--info-border); }
+.trasf-riga.attiva .btn-info:hover { background: var(--info-border); color: var(--info-text); }
 
 /* Separatore di tipo dentro la card */
 .tipo-sep {
@@ -710,17 +716,17 @@ async function salvaInfo() {
   font-weight: 700;
   letter-spacing: .04em;
   text-transform: uppercase;
-  color: #9ca3af;
-  background: #f9fafb;
-  border-top: 1px solid #e5e7eb;
-  border-bottom: 1px solid #e5e7eb;
+  color: var(--text-muted);
+  background: var(--btn-bg);
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
 }
 .frutto-body > .tipo-sep:first-child { border-top: 0; }
 
 /* Forme: diamanti e sfondo viola chiaro quando attive */
-.forma-riga.attiva { background: #f5f3ff; }
+.forma-riga.attiva { background: var(--accent-purple-bg); }
 .forma-riga .trasf-nome { }
-.forma-riga.attiva .trasf-nome { color: #6d28d9; }
-.forma-dot { color: #9ca3af; }
-.forma-riga.attiva .forma-dot { color: #7c3aed; }
+.forma-riga.attiva .trasf-nome { color: var(--accent-purple-text); }
+.forma-dot { color: var(--text-muted); }
+.forma-riga.attiva .forma-dot { color: var(--accent-purple-text); }
 </style>

@@ -234,14 +234,16 @@ function edit() {
 <style scoped>
 .quest-node {
   position: relative;
-  background: #fff;
-  border: 1px solid #e5eaf0;
+  background: var(--surface-0);
+  color: var(--text-strong);
+  border: 1px solid var(--hairline);
   border-radius: .7rem;
   margin-bottom: .45rem;
 }
 .quest-node.completa {
-  background: #eafbf0;
-  border-color: #bfe8cc;
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
 }
 /* Nodo esatto raggiunto dalla ricerca profonda: bordo blu + alone, per ritrovarlo subito
    nell'albero anche se il percorso fino a lì è profondo e già aperto automaticamente. */
@@ -275,8 +277,9 @@ function edit() {
   display: flex;
   align-items: center;
   gap: .35rem;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface-0);
+  color: var(--text-strong);
+  border: 1px solid var(--hairline);
   border-radius: .55rem;
   padding: .3rem .4rem;
   box-shadow: 0 4px 14px rgba(15, 23, 42, .14);
@@ -299,7 +302,7 @@ function edit() {
 /* .nome è anche una classe globale non scoped (global.css, background: var(--primary-color) per
    altri usi come box titolo): qui va azzerata esplicitamente, altrimenti quel background filtra
    comunque perché lo scoping non impedisce alle regole di ALTRI file di applicarsi. */
-.nome { font-weight: 600; color: #1e293b; word-break: break-word; background: none; border-radius: 0; }
+.nome { font-weight: 600; color: var(--text-strong); word-break: break-word; background: none; border-radius: 0; }
 .root-head .nome { font-weight: 700; font-size: 1.02rem; }
 /* Il ramo che arriva dal genitore "sottolinea" il nome della sotto-quest, con lo stesso colore
    della sua linea di collegamento (vedi .figli::before). border-radius: 0 sopra è necessario:
@@ -321,8 +324,8 @@ function edit() {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .03em;
-  border: 1px solid #cbd5e1;
-  color: #64748b;
+  border: 1px solid var(--hairline);
+  color: var(--text-muted);
   background: transparent;
   border-radius: 999px;
   padding: .1rem .55rem;
@@ -356,7 +359,7 @@ function edit() {
   position: absolute;
   inset: 3px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--surface-0);
 }
 .count-ring-text {
   position: absolute;
@@ -366,7 +369,7 @@ function edit() {
   justify-content: center;
   font-size: .56rem;
   font-weight: 700;
-  color: #334155;
+  color: var(--text-strong);
   font-variant-numeric: tabular-nums;
 }
 
@@ -378,18 +381,18 @@ function edit() {
   cursor: pointer;
   font-size: .82rem;
   font-weight: 600;
-  border: 1px dashed #94a3b8;
+  border: 1px dashed var(--text-muted);
   background: transparent;
-  color: #475569;
+  color: var(--text-muted);
   border-radius: .5rem;
   padding: .35rem .7rem;
 }
-.btn-incarico:hover { background: #f1f5f9; }
+.btn-incarico:hover { background: var(--btn-bg); }
 .btn-edit {
   flex-shrink: 0;
-  border: 1px solid #93c5fd;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border: 1px solid var(--info-border);
+  background: var(--info-bg);
+  color: var(--info-text);
   border-radius: .4rem;
   padding: .25rem .55rem;
   cursor: pointer;
@@ -409,17 +412,17 @@ function edit() {
   font-size: .85rem;
   font-weight: 700;
   line-height: 1;
-  border: 1px solid #94a3b8;
+  border: 1px solid var(--text-muted);
   background: transparent;
   color: transparent;
 }
 .btn-completata.done { border-color: #16a34a; background: #16a34a; color: #fff; }
 .btn-completata:disabled { opacity: .6; cursor: default; }
-.caricamento { font-size: .8rem; color: #94a3b8; }
-.descrizione { font-size: .88rem; color: #334155; white-space: pre-wrap; }
+.caricamento { font-size: .8rem; color: var(--text-muted); }
+.descrizione { font-size: .88rem; color: var(--text-muted); white-space: pre-wrap; }
 .note strong {
   font-size: .75rem;
-  color: #64748b;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: .05em;
 }
@@ -435,7 +438,7 @@ function edit() {
   border-radius: 999px;
   padding: .1rem .5rem;
 }
-.nota-html { margin: .2rem 0; font-size: .88rem; color: #334155; }
+.nota-html { margin: .2rem 0; font-size: .88rem; color: var(--text-muted); }
 
 /* Linea di connessione ad albero: una verticale continua per ciascuna quest, dal primo
    all'ultimo dei suoi figli — il colore (--ramo) è quello assegnato a QUESTA quest dal suo

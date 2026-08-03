@@ -157,14 +157,14 @@ async function rimuovi(item: any) {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .06em;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .section-count {
   font-size: .7rem;
   font-weight: 700;
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--btn-bg);
+  color: var(--text-muted);
   padding: .05rem .4rem;
   border-radius: 999px;
 }
@@ -181,15 +181,16 @@ async function rimuovi(item: any) {
   gap: .5rem;
   padding: .35rem .5rem;
   border-radius: .4rem;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border: 1px solid var(--hairline);
+  background: var(--btn-bg);
+  color: var(--text-strong);
 }
 
 .risultato-row {
   cursor: pointer;
-  background: #fff;
+  background: var(--surface-0);
 }
-.risultato-row:hover { background: #f0fdf4; border-color: #bbf7d0; }
+.risultato-row:hover { background: var(--success-bg); border-color: var(--success-border); color: var(--success-text); }
 
 .item-nome { flex: 1; font-size: .9rem; }
 
@@ -214,11 +215,11 @@ async function rimuovi(item: any) {
 
 .empty {
   font-size: .85rem;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .add-section {
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--hairline);
   padding-top: .6rem;
 }
 
@@ -230,18 +231,21 @@ async function rimuovi(item: any) {
 .tipo-select {
   flex: 0 0 auto;
   padding: .4rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
   font-size: .85rem;
-  background: #fff;
+  background: var(--surface-0);
+  color: var(--text-strong);
 }
 
 .search-input {
   flex: 1;
   padding: .4rem .6rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
   font-size: .9rem;
+  background: var(--surface-0);
+  color: var(--text-strong);
 }
 
 .risultati-list {

@@ -147,7 +147,7 @@ watch(() => props.disabled, d => { if (d) open.value = false })
 .ss-control {
   width: 100%; box-sizing: border-box;
   display: flex; align-items: center; justify-content: space-between; gap: .4rem;
-  padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff;
+  padding: .5rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0);
   cursor: pointer; text-align: left; font: inherit; color: inherit;
 }
 .ss-control:disabled { opacity: .6; cursor: default; }
@@ -158,22 +158,22 @@ watch(() => props.disabled, d => { if (d) open.value = false })
 
 .ss-panel {
   position: absolute; z-index: 50; top: calc(100% + 2px); left: 0; right: 0;
-  background: #fff; border: 1px solid #d0d5dd; border-radius: .5rem;
+  background: var(--surface-0); border: 1px solid var(--hairline); border-radius: .5rem;
   box-shadow: 0 8px 24px rgba(0,0,0,.12); overflow: hidden;
 }
 .ss-search {
   width: 100%; box-sizing: border-box; padding: .45rem .55rem;
-  border: 0; border-bottom: 1px solid #eef2f7; outline: none; font: inherit;
+  border: 0; border-bottom: 1px solid var(--hairline); outline: none; font: inherit;
 }
 .ss-list { list-style: none; margin: 0; padding: 0; max-height: 16rem; overflow-y: auto; }
 .ss-item { padding: .45rem .6rem; cursor: pointer; font-size: .9rem; display: flex; align-items: center; gap: .4rem; }
 .ss-item-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ss-hint {
   flex: 0 0 auto; font-size: .65rem; font-weight: 700; text-transform: uppercase;
-  background: #eef2ff; color: #3730a3; border-radius: .35rem; padding: .05rem .35rem;
+  background: var(--info-bg); color: var(--info-text); border-radius: .35rem; padding: .05rem .35rem;
 }
-.ss-item:hover { background: #f3f4f6; }
-.ss-item.selected { background: #eef2ff; color: #3730a3; font-weight: 600; }
+.ss-item:hover { background: var(--surface-hover); }
+.ss-item.selected { background: var(--info-bg); color: var(--info-text); font-weight: 600; }
 .ss-item.disabled { opacity: .5; cursor: default; }
 .ss-empty { padding: .5rem .6rem; opacity: .6; font-size: .85rem; }
 </style>

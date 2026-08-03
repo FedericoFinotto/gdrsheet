@@ -490,8 +490,6 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
 <style scoped>
 .party-page {
   width: 100%;
-  max-width: 44rem;
-  margin: 0 auto;
   padding: 1rem;
   display: grid;
   gap: 1rem;
@@ -541,15 +539,16 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
   align-items: center;
   gap: .5rem;
   padding: .7rem .9rem;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface-0);
+  color: var(--text-strong);
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
   text-align: left;
 }
 
 .card .nome { flex: 1; font-weight: 600; min-width: 8rem; }
 .card.clickable { position: relative; cursor: pointer; padding-left: 2.6rem; }
-.card.clickable:hover { background: #f9fafb; }
+.card.clickable:hover { background: var(--btn-bg); }
 
 /* icona di tipo personaggio: "rail" a tutta altezza sul bordo sinistro, discreta,
    più stile della riga che icona vera e propria. Su schermi stretti il padding si
@@ -569,19 +568,20 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
   border-top-left-radius: .6rem;
   border-bottom-left-radius: .6rem;
 }
-.tipo-rail.t-stella { color: #ca8a04; }
-.tipo-rail.t-nave { color: #1d4ed8; }
-.tipo-rail.t-base { color: #0d9488; }
-.tipo-rail.t-banca { color: #7c3aed; }
-.tipo-rail.t-npc { color: #475569; }
+.tipo-rail.t-stella { color: var(--warning-text); }
+.tipo-rail.t-nave { color: var(--info-text); }
+.tipo-rail.t-base { color: var(--accent-teal-text); }
+.tipo-rail.t-banca { color: var(--accent-purple-text); }
+.tipo-rail.t-npc { color: var(--text-muted); }
 @media (max-width: 480px) {
   .card.clickable { padding-left: .9rem; }
 }
-.card.clickable.own { border-left: 3px solid #22c55e; }
+.card.clickable.own { border-left: 3px solid var(--success-border); }
 
 .card.highlight {
-  background: #fefce8;
-  border-color: #fde68a;
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border-color: var(--warning-border);
   justify-content: center;
   padding: 1rem;
   flex-direction: column;
@@ -591,6 +591,7 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
   font-size: .8rem;
   opacity: .7;
   font-weight: 600;
+  color: inherit;
 }
 
 .pill {
@@ -598,10 +599,10 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
   padding: .15rem .5rem;
   border-radius: .5rem;
 }
-.pill.master { background: #fef3c7; color: #92400e; }
-.pill.giocatore { background: #dbeafe; color: #1e40af; }
-.pill.peso { background: #f3f4f6; color: #374151; }
-.pill.capo { background: #fef3c7; color: #92400e; display: inline-flex; align-items: center; gap: .25rem; }
+.pill.master { background: var(--warning-bg); color: var(--warning-text); }
+.pill.giocatore { background: var(--info-bg); color: var(--info-text); }
+.pill.peso { background: var(--btn-bg); color: var(--text-muted); }
+.pill.capo { background: var(--warning-bg); color: var(--warning-text); display: inline-flex; align-items: center; gap: .25rem; }
 .card-chips {
   margin-left: auto;
   display: inline-flex;
@@ -609,9 +610,9 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
   gap: .5rem;
   flex-shrink: 0;
 }
-.pill.livello { background: #eef2ff; color: #3730a3; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: .25rem; }
-.pill.livello.warn { background: #fef3c7; color: #92400e; }
-.pill.divino { background: #fef9c3; color: #854d0e; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: .25rem; }
+.pill.livello { background: var(--info-bg); color: var(--info-text); font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: .25rem; }
+.pill.livello.warn { background: var(--warning-bg); color: var(--warning-text); }
+.pill.divino { background: var(--warning-bg); color: var(--warning-text); font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: .25rem; }
 
 /* accordion gruppo */
 .gruppo-block { gap: .35rem; }
@@ -621,13 +622,14 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
   align-items: center;
   gap: .5rem;
   padding: .5rem .6rem;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
+  background: var(--btn-bg);
+  color: var(--text-strong);
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
   cursor: pointer;
   text-align: left;
 }
-.gruppo-head:hover { background: #eceef1; }
+.gruppo-head:hover { background: var(--btn-bg-hover); }
 .gruppo-nome { font-weight: 700; font-size: 1rem; }
 .gruppo-head .chev { font-size: .75rem; opacity: .6; transition: transform .15s; }
 .gruppo-head .chev.open { transform: rotate(90deg); }
@@ -640,18 +642,18 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
   flex-shrink: 0;
 }
 .gruppo-head .conteggio {
-  font-size: .75rem; font-weight: 700; color: #6b7280;
-  background: #fff; border: 1px solid #e5e7eb; border-radius: 999px;
+  font-size: .75rem; font-weight: 700; color: var(--text-muted);
+  background: var(--surface-0); border: 1px solid var(--hairline); border-radius: 999px;
   min-width: 1.4rem; text-align: center; padding: 0 .35rem;
 }
-.capo-star { color: #d97706; margin-right: .2rem; }
+.capo-star { color: var(--warning-text); margin-right: .2rem; }
 
 .gruppo-azioni { display: flex; justify-content: flex-end; margin: .1rem 0; }
 .btn-livella {
-  border: 1px solid #bbf7d0; background: #f0fdf4; color: #166534;
+  border: 1px solid var(--success-border); background: var(--success-bg); color: var(--success-text);
   border-radius: .5rem; padding: .35rem .7rem; font-size: .8rem; font-weight: 600; cursor: pointer;
 }
-.btn-livella:hover { background: #dcfce7; }
+.btn-livella:hover { filter: brightness(0.95); }
 
 .peso-row {
   justify-content: space-between;
@@ -661,16 +663,17 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
 
 .state {
   padding: .75rem;
-  border: 1px dashed #e5e7eb;
+  border: 1px dashed var(--hairline);
   border-radius: .5rem;
 }
-.state.error { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+.state.error { color: var(--error-color); background: var(--surface-warn); border-color: var(--hairline); }
 
 .btn {
   padding: .45rem .8rem;
   border-radius: .5rem;
-  border: 1px solid #d0d5dd;
-  background: #fff;
+  border: 1px solid var(--hairline);
+  background: var(--surface-0);
+  color: var(--text-strong);
   cursor: pointer;
 }
 .btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
@@ -682,10 +685,10 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
   align-items: center;
   gap: .35rem;
   padding: .4rem .8rem;
-  border: 1px dashed #94a3b8;
+  border: 1px dashed var(--text-muted);
   border-radius: .5rem;
-  background: #fff;
-  color: #334155;
+  background: var(--surface-0);
+  color: var(--text-strong);
   font-weight: 600;
   font-size: .85rem;
   cursor: pointer;
@@ -696,24 +699,26 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
   display: grid;
   gap: .4rem;
   padding: .6rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
-  background: #fff;
+  background: var(--surface-0);
   margin-top: .5rem;
 }
 .crea-form input, .crea-form select {
   padding: .45rem .6rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
+  background: var(--surface-0);
+  color: var(--text-strong);
 }
 .crea-form .field { display: grid; gap: .25rem; }
 .crea-form .field .muted { font-size: .75rem; }
 
 .gestione { gap: .6rem; }
-.btn.danger { justify-self: start; background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+.btn.danger { justify-self: start; background: var(--surface-warn); color: var(--error-color); border-color: var(--hairline); }
 
 .autocomplete { position: relative; }
-.autocomplete input { width: 100%; box-sizing: border-box; padding: .45rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; }
+.autocomplete input { width: 100%; box-sizing: border-box; padding: .45rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0); color: var(--text-strong); }
 .suggerimenti {
   position: absolute;
   top: 100%;
@@ -723,8 +728,9 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
   list-style: none;
   margin: .15rem 0 0;
   padding: 0;
-  background: #fff;
-  border: 1px solid #d0d5dd;
+  background: var(--surface-0);
+  color: var(--text-strong);
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
   box-shadow: 0 4px 12px rgba(0,0,0,.1);
   overflow: hidden;
@@ -736,9 +742,9 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
   padding: .45rem .7rem;
   cursor: pointer;
 }
-.suggerimenti li:hover { background: #f0f7ff; }
+.suggerimenti li:hover { background: var(--surface-hover); }
 .sug-nome { font-weight: 600; flex: 1; }
-.sug-username { font-size: .82rem; color: #64748b; }
+.sug-username { font-size: .82rem; color: var(--text-muted); }
 
 .membri { display: grid; gap: .35rem; }
 .membro {
@@ -746,9 +752,10 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
   align-items: center;
   gap: .5rem;
   padding: .4rem .6rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #fff;
+  background: var(--surface-0);
+  color: var(--text-strong);
 }
 .membro .nome { font-weight: 600; }
 </style>

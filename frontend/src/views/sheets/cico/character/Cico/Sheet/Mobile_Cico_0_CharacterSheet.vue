@@ -164,7 +164,7 @@ const onTouchEnd = (e: TouchEvent) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f9fafb;
+  background: var(--surface-0);
 }
 
 
@@ -176,7 +176,7 @@ const onTouchEnd = (e: TouchEvent) => {
   display: inline-block;
   width: 2.5rem;
   height: 2.5rem;
-  border: 3px solid #d1d5db;
+  border: 3px solid var(--hairline);
   border-top-color: #2563eb;
   border-radius: 50%;
   animation: spin .8s linear infinite;

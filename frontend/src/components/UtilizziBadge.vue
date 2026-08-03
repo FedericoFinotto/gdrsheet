@@ -41,14 +41,14 @@ async function cambia(delta: number) {
   align-items: center;
   gap: 2px;
   border-radius: .4rem;
-  background: #e0f2fe;
+  background: var(--info-bg);
   padding: 1px 3px;
   font-size: .72rem;
   font-weight: 700;
 }
 .utilizzi.esauriti {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--danger-bg);
+  color: var(--danger-text);
 }
 .u-btn {
   width: 1.25rem;
@@ -66,7 +66,7 @@ async function cambia(delta: number) {
   color: inherit;
 }
 .u-btn:disabled { opacity: .35; cursor: default; }
-.u-btn:not(:disabled):hover { background: rgba(0,0,0,.1); }
+.u-btn:not(:disabled):hover { background: var(--btn-bg-hover); }
 .u-count {
   min-width: 2.5rem;
   text-align: center;

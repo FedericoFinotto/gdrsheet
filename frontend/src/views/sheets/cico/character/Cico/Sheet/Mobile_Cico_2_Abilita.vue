@@ -83,5 +83,5 @@ const abilitaPerFamiglia = computed(() =>
 .abilita-page { display: flex; flex-direction: column; gap: 1rem; }
 .abilita-section { display: flex; flex-direction: column; gap: .4rem; }
 .section-header { display: flex; align-items: center; gap: .5rem; }
-.section-title { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; }
+.section-title { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
 </style>

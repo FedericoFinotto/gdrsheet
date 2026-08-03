@@ -27,6 +27,7 @@ import TabContenutiLivello from './TabContenutiLivello.vue'
 import TabAbilitaRanghi from './TabAbilitaRanghi.vue'
 import TabItemExtra from './TabItemExtra.vue'
 import TabExpandable from '../../../../../../../components/TabExpandable.vue'
+import Icona from '../../../../../../../components/Icona/Icona.vue'
 import ModificatoriEditor from '../Sections/ModificatoriEditor.vue'
 import {ModificatoreRow} from '../../../../../../../models/dto/UpdateItemRequest'
 import {GrantRow} from "../../../../../../../models/dto/GrantRow";
@@ -47,7 +48,11 @@ type SkillRow = {
 }
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean }>()
-const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
+const emit = defineEmits<{
+  (e: 'saved'): void
+  (e: 'cancel'): void
+  (e: 'savedResta', item: ItemDB): void
+}>()
 
 const router = useRouter()
 const route = useRoute()
@@ -526,9 +531,9 @@ watch(gradiKey, (key) => {
   debouncedRefresh()
 })
 
-/* Salvataggio */
-async function onSave() {
-  if (!canSave.value || personaggioId.value == null) return
+/* Salvataggio — separato dall'emit così serve sia al Salva che chiude sia al floppy che resta */
+async function salva(): Promise<boolean> {
+  if (!canSave.value || personaggioId.value == null) return false
   try {
     busy.value = true
     const payload = toRaw({
@@ -562,13 +567,31 @@ async function onSave() {
           }))
     })
     await saveLivello(payload)
-    emit('saved')
+    return true
   } catch (e) {
     console.error('Errore salvataggio livello:', e)
+    return false
   } finally {
     busy.value = false
   }
 }
+
+async function onSave() {
+  if (await salva()) emit('saved')
+}
+
+// floppy: salva senza uscire dall'editor
+const salvato = ref(false)
+let timerSalvato: ReturnType<typeof setTimeout> | null = null
+
+async function onSalvaResta() {
+  if (!await salva()) return
+  emit('savedResta', props.item)
+  salvato.value = true
+  if (timerSalvato) clearTimeout(timerSalvato)
+  timerSalvato = setTimeout(() => salvato.value = false, 2000)
+}
+
 function onCancel() {
   emit('cancel')
 }
@@ -664,6 +687,10 @@ const sumClasseMaledizione = computed(() =>
 
     <div class="actions">
       <button type="button" class="btn ghost" @click="onCancel" :disabled="busy">Annulla</button>
+      <span v-if="salvato" class="salvato">Salvato</span>
+      <button type="button" class="btn icona" :disabled="!canSave || personaggioId===null"
+              title="Salva e resta qui" aria-label="Salva e resta qui"
+              @click="onSalvaResta"><Icona name="SALVA"/></button>
       <button type="submit" class="btn primary" :disabled="!canSave || personaggioId===null">Salva</button>
     </div>
   </form>
@@ -679,7 +706,8 @@ const sumClasseMaledizione = computed(() =>
 .dv-field { display: grid; gap: .3rem; }
 .dv-lbl { font-size: .8rem; font-weight: 600; opacity: .85; }
 .dv-field input {
-  width: 100%; padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff;
+  width: 100%; padding: .5rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0);
+  color: var(--text-strong);
 }
 .sp-head {
   display: flex;
@@ -697,12 +725,13 @@ const sumClasseMaledizione = computed(() =>
 .actions {
   position: sticky;
   bottom: 0;
-  background: #fff;
+  background: var(--surface-0);
   padding: .5rem 0 calc(.5rem + env(safe-area-inset-bottom, 0px));
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--hairline);
   display: flex;
   justify-content: flex-end;
   gap: .5rem;
+  align-items: center;
 }
 .btn {
   padding: .5rem .9rem;
@@ -710,9 +739,21 @@ const sumClasseMaledizione = computed(() =>
   border: 1px solid transparent;
   cursor: pointer;
 }
+/* salva senza uscire: solo icona, per distinguerlo a colpo d'occhio dal Salva che chiude */
+.btn.icona {
+  border-color: var(--hairline); background: var(--surface-0); color: var(--text-strong);
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 2.4rem; padding: .5rem;
+}
+.btn.icona:hover:not(:disabled) { background: var(--btn-bg); }
+.salvato {
+  font-size: .8rem; font-weight: 600; color: var(--success-text);
+  margin-right: auto; padding-left: .25rem;
+}
 .btn.ghost {
-  border-color: #d0d5dd;
-  background: #fff;
+  border-color: var(--hairline);
+  background: var(--surface-0);
+  color: var(--text-strong);
 }
 .btn.primary {
   background: #2563eb;

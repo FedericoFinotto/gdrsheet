@@ -64,15 +64,15 @@ async function onSubmit() {
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  background: #f3f4f6;
+  background: var(--primary-color);
   padding: 1rem;
 }
 
 .login-card {
   width: 100%;
   max-width: 22rem;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface-0);
+  border: 1px solid var(--hairline);
   border-radius: .75rem;
   padding: 1.5rem;
   display: grid;
@@ -92,7 +92,7 @@ h1 {
 input {
   width: 100%;
   padding: .55rem .65rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
 }
 
@@ -100,9 +100,9 @@ input {
   margin: 0;
   padding: .5rem .7rem;
   border-radius: .5rem;
-  color: #991b1b;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  color: var(--danger-text);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
   font-size: .85rem;
 }
 

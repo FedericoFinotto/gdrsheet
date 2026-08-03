@@ -39,9 +39,10 @@ function toggle(value: string | number | null, on: boolean) {
 .opzione {
   display: inline-flex; align-items: center; gap: .35rem;
   font-size: .85rem; cursor: pointer;
-  border: 1px solid #e5e7eb; border-radius: .5rem; padding: .25rem .55rem; background: #fff;
+  border: 1px solid var(--hairline); border-radius: .5rem; padding: .25rem .55rem; background: var(--surface-0);
+  color: var(--text-strong);
 }
 .opzione input { width: auto; cursor: pointer; }
-.opzione:has(input:checked) { background: #eef2ff; border-color: #c7d2fe; font-weight: 600; }
+.opzione:has(input:checked) { background: var(--info-bg); border-color: var(--info-border); color: var(--info-text); font-weight: 600; }
 label:has(input:disabled) { opacity: .6; cursor: default; }
 </style>

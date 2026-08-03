@@ -847,7 +847,7 @@ function toggleExpand(key: string) {
   max-width: 100%;
   object-fit: cover;
   border-radius: .5rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   cursor: zoom-in;
 }
 
@@ -859,7 +859,7 @@ function toggleExpand(key: string) {
 
 .note-box strong {
   font-size: .75rem;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: .05em;
 }
@@ -878,7 +878,7 @@ function toggleExpand(key: string) {
 .nota-html {
   margin: .2rem 0;
   font-size: .88rem;
-  color: #334155;
+  color: var(--text-muted);
 }
 .nota-html :deep(ul),
 .nota-html :deep(ol) { margin: .3rem 0 .3rem 1.2rem; padding: 0; }
@@ -891,7 +891,7 @@ function toggleExpand(key: string) {
   align-items: center;
   padding-bottom: .6rem;
   margin-bottom: .6rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--hairline);
 }
 
 .action-btn {
@@ -910,33 +910,33 @@ function toggleExpand(key: string) {
 .action-btn:hover { filter: brightness(.97); }
 
 .action-btn.toggle.enable {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
+  border-color: var(--success-border);
+  background: var(--success-bg);
+  color: var(--success-text);
 }
 
 .action-btn.toggle.disable {
-  border-color: #fed7aa;
-  background: #fff7ed;
-  color: #9a3412;
+  border-color: var(--coin-mr-border);
+  background: var(--coin-mr-bg);
+  color: var(--coin-mr-text);
 }
 
 .action-btn.edit {
-  border-color: #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-color: var(--info-border);
+  background: var(--info-bg);
+  color: var(--info-text);
   margin-left: auto;
 }
 
 .action-btn.dai {
-  border-color: #fde68a;
-  background: #fefce8;
-  color: #854d0e;
+  border-color: var(--coin-mo-border);
+  background: var(--coin-mo-bg);
+  color: var(--coin-mo-text);
 }
 
 .barriera-box {
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
+  border: 1px solid var(--info-border);
+  background: var(--info-bg);
   border-radius: .6rem;
   padding: .5rem .6rem;
   display: grid;
@@ -945,18 +945,18 @@ function toggleExpand(key: string) {
 }
 .barr-head { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; }
 .barr-head .titolo { font-weight: 700; }
-.barr-head .val { font-weight: 800; color: #1d4ed8; font-variant-numeric: tabular-nums; }
+.barr-head .val { font-weight: 800; color: var(--info-text); font-variant-numeric: tabular-nums; }
 .barr-track { height: .55rem; background: #dbeafe; border-radius: 999px; overflow: hidden; }
 .barr-fill { height: 100%; background: #3b82f6; }
 .barr-actions { display: flex; flex-wrap: wrap; gap: .35rem; }
 .barr-actions .btn {
-  border: 1px solid #d0d5dd; background: #fff; border-radius: .5rem;
+  border: 1px solid var(--hairline); background: var(--surface-0); border-radius: .5rem;
   padding: .35rem .65rem; cursor: pointer; font-weight: 600; font-size: .85rem;
 }
 .barr-actions .btn:disabled { opacity: .5; cursor: default; }
-.barr-actions .btn.danger { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+.barr-actions .btn.danger { border-color: var(--danger-border); background: var(--danger-bg); color: var(--danger-text); }
 .contenitore-box {
-  border: 1px solid var(--color-border, #e5e7eb);
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
   overflow: hidden;
   margin: .5rem 0;
@@ -965,13 +965,13 @@ function toggleExpand(key: string) {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  background: var(--color-surface-2, #f3f4f6);
+  background: var(--btn-bg);
   padding: .4rem .75rem;
   font-size: .78rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .04em;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
 }
 .contenitore-peso { font-variant-numeric: tabular-nums; }
 .contenitore-list { padding: .25rem 0; }
@@ -983,16 +983,16 @@ function toggleExpand(key: string) {
   font-size: .85rem;
   gap: .5rem;
 }
-.contenitore-item:nth-child(even) { background: var(--color-surface-1, #fafafa); }
+.contenitore-item:nth-child(even) { background: var(--surface-zebra-even); }
 .contenitore-item-nome { flex: 1; }
 .contenitore-item-peso { font-size: .75rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .contenitore-empty { padding: .5rem .75rem; font-size: .85rem; }
-.arma-row        { background: #fefce8 !important; }
-.oggetto-row     { background: #eff6ff !important; }
-.consumabile-row { background: #fdf4ff !important; }
-.altro-row       { background: #f3f4f6 !important; }
-.monete-row      { background: #f0fdf4 !important; }
-.muted { color: var(--color-text-secondary, #6b7280); }
+.arma-row        { background: var(--coin-mo-bg) !important; }
+.oggetto-row     { background: var(--info-bg) !important; }
+.consumabile-row { background: var(--accent-purple-bg) !important; }
+.altro-row       { background: var(--btn-bg) !important; }
+.monete-row      { background: var(--success-bg) !important; }
+.muted { color: var(--text-muted); }
 
 /* Talento: header manuale/pagina/categorie + sezioni stile dndtools */
 .talento-header {
@@ -1003,10 +1003,10 @@ function toggleExpand(key: string) {
   margin-bottom: .5rem;
   font-size: .8rem;
 }
-.talento-manuale { color: var(--color-text-secondary, #6b7280); font-style: italic; }
+.talento-manuale { color: var(--text-muted); font-style: italic; }
 .talento-categoria {
-  background: var(--color-surface-2, #f3f4f6);
-  color: var(--color-text-secondary, #6b7280);
+  background: var(--btn-bg);
+  color: var(--text-muted);
   border-radius: .4rem;
   padding: .1rem .5rem;
   font-weight: 600;
@@ -1029,25 +1029,25 @@ function toggleExpand(key: string) {
   font-size: .7rem;
   letter-spacing: .02em;
 }
-.descrittore-oggetto { background: #ede9fe; color: #5b21b6; }
-.descrittore-abilita { background: #dcfce7; color: #166534; }
+.descrittore-oggetto { background: var(--accent-purple-bg); color: var(--accent-purple-text); }
+.descrittore-abilita { background: var(--success-bg); color: var(--success-text); }
 .costo-materiale {
   display: flex; flex-wrap: wrap; gap: .8rem;
-  font-size: .82rem; color: var(--color-text-secondary, #6b7280);
+  font-size: .82rem; color: var(--text-muted);
   margin-bottom: .5rem;
 }
 .section-card {
-  border: 1px solid var(--color-border, #e5e7eb);
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
   overflow: hidden;
   margin: .5rem 0;
 }
 .section-card-header {
-  background: var(--color-surface-2, #f3f4f6);
+  background: var(--btn-bg);
   padding: .4rem .75rem;
   font-size: .78rem;
   font-weight: 600;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: .04em;
 }
@@ -1057,18 +1057,18 @@ function toggleExpand(key: string) {
   white-space: pre-wrap;
 }
 .talento-link { margin: .5rem 0; font-size: .85rem; }
-.talento-link a { color: #1d4ed8; }
+.talento-link a { color: var(--info-text); }
 
 /* Liste di item (attacchi/abilità/effetti/maledizioni/collegati): accordion, click sulla riga
    espande il dettaglio in linea (niente popup annidati quando il componente è già in un popup) */
 .item-group-title { margin: 0 0 .3rem; font-size: .85rem; }
 .item-list {
-  border: 1px solid var(--color-border, #e5e7eb);
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
   overflow: hidden;
 }
-.item-list-group:not(:last-child) { border-bottom: 1px solid var(--color-border, #e5e7eb); }
-.item-list-group:nth-child(even) .item-list-row { background: var(--color-surface-1, #fafafa); }
+.item-list-group:not(:last-child) { border-bottom: 1px solid var(--hairline); }
+.item-list-group:nth-child(even) .item-list-row { background: var(--surface-zebra-even); }
 .item-list-row {
   width: 100%;
   display: flex;
@@ -1096,18 +1096,18 @@ function toggleExpand(key: string) {
   flex-wrap: wrap;
   gap: .5rem;
   font-size: .75rem;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
 }
 .item-list-chevron {
   flex: 0 0 auto;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
   transition: transform .15s ease;
   font-size: .8rem;
 }
 .item-list-chevron.open { transform: rotate(-180deg); }
 .item-list-accordion-body {
   padding: .5rem .6rem .75rem;
-  border-top: 1px solid var(--color-border, #e5e7eb);
-  background: var(--color-surface-1, #fafafa);
+  border-top: 1px solid var(--hairline);
+  background: var(--btn-bg);
 }
 </style>

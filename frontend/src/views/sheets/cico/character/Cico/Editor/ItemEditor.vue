@@ -207,6 +207,17 @@ async function onSaved() {
   }
   router.back()
 }
+
+// Floppy: salvato restando nell'editor. Si aggiorna la scheda perché i dati mostrati altrove
+// sono ora vecchi, ma non si chiude e non si naviga.
+async function onSavedResta() {
+  if (!idPersonaggio.value) return
+  try {
+    await characterStore.fetchCharacter(idPersonaggio.value, true)
+  } catch (e) {
+    console.error('Errore refresh personaggio:', e)
+  }
+}
 </script>
 
 <template>
@@ -257,6 +268,7 @@ async function onSaved() {
             :id-party="idParty"
             @cancel="goBack"
             @saved="onSaved"
+            @saved-resta="onSavedResta"
         />
 
         <div v-else class="state unsupported">
@@ -274,7 +286,7 @@ async function onSaved() {
   max-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--surface-0);
 }
 
 .head {
@@ -288,7 +300,7 @@ async function onSaved() {
   gap: .5rem .75rem;
   padding: .75rem 1rem;
   background: inherit;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--hairline);
 }
 
 .head h1 {
@@ -313,8 +325,8 @@ async function onSaved() {
   font-size: .8rem;
   padding: .1rem .5rem;
   border-radius: .5rem;
-  background: #eef2ff;
-  color: #3730a3;
+  background: var(--info-bg);
+  color: var(--info-text);
 }
 
 .parent-bar {
@@ -323,8 +335,8 @@ async function onSaved() {
   align-items: center;
   gap: .4rem;
   padding: .5rem 1rem;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--btn-bg);
+  border-bottom: 1px solid var(--hairline);
 }
 
 .parent-label {
@@ -337,9 +349,9 @@ async function onSaved() {
   font-size: .8rem;
   padding: .25rem .6rem;
   border-radius: .5rem;
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border: 1px solid var(--info-border);
+  background: var(--info-bg);
+  color: var(--info-text);
   font-weight: 600;
   cursor: pointer;
 }
@@ -362,15 +374,15 @@ async function onSaved() {
 
 .state {
   padding: .75rem;
-  border: 1px dashed #e5e7eb;
+  border: 1px dashed var(--hairline);
   border-radius: .5rem;
   margin: 0;
 }
 
 .state.error {
-  color: #991b1b;
-  background: #fef2f2;
-  border-color: #fecaca;
+  color: var(--danger-text);
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
 }
 
 .unsupported .btn {
@@ -380,8 +392,8 @@ async function onSaved() {
 .btn {
   padding: .5rem .9rem;
   border-radius: .5rem;
-  border: 1px solid #d0d5dd;
-  background: #fff;
+  border: 1px solid var(--hairline);
+  background: var(--surface-0);
   cursor: pointer;
 }
 
@@ -392,16 +404,16 @@ async function onSaved() {
   font-weight: 600;
   cursor: pointer;
 }
-.btn-toggle.on { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
-.btn-toggle.off { border-color: #fed7aa; background: #fff7ed; color: #9a3412; }
+.btn-toggle.on { border-color: var(--success-border); background: var(--success-bg); color: var(--success-text); }
+.btn-toggle.off { border-color: var(--coin-mr-border); background: var(--coin-mr-bg); color: var(--coin-mr-text); }
 .btn-toggle:disabled { opacity: .6; cursor: default; }
 
 .btn-delete {
   padding: .3rem .7rem;
   border-radius: .5rem;
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
+  border: 1px solid var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-text);
   font-weight: 600;
   cursor: pointer;
 }
@@ -411,9 +423,9 @@ async function onSaved() {
 .btn-unlink {
   padding: .3rem .7rem;
   border-radius: .5rem;
-  border: 1px solid #fde68a;
-  background: #fefce8;
-  color: #92400e;
+  border: 1px solid var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning-text);
   font-weight: 600;
   cursor: pointer;
 }

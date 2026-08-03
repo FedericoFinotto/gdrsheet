@@ -176,7 +176,7 @@ const hasMore = () => items.value.length < total.value
   flex: 1;
   min-width: 0;
   padding: .4rem .6rem;
-  border: 1px solid var(--color-border, #d1d5db);
+  border: 1px solid var(--hairline);
   border-radius: .4rem;
   font-size: .875rem;
   outline: none;
@@ -185,10 +185,10 @@ const hasMore = () => items.value.length < total.value
 .tipo-select {
   flex-shrink: 0;
   padding: .4rem .3rem;
-  border: 1px solid var(--color-border, #d1d5db);
+  border: 1px solid var(--hairline);
   border-radius: .4rem;
   font-size: .8rem;
-  background: #fff;
+  background: var(--surface-0);
   cursor: pointer;
   max-width: 110px;
 }
@@ -203,7 +203,7 @@ const hasMore = () => items.value.length < total.value
 .empty-state {
   padding: 1rem;
   text-align: center;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
   font-size: .875rem;
 }
 .result-row {
@@ -213,13 +213,13 @@ const hasMore = () => items.value.length < total.value
   padding: .45rem .6rem;
   border-radius: .35rem;
   cursor: pointer;
-  background: #fff;
+  background: var(--surface-0);
   transition: background .1s;
   border: 1px solid transparent;
 }
-.result-row:hover     { background: #eff6ff; }
+.result-row:hover     { background: var(--info-bg); }
 .result-row.is-selected {
-  background: #eff6ff;
+  background: var(--info-bg);
   border-color: #2563eb;
 }
 .item-nome {
@@ -233,8 +233,8 @@ const hasMore = () => items.value.length < total.value
 }
 .item-tipo {
   font-size: .72rem;
-  color: var(--color-text-secondary, #6b7280);
-  background: var(--color-surface-2, #f3f4f6);
+  color: var(--text-muted);
+  background: var(--btn-bg);
   padding: .1rem .35rem;
   border-radius: .3rem;
   flex-shrink: 0;
@@ -250,14 +250,14 @@ const hasMore = () => items.value.length < total.value
 .btn-load-more {
   margin-top: .3rem;
   padding: .4rem;
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed var(--hairline);
   border-radius: .4rem;
-  background: #f8fafc;
-  color: #475569;
+  background: var(--btn-bg);
+  color: var(--text-muted);
   font-size: .8rem;
   cursor: pointer;
 }
-.btn-load-more:hover:not(:disabled) { background: #f1f5f9; }
+.btn-load-more:hover:not(:disabled) { background: var(--btn-bg-hover); }
 .btn-load-more:disabled { opacity: .5; cursor: default; }
 
 /* Barra conferma */
@@ -266,8 +266,8 @@ const hasMore = () => items.value.length < total.value
   align-items: center;
   gap: .5rem;
   padding: .55rem .6rem;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
   border-radius: .4rem;
   flex-shrink: 0;
 }
@@ -286,14 +286,14 @@ const hasMore = () => items.value.length < total.value
 }
 .btn-annulla {
   padding: .3rem .65rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--hairline);
   border-radius: .35rem;
-  background: #fff;
-  color: #374151;
+  background: var(--surface-0);
+  color: var(--text-muted);
   font-size: .8rem;
   cursor: pointer;
 }
-.btn-annulla:hover:not(:disabled) { background: #f9fafb; }
+.btn-annulla:hover:not(:disabled) { background: var(--btn-bg-hover); }
 .btn-conferma {
   padding: .3rem .75rem;
   border: none;

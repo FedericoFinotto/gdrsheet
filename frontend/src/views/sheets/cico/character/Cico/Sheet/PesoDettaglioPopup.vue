@@ -294,7 +294,7 @@ function pesoEffettivo(slot: Slot) {
   gap: .5rem;
   font-size: .88rem;
   font-weight: 600;
-  color: #d97706;
+  color: var(--warning-text);
 }
 .taglia-label { flex: 1; }
 .taglia-val { flex-shrink: 0; font-variant-numeric: tabular-nums; }
@@ -304,7 +304,7 @@ function pesoEffettivo(slot: Slot) {
   align-items: baseline;
   gap: .5rem;
   font-size: .76rem;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
   padding-left: .1rem;
 }
 .taglia-calc { font-variant-numeric: tabular-nums; flex-shrink: 0; }
@@ -316,7 +316,7 @@ function pesoEffettivo(slot: Slot) {
   padding: .35rem 0 .1rem;
   font-size: .9rem;
   font-weight: 700;
-  border-top: 1px solid var(--color-border, #e5e7eb);
+  border-top: 1px solid var(--hairline);
   margin-top: .3rem;
 }
 .container-nome { flex: 1; }
@@ -333,28 +333,28 @@ function pesoEffettivo(slot: Slot) {
   padding-top: .4rem;
   font-weight: 700;
   font-size: .95rem;
-  border-top: 2px solid var(--color-border, #e5e7eb);
+  border-top: 2px solid var(--hairline);
   margin-top: .2rem;
 }
 .val { text-align: right; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .val-total { text-align: right; font-variant-numeric: tabular-nums; flex-shrink: 0; font-size: 1rem; }
-.divider { height: 1px; background: var(--color-border, #e5e7eb); margin: .35rem 0; }
-.muted { color: var(--color-text-secondary, #6b7280); }
+.divider { height: 1px; background: var(--hairline); margin: .35rem 0; }
+.muted { color: var(--text-muted); }
 .tag {
   display: inline-block;
   font-size: .65rem;
   padding: .05rem .3rem;
   border-radius: 999px;
-  background: var(--color-surface-2, #f3f4f6);
-  color: var(--color-text-secondary, #6b7280);
+  background: var(--btn-bg);
+  color: var(--text-muted);
   font-weight: 600;
   margin-left: .2rem;
   vertical-align: middle;
 }
-.chip-arma    { background: #fefce8; }
-.chip-oggetto { background: #eff6ff; }
-.chip-consumabile { background: #fdf4ff; }
-.chip-altro   { background: #f3f4f6; }
-.chip-monete  { background: #f0fdf4; }
-.chip-monete-row { color: #15803d; font-weight: 500; }
+.chip-arma    { background: var(--coin-mo-bg); }
+.chip-oggetto { background: var(--info-bg); }
+.chip-consumabile { background: var(--accent-purple-bg); }
+.chip-altro   { background: var(--btn-bg); }
+.chip-monete  { background: var(--success-bg); }
+.chip-monete-row { color: var(--success-text); font-weight: 500; }
 </style>

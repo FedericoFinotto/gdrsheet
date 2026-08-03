@@ -107,7 +107,7 @@ function rimuovi(idx: number) {
 <style scoped>
 .tag-editor { display: grid; gap: .4rem; }
 .stato { font-size: .85rem; opacity: .7; }
-.stato.errore { color: #991b1b; }
+.stato.errore { color: var(--danger-text); }
 .tag-row {
   display: grid;
   grid-template-columns: 1fr 1fr 5rem auto;
@@ -119,16 +119,17 @@ function rimuovi(idx: number) {
   .tag-row .peso { grid-column: 1; }
 }
 .peso {
-  width: 100%; padding: .45rem .55rem; border: 1px solid #d0d5dd;
-  border-radius: .5rem; background: #fff; text-align: center;
+  width: 100%; padding: .45rem .55rem; border: 1px solid var(--hairline);
+  border-radius: .5rem; background: var(--surface-0); color: var(--text-strong); text-align: center;
   font-variant-numeric: tabular-nums; min-width: 0;
 }
 .btn-del {
-  border: 1px solid #fecaca; background: #fef2f2; color: #991b1b;
+  border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger-text);
   border-radius: .5rem; padding: .35rem .6rem; cursor: pointer;
 }
 .btn-add {
-  justify-self: start; border: 1px dashed #d0d5dd; background: #fff;
+  justify-self: start; border: 1px dashed var(--hairline); background: var(--surface-0);
+  color: var(--text-strong);
   border-radius: .5rem; padding: .4rem .7rem; cursor: pointer;
 }
 .nota { margin: 0; font-size: .75rem; opacity: .6; }

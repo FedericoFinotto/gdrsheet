@@ -7,7 +7,7 @@ import {CampoLabel} from '../../../../../../../models/dto/UpdateItemRequest'
 import {Categoria, getCategorie} from '../../../../../../../service/RandomizzatoreService'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
-const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
+const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedResta', item: { id: number }): void }>()
 
 const router = useRouter()
 
@@ -71,6 +71,7 @@ const CAMPI = computed<CampoLabel[]>(() => [
         :campi-label="CAMPI"
         campi-label-titolo="Configurazione Randomizzatore"
         @saved="emit('saved')"
+        @saved-resta="emit('savedResta', $event)"
         @cancel="emit('cancel')"
     />
   </div>
@@ -80,7 +81,7 @@ const CAMPI = computed<CampoLabel[]>(() => [
 .caricamento { font-size: .9rem; opacity: .7; padding: .5rem 0; }
 .prova { display: flex; justify-content: flex-end; margin-bottom: .5rem; }
 .btn-prova {
-  border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3;
+  border: 1px solid var(--info-border); background: var(--info-bg); color: var(--info-text);
   border-radius: .5rem; padding: .4rem .8rem; cursor: pointer; font-weight: 600; font-size: .85rem;
 }
 .btn-prova:hover { background: #e0e7ff; }

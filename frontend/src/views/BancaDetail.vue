@@ -77,8 +77,6 @@ onMounted(async () => {
 <style scoped>
 .banca-page {
   width: 100%;
-  max-width: 44rem;
-  margin: 0 auto;
   padding: 1rem;
   display: grid;
   gap: 1rem;
@@ -122,16 +120,17 @@ onMounted(async () => {
   align-items: center;
   gap: .5rem;
   padding: .7rem .9rem;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface-0);
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
 }
 
 .card .nome { flex: 1; font-weight: 600; min-width: 8rem; }
 
 .card.highlight {
-  background: #fefce8;
-  border-color: #fde68a;
+  background: var(--coin-mo-bg);
+  border-color: var(--coin-mo-border);
+  color: var(--coin-mo-text);
   justify-content: center;
   padding: 1rem;
 }
@@ -141,21 +140,21 @@ onMounted(async () => {
   padding: .15rem .5rem;
   border-radius: .5rem;
 }
-.pill.party { background: #fef3c7; color: #92400e; }
-.pill.giocatore { background: #dbeafe; color: #1e40af; }
+.pill.party { background: var(--warning-bg); color: var(--warning-text); }
+.pill.giocatore { background: var(--info-bg); color: var(--info-text); }
 
 .state {
   padding: .75rem;
-  border: 1px dashed #e5e7eb;
+  border: 1px dashed var(--hairline);
   border-radius: .5rem;
 }
-.state.error { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+.state.error { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
 
 .btn {
   padding: .45rem .8rem;
   border-radius: .5rem;
-  border: 1px solid #d0d5dd;
-  background: #fff;
+  border: 1px solid var(--hairline);
+  background: var(--surface-0);
   cursor: pointer;
 }
 </style>

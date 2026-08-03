@@ -44,18 +44,17 @@ onMounted(async () => {
   }
 })
 
-// serve un tag per ognuna delle categorie da scegliere
+// le categorie sono facoltative: se non scelto un tag, il backend ne sceglie uno a caso
 const puoEstrarre = computed(() =>
     !!config.value
-    && !estraendo.value
-    && config.value.categorieScelte.every(c => scelte.value[c.id] != null))
+    && !estraendo.value)
 
 async function estrai() {
   if (!puoEstrarre.value || !config.value) return
   estraendo.value = true
   errorMsg.value = null
   try {
-    const tagScelti = config.value.categorieScelte.map(c => scelte.value[c.id] as number)
+    const tagScelti = config.value.categorieScelte.map(c => scelte.value[c.id])
     const {data} = await estraiApi(idRandomizzatore, tagScelti, autoMondo.value, autoSistema.value)
     esito.value = data
     if (mostraStorico.value) await caricaStorico()
@@ -159,7 +158,7 @@ function formatData(iso: string): string {
 
 <style scoped>
 .rand-page {
-  width: 100%; max-width: 44rem; margin: 0 auto; padding: 1rem;
+  width: 100%; padding: 1rem;
   display: grid; gap: .75rem; align-content: start;
   height: 100%; min-height: 0; overflow-y: auto;
 }
@@ -179,22 +178,22 @@ function formatData(iso: string): string {
 
 .chip {
   font-size: .75rem; font-weight: 600; padding: .15rem .55rem;
-  border-radius: 999px; background: #f3f4f6; color: #374151; white-space: nowrap;
+  border-radius: 999px; background: var(--badge-bg); color: var(--badge-text); white-space: nowrap;
 }
-.chip.scelto { background: #dbeafe; color: #1d4ed8; }
-.chip.estratto { background: #dcfce7; color: #166534; }
+.chip.scelto { background: var(--info-bg); color: var(--info-text); }
+.chip.estratto { background: var(--success-bg); color: var(--success-text); }
 
 .btn {
-  border: 1px solid #d0d5dd; background: #fff; border-radius: .5rem;
+  border: 1px solid var(--hairline); background: var(--surface-0); border-radius: .5rem;
   padding: .45rem .8rem; cursor: pointer; font-weight: 600;
 }
-.btn.ghost { background: #fff; }
+.btn.ghost { background: var(--surface-0); }
 .btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
 .btn.big { padding: .7rem 1rem; font-size: 1rem; margin-top: .25rem; }
 .btn:disabled { opacity: .5; cursor: default; }
 
 .esito-card {
-  border: 1px solid #bbf7d0; background: #f0fdf4;
+  border: 1px solid var(--success-border); background: var(--success-bg); color: var(--success-text);
   border-radius: .6rem; padding: .75rem .9rem; display: grid; gap: .5rem;
 }
 .esito-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
@@ -215,13 +214,13 @@ function formatData(iso: string): string {
 
 .storico { display: grid; gap: .4rem; }
 .storico-riga {
-  border: 1px solid #e5e7eb; border-radius: .5rem; padding: .45rem .6rem;
-  background: #fff; display: grid; gap: .25rem;
+  border: 1px solid var(--hairline); border-radius: .5rem; padding: .45rem .6rem;
+  background: var(--surface-0); display: grid; gap: .25rem;
 }
 .storico-top { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; }
 .storico-nome { font-weight: 600; }
 .utente { font-size: .75rem; }
 
 .state { font-size: .9rem; padding: .25rem 0; }
-.state.error { color: #991b1b; }
+.state.error { color: var(--danger-text); }
 </style>

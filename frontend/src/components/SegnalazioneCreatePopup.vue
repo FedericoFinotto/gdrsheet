@@ -59,15 +59,15 @@ async function salva() {
 <style scoped>
 .seg-create { display: flex; flex-direction: column; gap: .75rem; min-width: 18rem; }
 .seg-create h3 { margin: 0; }
-.campo { display: flex; flex-direction: column; gap: .3rem; font-size: .85rem; color: #374151; }
+.campo { display: flex; flex-direction: column; gap: .3rem; font-size: .85rem; color: var(--text-strong); }
 .campo input, .campo textarea {
-  padding: .5rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; font: inherit; resize: vertical;
+  padding: .5rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; font: inherit; resize: vertical;
 }
-.screenshot-hint { margin: 0; font-size: .8rem; color: #6b7280; }
-.errore { margin: 0; font-size: .85rem; color: #991b1b; }
+.screenshot-hint { margin: 0; font-size: .8rem; color: var(--text-muted); }
+.errore { margin: 0; font-size: .85rem; color: var(--danger-text); }
 .azioni { display: flex; justify-content: flex-end; gap: .5rem; }
-.btn { padding: .45rem .8rem; border-radius: .5rem; border: 1px solid #d0d5dd; background: #fff; cursor: pointer; }
+.btn { padding: .45rem .8rem; border-radius: .5rem; border: 1px solid var(--hairline); background: var(--surface-0); cursor: pointer; }
 .btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
 .btn.primary:disabled { opacity: .6; cursor: default; }
-.btn.ghost { background: #fff; }
+.btn.ghost { background: var(--surface-0); }
 </style>

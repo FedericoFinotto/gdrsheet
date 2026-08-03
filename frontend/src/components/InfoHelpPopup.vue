@@ -29,7 +29,7 @@ defineProps<{
   gap: .6rem;
 }
 .ih-title { margin: 0; font-size: 1.05rem; }
-.ih-nota { margin: 0; font-size: .85rem; color: #6b7280; }
+.ih-nota { margin: 0; font-size: .85rem; color: var(--text-muted); }
 .ih-list { display: flex; flex-direction: column; gap: .5rem; }
 .ih-row {
   display: grid;
@@ -40,8 +40,8 @@ defineProps<{
 .ih-nome {
   font-size: .8rem;
   font-weight: 700;
-  color: #3730a3;
-  background: #eef2ff;
+  color: var(--info-text);
+  background: var(--info-bg);
   padding: .1rem .4rem;
   border-radius: .35rem;
   white-space: nowrap;

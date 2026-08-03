@@ -56,17 +56,19 @@ function remove(idx: number) {
 .notes-editor { display: grid; gap: .6rem; }
 .empty { font-size: .85rem; opacity: .6; }
 .nota-row {
-  display: grid; gap: .4rem; padding: .5rem; border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff;
+  display: grid; gap: .4rem; padding: .5rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0);
+  color: var(--text-strong);
 }
 .nota-footer { display: flex; align-items: flex-end; gap: .5rem; }
 .vis-field { display: grid; gap: .3rem; flex: 1; min-width: 0; }
 .vis-field .lbl { font-size: .75rem; font-weight: 600; opacity: .8; }
 .btn-del {
-  border: 1px solid #fecaca; background: #fef2f2; color: #991b1b;
+  border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger-text);
   border-radius: .5rem; padding: .4rem .6rem; cursor: pointer;
 }
 .btn-add {
-  justify-self: start; border: 1px dashed #d0d5dd; background: #fff;
+  justify-self: start; border: 1px dashed var(--hairline); background: var(--surface-0);
+  color: var(--text-strong);
   border-radius: .5rem; padding: .4rem .7rem; cursor: pointer;
 }
 button:disabled { opacity: .6; cursor: default; }

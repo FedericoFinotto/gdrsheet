@@ -69,8 +69,6 @@ async function salva() {
 <style scoped>
 .account {
   width: 100%;
-  max-width: 32rem;
-  margin: 0 auto;
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -79,10 +77,10 @@ async function salva() {
 .head { display: flex; align-items: center; gap: .6rem; }
 .head h1 { margin: 0; font-size: 1.2rem; }
 .card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
   padding: 1rem;
-  background: #fff;
+  background: var(--surface-0);
   display: flex;
   flex-direction: column;
   gap: .6rem;
@@ -92,17 +90,17 @@ async function salva() {
 .lbl { font-size: .75rem; font-weight: 600; opacity: .8; }
 input[type="text"] {
   padding: .45rem .6rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
   width: 100%;
   box-sizing: border-box;
 }
 .btn { padding: .5rem .9rem; border-radius: .5rem; border: 1px solid transparent; cursor: pointer; align-self: flex-start; }
-.btn.ghost { border-color: #d0d5dd; background: #fff; }
+.btn.ghost { border-color: var(--hairline); background: var(--surface-0); }
 .btn.primary { background: #2563eb; color: #fff; }
 .btn:disabled { opacity: .6; cursor: default; }
 .msg { margin: 0; font-size: .85rem; padding: .4rem .6rem; border-radius: .4rem; }
-.msg.error { color: #991b1b; background: #fef2f2; }
-.msg.ok { color: #166534; background: #f0fdf4; }
+.msg.error { color: var(--danger-text); background: var(--danger-bg); }
+.msg.ok { color: var(--success-text); background: var(--success-bg); }
 .muted { font-size: .85rem; opacity: .65; margin: 0; }
 </style>

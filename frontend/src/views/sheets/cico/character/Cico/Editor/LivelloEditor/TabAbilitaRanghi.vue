@@ -138,10 +138,11 @@ function onDirect(uid: string, ev: Event) {
   display: grid;
   grid-template-columns: 1fr;
   gap: .5rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
   padding: .5rem .6rem;
-  background: #fff;
+  background: var(--surface-0);
+  color: var(--text-strong);
 }
 
 @media (min-width: 700px) {
@@ -181,13 +182,13 @@ function onDirect(uid: string, ev: Event) {
 }
 
 .pill.blue {
-  background: #dbeafe;
-  color: #1e3a8a;
+  background: var(--info-bg);
+  color: var(--info-text);
 }
 
 .pill.red {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--danger-bg);
+  color: var(--danger-text);
 }
 
 .skill-stats {
@@ -232,14 +233,16 @@ function onDirect(uid: string, ev: Event) {
 }
 
 .counter .btn {
-  border: 1px solid #d1d5db;
-  background: #fff;
+  border: 1px solid var(--hairline);
+  background: var(--counter-btn-bg);
+  color: var(--text-strong);
   border-radius: .4rem;
   padding: .25rem .55rem;
   cursor: pointer;
   min-width: 2.1rem;
   min-height: 2.1rem;
 }
+.counter .btn:hover:not(:disabled) { background: var(--counter-btn-hover); }
 
 .counter input[type="number"] {
   width: 3.2rem;

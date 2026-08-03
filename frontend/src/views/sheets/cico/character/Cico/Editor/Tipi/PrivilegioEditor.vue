@@ -4,7 +4,7 @@ import {ItemDB} from '../../../../../../../models/entity/ItemDB'
 import {CampoLabel} from '../../../../../../../models/dto/UpdateItemRequest'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
-const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void }>()
+const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedResta', item: { id: number }): void }>()
 
 // GRUPPO_PRIVILEGI: se un personaggio ha 2+ privilegi con lo stesso valore di questo campo (es.
 // una versione potenziata dello stesso privilegio sbloccata da una classe di prestigio), in
@@ -22,6 +22,7 @@ const CAMPI: CampoLabel[] = [
       titolo="Privilegio di Classe"
       :campi-label="CAMPI"
       @saved="emit('saved')"
+      @saved-resta="emit('savedResta', $event)"
       @cancel="emit('cancel')"
   />
 </template>

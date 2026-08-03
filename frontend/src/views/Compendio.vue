@@ -142,6 +142,20 @@ watch([filtroNome, filtroTipo, deepMode, page], () => {
   if (!uguale) router.replace({query: q})
 })
 
+// …e viceversa: se la URL cambia mentre la pagina è già montata (es. la scorciatoia
+// "Randomizzatori" del menu quando si è già nel compendio) i filtri devono adeguarsi.
+// Il watch qui sopra non riscatta: dopo l'allineamento la query è identica.
+watch(() => [route.query.nome, route.query.tipo, route.query.deep, route.query.page], () => {
+  const nome = String(route.query.nome ?? '')
+  const tipo = String(route.query.tipo ?? '')
+  const deep = route.query.deep === '1'
+  const pg = Math.max(0, Number(route.query.page) || 0)
+  if (filtroNome.value !== nome) filtroNome.value = nome
+  if (filtroTipo.value !== tipo) filtroTipo.value = tipo
+  if (deepMode.value !== deep) deepMode.value = deep
+  if (page.value !== pg) page.value = pg
+})
+
 function vaiPagina(p: number) {
   if (!pagina.value) return
   const np = Math.min(Math.max(0, p), pagina.value.totalPages - 1)
@@ -277,8 +291,6 @@ onMounted(() => {
 <style scoped>
 .compendio-page {
   width: 100%;
-  max-width: 44rem;
-  margin: 0 auto;
   padding: 1rem;
   display: grid;
   gap: .75rem;
@@ -310,20 +322,20 @@ onMounted(() => {
   min-width: 0;
   box-sizing: border-box;
   padding: .55rem .7rem;
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--info-border);
   border-radius: .6rem;
-  background: #f8fbff;
+  background: var(--info-bg);
   font-size: .95rem;
 }
-.global-search input:focus { outline: none; border-color: #60a5fa; background: #fff; }
+.global-search input:focus { outline: none; border-color: #60a5fa; background: var(--surface-0); }
 
 .btn-deep {
   flex: none;
   padding: 0 .8rem;
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--info-border);
   border-radius: .6rem;
-  background: #f8fbff;
-  color: #3730a3;
+  background: var(--info-bg);
+  color: var(--info-text);
   font-weight: 700;
   font-size: .8rem;
   letter-spacing: .03em;
@@ -344,7 +356,7 @@ onMounted(() => {
 .match-snippet {
   flex: 1 1 100%;
   font-size: .82rem;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
   overflow-wrap: anywhere;
 }
 .match-snippet :deep(mark.hl),
@@ -363,9 +375,9 @@ onMounted(() => {
 
 .filter-tipo {
   padding: .45rem .6rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #fff;
+  background: var(--surface-0);
 }
 
 .paginator {
@@ -388,8 +400,8 @@ onMounted(() => {
 .row {
   display: flex;
   align-items: stretch;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface-0);
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
   overflow: hidden;
 }
@@ -405,7 +417,7 @@ onMounted(() => {
   min-width: 0;
 }
 
-.row-main:hover { background: #f9fafb; }
+.row-main:hover { background: var(--surface-hover); }
 
 .row-main-content {
   display: grid;
@@ -424,7 +436,7 @@ onMounted(() => {
 
 .manuale {
   font-size: .7rem;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--text-muted);
   overflow-wrap: break-word;
 }
 
@@ -438,39 +450,39 @@ onMounted(() => {
   padding: .15rem .5rem;
   border-radius: .5rem;
 }
-.pill.tipo { background: #eef2ff; color: #3730a3; white-space: nowrap; }
+.pill.tipo { background: var(--info-bg); color: var(--info-text); white-space: nowrap; }
 
 .btn-edit {
   border: 0;
-  border-left: 1px solid #e5e7eb;
-  background: #f8fafc;
+  border-left: 1px solid var(--hairline);
+  background: var(--btn-bg);
   padding: 0 .8rem;
   font-size: 1rem;
   cursor: pointer;
 }
-.btn-edit:hover { background: #eef2ff; }
-.btn-rand { border-right: 1px solid #e5e7eb; }
+.btn-edit:hover { background: var(--info-bg); }
+.btn-rand { border-right: 1px solid var(--hairline); }
 
 .detail {
   margin-top: .25rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
   padding: .5rem;
-  background: #fff;
+  background: var(--surface-0);
 }
 
 .state {
   padding: .75rem;
-  border: 1px dashed #e5e7eb;
+  border: 1px dashed var(--hairline);
   border-radius: .5rem;
 }
-.state.error { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+.state.error { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
 
 .btn {
   padding: .45rem .8rem;
   border-radius: .5rem;
-  border: 1px solid #d0d5dd;
-  background: #fff;
+  border: 1px solid var(--hairline);
+  background: var(--surface-0);
   cursor: pointer;
 }
 .btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; font-weight: 600; }

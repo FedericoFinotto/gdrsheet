@@ -65,10 +65,10 @@ function apriPopup() {
   width: 100%;
   min-width: 0;
   height: 2rem;
-  border: 1px solid #94a3b8;
+  border: 1px solid var(--hairline);
   border-radius: 4px;
   overflow: hidden;
-  background: #e5e7eb;
+  background: var(--btn-bg);
   cursor: pointer;
   padding: 0;
 }
@@ -89,7 +89,7 @@ function apriPopup() {
   font-weight: 700;
   font-size: .8rem;
   cursor: pointer;
-  color: #334155;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
@@ -147,17 +147,17 @@ function apriPopup() {
 }
 
 .extra.temp {
-  color: #0f766e;
+  color: var(--accent-teal-text);
 }
 
 .extra.barr {
-  color: #1d4ed8;
+  color: var(--info-text);
 }
 
 .bar-btn {
   flex-shrink: 0;
   cursor: pointer;
   font-size: .9rem;
-  color: #475569;
+  color: var(--text-muted);
 }
 </style>

@@ -126,15 +126,16 @@ const classeDetailLabel = computed(() => props.classeDetail?.nome ?? '')
 }
 
 .required {
-  color: #ef4444;
+  color: var(--danger-text);
 }
 
 select, input[type="text"] {
   width: 100%;
   padding: .5rem .6rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #fff;
+  background: var(--surface-0);
+  color: var(--text-strong);
 }
 
 .wrap {
@@ -157,9 +158,10 @@ select, input[type="text"] {
   align-items: center;
   gap: .35rem;
   padding: .2rem .45rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #fff;
+  background: var(--surface-0);
+  color: var(--text-strong);
 }
 
 .level-pill input {

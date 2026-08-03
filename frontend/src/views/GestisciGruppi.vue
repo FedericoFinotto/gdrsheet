@@ -193,8 +193,6 @@ async function elimina(g: GruppoEdit) {
 <style scoped>
 .gruppi-page {
   width: 100%;
-  max-width: 44rem;
-  margin: 0 auto;
   padding: 1rem;
   display: grid;
   gap: 1rem;
@@ -208,33 +206,33 @@ async function elimina(g: GruppoEdit) {
 .head h1 { margin: 0; font-size: 1.25rem; }
 
 .crea { display: flex; gap: .5rem; }
-.crea input { flex: 1; padding: .45rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; }
+.crea input { flex: 1; padding: .45rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; }
 
 .gruppo-card {
   display: grid;
   gap: .6rem;
   padding: .75rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
-  background: #fff;
+  background: var(--surface-0);
 }
 .gruppo-head { display: flex; gap: .5rem; align-items: center; cursor: pointer; }
 .gruppo-head .chev { font-size: .8rem; opacity: .6; transition: transform .15s; flex-shrink: 0; }
 .gruppo-head .chev.open { transform: rotate(90deg); }
 .gruppo-head .conteggio {
-  font-size: .75rem; font-weight: 700; color: #6b7280;
-  background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 999px;
+  font-size: .75rem; font-weight: 700; color: var(--text-muted);
+  background: var(--btn-bg); border: 1px solid var(--hairline); border-radius: 999px;
   min-width: 1.4rem; text-align: center; padding: 0 .35rem; flex-shrink: 0;
 }
-.nome-input { flex: 1; padding: .45rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; font-weight: 700; }
+.nome-input { flex: 1; padding: .45rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; font-weight: 700; }
 
 .membri { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .membro-riga {
   display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem;
-  padding: .55rem .4rem; border-bottom: 1px solid #f1f3f5;
+  padding: .55rem .4rem; border-bottom: 1px solid var(--hairline);
 }
 .membro-riga:last-child { border-bottom: 0; }
-.membro-riga:hover { background: #f9fafb; }
+.membro-riga:hover { background: var(--surface-hover); }
 .membro-riga--bloccato { opacity: .55; }
 .membro-riga--bloccato .check { cursor: not-allowed; }
 .membro-riga--bloccato .check input { cursor: not-allowed; }
@@ -244,21 +242,21 @@ async function elimina(g: GruppoEdit) {
 .check .nome { font-weight: 600; min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
 .tipo-tag {
   font-size: .7rem; padding: .1rem .4rem; border-radius: .4rem;
-  background: #eef2ff; color: #3730a3; flex-shrink: 0; white-space: nowrap;
+  background: var(--info-bg); color: var(--info-text); flex-shrink: 0; white-space: nowrap;
 }
-.check-capo { display: inline-flex; align-items: center; gap: .3rem; font-size: .78rem; color: #92400e; cursor: pointer; flex-shrink: 0; white-space: nowrap; }
-.in-altro { font-size: .72rem; color: #9ca3af; font-style: italic; flex-shrink: 0; white-space: nowrap; text-align: right; }
+.check-capo { display: inline-flex; align-items: center; gap: .3rem; font-size: .78rem; color: var(--warning-text); cursor: pointer; flex-shrink: 0; white-space: nowrap; }
+.in-altro { font-size: .72rem; color: var(--text-muted); font-style: italic; flex-shrink: 0; white-space: nowrap; text-align: right; }
 
 .gruppo-actions { display: flex; justify-content: flex-end; }
 
 .btn {
-  padding: .45rem .8rem; border-radius: .5rem; border: 1px solid #d0d5dd; background: #fff; cursor: pointer;
+  padding: .45rem .8rem; border-radius: .5rem; border: 1px solid var(--hairline); background: var(--surface-0); cursor: pointer;
 }
 .btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
-.btn.danger { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
-.btn.ghost { background: #fff; }
+.btn.danger { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger-border); }
+.btn.ghost { background: var(--surface-0); }
 .btn:disabled { opacity: .6; cursor: default; }
 
-.state { padding: .75rem; border: 1px dashed #e5e7eb; border-radius: .5rem; }
-.state.error { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+.state { padding: .75rem; border: 1px dashed var(--hairline); border-radius: .5rem; }
+.state.error { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
 </style>

@@ -103,8 +103,9 @@ const caratteristicheLocal = computed({
 input[type="number"] {
   width: 100%;
   padding: .5rem .6rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #fff;
+  background: var(--surface-0);
+  color: var(--text-strong);
 }
 </style>

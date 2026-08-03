@@ -48,16 +48,18 @@ function remove(idx: number) {
 .empty { font-size: .85rem; opacity: .6; }
 .mv-row { display: grid; grid-template-columns: 1fr auto; gap: .4rem; align-items: start; }
 .val {
-  width: 100%; padding: .45rem .55rem; border: 1px solid #d0d5dd; border-radius: .5rem; background: #fff;
+  width: 100%; padding: .45rem .55rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0);
+  color: var(--text-strong);
   min-width: 0;
 }
 textarea.val { resize: vertical; }
 .btn-del {
-  border: 1px solid #fecaca; background: #fef2f2; color: #991b1b;
+  border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger-text);
   border-radius: .5rem; padding: .35rem .6rem; cursor: pointer; align-self: start;
 }
 .btn-add {
-  justify-self: start; border: 1px dashed #d0d5dd; background: #fff;
+  justify-self: start; border: 1px dashed var(--hairline); background: var(--surface-0);
+  color: var(--text-strong);
   border-radius: .5rem; padding: .4rem .7rem; cursor: pointer;
 }
 button:disabled { opacity: .6; cursor: default; }

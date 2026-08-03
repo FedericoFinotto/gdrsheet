@@ -45,15 +45,16 @@ function scegli(n: number) {
 
 .fr-btn {
   padding: .6rem .3rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #fff;
+  background: var(--surface-0);
+  color: var(--text-strong);
   font-weight: 800;
   font-size: 1rem;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
 
-.fr-btn:hover { background: #eff6ff; border-color: #2563eb; color: #1d4ed8; }
+.fr-btn:hover { background: var(--info-bg); border-color: var(--info-border); color: var(--info-text); }
 .fr-btn:active { transform: scale(.95); }
 </style>

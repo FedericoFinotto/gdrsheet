@@ -305,10 +305,11 @@ function setGrantQty(g: GrantRow, val: string) {
 }
 
 .grant-block {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
   padding: .5rem;
-  background: #fff;
+  background: var(--surface-0);
+  color: var(--text-strong);
 }
 
 .grant-header {
@@ -336,10 +337,10 @@ function setGrantQty(g: GrantRow, val: string) {
 }
 .btn-info {
   width: 1.7rem; height: 1.7rem; padding: 0;
-  border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8;
+  border: 1px solid var(--info-border); background: var(--info-bg); color: var(--info-text);
   border-radius: .4rem; cursor: pointer; font-size: .85rem; line-height: 1;
 }
-.btn-info:hover { background: #dbeafe; }
+.btn-info:hover { background: var(--info-border); }
 .grant-check {
   display: grid;
   grid-template-columns: auto auto 1fr;
@@ -347,8 +348,8 @@ function setGrantQty(g: GrantRow, val: string) {
   align-items: center;
 }
 .grant-qty {
-  width: 3.5rem; padding: .2rem .3rem; border: 1px solid #d0d5dd; border-radius: .4rem;
-  text-align: center; font-size: .8rem;
+  width: 3.5rem; padding: .2rem .3rem; border: 1px solid var(--hairline); border-radius: .4rem;
+  text-align: center; font-size: .8rem; background: var(--surface-0); color: var(--text-strong);
 }
 
 .grant-name {
@@ -364,13 +365,14 @@ function setGrantQty(g: GrantRow, val: string) {
 .btn {
   padding: .25rem .6rem;
   border-radius: .5rem;
-  border: 1px solid #d0d5dd;
-  background: #fff;
+  border: 1px solid var(--hairline);
+  background: var(--surface-0);
+  color: var(--text-strong);
   cursor: pointer;
 }
 
 .btn.ghost {
-  background: #fff;
+  background: var(--surface-0);
 }
 
 .btn:disabled {
@@ -388,13 +390,13 @@ function setGrantQty(g: GrantRow, val: string) {
 }
 
 .pill.blue {
-  background: #dbeafe;
-  color: #1e3a8a;
+  background: var(--info-bg);
+  color: var(--info-text);
 }
 
 .pill.red {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--danger-bg);
+  color: var(--danger-text);
 }
 
 .muted {

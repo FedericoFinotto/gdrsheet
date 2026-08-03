@@ -62,23 +62,23 @@ async function rimuovi(i: number) {
 <style scoped>
 .incarico-popup { display: flex; flex-direction: column; gap: .5rem; min-width: 14rem; }
 .titolo { margin: 0; font-size: 1.05rem; }
-.stato { font-size: .85rem; color: #6b7280; }
+.stato { font-size: .85rem; color: var(--text-muted); }
 .riga {
   display: flex; align-items: center; justify-content: space-between; gap: .5rem;
-  padding: .35rem .1rem; border-bottom: 1px solid #f1f3f5; font-size: .9rem;
+  padding: .35rem .1rem; border-bottom: 1px solid var(--hairline); font-size: .9rem;
 }
 .riga:last-of-type { border-bottom: 0; }
 .btn-del {
-  border: 1px solid #fecaca; background: #fef2f2; color: #991b1b;
+  border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger-text);
   border-radius: .4rem; padding: .1rem .45rem; cursor: pointer; font-size: .8rem;
 }
 .btn-del:disabled { opacity: .6; cursor: default; }
 .nuovo-row { display: flex; gap: .4rem; margin-top: .3rem; }
 .nuovo-input {
-  flex: 1; padding: .45rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem; font: inherit;
+  flex: 1; padding: .45rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; font: inherit;
 }
 .btn-add {
-  border: 1px solid #93c5fd; background: #eff6ff; color: #1d4ed8;
+  border: 1px solid var(--info-border); background: var(--info-bg); color: var(--info-text);
   border-radius: .5rem; padding: 0 .8rem; font-weight: 700; cursor: pointer;
 }
 .btn-add:disabled { opacity: .5; cursor: default; }

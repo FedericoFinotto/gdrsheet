@@ -12,6 +12,7 @@ import NotiziePopup from './NotiziePopup.vue'
 import {catturaScreenshot} from '../function/reportScreenshot'
 import {listaSegnalazioni} from '../service/SegnalazioniService'
 import {contaNonLette} from '../function/segnalazioniNotifiche'
+import {getTheme, toggleTheme} from '../function/useTheme'
 
 const DiceRollerPopup = defineAsyncComponent(() => import('./DiceRollerPopup.vue'))
 const DiceForcePopup = defineAsyncComponent(() => import('./DiceForcePopup.vue'))
@@ -64,6 +65,13 @@ const canManageUsers = computed(() => {
 function toggleAdminMode() {
   auth.setAdminMode(!auth.adminMode)
   setTimeout(() => window.location.reload(), 0)
+}
+
+// Tema chiaro/scuro
+const temaScuro = ref(getTheme() === 'dark')
+function onToggleTema() {
+  toggleTheme()
+  temaScuro.value = getTheme() === 'dark'
 }
 
 // aggiorna app
@@ -279,6 +287,25 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
             <span v-if="segnalazioniNonLette > 0" class="menu-badge">{{ segnalazioniNonLette }}</span>
           </button>
 
+          <!-- Toggle tema chiaro/scuro -->
+          <div class="admin-toggle-row">
+            <span class="admin-toggle-label">
+              <i class="fa-solid fa-moon menu-icon"></i>
+              Tema Scuro
+            </span>
+            <button
+              class="toggle-btn"
+              :class="{ active: temaScuro }"
+              @click="onToggleTema"
+              :title="temaScuro ? 'Passa al tema chiaro' : 'Passa al tema scuro'"
+            >
+              <span class="toggle-track">
+                <span class="toggle-thumb"/>
+              </span>
+              <span class="toggle-status">{{ temaScuro ? 'ON' : 'OFF' }}</span>
+            </button>
+          </div>
+
           <!-- Toggle modalità admin (solo per utenti con ruolo ADMIN/SUPERUSER) -->
           <div v-if="auth.isRealAdmin" class="admin-toggle-row">
             <span class="admin-toggle-label">
@@ -334,6 +361,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
           </button>
           <button class="menu-item" @click="naviga('/compendio')">
             <i class="fa-solid fa-book menu-icon"></i> Compendio
+          </button>
+          <!-- scorciatoia master: il compendio già filtrato sui randomizzatori -->
+          <button v-if="canManageUsers" class="menu-item" @click="naviga('/compendio?tipo=RANDOMIZZATORE')">
+            <i class="fa-solid fa-dice-d20 menu-icon"></i> Randomizzatori
           </button>
           <hr class="menu-sep"/>
           <button class="menu-item" :disabled="aggiornando" @click="forzaAggiornamento">
@@ -391,12 +422,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
   border: 0;
   cursor: pointer;
   font-size: 1.2rem;
-  color: #374151;
+  color: var(--text-muted);
   padding: .25rem .35rem;
   border-radius: .4rem;
   line-height: 1;
 }
-.bell-btn:hover { background: #f3f4f6; }
+.bell-btn:hover { background: var(--btn-bg); }
 
 .bell-badge {
   position: absolute;
@@ -488,7 +519,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
 
 .menu-panel {
   width: min(18rem, 85vw);
-  background: #fff;
+  background: var(--surface-0);
+  color: var(--text-strong);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -501,7 +533,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1rem .75rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--hairline);
   flex-shrink: 0;
 }
 
@@ -512,11 +544,11 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
   border: 0;
   cursor: pointer;
   font-size: 1rem;
-  color: #6b7280;
+  color: var(--text-muted);
   padding: .25rem .4rem;
   border-radius: .35rem;
 }
-.close-btn:hover { background: #f3f4f6; }
+.close-btn:hover { background: var(--btn-bg); }
 
 .menu-nav {
   display: flex;
@@ -539,9 +571,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
   width: 100%;
   color: inherit;
 }
-.menu-item:hover { background: #f3f4f6; }
-.menu-item.danger { color: #dc2626; }
-.menu-item.danger:hover { background: #fef2f2; }
+.menu-item:hover { background: var(--btn-bg); }
+.menu-item.danger { color: var(--error-color); }
+.menu-item.danger:hover { background: var(--btn-bg-hover); }
 .menu-item:disabled { opacity: .6; cursor: default; }
 
 .menu-icon {
@@ -567,7 +599,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
   line-height: 1;
 }
 
-.menu-sep { border: 0; border-top: 1px solid #e5e7eb; margin: .35rem 0; }
+.menu-sep { border: 0; border-top: 1px solid var(--hairline); margin: .35rem 0; }
 
 /* Switcher mondo */
 .mondo-switch-row { margin: .15rem 0; }
@@ -585,7 +617,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
   cursor: pointer;
   color: inherit;
 }
-.mondo-switch-head:hover { background: #f3f4f6; }
+.mondo-switch-head:hover { background: var(--btn-bg); }
 .mondo-switch-label { flex-shrink: 0; }
 .mondo-corrente {
   flex: 1;
@@ -615,18 +647,18 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
   cursor: pointer;
   color: inherit;
 }
-.mondo-switch-item:hover { background: #f3f4f6; }
-.mondo-switch-item.active { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+.mondo-switch-item:hover { background: var(--btn-bg); }
+.mondo-switch-item.active { background: var(--surface-hover); color: #1d4ed8; font-weight: 600; }
 
-/* Admin toggle */
+/* Admin toggle (e tema scuro) */
 .admin-toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: .6rem .9rem;
   border-radius: .5rem;
-  background: #f8faff;
-  border: 1px solid #dbeafe;
+  background: var(--surface-hover);
+  border: 1px solid var(--border-color);
   margin: .15rem 0;
 }
 .admin-toggle-label {
@@ -634,7 +666,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
   align-items: center;
   gap: .65rem;
   font-size: .95rem;
-  color: #1e3a8a;
+  color: var(--text-strong);
   font-weight: 500;
 }
 .toggle-btn {
@@ -647,11 +679,11 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
   padding: .2rem .3rem;
   border-radius: .35rem;
 }
-.toggle-btn:hover { background: #dbeafe; }
+.toggle-btn:hover { background: var(--btn-bg-hover); }
 .toggle-track {
   width: 2.2rem;
   height: 1.2rem;
-  background: #d1d5db;
+  background: var(--tile-gap);
   border-radius: 999px;
   position: relative;
   transition: background .18s;
@@ -674,7 +706,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
 .toggle-status {
   font-size: .75rem;
   font-weight: 700;
-  color: #6b7280;
+  color: var(--text-muted);
   min-width: 1.5rem;
 }
 .toggle-btn.active .toggle-status { color: #2563eb; }
@@ -682,14 +714,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
 .conferma-esci {
   margin-top: .4rem;
   padding: .75rem;
-  border: 1px solid #fecaca;
+  border: 1px solid var(--border-color);
   border-radius: .5rem;
-  background: #fef2f2;
+  background: var(--surface-warn);
   display: flex;
   flex-direction: column;
   gap: .5rem;
 }
-.conferma-esci p { margin: 0; font-size: .9rem; color: #7f1d1d; }
+.conferma-esci p { margin: 0; font-size: .9rem; color: var(--text-strong); }
 .conferma-actions { display: flex; gap: .5rem; }
 
 .btn {
@@ -699,6 +731,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
   cursor: pointer;
   font-size: .85rem;
 }
-.btn.ghost { border-color: #d0d5dd; background: #fff; color: #374151; }
-.btn.danger { background: #dc2626; color: #fff; }
+.btn.ghost { border-color: var(--border-color); background: var(--surface-0); color: var(--text-strong); }
+.btn.danger { background: var(--error-color); color: #fff; }
 </style>

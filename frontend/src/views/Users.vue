@@ -125,8 +125,6 @@ async function onImpersona(u: UtenteAdmin) {
 <style scoped>
 .users {
   width: 100%;
-  max-width: 40rem;
-  margin: 0 auto;
   padding: 1rem;
   display: grid;
   gap: 1rem;
@@ -145,7 +143,7 @@ async function onImpersona(u: UtenteAdmin) {
 .crea-form { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: .4rem; }
 @media (max-width: 640px) { .crea-form { grid-template-columns: 1fr 1fr; } }
 .crea-form input, .crea-form select {
-  padding: .45rem .6rem; border: 1px solid #d0d5dd; border-radius: .5rem;
+  padding: .45rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem;
 }
 
 .muted { opacity: .65; font-size: .85rem; margin: 0; }
@@ -153,22 +151,22 @@ async function onImpersona(u: UtenteAdmin) {
 .cards { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
 .card {
   display: flex; align-items: center; gap: .5rem;
-  padding: .6rem .8rem; background: #fff; border: 1px solid #e5e7eb; border-radius: .6rem;
+  padding: .6rem .8rem; background: var(--surface-0); border: 1px solid var(--hairline); border-radius: .6rem;
 }
 .info { flex: 1; display: grid; }
 .info .nome { font-weight: 600; }
 
-.pill { font-size: .72rem; padding: .15rem .5rem; border-radius: .5rem; background: #eef2ff; color: #3730a3; }
-.pill.warn { background: #fff7ed; color: #9a3412; }
+.pill { font-size: .72rem; padding: .15rem .5rem; border-radius: .5rem; background: var(--info-bg); color: var(--info-text); }
+.pill.warn { background: var(--coin-mr-bg); color: var(--coin-mr-text); }
 
-.state { padding: .6rem; border: 1px dashed #e5e7eb; border-radius: .5rem; }
+.state { padding: .6rem; border: 1px dashed var(--hairline); border-radius: .5rem; }
 .error {
   margin: 0; padding: .5rem .7rem; border-radius: .5rem;
-  color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; font-size: .85rem;
+  color: var(--danger-text); background: var(--danger-bg); border: 1px solid var(--danger-border); font-size: .85rem;
 }
 
 .btn {
-  padding: .45rem .8rem; border-radius: .5rem; border: 1px solid #d0d5dd; background: #fff; cursor: pointer;
+  padding: .45rem .8rem; border-radius: .5rem; border: 1px solid var(--hairline); background: var(--surface-0); cursor: pointer;
 }
 .btn.small { padding: .3rem .6rem; font-size: .85rem; }
 .btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }

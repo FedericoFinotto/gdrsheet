@@ -291,53 +291,53 @@ function tira() {
   align-items: center;
   gap: .4rem;
   padding: .5rem;
-  border: 1px dashed #d0d5dd;
+  border: 1px dashed var(--hairline);
   border-radius: .6rem;
-  background: #f9fafb;
+  background: var(--btn-bg);
 }
 
 .pool.vuoto { justify-content: center; }
 
 .pool-hint {
-  color: #9ca3af;
+  color: var(--text-muted);
   font-size: .9rem;
 }
 
 .pool-chip {
   padding: .3rem .6rem;
-  border: 1px solid #2563eb;
+  border: 1px solid var(--info-border);
   border-radius: 999px;
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--info-bg);
+  color: var(--info-text);
   font-weight: 700;
   cursor: pointer;
 }
 
 .pool-chip:hover {
-  background: #fee2e2;
-  border-color: #ef4444;
-  color: #b91c1c;
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
 }
 
 .pool-chip--bonus {
-  border-color: #7c3aed;
-  background: #f5f3ff;
-  color: #6d28d9;
+  border-color: var(--accent-purple-border);
+  background: var(--accent-purple-bg);
+  color: var(--accent-purple-text);
   cursor: default;
 }
 .pool-chip--bonus:hover {
-  background: #f5f3ff;
-  border-color: #7c3aed;
-  color: #6d28d9;
+  background: var(--accent-purple-bg);
+  border-color: var(--accent-purple-border);
+  color: var(--accent-purple-text);
 }
 
 .risultato {
   display: flex;
   flex-direction: column;
   gap: .4rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
-  background: #fff;
+  background: var(--surface-0);
   overflow: hidden;
 }
 
@@ -347,8 +347,8 @@ function tira() {
   align-items: baseline;
   padding: .5rem .6rem;
   font-weight: 700;
-  color: #374151;
-  border-bottom: 1px solid #e5e7eb;
+  color: var(--text-strong);
+  border-bottom: 1px solid var(--hairline);
 }
 
 .ris-righe {
@@ -370,23 +370,23 @@ function tira() {
   min-width: 3.5rem;
   font-size: .85rem;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .ris-somma {
   min-width: 3rem;
   font-weight: 700;
-  color: #374151;
+  color: var(--text-strong);
   font-variant-numeric: tabular-nums;
 }
 
 .ris-somma--bonus {
-  color: #7c3aed;
+  color: var(--accent-purple-text);
 }
 
 .ris-tiri {
   font-weight: 400;
-  color: #6b7280;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   font-size: .85rem;
 }
@@ -403,9 +403,9 @@ function tira() {
 .moltiplicatore-card {
   margin: .4rem .6rem;
   padding: .5rem;
-  border: 1px dashed #7c3aed;
+  border: 1px dashed var(--accent-purple-border);
   border-radius: .5rem;
-  background: #f5f3ff;
+  background: var(--accent-purple-bg);
   display: flex;
   flex-direction: column;
   gap: .5rem;
@@ -414,7 +414,7 @@ function tira() {
 .mult-input {
   width: 4.5rem;
   padding: .35rem .5rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
   font: inherit;
   text-align: center;
@@ -428,19 +428,19 @@ function tira() {
   font-size: .85rem;
   font-variant-numeric: tabular-nums;
 }
-.mult-passo--base { color: #6b7280; }
-.mult-cum { font-weight: 700; color: #6d28d9; min-width: 2.2rem; }
+.mult-passo--base { color: var(--text-muted); }
+.mult-cum { font-weight: 700; color: var(--accent-purple-text); min-width: 2.2rem; }
 .mult-dettaglio { font-size: .78rem; }
-.mult-valore { font-weight: 700; color: #374151; margin-left: auto; }
+.mult-valore { font-weight: 700; color: var(--text-strong); margin-left: auto; }
 .mult-undo {
-  border: 0; background: transparent; color: #9ca3af; cursor: pointer; font-size: .75rem; padding: 0 .2rem;
+  border: 0; background: transparent; color: var(--text-muted); cursor: pointer; font-size: .75rem; padding: 0 .2rem;
 }
-.mult-undo:hover { color: #ef4444; }
+.mult-undo:hover { color: var(--danger-text); }
 
 .ris-totale-val {
   font-size: 1.8rem;
   font-weight: 800;
-  color: #1d4ed8;
+  color: var(--info-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -452,14 +452,14 @@ function tira() {
 .btn {
   flex: 1;
   padding: .55rem .8rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #fff;
+  background: var(--surface-0);
   font-weight: 700;
   cursor: pointer;
 }
 
-.btn:hover { background: #f3f4f6; }
+.btn:hover { background: var(--btn-bg-hover); }
 .btn.primary { border-color: #2563eb; background: #2563eb; color: #fff; }
 .btn.primary:hover { background: #1d4ed8; }
 .btn:disabled { opacity: .5; cursor: default; }
@@ -476,14 +476,14 @@ function tira() {
   gap: .25rem;
   font-size: .85rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-strong);
 }
 
 .opzione-label input {
   width: 100%;
   box-sizing: border-box;
   padding: .4rem .5rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
   text-align: center;
   font-variant-numeric: tabular-nums;
@@ -491,14 +491,14 @@ function tira() {
 }
 
 .bonus-label input {
-  border-color: #a78bfa;
-  background: #faf5ff;
-  color: #6d28d9;
+  border-color: var(--accent-purple-border);
+  background: var(--accent-purple-bg);
+  color: var(--accent-purple-text);
   font-weight: 700;
 }
 
 .bonus-label input:focus {
-  outline: 2px solid #7c3aed;
+  outline: 2px solid var(--accent-purple-border);
   outline-offset: 1px;
 }
 
@@ -514,9 +514,9 @@ function tira() {
 
 .dado-btn {
   padding: .5rem .3rem;
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #fff;
+  background: var(--surface-0);
   font-weight: 700;
   cursor: pointer;
   font-size: .9rem;
@@ -525,13 +525,13 @@ function tira() {
 .dado-btn--std {
   padding: .7rem .3rem;
   font-size: 1rem;
-  border-color: #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-color: var(--info-border);
+  background: var(--info-bg);
+  color: var(--info-text);
 }
 
-.dado-btn:hover { background: #eff6ff; border-color: #2563eb; color: #1d4ed8; }
-.dado-btn--std:hover { background: #dbeafe; }
+.dado-btn:hover { background: var(--info-bg); border-color: var(--info-border); color: var(--info-text); }
+.dado-btn--std:hover { background: var(--info-bg); }
 .dado-btn:active { transform: scale(.96); }
 
 .dadi-speciali-wrap {
@@ -541,7 +541,7 @@ function tira() {
 .dadi-speciali-toggle {
   cursor: pointer;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--text-muted);
   padding: .2rem 0;
   user-select: none;
 }

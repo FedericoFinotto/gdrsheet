@@ -190,16 +190,17 @@ async function salva(c: Conto) {
   margin: 0;
   padding: .4rem .6rem;
   border-radius: .5rem;
-  color: #991b1b;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  color: var(--error-color);
+  background: var(--surface-warn);
+  border: 1px solid var(--hairline);
   font-size: .8rem;
 }
 
 .banca {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--hairline);
   border-radius: .6rem;
-  background: #fff;
+  background: var(--surface-0);
+  color: var(--text-strong);
   padding: .6rem .75rem;
   display: grid;
   gap: .5rem;
@@ -227,16 +228,17 @@ async function salva(c: Conto) {
   gap: .5rem;
   padding: .3rem .4rem;
   border-radius: .5rem;
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  border: 1px solid var(--hairline);
+  background: var(--surface-0);
+  color: var(--text-strong);
 }
 
 .moneta .sigla { font-size: .7rem; font-weight: 700; opacity: .8; }
 
-.moneta.mp { background: #ecfeff; border-color: #a5f3fc; }
-.moneta.mo { background: #fefce8; border-color: #fde68a; }
-.moneta.ma { background: #f8fafc; border-color: #cbd5e1; }
-.moneta.mr { background: #fff7ed; border-color: #fed7aa; }
+.moneta.mp { background: var(--coin-mp-bg); border-color: var(--coin-mp-border); color: var(--coin-mp-text); }
+.moneta.mo { background: var(--coin-mo-bg); border-color: var(--coin-mo-border); color: var(--coin-mo-text); }
+.moneta.ma { background: var(--coin-ma-bg); border-color: var(--coin-ma-border); color: var(--coin-ma-text); }
+.moneta.mr { background: var(--coin-mr-bg); border-color: var(--coin-mr-border); color: var(--coin-mr-text); }
 
 .stepper {
   display: grid;
@@ -285,7 +287,7 @@ async function salva(c: Conto) {
   border: 1px solid transparent;
   cursor: pointer;
 }
-.btn.ghost { border-color: #d0d5dd; background: #fff; }
+.btn.ghost { border-color: var(--hairline); background: var(--surface-0); color: var(--text-strong); }
 .btn.primary { background: #2563eb; color: #fff; }
 .btn:disabled { opacity: .6; cursor: default; }
 </style>

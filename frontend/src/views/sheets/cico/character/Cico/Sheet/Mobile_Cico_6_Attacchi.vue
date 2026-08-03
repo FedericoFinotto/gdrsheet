@@ -72,13 +72,13 @@ function apriDanno(danno: DannoRisolto) {
 .atk-block {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  border: 1px solid var(--color-border, #e5e7eb);
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
   overflow: hidden;
 }
 .atk-left {
   padding: .5rem .6rem;
-  border-right: 1px solid var(--color-border, #e5e7eb);
+  border-right: 1px solid var(--hairline);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -92,7 +92,7 @@ function apriDanno(danno: DannoRisolto) {
   padding: .4rem .6rem;
   cursor: pointer;
 }
-.danno-row:not(:last-child) { border-bottom: 1px solid var(--color-border, #e5e7eb); }
+.danno-row:not(:last-child) { border-bottom: 1px solid var(--hairline); }
 .danno-testa {
   display: flex;
   justify-content: space-between;
@@ -100,9 +100,9 @@ function apriDanno(danno: DannoRisolto) {
   gap: .4rem;
 }
 .danno-formula { font-size: .72rem; margin-top: .1rem; }
-.danno-row:hover { background: var(--color-surface-1, #f9fafb); }
+.danno-row:hover { background: var(--btn-bg); }
 .danno-row.empty { cursor: default; }
 .danno-valore { font-weight: 600; }
 .danno-tipo { font-size: .78rem; }
-.muted { color: var(--color-text-secondary, #6b7280); }
+.muted { color: var(--text-muted); }
 </style>

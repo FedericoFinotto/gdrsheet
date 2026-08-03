@@ -269,9 +269,9 @@ watch(() => props.modelValue, (v) => {
 
 <style scoped>
 .html-editor {
-  border: 1px solid #d0d5dd;
+  border: 1px solid var(--hairline);
   border-radius: .5rem;
-  background: #fff;
+  background: var(--surface-0);
   overflow: hidden;
 }
 
@@ -282,8 +282,8 @@ watch(() => props.modelValue, (v) => {
   align-items: center;
   gap: .15rem;
   padding: .3rem .4rem;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--btn-bg);
+  border-bottom: 1px solid var(--hairline);
   flex-wrap: wrap;
 }
 
@@ -297,13 +297,13 @@ watch(() => props.modelValue, (v) => {
   cursor: pointer;
   font-size: .9rem;
   line-height: 1;
-  color: #374151;
+  color: var(--text-strong);
 }
 
-.he-toolbar button:hover { background: #e5e7eb; }
+.he-toolbar button:hover { background: var(--btn-bg-hover); }
 .he-toolbar button:disabled { opacity: .5; cursor: default; }
 .he-source-btn { font-family: monospace; font-size: .8rem; }
-.he-source-btn.active { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+.he-source-btn.active { background: var(--info-bg); border-color: var(--info-border); color: var(--info-text); }
 
 /* selettore colore: l'input nativo è nascosto sotto la lettera, che fa da pulsante */
 .he-color {
@@ -316,13 +316,13 @@ watch(() => props.modelValue, (v) => {
   border-radius: .35rem;
   cursor: pointer;
 }
-.he-color:hover { background: #e5e7eb; }
+.he-color:hover { background: var(--btn-bg-hover); }
 .he-color.disabled { opacity: .5; cursor: default; }
 .he-color-glifo {
   font-weight: 700;
   font-size: .9rem;
   line-height: 1;
-  color: #374151;
+  color: var(--text-strong);
   border-bottom: 3px solid currentColor;
   padding-bottom: 1px;
 }
@@ -342,7 +342,7 @@ watch(() => props.modelValue, (v) => {
   width: 1px;
   align-self: stretch;
   margin: .15rem .2rem;
-  background: #e5e7eb;
+  background: var(--hairline);
 }
 
 .he-content {
@@ -355,7 +355,7 @@ watch(() => props.modelValue, (v) => {
 
 .he-content:empty::before {
   content: 'Descrizione…';
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .he-content :deep(ul),

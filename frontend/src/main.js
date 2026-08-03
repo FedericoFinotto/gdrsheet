@@ -6,8 +6,11 @@ import Toast from 'primevue/toast'
 import Button from 'primevue/button'
 import TabView from 'primevue/tabview' // Correct import for the tab container
 import TabPanel from 'primevue/tabpanel' // Correct import for individual tabs within TabView
-// THEME IMPORTS (These look correct)
-import 'primevue/resources/themes/saga-blue/theme.css' // Your chosen theme
+// THEME IMPORTS: risolti come url da Vite così possiamo scambiarli a runtime
+// in base al tema chiaro/scuro (vedi function/useTheme.js) invece di importare
+// staticamente un solo tema.
+import primeVueLightThemeUrl from 'primevue/resources/themes/saga-blue/theme.css?url'
+import primeVueDarkThemeUrl from 'primevue/resources/themes/arya-blue/theme.css?url'
 import 'primevue/resources/primevue.min.css' // PrimeVue core CSS
 import 'primeicons/primeicons.css' // PrimeIcons for icons
 import './styles/global.css'
@@ -15,15 +18,11 @@ import '@fortawesome/fontawesome-free/css/all.min.css'
 import App from './App.vue'
 import router from './router'
 import {createPinia} from "pinia";
-import {ACCENT_COLOR, BORDER_COLOR, PRIMARY_COLOR, SECONDARY_COLOR, TERTIARY_COLOR} from "./function/Constants";
+import {initTheme} from "./function/useTheme";
 import {vSafeHtml} from "./directives/safeHtml";
 
 const app = createApp(App)
-document.documentElement.style.setProperty('--primary-color', PRIMARY_COLOR);
-document.documentElement.style.setProperty('--secondary-color', SECONDARY_COLOR);
-document.documentElement.style.setProperty('--tertiary-color', TERTIARY_COLOR);
-document.documentElement.style.setProperty('--border-color', BORDER_COLOR);
-document.documentElement.style.setProperty('--accent-color', ACCENT_COLOR);
+initTheme(primeVueLightThemeUrl, primeVueDarkThemeUrl)
 
 // Use router and PrimeVue
 app.use(router)

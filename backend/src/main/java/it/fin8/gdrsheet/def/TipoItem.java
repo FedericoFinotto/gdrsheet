@@ -36,7 +36,8 @@ public enum TipoItem {
     INFO("Info"),
     CATEGORIA("Categoria"),
     TAG("Tag"),
-    RANDOMIZZATORE("Randomizzatore")
+    RANDOMIZZATORE("Randomizzatore"),
+    CASO("Caso")
     ;
 
     private final String label;
