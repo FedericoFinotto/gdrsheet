@@ -17,7 +17,10 @@ export default defineConfig({
                 name: 'D&D Companion',
                 short_name: 'D&D',
                 description: 'Scheda personaggio D&D 3.5',
-                theme_color: '#ffffff',
+                // Barra di sistema durante lo splash: il manifest non può essere condizionale al
+                // tema, quindi si usa lo scuro (--primary-color del tema dark). Appena la pagina
+                // è caricata subentra il <meta name="theme-color"> gestito da useTheme.js.
+                theme_color: '#12151C',
                 background_color: '#ffffff',
                 display: 'standalone',
                 start_url: '/',

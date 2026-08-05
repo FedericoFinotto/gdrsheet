@@ -41,10 +41,24 @@ function applyPrimeVueLink(theme) {
   link.href = theme === 'dark' ? darkThemeUrl : lightThemeUrl
 }
 
+// Barra di sistema Android: il colore viene dal <meta name="theme-color">. I meta in index.html
+// sono agganciati a prefers-color-scheme, che però non sa nulla del tema forzato dal menu: qui li
+// riallineiamo tutti al colore della upperbar (--primary-color), così qualunque sia quello che il
+// browser considera "attivo" mostra il colore giusto.
+function applyThemeColorMeta() {
+  const metas = document.querySelectorAll('meta[name="theme-color"]')
+  if (!metas.length) return
+  const letto = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim()
+  // fallback ai valori di global.css se le variabili non sono ancora disponibili
+  const colore = letto || (currentTheme === 'dark' ? '#12151C' : '#F8FAFC')
+  metas.forEach(m => m.setAttribute('content', colore))
+}
+
 export function setTheme(theme) {
   currentTheme = theme === 'dark' ? 'dark' : 'light'
   document.documentElement.setAttribute('data-theme', currentTheme)
   applyPrimeVueLink(currentTheme)
+  applyThemeColorMeta()
   try {
     localStorage.setItem(STORAGE_KEY, currentTheme)
   } catch {

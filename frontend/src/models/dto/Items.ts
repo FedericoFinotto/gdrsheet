@@ -33,6 +33,7 @@ export interface InventarioSeparato {
 export interface Items {
     abilita: Item[];
     talenti: Item[];
+    skillTrick: Item[];
     oggetti: Item[];
     consumabili: Item[];
     armi: Item[];

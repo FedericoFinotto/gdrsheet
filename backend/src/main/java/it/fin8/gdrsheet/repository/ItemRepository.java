@@ -194,7 +194,8 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
                            it.fin8.gdrsheet.def.TipoItem.CLASSE,
                            it.fin8.gdrsheet.def.TipoItem.RAZZA,
                            it.fin8.gdrsheet.def.TipoItem.LINGUA,
-                           it.fin8.gdrsheet.def.TipoItem.COMP)
+                           it.fin8.gdrsheet.def.TipoItem.COMP,
+                           it.fin8.gdrsheet.def.TipoItem.SKILL_TRICK)
                 OR EXISTS (SELECT 1 FROM ItemLabel il
                            WHERE il.item = i AND il.label = 'COMPENDIO'
                              AND lower(il.valore) IN ('true', '1'))

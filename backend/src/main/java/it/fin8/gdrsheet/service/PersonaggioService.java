@@ -445,6 +445,9 @@ public class PersonaggioService {
             if (TipoItem.TALENTO.equals(itm.getTipo())) {
                 itemsDTO.getTalenti().add(itemMapper.toDTO(itm, uTotale, uUsati));
             }
+            if (TipoItem.SKILL_TRICK.equals(itm.getTipo())) {
+                itemsDTO.getSkillTrick().add(itemMapper.toDTO(itm, uTotale, uUsati));
+            }
             if (TipoItem.OGGETTO.equals(itm.getTipo())) {
                 ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));

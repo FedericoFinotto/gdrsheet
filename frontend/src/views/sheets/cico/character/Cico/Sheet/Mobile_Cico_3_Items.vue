@@ -145,6 +145,7 @@ const itemsAltro = computed(() => wrap(items.value?.altro));
 const itemsPatti = computed(() => wrap(items.value?.patti));
 const itemsNotizie = computed(() => wrap(items.value?.notizie));
 const itemsTalenti = computed(() => wrap(items.value?.talenti));
+const itemsSkillTrick = computed(() => wrap(items.value?.skillTrick));
 const itemsPrivilegi = computed(() => wrap(items.value?.privilegi));
 const itemsMaledizioni = computed(() => wrap(items.value?.maledizioni));
 
@@ -276,6 +277,7 @@ const columnsIdoli = col('Idoli');
 const columnsAbilita = col('Abilità');
 const columnsAbilitaPassive = col('Abilità Passive');
 const columnsTalenti = col('Talenti');
+const columnsSkillTrick = col('Skill Trick');
 const columnsPrivilegi = col('Privilegi di Classe');
 const columnsMaledizioni = col('Maledizioni');
 const columnsEffetti = col('Effetti');
@@ -347,6 +349,8 @@ const columnsEffetti = col('Effetti');
     <Tabella v-if="itemsAbilitaPassive.length > 0" :columns="columnsAbilitaPassive" :expandable="true" :items="itemsAbilitaPassive"/>
     <div class="spazietto"/>
     <Tabella v-if="itemsTalenti.length > 0" :columns="columnsTalenti" :expandable="true" :items="itemsTalenti"/>
+    <div class="spazietto"/>
+    <Tabella v-if="itemsSkillTrick.length > 0" :columns="columnsSkillTrick" :expandable="true" :items="itemsSkillTrick"/>
     <div class="spazietto"/>
     <Tabella v-if="itemsPrivilegi.length > 0" :columns="columnsPrivilegi" :expandable="true" :items="itemsPrivilegi"/>
     <div class="spazietto"/>

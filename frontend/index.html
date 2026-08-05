@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no"/>
+    <!-- Colore della barra di sistema su Android (Chrome/PWA). Le due varianti coprono il caso
+         "tema scelto = tema di sistema" prima che il JS parta; useTheme.js poi le riallinea
+         entrambe al tema effettivamente attivo, anche quando è stato forzato dal menu. -->
+    <meta name="theme-color" content="#F8FAFC" media="(prefers-color-scheme: light)"/>
+    <meta name="theme-color" content="#12151C" media="(prefers-color-scheme: dark)"/>
     <title>D&Duck</title>
 </head>
 <body>

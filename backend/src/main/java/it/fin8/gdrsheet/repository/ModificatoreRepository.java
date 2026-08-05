@@ -37,4 +37,16 @@ public interface ModificatoreRepository extends JpaRepository<Modificatore, Inte
             @Param("cc") String cc,
             @Param("statIds") Collection<String> statIds
     );
+
+    @Query("""
+            SELECT m FROM Modificatore m
+            WHERE m.item.personaggio.id = :personaggioId
+              AND m.item.tipo = it.fin8.gdrsheet.def.TipoItem.LIVELLO
+              AND m.tipo = it.fin8.gdrsheet.def.TipoModificatore.RANK
+              AND m.stat.id = :statId
+            """)
+    List<Modificatore> findRankModificatoriSuStatByPersonaggioELivelli(
+            @Param("personaggioId") Integer personaggioId,
+            @Param("statId") String statId
+    );
 }

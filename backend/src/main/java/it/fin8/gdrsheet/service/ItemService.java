@@ -1161,26 +1161,30 @@ public class ItemService {
 
         Map<Integer, Integer> totali = new HashMap<>();   // itemId -> punti totali
         Map<Integer, Item> livelloMax = new HashMap<>();  // itemId -> livello più alto con punti > 0
-        for (Item liv : livelli) {
-            if (liv.getModificatori() == null) continue;
+        // Query diretta invece di liv.getModificatori(): quella collezione lazy può essere già
+        // stata inizializzata (e quindi non riflettere i modificatori appena creati) da
+        // applicaSkillTrickRanghi più sopra, nella STESSA transazione, per i livelli appena
+        // salvati — Hibernate non risincronizza un OneToMany lazy già caricato quando l'entità
+        // figlia viene persistita passando solo dal lato "owning" (Modificatore.item).
+        List<Modificatore> mods = modificatoreRepository.findRankModificatoriSuStatByPersonaggioELivelli(
+                personaggioId, Constants.STAT_SKILL_TRICK);
+        for (Modificatore m : mods) {
+            if (m.getNota() == null) continue;
+            Item liv = m.getItem();
             int lv = numeroLivello.getOrDefault(liv.getId(), 0);
-            for (Modificatore m : liv.getModificatori()) {
-                if (!TipoModificatore.RANK.equals(m.getTipo()) || m.getStat() == null) continue;
-                if (!Constants.STAT_SKILL_TRICK.equals(m.getStat().getId()) || m.getNota() == null) continue;
-                Integer itemId;
-                int punti;
-                try {
-                    itemId = Integer.valueOf(m.getNota().trim());
-                    punti = Integer.parseInt(m.getValore());
-                } catch (Exception e) {
-                    continue;
-                }
-                if (punti <= 0) continue;
-                totali.merge(itemId, punti, Integer::sum);
-                Item corrente = livelloMax.get(itemId);
-                if (corrente == null || lv > numeroLivello.getOrDefault(corrente.getId(), 0)) {
-                    livelloMax.put(itemId, liv);
-                }
+            Integer itemId;
+            int punti;
+            try {
+                itemId = Integer.valueOf(m.getNota().trim());
+                punti = Integer.parseInt(m.getValore());
+            } catch (Exception e) {
+                continue;
+            }
+            if (punti <= 0) continue;
+            totali.merge(itemId, punti, Integer::sum);
+            Item corrente = livelloMax.get(itemId);
+            if (corrente == null || lv > numeroLivello.getOrDefault(corrente.getId(), 0)) {
+                livelloMax.put(itemId, liv);
             }
         }
 
