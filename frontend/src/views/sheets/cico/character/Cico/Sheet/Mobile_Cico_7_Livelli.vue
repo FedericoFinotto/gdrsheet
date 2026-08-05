@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {defineProps, markRaw, ref, watch} from 'vue';
+import {computed, defineProps, markRaw, ref, watch} from 'vue';
 import {useRouter} from 'vue-router';
 import Tabella from "../../../../../../components/Tabella.vue";
 import {useCharacterStore} from "../../../../../../stores/personaggio";
@@ -50,6 +50,8 @@ const columnsAttacchi = [
 ];
 
 const creandoLivello = ref(false);
+// il livello 0 è il record "razza" (caratteristiche di partenza): esiste al più una volta
+const hasLivelloZero = computed(() => itemsLivelli.value.some(l => Number(l.livello) === 0));
 
 async function aggiungiLivello() {
   if (creandoLivello.value) return;
@@ -71,6 +73,26 @@ async function aggiungiLivello() {
   }
 }
 
+async function aggiungiRazza() {
+  if (creandoLivello.value || hasLivelloZero.value) return;
+  creandoLivello.value = true;
+  try {
+    const res = await createItem({
+      nome: `Livello 0`,
+      tipo: 'LIVELLO',
+      idPersonaggio: props.idPersonaggio,
+      labels: [{label: 'LVL', valore: '0'}],
+    });
+    await characterStore.fetchCharacter(props.idPersonaggio, true);
+    // apreCaratteristiche=1: segnala all'editor di aprire subito la tab "Caratteristiche"
+    router.push(`/itemeditor/${res.data.id}?personaggio=${props.idPersonaggio}&apriCaratteristiche=1`);
+  } catch (e) {
+    console.error('Errore creazione livello 0 (razza):', e);
+  } finally {
+    creandoLivello.value = false;
+  }
+}
+
 function gestisciGradi() {
   router.push(`/gestisci-gradi/${props.idPersonaggio}`);
 }
@@ -82,6 +104,10 @@ function gestisciGradi() {
       <button type="button" class="btn-add-livello" :disabled="creandoLivello" @click="aggiungiLivello">
         <span class="plus">+</span>
         <span>{{ creandoLivello ? 'Creazione…' : 'Aggiungi livello' }}</span>
+      </button>
+      <button v-if="!hasLivelloZero" type="button" class="btn-add-livello" :disabled="creandoLivello" @click="aggiungiRazza">
+        <span class="plus">+</span>
+        <span>{{ creandoLivello ? 'Creazione…' : 'Aggiungi Razza' }}</span>
       </button>
       <button type="button" class="btn-gestisci-gradi" @click="gestisciGradi">
         Gestisci gradi

@@ -58,6 +58,10 @@ const router = useRouter()
 const route = useRoute()
 const childCreate = useChildCreate()
 
+// segnalato dal pulsante "Aggiungi Razza" (Mobile_Cico_7_Livelli.vue): apre subito la tab
+// "Caratteristiche" invece di lasciarla chiusa come nel flusso normale di modifica di un livello
+const apriCaratteristiche = computed(() => route.query.apriCaratteristiche === '1')
+
 const personaggioId = ref<Id | null>(null)
 const classeDetail = ref<any | null>(null)
 
@@ -328,6 +332,14 @@ const extraItems = ref<ItemDB[]>([])
 /* Modificatori liberi del livello (aggiunti a mano, come su un item qualunque) */
 const modificatoriLiberi = ref<ModificatoreRow[]>([])
 
+/* Punti ferita: input dedicato a fianco del dado vita. Salvato come un modificatore VALORE
+ * sulla stat PF, senza nota, sempre attivo — tecnicamente un "modificatore libero" come gli
+ * altri (stesso meccanismo/tabella), ma tenuto FUORI dalla lista modificatoriLiberi/dal relativo
+ * editor generico qui sotto per non duplicare l'informazione in due punti dell'UI. */
+const PF_STAT_ID = 'PF'
+const pfInput = ref<number | null>(null)
+const pfModId = ref<number | null>(null)
+
 // ID degli item presenti negli avanzamenti classe (non devono apparire come "extra")
 const classeAvanzamentiItemIds = computed<Set<number>>(() => {
   const arr: any[] = classeDetail.value?.avanzamento ?? []
@@ -407,8 +419,20 @@ onMounted(async () => {
         grantedSig.set(k, (grantedSig.get(k) ?? 0) + 1)
       }
     }
+    // riga dedicata "Punti ferita": modificatore VALORE sulla stat PF, senza nota, sempre attivo.
+    // Va individuata ed esclusa PRIMA di popolare modificatoriLiberi, altrimenti comparirebbe
+    // anche nell'editor generico "Modificatori" qui sotto.
+    const pfMod = (props.item.modificatori ?? []).find((m: any) =>
+        m.idSorgente == null && m.tipo !== 'BASE' && m.tipo !== 'RANK'
+        && m.stat?.id === PF_STAT_ID && !m.nota && !!m.sempreAttivo)
+    if (pfMod) {
+      pfModId.value = pfMod.id
+      pfInput.value = Number(pfMod.valore)
+    }
+
     modificatoriLiberi.value = (props.item.modificatori ?? [])
         .filter((m: any) => m.tipo !== 'BASE' && m.tipo !== 'RANK')
+        .filter((m: any) => m.id !== pfModId.value)
         .filter((m: any) => {
           if (m.idSorgente != null) return false // copia da grant (dati nuovi)
           const k = `${m.stat?.id}|${m.valore}`
@@ -435,6 +459,8 @@ onMounted(async () => {
       if (Array.isArray(snap?.extraItems)) extraItems.value = snap.extraItems
       if (Array.isArray(snap?.modificatoriLiberi)) modificatoriLiberi.value = snap.modificatoriLiberi
       if (snap?.gradiInput !== undefined) gradiInput.value = snap.gradiInput
+      if (snap?.pfInput !== undefined) pfInput.value = snap.pfInput
+      if (snap?.pfModId !== undefined) pfModId.value = snap.pfModId
       const created = childCreate.takeCreatedChild()
       if (created && !extraItems.value.some((i: any) => i.id === created.id)) {
         extraItems.value = [...extraItems.value, created as any]
@@ -498,6 +524,8 @@ function snapshotForm() {
     extraItems: extraItems.value,
     modificatoriLiberi: modificatoriLiberi.value,
     gradiInput: gradiInput.value,
+    pfInput: pfInput.value,
+    pfModId: pfModId.value,
   }))
 }
 
@@ -555,16 +583,31 @@ async function salva(): Promise<boolean> {
         ...extraItems.value
             .map(i => ({id: `item-${i.id}`, tipo: 'ITEM' as const, livello: 0, descrizione: i.nome}))
       ],
-      modificatoriLiberi: modificatoriLiberi.value
-          .filter(m => m.statId && m.statId.trim())
-          .map(m => ({
-            id: m.id,
-            statId: m.statId,
-            tipo: m.tipo,
-            valore: String(m.valore ?? ''),
-            nota: m.nota ?? '',
-            sempreAttivo: !!m.sempreAttivo,
-          }))
+      modificatoriLiberi: [
+        ...modificatoriLiberi.value
+            .filter(m => m.statId && m.statId.trim())
+            .map(m => ({
+              id: m.id,
+              statId: m.statId,
+              tipo: m.tipo,
+              valore: String(m.valore ?? ''),
+              nota: m.nota ?? '',
+              sempreAttivo: !!m.sempreAttivo,
+            })),
+        // Punti ferita: stesso meccanismo dei modificatori liberi, ma gestito qui a parte
+        // (vedi pfInput sopra). Vuoto = nessuna riga inviata => se ne esisteva una, il backend
+        // la elimina come qualunque modificatore libero non più presente nel payload.
+        ...(pfInput.value != null && String(pfInput.value).trim() !== ''
+            ? [{
+              id: pfModId.value ?? undefined,
+              statId: PF_STAT_ID,
+              tipo: 'VALORE',
+              valore: String(pfInput.value),
+              nota: '',
+              sempreAttivo: true,
+            }]
+            : []),
+      ]
     })
     await saveLivello(payload)
     return true
@@ -620,6 +663,7 @@ const sumClasseMaledizione = computed(() =>
         v-model:livello="form.livello"
         v-model:caratteristiche="form.caratteristiche"
         :summary="sumCar"
+        :apri-caratteristiche="apriCaratteristiche"
     />
 
     <TabClasseMaledizione
@@ -637,6 +681,10 @@ const sumClasseMaledizione = computed(() =>
       <label class="dv-field">
         <span class="dv-lbl">Dadi vita</span>
         <input v-model.trim="form.dv" type="text" placeholder="Es.: 2d10" :disabled="disabledAll"/>
+      </label>
+      <label class="dv-field">
+        <span class="dv-lbl">Punti ferita</span>
+        <input v-model.number="pfInput" type="number" placeholder="—" :disabled="disabledAll"/>
       </label>
       <label class="dv-field">
         <span class="dv-lbl">Gradi (punti abilità)</span>
@@ -702,7 +750,8 @@ const sumClasseMaledizione = computed(() =>
   flex-direction: column;
   gap: .75rem;
 }
-.dv-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.dv-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; }
+@media (max-width: 700px) { .dv-row { grid-template-columns: 1fr 1fr; } }
 .dv-field { display: grid; gap: .3rem; }
 .dv-lbl { font-size: .8rem; font-weight: 600; opacity: .85; }
 .dv-field input {

@@ -16,6 +16,7 @@ const props = defineProps<{
   summary: string
   livello: number | null
   caratteristiche: Caratteristiche
+  apriCaratteristiche?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -53,7 +54,7 @@ const caratteristicheLocal = computed({
     </div>
 
     <!-- Caratteristiche -->
-    <TabExpandable title="Caratteristiche (facoltative)" :defaultOpen="false" v-if="livelloLocal === 0">
+    <TabExpandable title="Caratteristiche (facoltative)" :defaultOpen="!!apriCaratteristiche" v-if="livelloLocal === 0">
       <template #summary>{{ summary }}</template>
       <template #content>
         <div class="row three">
