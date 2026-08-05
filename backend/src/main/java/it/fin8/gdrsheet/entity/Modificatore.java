@@ -49,4 +49,13 @@ public class Modificatore {
     @Column(name = "id_sorgente")
     private Integer idSorgente;
 
+    /**
+     * Marca i modificatori creati da un campo dedicato dell'editor (un "template fisso"),
+     * invece che liberamente dall'utente — es. {@link it.fin8.gdrsheet.config.Constants#PLACEHOLDER_LIVELLO_PUNTI_FERITA}.
+     * A differenza di idSorgente, identifica in modo stabile UNA riga specifica anche se ne
+     * esistono altre simili (stessa stat, nessuna nota) aggiunte a mano dall'utente.
+     */
+    @Column(name = "placeholder")
+    private String placeholder;
+
 }

@@ -200,6 +200,11 @@ public final class Constants {
     // vanno su questa stat, distinti per singolo Skill Trick tramite il campo "nota" del
     // modificatore RANK (= id dell'item SKILL_TRICK nel compendio). Niente stat per-trick.
     public static final String STAT_SKILL_TRICK = "TRICK";
+
+    // modificatori.placeholder: marca i modificatori creati da un campo dedicato dell'editor
+    // (un "template fisso"), per distinguerli da eventuali altri modificatori liberi simili
+    // aggiunti a mano dall'utente. Primo caso: input "Punti ferita" nell'editor livello.
+    public static final String PLACEHOLDER_LIVELLO_PUNTI_FERITA = "PH_LVL_PF";
     public static final String ITEM_LABEL_NUM_LIVELLI_CLASSE = "LIVELLI_CLASSE"; // numero di livelli della classe (default 20)
     public static final String ITEM_LABEL_EN_NAME = "EN_NAME";         // nome originale in inglese
     public static final String ITEM_LABEL_MANUALE = "MANUALE_SP";      // manuale di provenienza

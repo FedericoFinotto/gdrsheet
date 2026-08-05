@@ -1433,6 +1433,7 @@ public class ItemService {
             if (r.getValore() != null) m.setValore(r.getValore());
             m.setNota(r.getNota());
             m.setSempreAttivo(r.getSempreAttivo());
+            m.setPlaceholder(r.getPlaceholder());
             modificatoreRepository.save(m);
         }
 
@@ -1446,6 +1447,7 @@ public class ItemService {
             m.setValore(r.getValore() != null ? r.getValore() : "0");
             m.setNota(r.getNota());
             m.setSempreAttivo(r.getSempreAttivo());
+            m.setPlaceholder(r.getPlaceholder());
             modificatoreRepository.save(m);
         }
     }

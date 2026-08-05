@@ -14,6 +14,9 @@ export interface ModificatoreRow {
     valore: string;
     nota?: string;
     sempreAttivo?: boolean;
+    // Marca i modificatori creati da un campo dedicato dell'editor (un "template fisso"),
+    // es. PH_LVL_PF — assente/undefined per i modificatori liberi aggiunti a mano.
+    placeholder?: string;
 }
 
 // Campo "specifico per tipo" mappato su una ItemLabel (es. TPC per gli attacchi)

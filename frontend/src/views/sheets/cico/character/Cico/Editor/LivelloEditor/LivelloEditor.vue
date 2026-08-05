@@ -333,10 +333,13 @@ const extraItems = ref<ItemDB[]>([])
 const modificatoriLiberi = ref<ModificatoreRow[]>([])
 
 /* Punti ferita: input dedicato a fianco del dado vita. Salvato come un modificatore VALORE
- * sulla stat PF, senza nota, sempre attivo — tecnicamente un "modificatore libero" come gli
- * altri (stesso meccanismo/tabella), ma tenuto FUORI dalla lista modificatoriLiberi/dal relativo
- * editor generico qui sotto per non duplicare l'informazione in due punti dell'UI. */
+ * sulla stat PF — tecnicamente un "modificatore libero" come gli altri (stesso meccanismo/
+ * tabella), ma tenuto FUORI dalla lista modificatoriLiberi/dal relativo editor generico qui
+ * sotto per non duplicare l'informazione in due punti dell'UI. Identificato in modo univoco
+ * dal campo "placeholder" (non da nota/sempreAttivo, ambigui se l'utente ne aggiunge altri
+ * simili a mano dall'editor "Modificatori"). */
 const PF_STAT_ID = 'PF'
+const PLACEHOLDER_LIVELLO_PUNTI_FERITA = 'PH_LVL_PF'
 const pfInput = ref<number | null>(null)
 const pfModId = ref<number | null>(null)
 
@@ -419,12 +422,12 @@ onMounted(async () => {
         grantedSig.set(k, (grantedSig.get(k) ?? 0) + 1)
       }
     }
-    // riga dedicata "Punti ferita": modificatore VALORE sulla stat PF, senza nota, sempre attivo.
+    // riga dedicata "Punti ferita": identificata univocamente dal placeholder (non da
+    // nota/sempreAttivo, che potrebbero coincidere con un modificatore aggiunto a mano).
     // Va individuata ed esclusa PRIMA di popolare modificatoriLiberi, altrimenti comparirebbe
     // anche nell'editor generico "Modificatori" qui sotto.
     const pfMod = (props.item.modificatori ?? []).find((m: any) =>
-        m.idSorgente == null && m.tipo !== 'BASE' && m.tipo !== 'RANK'
-        && m.stat?.id === PF_STAT_ID && !m.nota && !!m.sempreAttivo)
+        m.placeholder === PLACEHOLDER_LIVELLO_PUNTI_FERITA)
     if (pfMod) {
       pfModId.value = pfMod.id
       pfInput.value = Number(pfMod.valore)
@@ -605,6 +608,7 @@ async function salva(): Promise<boolean> {
               valore: String(pfInput.value),
               nota: '',
               sempreAttivo: true,
+              placeholder: PLACEHOLDER_LIVELLO_PUNTI_FERITA,
             }]
             : []),
       ]

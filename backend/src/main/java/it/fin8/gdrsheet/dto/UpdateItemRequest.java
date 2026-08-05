@@ -172,5 +172,11 @@ public class UpdateItemRequest {
         private String valore;
         private String nota;
         private Boolean sempreAttivo;
+        /**
+         * Marca i modificatori creati da un campo dedicato dell'editor (un "template fisso"),
+         * es. {@link it.fin8.gdrsheet.config.Constants#PLACEHOLDER_LIVELLO_PUNTI_FERITA}.
+         * Null per i modificatori liberi aggiunti a mano dall'utente.
+         */
+        private String placeholder;
     }
 }

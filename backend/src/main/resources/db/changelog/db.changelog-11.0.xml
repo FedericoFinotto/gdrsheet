@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        modificatori.placeholder: marca i modificatori creati da un campo dedicato dell'editor
+        (un "template fisso"), invece che liberamente dall'utente. A differenza di id_sorgente
+        (copie da grant di classe, risincronizzate/cancellate da applyGrants), un placeholder
+        identifica in modo univoco e stabile UNA riga specifica indipendentemente da nota/valore,
+        così l'editor sa sempre quale modificatore è "il suo" anche se ne esistono altri simili
+        aggiunti a mano. Primo caso: PH_LVL_PF (input "Punti ferita" nell'editor livello).
+    -->
+    <changeSet id="1100" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="modificatori" columnName="placeholder"/>
+            </not>
+        </preConditions>
+        <comment>modificatori.placeholder: marca i modificatori derivanti da un template fisso (es. PH_LVL_PF)</comment>
+        <addColumn tableName="modificatori">
+            <column name="placeholder" type="varchar(64)"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>
