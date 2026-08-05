@@ -234,7 +234,7 @@ public class ClassImportService {
         if (value == null || value.isBlank()) return;
         String primo = firstToken(value);
         if (primo == null || primo.isBlank()) return;
-        mods.add(new UpdateItemRequest.ModificatoreRowDTO(null, statId, TipoModificatore.VALORE, primo, null, true));
+        mods.add(new UpdateItemRequest.ModificatoreRowDTO(null, statId, TipoModificatore.VALORE, primo, null, true, null));
     }
 
     /** BAB pieno riporta gli attacchi multipli come "+11/+6/+1": il modificatore VALORE vuole solo il primo. */
