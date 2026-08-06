@@ -33,6 +33,7 @@ import EffettiEditor from './Sections/EffettiEditor.vue'
 import SottoQuestEditor from './Sections/SottoQuestEditor.vue'
 import NotesEditor, {NotaRow} from './Sections/NotesEditor.vue'
 import {SPELL_LIST_CODES, spellListLabel} from '../../../../../../function/spellLists'
+import {TAGLIE_OPTIONS_NOME} from '../../../../../../function/Utils'
 
 const props = withDefaults(defineProps<{
   item: ItemDB
@@ -120,6 +121,10 @@ const form = reactive<{
   idMondo: number
   idSistema: number
   questScope: string
+  // INFO radice di ambito PARTY: id del party a cui è associata (label INFO_PARTY). Letto qui
+  // (non tra le "labels generiche") perché in modifica serve a pre-selezionare l'Ambito e a
+  // preservarlo se l'utente non lo tocca — vedi buildPayload().
+  infoPartyId: number | null
   completata: boolean
   archiviata: boolean
 }>({
@@ -151,6 +156,7 @@ const form = reactive<{
   idMondo: null as number | null,
   idSistema: null as number | null,
   questScope: '',
+  infoPartyId: null as number | null,
   completata: false,
   archiviata: false,
 })
@@ -189,18 +195,7 @@ const sumTags = computed(() =>
 
 // Taglia fisica dell'oggetto (es. arma taglia Grande): puramente descrittiva, non modifica
 // la taglia del personaggio (a differenza del campo TAGLIA usato altrove per quello scopo).
-const TAGLIE_OGGETTO = [
-  {value: '', label: '— nessuna —'},
-  {value: 'Piccolissima', label: 'Piccolissima'},
-  {value: 'Minuta', label: 'Minuta'},
-  {value: 'Minuscola', label: 'Minuscola'},
-  {value: 'Piccola', label: 'Piccola'},
-  {value: 'Media', label: 'Media'},
-  {value: 'Grande', label: 'Grande'},
-  {value: 'Enorme', label: 'Enorme'},
-  {value: 'Mastodontica', label: 'Mastodontica'},
-  {value: 'Colossale', label: 'Colossale'},
-]
+const TAGLIE_OGGETTO = [{value: '', label: '— nessuna —'}, ...TAGLIE_OPTIONS_NOME]
 
 async function preload() {
   form.nome = props.item.nome ?? ''
@@ -230,6 +225,7 @@ async function preload() {
   form.randTrigger = []
   form.note = []
   form.inCarico = []
+  form.infoPartyId = null
   form.completata = false
   form.archiviata = false
   form.sezioniIncantesimi = []
@@ -308,6 +304,8 @@ async function preload() {
       }
     } else if (key === 'IN_CARICO') {
       form.inCarico.push(val)
+    } else if (key === 'INFO_PARTY') {
+      form.infoPartyId = Number(val) || null
     } else if (campoKeysMulti.has(key)) {
       form.campiMulti[key].push(val)
     } else if (campoKeys.has(key) && !form.campi[key]) {
@@ -339,6 +337,11 @@ async function preload() {
     } else {
       form.labels.push({label: key, valore: val})
     }
+  }
+  // INFO in modifica: pre-seleziona l'Ambito attuale (Party se ha INFO_PARTY, altrimenti Mondo) —
+  // in creazione resta vuoto, lo decide InfoEditor.vue al primo render (default Party).
+  if (isInfo.value && props.mode === 'edit') {
+    form.questScope = form.infoPartyId != null ? 'PARTY' : 'MONDO'
   }
   form.sezioniIncantesimi = Object.keys(spellRaw).map(Number).sort((a, b) => a - b).map(n => {
     const r = spellRaw[n]
@@ -731,6 +734,16 @@ function buildPayload(): UpdateItemRequest {
   // Quest/INFO: archiviata (esclusa dal caricamento automatico delle rispettive sezioni) — label
   // separate solo per chiarezza dei dati, il tipo item disambiguerebbe comunque le query.
   if (form.archiviata) labels.push({label: isInfo.value ? 'INFO_ARCHIVIATA' : 'QUEST_ARCHIVIATA', valore: '1'})
+  // INFO in modifica: l'Ambito (Party/Mondo) qui è cambiabile anche dopo la creazione, a
+  // differenza di come funziona per la radice in creazione (questScope/idParty sotto, letti SOLO
+  // da createItem() — updateItem() non li guarda affatto). Party -> riscrive INFO_PARTY col party
+  // corrente se non aveva già un proprio party; Mondo -> nessuna label, la rimuove il full-replace.
+  if (isInfo.value && props.mode === 'edit') {
+    if (form.questScope === 'PARTY') {
+      const partyId = form.infoPartyId ?? props.idParty
+      if (partyId != null) labels.push({label: 'INFO_PARTY', valore: String(partyId)})
+    }
+  }
   // Note generiche (qualunque item): ogni riga è un JSON {testo, visibilita}
   for (const n of form.note) {
     if (n.testo.trim()) labels.push({label: 'NOTA', valore: JSON.stringify({testo: n.testo, visibilita: n.visibilita})})
@@ -998,7 +1011,7 @@ function onCancel() {
       <div v-show="open.infoOggetto" class="fold-body">
         <div class="row two">
           <label class="field">
-            <span class="lbl">Taglia</span>
+            <span class="lbl">Taglia oggetto</span>
             <SearchSelect v-model="form.infoOggetto.taglia" :options="TAGLIE_OGGETTO" placeholder="— nessuna —" :disabled="disabledAll" :sort="false"/>
           </label>
           <label class="field">

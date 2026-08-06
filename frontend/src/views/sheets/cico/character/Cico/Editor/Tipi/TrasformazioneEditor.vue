@@ -2,13 +2,15 @@
 import BaseItemEditor from '../BaseItemEditor.vue'
 import {ItemDB} from '../../../../../../../models/entity/ItemDB'
 import {CampoLabel} from '../../../../../../../models/dto/UpdateItemRequest'
+import {TAGLIE_OPTIONS_NUMERICHE} from '../../../../../../../function/Utils'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedResta', item: { id: number }): void }>()
 
 const CAMPI: CampoLabel[] = [
   {key: 'GRP_TRASF', label: 'Gruppo trasformazione', placeholder: 'Gruppo di mutua esclusione'},
-  {key: 'TAGLIA', label: 'Taglia', placeholder: 'Es.: G'},
+  // Taglia che il personaggio ASSUME in questa trasformazione (sostituisce la sua taglia base).
+  {key: 'TAGLIA', label: 'Taglia assunta dal personaggio', tipo: 'select', options: TAGLIE_OPTIONS_NUMERICHE},
   {key: 'DV', label: 'Dadi vita', placeholder: 'DV della forma'},
 ]
 </script>

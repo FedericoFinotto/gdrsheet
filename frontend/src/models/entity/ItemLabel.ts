@@ -77,12 +77,23 @@ export const LABELS = {
     // Privilegio di Classe: raggruppa versioni dello stesso privilegio che si "aggiornano" a
     // livello più alto (es. sbloccata da una classe di prestigio) — vedi PrivilegioEditor.vue.
     GRUPPO_PRIVILEGI: 'GRUPPO_PRIVILEGI',
+    // Attacco: TPC/TPD sopra (TIRO_COLPIRE/TIRO_DANNI), qui il resto dei campi (AttaccoEditor.vue).
+    ATTACCO_TDANNO: 'TDANNO',
+    ATTACCO_TRANGE: 'TRANGE',
+    ATTACCO_TTS: 'TTS',
+    // Arma/Munizione: competenza richiesta per non subire penalità (ArmaEditor/MunizioneEditor).
+    REQ_COMP: 'REQ_COMP',
+    // Contenitore: sezione a parte in scheda invece di finire nel pool normale del personaggio
+    // (ContenitoreEditor.vue).
+    INVENTARIO_SEPARATO: 'INVENTARIO_SEPARATO',
 } as const;
 export type TipoLabels = typeof LABELS[keyof typeof LABELS];
 
 export function thereIsValoreLabel(itemTarget: ItemDB, tipo: TipoLabels): boolean {
     const prova = itemTarget.labels?.find((l: any) => l.label === tipo);
-    return prova !== undefined;
+    if (prova === undefined) return false;
+    const v = String(prova.valore ?? '').trim().toLowerCase();
+    return v !== '' && v !== '0' && v !== 'false';
 }
 
 export function getItemLabels(itm: ItemDB, label: TipoLabels): string[] {

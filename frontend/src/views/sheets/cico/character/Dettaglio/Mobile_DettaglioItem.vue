@@ -8,7 +8,8 @@ import {
   mostraLabel,
   testoFormula,
   testoModificatore,
-  testoModificatoreConTipo
+  testoModificatoreConTipo,
+  testoTaglia
 } from "../../../../../function/Utils";
 import {getItem, getNoteItem, switchItemState} from "../../../../../service/PersonaggioService";
 import {Nota} from "../../../../../models/dto/Quest";
@@ -64,7 +65,6 @@ const listaEffetti = ref<{ id: number; nome: string; condizione: string | null }
 const listaAltriCollegati = ref<ItemDB[]>([]);
 const mappaAvanzamenti = ref<Record<number, Avanzamento[]>>({});
 const mappaModificatori = ref<Record<number, Modificatore[]>>({});
-const listaAvanzamenti = ref<Avanzamento[]>([]);
 
 const itemDetail = ref<ItemDB | null>(null);
 const loading = ref(true);
@@ -72,10 +72,6 @@ const loading = ref(true);
 // contesto di lettura (la scheda in cui ci si trova), non necessariamente il "proprietario" reale
 // dell'item — stesso significato di OWNER usato ovunque nell'app per queste note.
 const note = ref<Nota[]>([]);
-
-
-// Mappe per labels
-const labelMap = ref<Record<string, string>>({});
 
 // Mappe per TPC/TPD
 const tpcMap = ref<Record<number, string>>({});
@@ -165,12 +161,6 @@ onMounted(async () => {
     const data = response.data;
     itemDetail.value = data;
 
-    // Popola labelMap con tutte le labels
-    data.labels?.forEach(lbl => {
-      // assumiamo lbl.label come key e lbl.valore come value
-      labelMap.value[lbl.label] = lbl.valore;
-    });
-
     // Lista dei children
     const children = data.child ?? [];
     const avanzamenti = data.avanzamento ?? [];
@@ -196,7 +186,6 @@ onMounted(async () => {
           .filter(c => !ESCLUSI.has(c.itemTarget.tipo))
           .map(c => c.itemTarget);
     }
-    listaAvanzamenti.value = avanzamenti;
     mappaAvanzamenti.value = buildMappaItemAvanzamenti(avanzamenti)
     mappaModificatori.value = buildMappaModificatoriAvanzamenti(avanzamenti)
 
@@ -344,13 +333,29 @@ const contenitorInfo = computed(() => {
     includiOggetti,
     includiConsumabili,
     includiTutti,
+    // INVENTARIO_SEPARATO non è un campo dell'Item "leggero" passato come prop (a differenza di
+    // capienza/peso/includi*): è una label raw, letta dal dettaglio completo appena caricato.
+    inventarioSeparato: itemDetail.value ? thereIsValoreLabel(itemDetail.value, LABELS.INVENTARIO_SEPARATO) : false,
   }
 })
 
-// Talento: dati stile dndtools.org (vedi scripts/dndtools-scraper), da item_label
+// Labels dinamiche: una riga per ogni ItemLabel grezza che passa la whitelist di mostraLabel().
+// Itera l'array raw (non un Record per label) così le label multi-valore (es. più SPELL) non si
+// schiacciano l'una sull'altra tenendo solo l'ultima.
+const labelsVisibili = computed(() => {
+  if (!itemDetail.value?.labels) return []
+  return itemDetail.value.labels
+      .map(l => mostraLabel(l.label, l.valore))
+      .filter(lv => lv !== null)
+})
+
+// Talento e Skill Trick condividono lo stesso stile di dati dndtools.org (vedi
+// scripts/dndtools-scraper/SkillTrickEditor.vue): Skill Trick non ha REQUIRED_FOR/NORMAL/
+// SPECIAL/EXTRA, semplicemente non saranno mai valorizzati e quelle sezioni resteranno nascoste.
 const talentoInfo = computed(() => {
-  if (!itemDetail.value || itemDetail.value.tipo !== TIPO_ITEM.TALENTO) return null
+  if (!itemDetail.value || (itemDetail.value.tipo !== TIPO_ITEM.TALENTO && itemDetail.value.tipo !== TIPO_ITEM.SKILL_TRICK)) return null
   const d = itemDetail.value
+  const enName = getItemLabel(d, LABELS.EN_NAME)
   return {
     manuale: getItemLabel(d, LABELS.MANUALE),
     pagina: getItemLabel(d, LABELS.PAGE),
@@ -362,7 +367,53 @@ const talentoInfo = computed(() => {
     normale: getItemLabel(d, LABELS.NORMAL),
     speciale: getItemLabel(d, LABELS.SPECIAL),
     extra: getItemLabels(d, LABELS.EXTRA) ?? [],
+    // mostrato solo se diverso dal nome italiano: altrimenti è pura ripetizione
+    enName: enName && enName !== d.nome ? enName : null,
   }
+})
+
+// Arma/Munizione: competenza richiesta per non subire penalità di non competenza.
+const reqCompInfo = computed(() => {
+  if (!itemDetail.value || (itemDetail.value.tipo !== TIPO_ITEM.ARMA && itemDetail.value.tipo !== TIPO_ITEM.MUNIZIONE)) return null
+  const reqComp = getItemLabel(itemDetail.value, LABELS.REQ_COMP)
+  return reqComp ? {reqComp} : null
+})
+
+// Attacco: stessi campi mostrati nella scheda Attacchi (TPC, danno + tipo, range, tiro salvezza),
+// qui come formule/testo grezzo (stesso trattamento già in uso per tpcMap/tpdMap sopra) invece che
+// risolti sulle statistiche del personaggio, perché questo popup può aprirsi anche senza un
+// personaggio "vivo" alle spalle (es. dal Compendio).
+const attaccoInfo = computed(() => {
+  if (!itemDetail.value || itemDetail.value.tipo !== TIPO_ITEM.ATTACCO) return null
+  const d = itemDetail.value
+  const tpc = thereIsValoreLabel(d, LABELS.TIRO_COLPIRE) ? testoFormula(getItemLabel(d, LABELS.TIRO_COLPIRE)) : null
+  const tpd = thereIsValoreLabel(d, LABELS.TIRO_DANNI) ? testoFormula(getItemLabel(d, LABELS.TIRO_DANNI)) : null
+  const tipoDanno = getItemLabel(d, LABELS.ATTACCO_TDANNO)
+  const range = getItemLabel(d, LABELS.ATTACCO_TRANGE)
+  const tiroSalvezza = getItemLabel(d, LABELS.ATTACCO_TTS)
+  if (!tpc && !tpd && !tipoDanno && !range && !tiroSalvezza) return null
+  return {tpc, tpd, tipoDanno, range, tiroSalvezza}
+})
+
+// Incantesimo: resistenza, manuale di provenienza, nome originale (se diverso dal nome IT).
+const incantesimoInfo = computed(() => {
+  if (!itemDetail.value || itemDetail.value.tipo !== TIPO_ITEM.INCANTESIMO) return null
+  const d = itemDetail.value
+  const resistenza = getItemLabel(d, LABELS.SPELL_RESISTENZA)
+  const manuale = getItemLabel(d, LABELS.MANUALE)
+  const enNameRaw = getItemLabel(d, LABELS.EN_NAME)
+  const enName = enNameRaw && enNameRaw !== d.nome ? enNameRaw : null
+  if (!resistenza && !manuale && !enName) return null
+  return {resistenza, manuale, enName}
+})
+
+// Forma/Trasformazione: taglia che il personaggio ASSUME quando questa forma è attiva (non è la
+// taglia fisica dell'item: vedi il commento su LABELS.TAGLIA in ItemLabel.ts).
+const taglioAssuntaInfo = computed(() => {
+  if (!itemDetail.value || (itemDetail.value.tipo !== TIPO_ITEM.FORMA && itemDetail.value.tipo !== TIPO_ITEM.TRASFORMAZIONE)) return null
+  const raw = getItemLabel(itemDetail.value, LABELS.TAGLIA)
+  if (!raw) return null
+  return {taglia: testoTaglia(raw)}
 })
 
 // Descrittori Oggetto/Abilità assegnati nell'editor: mostrati come chip anche nella vista esterna
@@ -548,11 +599,9 @@ function toggleExpand(key: string) {
     </div>
 
     <!-- Labels dinamiche -->
-    <div v-if="Object.keys(labelMap).length">
-      <div v-for="(val, key) in labelMap" :key="key">
-        <span v-if="mostraLabel(key, val)"><strong>{{
-            mostraLabel(key, val).label
-          }}:</strong> {{ mostraLabel(key, val).value }}</span>
+    <div v-if="labelsVisibili.length">
+      <div v-for="(lv, i) in labelsVisibili" :key="i">
+        <span><strong>{{ lv.label }}:</strong> {{ lv.value }}</span>
       </div>
       <div class="spazietto"/>
     </div>
@@ -566,6 +615,15 @@ function toggleExpand(key: string) {
           &nbsp;→&nbsp;
           <strong>{{ contenitorInfo.pesoEffettivo.toFixed(2) }} kg</strong>
         </span>
+      </div>
+      <div class="contenitore-flags">
+        <span>Capienza: {{ contenitorInfo.capienza }} kg</span>
+        <span>Peso a capienza piena: {{ contenitorInfo.pesoMassimo }} kg</span>
+        <span v-if="contenitorInfo.includiArmi" class="contenitore-flag-chip">+ Armi equipaggiate</span>
+        <span v-if="contenitorInfo.includiOggetti" class="contenitore-flag-chip">+ Oggetti equipaggiati</span>
+        <span v-if="contenitorInfo.includiConsumabili" class="contenitore-flag-chip">+ Consumabili equipaggiati</span>
+        <span v-if="contenitorInfo.includiTutti" class="contenitore-flag-chip">+ Tutto quello che pesa</span>
+        <span v-if="contenitorInfo.inventarioSeparato" class="contenitore-flag-chip">Inventario separato</span>
       </div>
       <div v-if="contenitorInfo.items.length || contenitorInfo.armiItems.length
                  || contenitorInfo.oggettiItems.length || contenitorInfo.consumabiliItems.length
@@ -630,8 +688,9 @@ function toggleExpand(key: string) {
       <a :href="classeInfo.link" target="_blank" rel="noopener noreferrer">Fonte ↗</a>
     </div>
 
-    <!-- Talento: header manuale/pagina/categorie in stile dndtools -->
-    <div v-if="talentoInfo && (talentoInfo.manuale || talentoInfo.categorie.length)" class="talento-header">
+    <!-- Talento/Skill Trick: header manuale/pagina/categorie/nome originale in stile dndtools -->
+    <div v-if="talentoInfo && (talentoInfo.manuale || talentoInfo.categorie.length || talentoInfo.enName)" class="talento-header">
+      <span v-if="talentoInfo.enName" class="talento-manuale">{{ talentoInfo.enName }}</span>
       <span v-if="talentoInfo.manuale" class="talento-manuale">
         ({{ talentoInfo.manuale }}<template v-if="talentoInfo.pagina">, p. {{ talentoInfo.pagina }}</template>)
       </span>
@@ -662,6 +721,37 @@ function toggleExpand(key: string) {
     </div>
     <div v-if="infoVeicolo" class="costo-materiale">
       <span><strong>Velocità:</strong> {{ infoVeicolo.velocita }}</span>
+    </div>
+    <div v-if="reqCompInfo" class="costo-materiale">
+      <span><strong>Competenza richiesta:</strong> {{ reqCompInfo.reqComp }}</span>
+    </div>
+    <div v-if="taglioAssuntaInfo" class="costo-materiale">
+      <span><strong>Taglia assunta dal personaggio:</strong> {{ taglioAssuntaInfo.taglia }}</span>
+    </div>
+    <div v-if="incantesimoInfo" class="costo-materiale">
+      <span v-if="incantesimoInfo.enName"><strong>Nome originale:</strong> {{ incantesimoInfo.enName }}</span>
+      <span v-if="incantesimoInfo.manuale"><strong>Manuale:</strong> {{ incantesimoInfo.manuale }}</span>
+      <span v-if="incantesimoInfo.resistenza"><strong>Resistenza agli incantesimi:</strong> {{ incantesimoInfo.resistenza }}</span>
+    </div>
+
+    <!-- Attacco: stessi campi mostrati nella scheda Attacchi -->
+    <div v-if="attaccoInfo" class="attacco-box">
+      <div v-if="attaccoInfo.tpc" class="attacco-riga">
+        <span class="attacco-label">Tiro per colpire</span>
+        <span class="attacco-valore">{{ attaccoInfo.tpc }}</span>
+      </div>
+      <div v-if="attaccoInfo.tpd" class="attacco-riga">
+        <span class="attacco-label">Danno</span>
+        <span class="attacco-valore">{{ attaccoInfo.tpd }}<template v-if="attaccoInfo.tipoDanno"> ({{ attaccoInfo.tipoDanno }})</template></span>
+      </div>
+      <div v-if="attaccoInfo.range" class="attacco-riga">
+        <span class="attacco-label">Range</span>
+        <span class="attacco-valore">{{ attaccoInfo.range }}</span>
+      </div>
+      <div v-if="attaccoInfo.tiroSalvezza" class="attacco-riga">
+        <span class="attacco-label">Tiro salvezza</span>
+        <span class="attacco-valore">{{ attaccoInfo.tiroSalvezza }}</span>
+      </div>
     </div>
 
     <!-- Immagini (host esterno): click per ingrandire -->
@@ -974,6 +1064,23 @@ function toggleExpand(key: string) {
   color: var(--text-muted);
 }
 .contenitore-peso { font-variant-numeric: tabular-nums; }
+.contenitore-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem .7rem;
+  align-items: center;
+  padding: .4rem .75rem;
+  font-size: .78rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--hairline);
+}
+.contenitore-flag-chip {
+  background: var(--btn-bg);
+  border-radius: .4rem;
+  padding: .05rem .45rem;
+  font-weight: 600;
+  font-size: .72rem;
+}
 .contenitore-list { padding: .25rem 0; }
 .contenitore-item {
   display: flex;
@@ -1058,6 +1165,25 @@ function toggleExpand(key: string) {
 }
 .talento-link { margin: .5rem 0; font-size: .85rem; }
 .talento-link a { color: var(--info-text); }
+
+/* Attacco: stessi campi/stile della scheda Attacchi (Mobile_Cico_6_Attacchi.vue) */
+.attacco-box {
+  border: 1px solid var(--hairline);
+  border-radius: .5rem;
+  overflow: hidden;
+  margin: .5rem 0;
+}
+.attacco-riga {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: .5rem;
+  padding: .4rem .75rem;
+  font-size: .85rem;
+}
+.attacco-riga:not(:last-child) { border-bottom: 1px solid var(--hairline); }
+.attacco-label { color: var(--text-muted); font-size: .78rem; }
+.attacco-valore { font-weight: 700; }
 
 /* Liste di item (attacchi/abilità/effetti/maledizioni/collegati): accordion, click sulla riga
    espande il dettaglio in linea (niente popup annidati quando il componente è già in un popup) */

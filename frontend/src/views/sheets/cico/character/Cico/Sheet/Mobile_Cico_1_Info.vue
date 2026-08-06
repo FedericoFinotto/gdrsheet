@@ -9,7 +9,7 @@ import Mobile_DettaglioItem from "../../Dettaglio/Mobile_DettaglioItem.vue";
 import {getPreferito, setPreferito, switchItemState, updatePersonaggioInfo} from "../../../../../../service/PersonaggioService";
 import usePopup from "../../../../../../function/usePopup";
 import useDiceRoll from "../../../../../../function/useDiceRoll";
-import {testoTaglia} from "../../../../../../function/Utils";
+import {TAGLIE_OPTIONS_NUMERICHE, testoTaglia} from "../../../../../../function/Utils";
 import SearchSelect from "../../../../../../components/SearchSelect.vue";
 import PesoDettaglioPopup from "./PesoDettaglioPopup.vue";
 import Icona from "../../../../../../components/Icona/Icona.vue";
@@ -154,17 +154,7 @@ const infoFieldsVisibili = computed(() => INFO_FIELDS.filter(f => {
   return !isNave.value || !CAMPI_NASCOSTI_NAVE.has(f.key)
 }))
 
-const TAGLIE: { value: string; label: string }[] = [
-  {value: '-4', label: 'Piccolissima'},
-  {value: '-3', label: 'Minuta'},
-  {value: '-2', label: 'Minuscola'},
-  {value: '-1', label: 'Piccola'},
-  {value: '0', label: 'Media'},
-  {value: '1', label: 'Grande'},
-  {value: '2', label: 'Enorme'},
-  {value: '3', label: 'Mastodontica'},
-  {value: '4', label: 'Colossale'},
-]
+const TAGLIE = TAGLIE_OPTIONS_NUMERICHE
 
 const infoOpen = ref(false)
 const editNome = ref('')

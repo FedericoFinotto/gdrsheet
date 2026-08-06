@@ -13,6 +13,7 @@ import SearchSelect from '../../../../../../../components/SearchSelect.vue'
 import {useMondoSistema} from '../../../../../../../function/useMondoSistema'
 import {LABELS} from '../../../../../../../models/entity/ItemLabel'
 import {LabelRow} from '../../../../../../../models/dto/UpdateItemRequest'
+import {TAGLIE_OPTIONS_NOME} from '../../../../../../../function/Utils'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
 const emit = defineEmits<{
@@ -99,18 +100,7 @@ watch([autoMondo, autoSistema], ([m, s]) => {
 }, {immediate: true})
 
 const isRazza = computed(() => props.item.tipo === 'RAZZA')
-const TAGLIE_RAZZA = [
-  {value: '', label: '— nessuna —'},
-  {value: 'Piccolissima', label: 'Piccolissima'},
-  {value: 'Minuta', label: 'Minuta'},
-  {value: 'Minuscola', label: 'Minuscola'},
-  {value: 'Piccola', label: 'Piccola'},
-  {value: 'Media', label: 'Media'},
-  {value: 'Grande', label: 'Grande'},
-  {value: 'Enorme', label: 'Enorme'},
-  {value: 'Mastodontica', label: 'Mastodontica'},
-  {value: 'Colossale', label: 'Colossale'},
-]
+const TAGLIE_RAZZA = [{value: '', label: '— nessuna —'}, ...TAGLIE_OPTIONS_NOME]
 
 const loading = ref(props.mode !== 'create')
 const busy = ref(false)

@@ -104,18 +104,44 @@ export function testoFormula(formula: string): string {
         ;
 }
 
-// D&D 3.5 — mappa taglie (IT) centrata su Medium=0
-const SIZE_IT = new Map<number, string>([
-    [-4, 'Piccolissima'], // Fine
-    [-3, 'Minuta'],       // Diminutive
-    [-2, 'Minuscola'],    // Tiny
-    [-1, 'Piccola'],      // Small
-    [0, 'Media'],        // Medium
-    [1, 'Grande'],       // Large
-    [2, 'Enorme'],       // Huge
-    [3, 'Mastodontica'], // Gargantuan
-    [4, 'Colossale'],    // Colossal
-]);
+// D&D 3.5 — scala taglie (IT) centrata su Medium=0 (-4..4, il range ufficiale Piccolissima..
+// Colossale), estesa oltre i due confini con incrementi "-"/"+" per creature/oggetti fuori scala
+// (es. draghi molto anziani, costrutti epici). Unica fonte: la usano sia i campi che salvano il
+// codice numerico (taglia/ADD_TAGLIA del personaggio) sia quelli puramente descrittivi che
+// salvano il nome (taglia fisica di oggetto/razza) — vedi TAGLIE_OPTIONS_NUMERICHE/_NOME sotto.
+export const TAGLIE_SCALA: { value: number; label: string }[] = [
+    {value: -14, label: 'Piccolissima 10-'},
+    {value: -13, label: 'Piccolissima 9-'},
+    {value: -12, label: 'Piccolissima 8-'},
+    {value: -11, label: 'Piccolissima 7-'},
+    {value: -10, label: 'Piccolissima 6-'},
+    {value: -9, label: 'Piccolissima 5-'},
+    {value: -8, label: 'Piccolissima 4-'},
+    {value: -7, label: 'Piccolissima 3-'},
+    {value: -6, label: 'Piccolissima--'},
+    {value: -5, label: 'Piccolissima-'},
+    {value: -4, label: 'Piccolissima'}, // Fine
+    {value: -3, label: 'Minuta'},       // Diminutive
+    {value: -2, label: 'Minuscola'},    // Tiny
+    {value: -1, label: 'Piccola'},      // Small
+    {value: 0, label: 'Media'},         // Medium
+    {value: 1, label: 'Grande'},        // Large
+    {value: 2, label: 'Enorme'},        // Huge
+    {value: 3, label: 'Mastodontica'},  // Gargantuan
+    {value: 4, label: 'Colossale'},     // Colossal
+    {value: 5, label: 'Colossale+'},
+    {value: 6, label: 'Colossale++'},
+    {value: 7, label: 'Colossale 3+'},
+    {value: 8, label: 'Colossale 4+'},
+    {value: 9, label: 'Colossale 5+'},
+    {value: 10, label: 'Colossale 6+'},
+    {value: 11, label: 'Colossale 7+'},
+    {value: 12, label: 'Colossale 8+'},
+    {value: 13, label: 'Colossale 9+'},
+    {value: 14, label: 'Colossale 10+'},
+];
+
+const SIZE_IT = new Map<number, string>(TAGLIE_SCALA.map(t => [t.value, t.label]));
 
 /**
  * Converte un codice di taglia (stringa o numero) nella label italiana.
@@ -129,6 +155,17 @@ export function testoTaglia(code: string | number): string {
     if (Number.isNaN(n)) return 'Sconosciuta';
     return SIZE_IT.get(n) ?? 'Sconosciuta';
 }
+
+// Opzioni <select> per i campi che salvano il codice numerico (-14..14): SET/ADD della taglia
+// del personaggio (label TAGLIA/ADD_TAGLIA su anagrafica, Arma/Equipaggiamento/Oggetto quando
+// modificano chi lo indossa, Forma/Trasformazione quando il personaggio la assume).
+export const TAGLIE_OPTIONS_NUMERICHE: { value: string; label: string }[] =
+    TAGLIE_SCALA.map(t => ({value: String(t.value), label: t.label}));
+
+// Opzioni <select> per i campi puramente descrittivi che salvano il nome (TAGLIA_OGGETTO,
+// RAZZA_TAGLIA): non influiscono sulla taglia del personaggio.
+export const TAGLIE_OPTIONS_NOME: { value: string; label: string }[] =
+    TAGLIE_SCALA.map(t => ({value: t.label, label: t.label}));
 
 type LabeledValue = { label: string; value: string };
 

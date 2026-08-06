@@ -2,6 +2,7 @@
 import {computed} from 'vue'
 import {Items} from '../../../../../../models/dto/Items'
 import {DatiPersonaggio} from '../../../../../../models/dto/DatiPersonaggio'
+import {testoTaglia} from '../../../../../../function/Utils'
 
 const props = defineProps<{
   data: {
@@ -10,11 +11,7 @@ const props = defineProps<{
   }
 }>()
 
-const TAGLIE: Record<number, string> = {
-  '-4': 'Piccolissima', '-3': 'Minuta', '-2': 'Minuscola', '-1': 'Piccola',
-  0: 'Media', 1: 'Grande', 2: 'Enorme', 3: 'Mastodontica', 4: 'Colossale',
-}
-const nomeTag = (n: number | undefined) => n != null ? (TAGLIE[n] ?? `${n}`) : '—'
+const nomeTag = (n: number | undefined) => n != null ? testoTaglia(n) : '—'
 
 const mod   = computed(() => props.data.modificatori)
 const items = computed(() => props.data.items)

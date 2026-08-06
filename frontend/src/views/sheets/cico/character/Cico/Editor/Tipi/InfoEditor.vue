@@ -13,20 +13,26 @@ const props = defineProps<{
   mode?: 'edit' | 'create'
   idPersonaggio?: number
   idParty?: number
+  // true se ItemEditor.vue ha trovato almeno un padre (quest/info/altro item collegato): questo
+  // INFO è quindi un sotto-info aperto direttamente, non una radice — niente ambito da scegliere,
+  // eredita la visibilità dal padre a cui è collegato (stessa logica di isSubInfo in creazione).
+  hasParents?: boolean
 }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedStay'): void; (e: 'savedResta', item: { id: number }): void }>()
 
 const route = useRoute()
-// sotto-info creato dal flusso "+ Aggiungi sotto-info" (SottoQuestEditor): nessun ambito da
-// scegliere, eredita la visibilità dal padre a cui viene collegato.
-const isSubInfo = computed(() => props.mode === 'create' && !!route.query.link)
+// sotto-info creato dal flusso "+ Aggiungi sotto-info" (SottoQuestEditor), oppure sotto-info
+// esistente aperto direttamente per modifica (rilevato da ItemEditor.vue via hasParents): in
+// entrambi i casi nessun ambito da scegliere qui, eredita la visibilità dal padre.
+const isSubInfo = computed(() => (props.mode === 'create' && !!route.query.link) || !!props.hasParents)
 
 // Solo Party/Mondo: gli INFO si gestiscono esclusivamente dalla scheda party, non esiste un
-// ambito Personaggio (a differenza delle QUEST, che hanno anche una pagina personale).
-const AMBITO_OPTS = [
-  {value: 'PARTY', label: 'Party'},
+// ambito Personaggio (a differenza delle QUEST, che hanno anche una pagina personale). "Party" è
+// proponibile solo se c'è un party corrente a cui associarlo (props.idParty).
+const AMBITO_OPTS = computed(() => [
+  ...(props.idParty != null ? [{value: 'PARTY', label: 'Party'}] : []),
   {value: 'MONDO', label: 'Mondo (visibile a tutti i party)'},
-]
+])
 </script>
 
 <template>
@@ -52,7 +58,7 @@ const AMBITO_OPTS = [
           <span class="fold-title">Info</span>
         </div>
         <div class="fold-body">
-          <label v-if="props.mode === 'create' && !isSubInfo" class="field">
+          <label v-if="!isSubInfo" class="field">
             <span class="lbl">Ambito</span>
             <SearchSelect :model-value="questScope" :options="AMBITO_OPTS" :disabled="disabled" :sort="false"
                           @update:model-value="val => setQuestScope(String(val))"/>

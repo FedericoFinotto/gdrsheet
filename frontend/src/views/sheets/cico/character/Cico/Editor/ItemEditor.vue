@@ -266,6 +266,7 @@ async function onSavedResta() {
             :item="item"
             :id-personaggio="idPersonaggio"
             :id-party="idParty"
+            :has-parents="item?.tipo === 'INFO' ? parents.length > 0 : undefined"
             @cancel="goBack"
             @saved="onSaved"
             @saved-resta="onSavedResta"
