@@ -386,13 +386,34 @@ const reqCompInfo = computed(() => {
 const attaccoInfo = computed(() => {
   if (!itemDetail.value || itemDetail.value.tipo !== TIPO_ITEM.ATTACCO) return null
   const d = itemDetail.value
-  const tpc = thereIsValoreLabel(d, LABELS.TIRO_COLPIRE) ? testoFormula(getItemLabel(d, LABELS.TIRO_COLPIRE)) : null
-  const tpd = thereIsValoreLabel(d, LABELS.TIRO_DANNI) ? testoFormula(getItemLabel(d, LABELS.TIRO_DANNI)) : null
-  const tipoDanno = getItemLabel(d, LABELS.ATTACCO_TDANNO)
+
+  // Risoluzione (TPC o Tiro Salvezza): ATK_TIPO se presente (attacchi creati/modificati dalla
+  // sezione embedded AttacchiEditor.vue), altrimenti dedotta dai campi presenti — stesso fallback
+  // usato in BaseItemEditor.vue:preload().
+  const tipoRisoluzione = getItemLabel(d, LABELS.ATTACCO_TIPO_RISOLUZIONE)
+      || (thereIsValoreLabel(d, LABELS.TIRO_COLPIRE) ? 'TPC' : (thereIsValoreLabel(d, LABELS.ATTACCO_TTS) ? 'TS' : ''))
+  const tpc = tipoRisoluzione !== 'TS' && thereIsValoreLabel(d, LABELS.TIRO_COLPIRE)
+      ? testoFormula(getItemLabel(d, LABELS.TIRO_COLPIRE)) : null
+  const tiroSalvezza = tipoRisoluzione === 'TS' ? getItemLabel(d, LABELS.ATTACCO_TTS) : null
+  const tiroSalvezzaCd = tipoRisoluzione === 'TS' && thereIsValoreLabel(d, LABELS.ATTACCO_TTS_CD)
+      ? testoFormula(getItemLabel(d, LABELS.ATTACCO_TTS_CD)) : null
+
+  // Danni: righe multiple ATK_DANNO ("formula␞tipo") se presenti (dati nuovi, N danni per
+  // attacco), altrimenti fallback al singolo TPD/TDANNO (dati vecchi) — stesso fallback usato in
+  // BaseItemEditor.vue:preload().
+  const dannoRows = getItemLabels(d, LABELS.ATTACCO_DANNO) ?? []
+  const danni = dannoRows.length
+      ? dannoRows.map(v => {
+        const [formula, tipo] = v.split('␞')
+        return {formula: formula ? testoFormula(formula) : '', tipo: tipo ?? ''}
+      }).filter(x => x.formula || x.tipo)
+      : (thereIsValoreLabel(d, LABELS.TIRO_DANNI)
+          ? [{formula: testoFormula(getItemLabel(d, LABELS.TIRO_DANNI)), tipo: getItemLabel(d, LABELS.ATTACCO_TDANNO) ?? ''}]
+          : [])
+
   const range = getItemLabel(d, LABELS.ATTACCO_TRANGE)
-  const tiroSalvezza = getItemLabel(d, LABELS.ATTACCO_TTS)
-  if (!tpc && !tpd && !tipoDanno && !range && !tiroSalvezza) return null
-  return {tpc, tpd, tipoDanno, range, tiroSalvezza}
+  if (!tpc && !tiroSalvezza && danni.length === 0 && !range) return null
+  return {tpc, tiroSalvezza, tiroSalvezzaCd, danni, range}
 })
 
 // Incantesimo: resistenza, manuale di provenienza, nome originale (se diverso dal nome IT).
@@ -518,7 +539,10 @@ function toggleExpand(key: string) {
         <Icona name="EDIT"/>
         <span>Modifica</span>
       </button>
-      <button v-if="idPersonaggioCorrente" type="button" class="action-btn dai" @click.stop="apriDai">
+      <!-- "Dai" ha senso solo su un possesso diretto (collegato al FromCompendio del
+           personaggio): niente Dai su un item derivato/concesso da un altro (es. un Privilegio
+           di Classe concesso dalla Classe) — vedi item.scollegabile, PersonaggioService.java. -->
+      <button v-if="idPersonaggioCorrente && item.scollegabile" type="button" class="action-btn dai" @click.stop="apriDai">
         <span>🖐</span>
         <span>Dai</span>
       </button>
@@ -740,17 +764,19 @@ function toggleExpand(key: string) {
         <span class="attacco-label">Tiro per colpire</span>
         <span class="attacco-valore">{{ attaccoInfo.tpc }}</span>
       </div>
-      <div v-if="attaccoInfo.tpd" class="attacco-riga">
-        <span class="attacco-label">Danno</span>
-        <span class="attacco-valore">{{ attaccoInfo.tpd }}<template v-if="attaccoInfo.tipoDanno"> ({{ attaccoInfo.tipoDanno }})</template></span>
+      <div v-if="attaccoInfo.tiroSalvezza" class="attacco-riga">
+        <span class="attacco-label">Tiro salvezza</span>
+        <span class="attacco-valore">
+          {{ attaccoInfo.tiroSalvezza }}<template v-if="attaccoInfo.tiroSalvezzaCd"> (CD {{ attaccoInfo.tiroSalvezzaCd }})</template>
+        </span>
+      </div>
+      <div v-for="(d, i) in attaccoInfo.danni" :key="i" class="attacco-riga">
+        <span class="attacco-label">Danno<template v-if="attaccoInfo.danni.length > 1"> {{ i + 1 }}</template></span>
+        <span class="attacco-valore">{{ d.formula }}<template v-if="d.tipo"> ({{ d.tipo }})</template></span>
       </div>
       <div v-if="attaccoInfo.range" class="attacco-riga">
         <span class="attacco-label">Range</span>
         <span class="attacco-valore">{{ attaccoInfo.range }}</span>
-      </div>
-      <div v-if="attaccoInfo.tiroSalvezza" class="attacco-riga">
-        <span class="attacco-label">Tiro salvezza</span>
-        <span class="attacco-valore">{{ attaccoInfo.tiroSalvezza }}</span>
       </div>
     </div>
 

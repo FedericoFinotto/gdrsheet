@@ -14,6 +14,7 @@ public class ItemsDTO {
     private List<ItemDTO> abilita;
     private List<ItemDTO> talenti;
     private List<ItemDTO> skillTrick;
+    private List<ItemDTO> immagini;
     private List<ItemDTO> oggetti;
     private List<ItemDTO> consumabili;
     private List<ItemDTO> armi;
@@ -49,6 +50,7 @@ public class ItemsDTO {
         abilita = new ArrayList<>();
         talenti = new ArrayList<>();
         skillTrick = new ArrayList<>();
+        immagini = new ArrayList<>();
         oggetti = new ArrayList<>();
         consumabili = new ArrayList<>();
         armi = new ArrayList<>();

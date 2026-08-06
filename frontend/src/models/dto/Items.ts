@@ -34,6 +34,7 @@ export interface Items {
     abilita: Item[];
     talenti: Item[];
     skillTrick: Item[];
+    immagini: Item[];
     oggetti: Item[];
     consumabili: Item[];
     armi: Item[];

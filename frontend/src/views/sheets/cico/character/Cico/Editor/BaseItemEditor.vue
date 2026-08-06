@@ -47,6 +47,7 @@ const props = withDefaults(defineProps<{
   idParty?: number            // solo create QUEST di ambito PARTY: party a cui associare la quest (se non in un contesto personaggio)
   separateForme?: boolean     // separa i child FORMA in una sezione dedicata
   minimal?: boolean           // nasconde sezioni avanzate (EN name, manuale, utilizzi, compendio, folds)
+  forceImmagini?: boolean     // mostra comunque il fold Immagini anche in minimal (es. ImmagineEditor.vue)
 }>(), {
   titolo: 'Item',
   campiLabel: () => [],
@@ -1467,7 +1468,7 @@ function onCancel() {
     </section>
 
     <!-- Immagini (caricate su un host esterno, non sul database) -->
-    <section v-if="!minimal" class="fold">
+    <section v-if="!minimal || forceImmagini" class="fold">
       <button type="button" class="fold-head" @click="open.immagini = !open.immagini"
               :aria-expanded="open.immagini ? 'true' : 'false'">
         <span class="fold-title">Immagini</span>

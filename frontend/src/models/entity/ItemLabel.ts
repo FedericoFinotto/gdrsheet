@@ -81,6 +81,13 @@ export const LABELS = {
     ATTACCO_TDANNO: 'TDANNO',
     ATTACCO_TRANGE: 'TRANGE',
     ATTACCO_TTS: 'TTS',
+    // Attacco creato/modificato dalla sezione embedded AttacchiEditor.vue (attacchi di
+    // un'Arma/Equipaggiamento ecc.): risoluzione TPC|TS, N danni multi-valore ("formula␞tipo"),
+    // CD del tiro salvezza. Sostituiscono TPC/TPD/TDANNO "singoli" quando presenti — vedi il
+    // fallback identico in BaseItemEditor.vue:preload().
+    ATTACCO_TIPO_RISOLUZIONE: 'ATK_TIPO',
+    ATTACCO_DANNO: 'ATK_DANNO',
+    ATTACCO_TTS_CD: 'TTS_CD',
     // Arma/Munizione: competenza richiesta per non subire penalità (ArmaEditor/MunizioneEditor).
     REQ_COMP: 'REQ_COMP',
     // Contenitore: sezione a parte in scheda invece di finire nel pool normale del personaggio

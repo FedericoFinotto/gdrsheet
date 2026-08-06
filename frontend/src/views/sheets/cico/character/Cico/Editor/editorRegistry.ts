@@ -35,6 +35,7 @@ import CategoriaEditor from './Tipi/CategoriaEditor.vue'
 import TagItemEditor from './Tipi/TagItemEditor.vue'
 import RandomizzatoreEditor from './Tipi/RandomizzatoreEditor.vue'
 import SkillTrickEditor from './Tipi/SkillTrickEditor.vue'
+import ImmagineEditor from './Tipi/ImmagineEditor.vue'
 
 export const EDITOR_BY_TYPE: Record<TipoItem, Component> = {
     [TIPO_ITEM.ABILITA]: AbilitaEditor,
@@ -72,6 +73,7 @@ export const EDITOR_BY_TYPE: Record<TipoItem, Component> = {
     [TIPO_ITEM.RANDOMIZZATORE]: RandomizzatoreEditor,
     [TIPO_ITEM.CASO]: BaseItemEditor,
     [TIPO_ITEM.SKILL_TRICK]: SkillTrickEditor,
+    [TIPO_ITEM.IMMAGINE]: ImmagineEditor,
 }
 
 // Fallback per eventuali tipi non mappati
@@ -119,6 +121,7 @@ export const TIPO_ITEM_LABELS: Record<TipoItem, string> = {
     [TIPO_ITEM.RANDOMIZZATORE]: 'Randomizzatore',
     [TIPO_ITEM.CASO]: 'Caso',
     [TIPO_ITEM.SKILL_TRICK]: 'Skill Trick',
+    [TIPO_ITEM.IMMAGINE]: 'Immagine',
 }
 
 // Tipi creabili dalla pagina di creazione.

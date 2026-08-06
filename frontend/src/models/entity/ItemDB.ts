@@ -58,6 +58,7 @@ export const TIPO_ITEM = {
     RANDOMIZZATORE: 'RANDOMIZZATORE',
     CASO: 'CASO',
     SKILL_TRICK: 'SKILL_TRICK',
+    IMMAGINE: 'IMMAGINE',
 } as const;
 export type TipoItem = typeof TIPO_ITEM[keyof typeof TIPO_ITEM];
 

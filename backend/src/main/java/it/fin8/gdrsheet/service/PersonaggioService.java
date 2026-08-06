@@ -439,42 +439,60 @@ public class PersonaggioService {
                 destinazioneLista(null, sepId, inventariSeparati, itemById).add(dto);
                 continue;
             }
+            // "scollegabile" qui non significa solo "si può scollegare" (uso storico per
+            // Competenze/Lingue): segna anche se l'item è collegato DIRETTAMENTE al FromCompendio
+            // del personaggio, cioè un vero possesso — a differenza di uno derivato/concesso da
+            // un altro item (es. un Privilegio di Classe concesso dalla Classe). Il frontend lo
+            // usa anche per decidere se mostrare "Dai" su un item (vedi Mobile_DettaglioItem.vue).
             if (TipoItem.ABILITA.equals(itm.getTipo())) {
-                itemsDTO.getAbilita().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
+                itemsDTO.getAbilita().add(dto);
             }
             if (TipoItem.TALENTO.equals(itm.getTipo())) {
-                itemsDTO.getTalenti().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
+                itemsDTO.getTalenti().add(dto);
             }
             if (TipoItem.SKILL_TRICK.equals(itm.getTipo())) {
-                itemsDTO.getSkillTrick().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
+                itemsDTO.getSkillTrick().add(dto);
             }
             if (TipoItem.OGGETTO.equals(itm.getTipo())) {
                 ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getOggetti().add(dto);
             }
             if (TipoItem.CONSUMABILE.equals(itm.getTipo())) {
                 ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getConsumabili().add(dto);
             }
             if (TipoItem.ARMA.equals(itm.getTipo())) {
                 ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getArmi().add(dto);
             }
             if (TipoItem.MUNIZIONE.equals(itm.getTipo())) {
                 ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getMunizioni().add(dto);
             }
             if (TipoItem.EQUIPAGGIAMENTO.equals(itm.getTipo())) {
                 ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getEquipaggiamento().add(dto);
             }
             if (TipoItem.RAZZA.equals(itm.getTipo())) {
-                itemsDTO.getRazze().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
+                itemsDTO.getRazze().add(dto);
             }
             if (TipoItem.ATTACCO.equals(itm.getTipo())) {
                 itemsDTO.getAttacchi().add(itemMapper.toAttaccoDTO(itm));
@@ -483,10 +501,14 @@ public class PersonaggioService {
                 itemsDTO.getLivelli().add(itemMapper.toLivelloDTO(itm));
             }
             if (TipoItem.MALEDIZIONE.equals(itm.getTipo())) {
-                itemsDTO.getMaledizioni().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
+                itemsDTO.getMaledizioni().add(dto);
             }
             if (TipoItem.VEICOLO.equals(itm.getTipo())) {
-                itemsDTO.getVeicoli().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
+                itemsDTO.getVeicoli().add(dto);
             }
             if (TipoItem.TRASFORMAZIONE.equals(itm.getTipo())) {
                 flatTrasformazioni.add(itemMapper.toTrasformazioneDTO(itm));
@@ -502,21 +524,27 @@ public class PersonaggioService {
                 itemsDTO.getLingue().add(dto);
             }
             if (TipoItem.IDOLO.equals(itm.getTipo())) {
-                itemsDTO.getIdoli().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
+                itemsDTO.getIdoli().add(dto);
             }
             if (TipoItem.CONTENITORE.equals(itm.getTipo())) {
                 ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getContenitori().add(dto);
             }
             if (TipoItem.FRUTTO.equals(itm.getTipo())) {
                 itemsDTO.getFrutti().add(itemMapper.toFruttoDTO(itm, uTotale, uUsati));
             }
             if (TipoItem.FORMA.equals(itm.getTipo())) {
-                itemsDTO.getForme().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
+                itemsDTO.getForme().add(dto);
             }
             if (TipoItem.PRIVILEGIO.equals(itm.getTipo())) {
                 ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getPrivilegi().add(dto);
                 String gruppo = itm.getLabel(Constants.ITEM_LABEL_GRUPPO_PRIVILEGI);
                 if (gruppo != null && !gruppo.isBlank()) {
@@ -535,15 +563,24 @@ public class PersonaggioService {
             if (TipoItem.ALTRO.equals(itm.getTipo())) {
                 ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getAltro().add(dto);
             }
             if (TipoItem.PATTO.equals(itm.getTipo())) {
                 ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getPatti().add(dto);
             }
             if (TipoItem.NOTIZIA.equals(itm.getTipo())) {
-                itemsDTO.getNotizie().add(itemMapper.toDTO(itm, uTotale, uUsati));
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
+                itemsDTO.getNotizie().add(dto);
+            }
+            if (TipoItem.IMMAGINE.equals(itm.getTipo())) {
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
+                itemsDTO.getImmagini().add(dto);
             }
         }
         itemsDTO.setInventariSeparati(new ArrayList<>(inventariSeparati.values()));

@@ -38,7 +38,8 @@ public enum TipoItem {
     TAG("Tag"),
     RANDOMIZZATORE("Randomizzatore"),
     CASO("Caso"),
-    SKILL_TRICK("Skill Trick")
+    SKILL_TRICK("Skill Trick"),
+    IMMAGINE("Immagine")
     ;
 
     private final String label;
