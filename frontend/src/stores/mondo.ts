@@ -22,27 +22,37 @@ export const useMondoStore = defineStore('mondo', () => {
     // ha senso mostrare lo switcher solo se c'è più di un mondo tra cui scegliere
     const mostraSwitcher = computed(() => disponibili.value.length > 1)
 
-    async function carica() {
-        if (caricato.value) return
+    // Più chiamanti (UpperBar all'avvio, Compendio.vue che vuole aspettarla) possono invocare
+    // carica() quasi in contemporanea: senza condividere la stessa promise, chi arriva secondo
+    // vedrebbe subito caricato.value=true (impostato in sincrono qui sotto) e proseguirebbe
+    // credendo che corrente sia già risolto, mentre la prima chiamata è ancora in volo — il
+    // sintomo era Compendio.vue che chiamava /item/compendio due volte (senza e poi con idMondo).
+    let caricamentoPromise: Promise<void> | null = null
+
+    function carica(): Promise<void> {
+        if (caricamentoPromise) return caricamentoPromise
         caricato.value = true
-        try {
-            disponibili.value = (await getMondiDisponibili()).data ?? []
-        } catch (e) {
-            console.error('Errore caricamento mondi disponibili:', e)
-            disponibili.value = []
-        }
-        if (!disponibili.value.length) {
-            corrente.value = null
-            return
-        }
-        let salvato: number | null = null
-        try {
-            const res = await getMyLabel(LABEL_ULTIMO_MONDO)
-            salvato = res.data ? Number(res.data) : null
-        } catch (e) {
-            // nessuna preferenza salvata (prima volta) o errore di rete: non bloccante
-        }
-        corrente.value = disponibili.value.some(m => m.id === salvato) ? salvato : disponibili.value[0].id
+        caricamentoPromise = (async () => {
+            try {
+                disponibili.value = (await getMondiDisponibili()).data ?? []
+            } catch (e) {
+                console.error('Errore caricamento mondi disponibili:', e)
+                disponibili.value = []
+            }
+            if (!disponibili.value.length) {
+                corrente.value = null
+                return
+            }
+            let salvato: number | null = null
+            try {
+                const res = await getMyLabel(LABEL_ULTIMO_MONDO)
+                salvato = res.data ? Number(res.data) : null
+            } catch (e) {
+                // nessuna preferenza salvata (prima volta) o errore di rete: non bloccante
+            }
+            corrente.value = disponibili.value.some(m => m.id === salvato) ? salvato : disponibili.value[0].id
+        })()
+        return caricamentoPromise
     }
 
     function seleziona(mondoId: number) {
@@ -57,6 +67,7 @@ export const useMondoStore = defineStore('mondo', () => {
         disponibili.value = []
         corrente.value = null
         caricato.value = false
+        caricamentoPromise = null
     }
 
     return {disponibili, corrente, mostraSwitcher, carica, seleziona, reset}

@@ -134,12 +134,14 @@ const inventariSeparati = computed(() => (items.value?.inventariSeparati ?? []).
   wrapped: wrap(sep.items),
 })));
 
-// Abilità attive = hanno utilizziTotale visibile (> 0); passive = tutto il resto
+// Abilità attive = hanno un contatore utilizzi configurato (utilizziTotale non null, anche se
+// il valore attuale è 0 — es. formula legata al livello che a bassi livelli risolve a 0);
+// passive = nessuna formula/valore utilizzi configurato (utilizziTotale null).
 const itemsAbilita = computed(() =>
-    wrap((items.value?.abilita ?? []).filter(i => (i.utilizziTotale ?? 0) > 0))
+    wrap((items.value?.abilita ?? []).filter(i => i.utilizziTotale != null))
 )
 const itemsAbilitaPassive = computed(() =>
-    wrap((items.value?.abilita ?? []).filter(i => !((i.utilizziTotale ?? 0) > 0)))
+    wrap((items.value?.abilita ?? []).filter(i => i.utilizziTotale == null))
 );
 const itemsAltro = computed(() => wrap(items.value?.altro));
 const itemsPatti = computed(() => wrap(items.value?.patti));

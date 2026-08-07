@@ -112,9 +112,15 @@ async function load() {
   }
 }
 
+// true solo dopo che mondoStore ha finito di risolvere il mondo corrente (carica() è async:
+// prima di allora filtroMondo passa da null al valore vero, e senza questa guardia quel
+// cambiamento farebbe scattare il watch sotto con una load() aggiuntiva — vedi onMounted.
+const mondoPronto = ref(false)
+
 let filtroTimer: any = null
 let ricercaGlobaleTimer: any = null
 watch([filtroNome, filtroTipo, filtroMondo, deepMode], () => {
+  if (!mondoPronto.value) return
   if (puoRicercaProfonda.value && deepMode.value) {
     if (ricercaGlobaleTimer) clearTimeout(ricercaGlobaleTimer)
     ricercaGlobaleTimer = setTimeout(eseguiRicercaGlobale, 350)
@@ -176,7 +182,12 @@ const personaggioShim = {
 
 // Al ritorno da un editor i filtri arrivano dalla URL: se erano in ricerca profonda va rilanciata
 // quella, altrimenti il pannello resterebbe visibile ma vuoto.
-onMounted(() => {
+// Aspetta che mondoStore abbia risolto il mondo corrente (no-op se un'altra pagina l'ha già
+// caricato) PRIMA di caricare: una sola chiamata a /item/compendio, già col filtro giusto,
+// invece di una senza idMondo seguita da una corretta appena la store finisce di idratarsi.
+onMounted(async () => {
+  await mondoStore.carica()
+  mondoPronto.value = true
   if (inRicercaGlobale.value) eseguiRicercaGlobale()
   else load()
 })
