@@ -258,6 +258,32 @@ public class ItemService {
         itemLabelRepository.save(ql);
     }
 
+    /**
+     * GET /item/{id} restituisce l'entity Item così com'è: Item.getLabel()/Item.labels sono
+     * filtrati su id_personaggio IS NULL (vedi @Where su Item.labels), quindi vedono SEMPRE il
+     * valore globale di compendio — mai quello scoped per un personaggio. Per QTA e
+     * UTILIZZI_USATI questo produce un valore diverso da quello già mostrato in scheda/inventario
+     * per lo stesso item dello stesso personaggio (che invece li risolve scoped, vedi
+     * PersonaggioService.getAllPersonaggioItemsDTOByIdPersonaggio).
+     * Qui si "stampa" (transitorio, non persistito — stesso pattern già usato per DISABLED in
+     * PersonaggioService.flattenItems, sicuro perché non segue nessuna scrittura transazionale
+     * nella stessa richiesta) il valore scoped sull'entity stessa, PRIMA di restituirla, così
+     * l'editor (BaseItemEditor.vue) legge lo stesso valore della scheda.
+     */
+    public void stampaLabelScopedPerPersonaggio(Item itm, Integer idPersonaggio) {
+        if (itm == null || itm.getId() == null || idPersonaggio == null) return;
+        String qta = itemLabelRepository
+                .findByItem_IdAndLabelAndPersonaggio_Id(itm.getId(), Constants.LABEL_QTA, idPersonaggio)
+                .map(ItemLabel::getValore).orElse(null);
+        String utilizziUsati = itemLabelRepository
+                .findByItem_IdAndLabelAndPersonaggio_Id(itm.getId(), Constants.LABEL_UTILIZZI_USATI, idPersonaggio)
+                .map(ItemLabel::getValore).orElse(null);
+        // stampa DOPO entrambe le letture: nessuna query va eseguita tra una mutazione e l'altra,
+        // altrimenti rischierebbe di far scattare un flush che le persiste per sbaglio.
+        if (qta != null) itm.setLabel(Constants.LABEL_QTA, qta);
+        if (utilizziUsati != null) itm.setLabel(Constants.LABEL_UTILIZZI_USATI, utilizziUsati);
+    }
+
     /* =====================================================================
      * Creazione / aggiornamento generico item
      * ===================================================================== */

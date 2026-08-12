@@ -230,7 +230,7 @@ function mostraDescrizioneSkillTrick(r: RigaSkillTrick) {
         },
         readonly: true,
       },
-      {closable: true},
+      {closable: true, title: r.nome},
   )
 }
 

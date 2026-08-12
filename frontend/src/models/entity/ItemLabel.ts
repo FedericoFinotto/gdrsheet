@@ -50,6 +50,10 @@ export const LABELS = {
     MALEDIZIONE: 'MLDZN',
     // Talento (import bulk da dndtools.org, vedi scripts/dndtools-scraper)
     EN_NAME: 'EN_NAME',
+    // Descrizione originale inglese: presente solo dove nome/descrizione sono stati tradotti in
+    // italiano (es. Incantesimi importati da dndtools.org) — vedi il toggle bandierina in
+    // Mobile_DettaglioItem.vue.
+    DESCRIZIONE_EN: 'DESCRIZIONE_EN',
     MANUALE: 'MANUALE_SP',
     PAGE: 'PAGE',
     LINK: 'LINK',

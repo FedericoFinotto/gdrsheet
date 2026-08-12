@@ -46,7 +46,7 @@ const labelMap = ref<Record<string, string>>({});
 onMounted(async () => {
   try {
     if (props.data.idItem !== undefined) {
-      const response = await getItem(props.data.idItem);
+      const response = await getItem(props.data.idItem, props.data.idPersonaggio);
       itemDetail.value = response.data;
     }
 
@@ -79,7 +79,7 @@ function showInfoItemPopup(itm) {
   openPopup(
       Mobile_DettaglioItem,
       {data: {item: {...itm}, personaggio: {id: props.data.idPersonaggio}}},
-      {closable: true, autoClose: 0}
+      {closable: true, autoClose: 0, title: itm.nome}
   )
 }
 </script>

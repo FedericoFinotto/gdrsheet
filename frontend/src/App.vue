@@ -11,6 +11,7 @@
       :dynamic-component="dynamicComp"
       :dynamic-props="dynamicProps"
       :closable="isClosable"
+      :title="popupTitle"
   />
 </template>
 
@@ -24,6 +25,7 @@ const {
   dynamicComp,
   dynamicProps,
   isClosable,
+  popupTitle,
   closePopup
 } = usePopup()
 </script>

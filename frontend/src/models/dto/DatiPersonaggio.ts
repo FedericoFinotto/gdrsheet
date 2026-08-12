@@ -26,4 +26,11 @@ export interface DatiPersonaggio {
     pesoMonete?: number;
     tagliaAttuale?: number;
     tagliaBase?: number;
+    // Tutte le variabili ($id/@id, già con la chiave prefissata "@...") risolvibili in una
+    // formula per questo personaggio: contatori item, taglia, livello per classe, caratteristiche
+    // — vedi ModificatoriService.costruisciVariabili/CalcoloService.calcola(formula, DatiPersonaggioDTO)
+    // sul backend. Il campo arriva già popolato dalla risposta di getModificatoriPersonaggioById
+    // (non era dichiarato qui, ma il valore viaggiava comunque: era la LETTURA lato backend a
+    // mancare, non l'invio).
+    variabili?: Record<string, number>;
 }

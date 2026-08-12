@@ -162,7 +162,7 @@ function showInfoAbilitaPopup(itm) {
   openPopup(
       Mobile_DettaglioItem,
       {data: {item: {...itm}, personaggio: props.data.personaggio}},
-      {closable: true, autoClose: 0}
+      {closable: true, autoClose: 0, title: itm.nome}
   )
 }
 </script>

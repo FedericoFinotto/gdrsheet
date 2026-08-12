@@ -3,7 +3,7 @@ import {calcolaFormula} from "../service/PersonaggioService";
 import {DatiPersonaggio} from "../models/dto/DatiPersonaggio";
 import {Items} from "../models/dto/Items";
 import {Attacco} from "../models/dto/Attacco";
-import {applicaBonusDado, risolviFormulaDanno, testoFormula, testoModificatore} from "./Utils";
+import {applicaBonusDado, testoFormula, testoModificatore} from "./Utils";
 
 // const REGEX_DADI = /^\d+d\d+([+-]\d+)?$/;
 // const REGEX_NUMERO = /^[+-]?\d+$/;
@@ -68,9 +68,9 @@ export async function calcolaAttacchi(items: Items | null | undefined, modificat
                 if (!d.formula) return null
                 const resp = await getValoreFormula(modificatori, d.formula)
                 return {
-                    valore: risolviFormulaDanno(resp.data.formula, modificatori),
+                    valore: resp.data.formulaRisolta,
                     tipo: d.tipo ?? '',
-                    formula: testoFormula(d.formula),
+                    formula: resp.data.formulaLeggibile,
                 }
             }))
             const danniRisolti: DannoRisolto[] = dannoRisolti.filter((d): d is DannoRisolto => d !== null)

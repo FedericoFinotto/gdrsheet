@@ -15,6 +15,7 @@ import 'primevue/resources/primevue.min.css' // PrimeVue core CSS
 import 'primeicons/primeicons.css' // PrimeIcons for icons
 import './styles/global.css'
 import '@fortawesome/fontawesome-free/css/all.min.css'
+import 'flag-icons/css/flag-icons.min.css' // bandierine IT/EN per i campi bilingue (nome/descrizione tradotti)
 import App from './App.vue'
 import router from './router'
 import {createPinia} from "pinia";

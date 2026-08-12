@@ -32,13 +32,9 @@ public class CalcoloController {
             @Valid @RequestBody CalcoloRequest request
     ) {
 
-        // fai il calcolo
-        String valore = calcoloService.calcola(request.getFormula(), request.getDatiPersonaggio());
-
-        // costruisci la risposta (puoi restituire anche altri campi se serve)
-        CalcoloResponse resp = new CalcoloResponse();
-        resp.setRisultato(valore);
-        resp.setFormula(request.getFormula());
+        // fai il calcolo (un solo giro di costruzione delle mappe per risultato/formulaRisolta/
+        // formulaLeggibile, invece di tre — vedi CalcoloService.calcolaCompleto)
+        CalcoloResponse resp = calcoloService.calcolaCompleto(request.getFormula(), request.getDatiPersonaggio());
 
         return ResponseEntity.ok(resp);
     }

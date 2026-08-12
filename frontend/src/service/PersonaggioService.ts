@@ -47,9 +47,12 @@ export function getAllIncantesimiByClasseAndLivello(idClasse: number, livello: n
     return api.get(`/item/incantesimi/${idClasse}/${livello}`, {params: spellList ? {spellList} : undefined});
 }
 
-export function getItem(id: number): Promise<AxiosResponse<ItemDB>> {
+// idPersonaggio: se presente, il backend risolve QTA/UTILIZZI_USATI scoped per quel personaggio
+// invece del valore globale di compendio (altrimenti l'editor mostrerebbe un valore diverso da
+// quello già visibile in scheda/inventario per lo stesso item dello stesso personaggio).
+export function getItem(id: number, idPersonaggio?: number | null): Promise<AxiosResponse<ItemDB>> {
     return api
-        .get<ItemDB>(`/item/${id}`);
+        .get<ItemDB>(`/item/${id}`, {params: idPersonaggio != null ? {idPersonaggio} : {}});
 }
 
 // Note (label NOTA) di un item qualsiasi, già filtrate lato server in base alla visibilità.

@@ -23,7 +23,8 @@ const L = {
   DURATA: 'DURATA_SP',
   COMP: 'COMP_SP',
   MANUALE: 'MANUALE_SP',
-  EN_NAME: 'EN_NAME'
+  EN_NAME: 'EN_NAME',
+  DESCRIZIONE_EN: 'DESCRIZIONE_EN'
 } as const
 
 /* ========= Mapping EN -> IT (Scuole/Sottoscuole/Descrittori) ========= */
@@ -95,6 +96,7 @@ type SpellDraft = {
   enName: string
   manuale: string
   descrizione: string
+  descrizioneEn: string
   idMondo: number | null
   idSistema: number | null
   scuole: BoolMap
@@ -118,7 +120,7 @@ function emptyClassLevels(): Record<string, string> {
 
 function emptyDraft(): SpellDraft {
   return {
-    nome: '', enName: '', manuale: '', descrizione: '',
+    nome: '', enName: '', manuale: '', descrizione: '', descrizioneEn: '',
     idMondo: null, idSistema: null,
     scuole: emptyBoolMap(IT_SCHOOLS),
     subscuole: emptyBoolMap(IT_SUBS),
@@ -146,6 +148,10 @@ const form = reactive<SpellDraft>(emptyDraft())
 
 /* ========= Stato di espansione ========= */
 const open = reactive({scuole: false, sub: false, desc: false, classi: false, comp: false})
+
+// Switch bandierina per editare la descrizione IT/EN nello stesso riquadro (stesso pattern di
+// BaseItemEditor.vue).
+const mostraDescrizioneEn = ref(false)
 
 /* ========= Helpers ========= */
 function getLabel(labels: ItemLabel[] | undefined, key: string): string {
@@ -495,6 +501,8 @@ onMounted(() => {
   form.enName = getLabel(props.item.labels, L.EN_NAME) ?? ''
   form.manuale = getLabel(props.item.labels, L.MANUALE) ?? ''
   form.descrizione = props.item.descrizione ?? ''
+  form.descrizioneEn = getLabel(props.item.labels, L.DESCRIZIONE_EN) ?? ''
+  mostraDescrizioneEn.value = false
   form.idMondo = props.item.mondo?.id ?? null
   form.idSistema = props.item.sistema?.id ?? null
 
@@ -625,7 +633,8 @@ async function salva(): Promise<ItemDB | null> {
       labelsPatch: {
         [L.SCUOLA]: buildScuolaStringIT(scuoleArr, subsArr, descArr),
         [L.EN_NAME]: form.enName?.trim() ?? '',
-        [L.MANUALE]: form.manuale?.trim() ?? ''
+        [L.MANUALE]: form.manuale?.trim() ?? '',
+        [L.DESCRIZIONE_EN]: form.descrizioneEn?.trim() ?? ''
       }
     })
 
@@ -668,7 +677,7 @@ function onCancel() { emit('cancel') }
 
     <div class="row three">
       <label class="field">
-        <span class="lbl">Nome</span>
+        <span class="lbl"><span class="fi fi-it lang-flag-inline"></span> Nome</span>
         <input v-model.trim="form.nome" type="text" :disabled="disabledAll" required/>
       </label>
       <label class="field">
@@ -683,7 +692,7 @@ function onCancel() { emit('cancel') }
 
     <div class="row three">
       <label class="field">
-        <span class="lbl">Nome originale (EN)</span>
+        <span class="lbl"><span class="fi fi-gb lang-flag-inline"></span> Nome (EN)</span>
         <input v-model.trim="form.enName" type="text" :disabled="disabledAll" placeholder="Nome originale in inglese"/>
       </label>
       <label class="field">
@@ -838,8 +847,23 @@ function onCancel() { emit('cancel') }
     </section>
 
     <label class="field">
-      <span class="lbl">Descrizione</span>
-      <HtmlEditor v-model="form.descrizione" :rows="16" :disabled="disabledAll"/>
+      <span class="lbl">Descrizione{{ mostraDescrizioneEn ? ' (EN)' : '' }}</span>
+      <HtmlEditor v-if="!mostraDescrizioneEn" v-model="form.descrizione" :rows="16" :disabled="disabledAll">
+        <template #toolbar-extra>
+          <button type="button" class="lang-flag" :disabled="disabledAll"
+                  title="Show in English" @mousedown.prevent @click="mostraDescrizioneEn = true">
+            <span class="fi fi-it"></span>
+          </button>
+        </template>
+      </HtmlEditor>
+      <HtmlEditor v-else v-model="form.descrizioneEn" :rows="16" :disabled="disabledAll">
+        <template #toolbar-extra>
+          <button type="button" class="lang-flag" :disabled="disabledAll"
+                  title="Mostra in italiano" @mousedown.prevent @click="mostraDescrizioneEn = false">
+            <span class="fi fi-gb"></span>
+          </button>
+        </template>
+      </HtmlEditor>
     </label>
 
     <div class="actions">
@@ -864,6 +888,16 @@ function onCancel() { emit('cancel') }
 
 .field { display: grid; gap: .35rem; margin: 0; }
 .lbl { font-size: .8rem; font-weight: 600; opacity: .85; margin: 0; }
+.lang-flag-inline { margin-right: .3rem; vertical-align: middle; }
+.lang-flag-inline.fi { width: 1.1em; line-height: 1em; }
+.lang-flag {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.9rem; height: 1.9rem; border: 1px solid transparent; border-radius: .35rem;
+  background: transparent; cursor: pointer;
+}
+.lang-flag:hover { background: var(--btn-bg-hover); }
+.lang-flag:disabled { opacity: .5; cursor: default; }
+.lang-flag .fi { width: 1.2em; line-height: 1em; }
 
 input[type="text"], select, textarea {
   width: 100%; padding: .5rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0); margin: 0;

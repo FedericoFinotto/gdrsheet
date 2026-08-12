@@ -47,7 +47,7 @@ async function mostraDescrizione(g: GrantRow) {
         },
         readonly: true,
       },
-      {closable: true},
+      {closable: true, title: raw.nome},
   )
 }
 

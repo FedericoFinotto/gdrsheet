@@ -7,6 +7,7 @@
             :class="[{ 'is-fullscreen': size === 'fullscreen' }, contentClass]"
             :style="contentStyle"
         >
+          <h3 v-if="title" class="popup-title">{{ title }}</h3>
           <button
               v-if="closable"
               class="popup-close-btn"
@@ -34,6 +35,9 @@ const props = defineProps({
   dynamicComponent: [Object, String],
   dynamicProps: { type: Object, default: () => ({}) },
   closable: { type: Boolean, default: true },
+  // Titolo mostrato nella chrome del popup (non nel contenuto): serve ai componenti che, aperti
+  // qui, non hanno altrove un "sopra" che mostri già il nome (es. Mobile_DettaglioItem via openPopup).
+  title: { type: String, default: '' },
 
   /** ---- NUOVO: controllo dimensioni ---- */
   size: { type: String, default: 'md' }, // sm | md | lg | xl | fullscreen
@@ -70,4 +74,12 @@ const contentStyle = computed(() => {
   };
 });
 </script>
+
+<style scoped>
+.popup-title {
+  margin: 0 1.8rem .5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+</style>
 

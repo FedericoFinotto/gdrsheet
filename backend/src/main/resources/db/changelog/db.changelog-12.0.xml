@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="1200" author="developer">
+        <comment>
+            ix_item_label_label_valore (creato in 7.0) e' un btree standard: Postgres limita una
+            riga di indice btree a 1/3 di pagina (~2704 byte per la versione 4 dell'indice). Le
+            ricerche per (label, valore) servono solo per valori BREVI (INFO_PARTY/QUEST_PARTY =
+            id del party, COMPENDIO = 'true', CATEGORIA = nome breve, ecc.) — mai per label con
+            testo lungo (es. DESCRIZIONE_EN, NOTA, descrizioni originali salvate come label).
+            Con l'indice pieno, un valore troppo lungo fa fallire l'INSERT/UPDATE con "index row
+            size exceeds btree version 4 maximum" anche se nessuna query lo cercherebbe MAI per
+            uguaglianza tramite questo indice.
+            Fix: indice parziale, esclude le righe con valore lungo (mai utili per questo tipo di
+            ricerca) invece di far fallire la scrittura. 1000 caratteri e' abbondante per tutti i
+            casi d'uso reali elencati sopra e resta ben sotto il limite del btree anche con UTF-8
+            multi-byte.
+        </comment>
+        <sql>DROP INDEX IF EXISTS ix_item_label_label_valore;</sql>
+        <sql>CREATE INDEX ix_item_label_label_valore ON item_label (label, valore) WHERE length(valore) &lt;= 1000;</sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS ix_item_label_label_valore;</sql>
+            <createIndex tableName="item_label" indexName="ix_item_label_label_valore">
+                <column name="label"/>
+                <column name="valore"/>
+            </createIndex>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

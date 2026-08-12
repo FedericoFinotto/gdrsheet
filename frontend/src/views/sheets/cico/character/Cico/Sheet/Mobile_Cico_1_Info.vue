@@ -78,7 +78,7 @@ function openInfoTrasf(trasf: any) {
           },
         }
       },
-      {closable: true, autoClose: 0}
+      {closable: true, autoClose: 0, title: trasf.nome}
   )
 }
 

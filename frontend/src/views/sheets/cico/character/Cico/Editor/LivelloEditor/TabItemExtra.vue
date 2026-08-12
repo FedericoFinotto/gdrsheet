@@ -42,7 +42,7 @@ async function mostraDescrizione(item: ItemDB) {
         },
         readonly: true,
       },
-      {closable: true},
+      {closable: true, title: item.nome},
   )
 }
 

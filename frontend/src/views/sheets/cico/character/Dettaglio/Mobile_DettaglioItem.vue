@@ -157,7 +157,9 @@ onMounted(async () => {
       .then(r => immagini.value = r.data)
       .catch(e => console.error('Errore caricamento immagini item:', e));
   try {
-    const response = await getItem(item.id);
+    // idPersonaggioCorrente: così QTA/UTILIZZI_USATI arrivano scoped per questo personaggio
+    // invece del valore globale di compendio (vedi ItemEditor.vue per lo stesso fix sull'editor).
+    const response = await getItem(item.id, idPersonaggioCorrente);
     const data = response.data;
     itemDetail.value = data;
 
@@ -501,11 +503,28 @@ const infoVeicolo = computed(() => {
   return {velocita}
 })
 
+// Toggle IT/EN: alcuni item (es. Incantesimi importati da dndtools.org) hanno sia nome/
+// descrizione in italiano (i campi "principali") sia l'originale inglese nelle label EN_NAME/
+// DESCRIZIONE_EN. Se c'è almeno una delle due, si può passare dall'uno all'altro con la
+// bandierina accanto al titolo — di base si mostra l'italiano.
+const linguaInfo = computed(() => {
+  if (!itemDetail.value) return null
+  const enName = getItemLabel(itemDetail.value, LABELS.EN_NAME)
+  const enDescrizione = getItemLabel(itemDetail.value, LABELS.DESCRIZIONE_EN)
+  if (!enName && !enDescrizione) return null
+  return {enName, enDescrizione}
+})
+const mostraInglese = ref(false)
+const descrizioneMostrata = computed(() => {
+  if (mostraInglese.value && linguaInfo.value?.enDescrizione) return linguaInfo.value.enDescrizione
+  return itemDetail.value?.descrizione ?? ''
+})
+
 function showInfoItemPopup(itm) {
   openPopup(
       Mobile_DettaglioItem,
       {data: {item: {...itm}, personaggio: props.data.personaggio}},
-      {closable: true, autoClose: 0}
+      {closable: true, autoClose: 0, title: itm.nome}
   )
 }
 
@@ -523,29 +542,37 @@ function toggleExpand(key: string) {
 
 <template>
   <div class="abilita-detail-card" v-if="!loading && itemDetail">
-    <!-- Nome reale dell'item (può differire dall'etichetta mostrata nella riga esterna, es. per gli Effetti) -->
-    <h3 class="item-nome-titolo">{{ itemDetail.nome }}</h3>
-
-    <!-- Barra azioni: togli/metti + modifica -->
-    <div v-if="!readonly" class="action-bar">
+    <!-- Barra azioni: switch lingua + togli/metti + modifica. Il nome è già visibile "sopra"
+         (riga della lista/tab che ha aperto questo dettaglio) o, quando questo componente è
+         aperto come popup, nel titolo del popup stesso (vedi title passato a openPopup() dai
+         chiamanti) — qui non va ripetuto. -->
+    <div v-if="!readonly || linguaInfo" class="action-bar">
       <button
-          v-if="disableLabel"
+          v-if="!readonly && disableLabel"
           type="button"
           class="action-btn toggle"
           :class="item.disabled ? 'enable' : 'disable'"
           @click="switchState"
       >{{ disableLabel }}</button>
-      <button type="button" class="action-btn edit" @click.stop="goToEditor">
-        <Icona name="EDIT"/>
-        <span>Modifica</span>
-      </button>
-      <!-- "Dai" ha senso solo su un possesso diretto (collegato al FromCompendio del
-           personaggio): niente Dai su un item derivato/concesso da un altro (es. un Privilegio
-           di Classe concesso dalla Classe) — vedi item.scollegabile, PersonaggioService.java. -->
-      <button v-if="idPersonaggioCorrente && item.scollegabile" type="button" class="action-btn dai" @click.stop="apriDai">
-        <span>🖐</span>
-        <span>Dai</span>
-      </button>
+      <!-- gruppo a destra: switch lingua subito prima di Modifica, sulla stessa riga -->
+      <div class="action-bar-right">
+        <button v-if="linguaInfo" type="button" class="lang-flag"
+                :title="mostraInglese ? 'Mostra in italiano' : 'Show in English'"
+                @click="mostraInglese = !mostraInglese">
+          <span class="fi" :class="mostraInglese ? 'fi-gb' : 'fi-it'"></span>
+        </button>
+        <button v-if="!readonly" type="button" class="action-btn edit" @click.stop="goToEditor">
+          <Icona name="EDIT"/>
+          <span>Modifica</span>
+        </button>
+        <!-- "Dai" ha senso solo su un possesso diretto (collegato al FromCompendio del
+             personaggio): niente Dai su un item derivato/concesso da un altro (es. un Privilegio
+             di Classe concesso dalla Classe) — vedi item.scollegabile, PersonaggioService.java. -->
+        <button v-if="!readonly && idPersonaggioCorrente && item.scollegabile" type="button" class="action-btn dai" @click.stop="apriDai">
+          <span>🖐</span>
+          <span>Dai</span>
+        </button>
+      </div>
     </div>
 
     <!-- Barriera: controlli HP temporanei "blu" -->
@@ -787,9 +814,9 @@ function toggleExpand(key: string) {
     </div>
 
     <!-- Descrizione -->
-    <div v-if="itemDetail.descrizione">
+    <div v-if="descrizioneMostrata">
       <strong>Descrizione</strong><br>
-      <div class="descrizione-html" v-safe-html="itemDetail.descrizione"></div>
+      <div class="descrizione-html" v-safe-html="descrizioneMostrata"></div>
       <div style="height: 20px"></div>
       <div class="spazietto"/>
     </div>
@@ -1010,6 +1037,13 @@ function toggleExpand(key: string) {
   border-bottom: 1px solid var(--hairline);
 }
 
+.action-bar-right {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-left: auto;
+}
+
 .action-btn {
   display: inline-flex;
   align-items: center;
@@ -1041,7 +1075,6 @@ function toggleExpand(key: string) {
   border-color: var(--info-border);
   background: var(--info-bg);
   color: var(--info-text);
-  margin-left: auto;
 }
 
 .action-btn.dai {
@@ -1147,10 +1180,18 @@ function toggleExpand(key: string) {
   font-size: .7rem;
   letter-spacing: .03em;
 }
-.item-nome-titolo {
-  margin: 0 0 .5rem;
-  font-size: 1rem;
+.lang-flag {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--hairline);
+  background: var(--surface-0);
+  border-radius: .4rem;
+  padding: .2rem .4rem;
+  cursor: pointer;
 }
+.lang-flag:hover { background: var(--btn-bg); }
+.lang-flag .fi { width: 1.2em; line-height: 1em; }
 .descrittori-row {
   display: flex; flex-wrap: wrap; gap: .35rem;
   margin-bottom: .5rem;

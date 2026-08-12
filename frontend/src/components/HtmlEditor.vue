@@ -240,8 +240,13 @@ watch(() => props.modelValue, (v) => {
       <button type="button" :disabled="disabled || sourceMode" title="Paragrafo" @mousedown.prevent @click="exec('formatBlock', 'P')">¶</button>
       <button type="button" :disabled="disabled || sourceMode" title="Rimuovi formattazione" @mousedown.prevent @click="exec('removeFormat')">⌫</button>
       <span class="he-sep"/>
-      <button type="button" :disabled="disabled" class="he-source-btn" :class="{active: sourceMode}"
-              title="Vedi/modifica il codice HTML" @click="toggleSource">&lt;/&gt;</button>
+      <!-- raggruppati in un flex proprio: se il toolbar va a capo per mancanza di spazio, i due
+           restano comunque affiancati invece di finire uno sopra l'altro -->
+      <div class="he-toolbar-tail">
+        <slot name="toolbar-extra"/>
+        <button type="button" :disabled="disabled" class="he-source-btn" :class="{active: sourceMode}"
+                title="Vedi/modifica il codice HTML" @click="toggleSource">&lt;/&gt;</button>
+      </div>
     </div>
     <textarea
         v-if="sourceMode"
@@ -285,6 +290,14 @@ watch(() => props.modelValue, (v) => {
   background: var(--btn-bg);
   border-bottom: 1px solid var(--hairline);
   flex-wrap: wrap;
+}
+
+.he-toolbar-tail {
+  display: flex;
+  align-items: center;
+  gap: .15rem;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .he-toolbar button {

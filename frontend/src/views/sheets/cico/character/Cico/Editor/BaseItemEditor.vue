@@ -93,6 +93,7 @@ const form = reactive<{
   enName: string
   manuale: string
   descrizione: string
+  descrizioneEn: string
   campi: Record<string, string>
   campiMulti: Record<string, string[]>
   descrOggetto: { magico: boolean; psionico: boolean; divino: boolean; leggendario: boolean; unico: boolean }
@@ -133,6 +134,7 @@ const form = reactive<{
   enName: '',
   manuale: '',
   descrizione: '',
+  descrizioneEn: '',
   campi: Object.fromEntries(props.campiLabel.filter(c => !c.multiValore).map(c => [c.key, ''])),
   campiMulti: Object.fromEntries(props.campiLabel.filter(c => c.multiValore).map(c => [c.key, [] as string[]])),
   descrOggetto: {magico: false, psionico: false, divino: false, leggendario: false, unico: false},
@@ -175,6 +177,10 @@ const open = reactive({
 const tags = ref<ItemTag[]>([])
 const tagsModificati = ref(false)
 
+// Switch bandierina per editare descrizione IT/EN nello stesso riquadro (vedi DESCRIZIONE_EN
+// e il toggle analogo in Mobile_DettaglioItem.vue).
+const mostraDescrizioneEn = ref(false)
+
 function onTagsChange(v: ItemTag[]) {
   tags.value = v
   tagsModificati.value = true
@@ -213,6 +219,8 @@ async function preload() {
   form.utilizzi = null
   form.enName = ''
   form.manuale = ''
+  form.descrizioneEn = ''
+  mostraDescrizioneEn.value = false
   form.idMondo = props.item.mondo?.id ?? null
   form.idSistema = props.item.sistema?.id ?? null
   // creando dalla pagina del compendio (?compendio=1) il flag è attivo di default
@@ -260,6 +268,8 @@ async function preload() {
       form.enName = val
     } else if (key === 'MANUALE_SP') {
       form.manuale = val
+    } else if (key === 'DESCRIZIONE_EN') {
+      form.descrizioneEn = val
     } else if (key === 'MAGICO') {
       form.descrOggetto.magico = val === '1'
     } else if (key === 'PSIONICO') {
@@ -557,6 +567,7 @@ function restoreSnapshot(snap: any) {
   form.enName = snap.enName ?? ''
   form.manuale = snap.manuale ?? ''
   form.descrizione = snap.descrizione ?? ''
+  form.descrizioneEn = snap.descrizioneEn ?? ''
   form.campi = {...(snap.campi ?? {})}
   form.campiMulti = {...(snap.campiMulti ?? {})}
   form.descrOggetto = {...(snap.descrOggetto ?? {magico: false, psionico: false, divino: false, leggendario: false, unico: false})}
@@ -707,6 +718,7 @@ function buildPayload(): UpdateItemRequest {
   // nome originale inglese e manuale di provenienza
   if (form.enName.trim()) labels.push({label: 'EN_NAME', valore: form.enName.trim()})
   if (form.manuale.trim()) labels.push({label: 'MANUALE_SP', valore: form.manuale.trim()})
+  if (form.descrizioneEn.trim()) labels.push({label: 'DESCRIZIONE_EN', valore: form.descrizioneEn.trim()})
   // Descrittori Oggetto
   if (form.descrOggetto.magico) labels.push({label: 'MAGICO', valore: '1'})
   if (form.descrOggetto.psionico) labels.push({label: 'PSIONICO', valore: '1'})
@@ -925,7 +937,7 @@ function onCancel() {
 
     <div class="row nome-qta">
       <label class="field grow">
-        <span class="lbl">Nome</span>
+        <span class="lbl"><span v-if="!minimal" class="fi fi-it lang-flag-inline"></span> Nome</span>
         <input v-model.trim="form.nome" type="text" :disabled="disabledAll" required/>
       </label>
       <label v-if="showQta" class="field qta-field">
@@ -946,12 +958,13 @@ function onCancel() {
       </label>
     </div>
 
+    <label v-if="!minimal" class="field">
+      <span class="lbl"><span class="fi fi-gb lang-flag-inline"></span> Nome (EN)</span>
+      <input v-model.trim="form.enName" type="text" :disabled="disabledAll"
+             placeholder="Nome originale in inglese"/>
+    </label>
+
     <div v-if="!minimal" class="row two">
-      <label class="field">
-        <span class="lbl">Nome originale (EN)</span>
-        <input v-model.trim="form.enName" type="text" :disabled="disabledAll"
-               placeholder="Nome originale in inglese"/>
-      </label>
       <label class="field">
         <span class="lbl">Manuale</span>
         <input v-model.trim="form.manuale" type="text" :disabled="disabledAll"
@@ -1510,8 +1523,23 @@ function onCancel() {
     </section>
 
     <label v-if="!minimal && !isQuest" class="field">
-      <span class="lbl">Descrizione</span>
-      <HtmlEditor v-model="form.descrizione" :rows="10" :disabled="disabledAll"/>
+      <span class="lbl">Descrizione{{ mostraDescrizioneEn ? ' (EN)' : '' }}</span>
+      <HtmlEditor v-if="!mostraDescrizioneEn" v-model="form.descrizione" :rows="10" :disabled="disabledAll">
+        <template #toolbar-extra>
+          <button type="button" class="lang-flag" :disabled="disabledAll"
+                  title="Show in English" @mousedown.prevent @click="mostraDescrizioneEn = true">
+            <span class="fi fi-it"></span>
+          </button>
+        </template>
+      </HtmlEditor>
+      <HtmlEditor v-else v-model="form.descrizioneEn" :rows="10" :disabled="disabledAll">
+        <template #toolbar-extra>
+          <button type="button" class="lang-flag" :disabled="disabledAll"
+                  title="Mostra in italiano" @mousedown.prevent @click="mostraDescrizioneEn = false">
+            <span class="fi fi-gb"></span>
+          </button>
+        </template>
+      </HtmlEditor>
     </label>
 
     <!-- in minimal: mondo/sistema e visibilità in fondo -->
@@ -1563,6 +1591,16 @@ function onCancel() {
 
 .field { display: grid; gap: .35rem; margin: 0; }
 .lbl { font-size: .8rem; font-weight: 600; opacity: .85; margin: 0; }
+.lang-flag-inline { margin-right: .3rem; vertical-align: middle; }
+.lang-flag-inline.fi { width: 1.1em; line-height: 1em; }
+.lang-flag {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.9rem; height: 1.9rem; border: 1px solid transparent; border-radius: .35rem;
+  background: transparent; cursor: pointer;
+}
+.lang-flag:hover { background: var(--btn-bg-hover); }
+.lang-flag:disabled { opacity: .5; cursor: default; }
+.lang-flag .fi { width: 1.2em; line-height: 1em; }
 
 input[type="text"], input[type="number"], input[type="datetime-local"], textarea, select {
   width: 100%; padding: .5rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0); margin: 0;

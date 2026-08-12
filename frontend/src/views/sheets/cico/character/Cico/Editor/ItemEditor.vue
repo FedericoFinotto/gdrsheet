@@ -157,7 +157,10 @@ async function load(id: number) {
   item.value = null
   parents.value = []
   try {
-    const res: AxiosResponse<ItemDB> = await getItem(id)
+    // idPersonaggio: così il backend risolve QTA/UTILIZZI_USATI scoped per questo personaggio
+    // invece del valore globale di compendio (altrimenti l'editor mostrerebbe un valore diverso
+    // da quello già visibile in scheda/inventario per lo stesso item dello stesso personaggio).
+    const res: AxiosResponse<ItemDB> = await getItem(id, idPersonaggio.value)
     item.value = res.data
     try {
       const pres = await getItemParents(id)

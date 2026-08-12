@@ -92,9 +92,12 @@ public class ItemController {
     @GetMapping("/{id}")
     public ResponseEntity<Item> getById(
             @Parameter(description = "Id Item", required = true)
-            @PathVariable Integer id
+            @PathVariable Integer id,
+            @Parameter(description = "Contesto personaggio: se presente, QTA/UTILIZZI_USATI vengono risolti scoped per quel personaggio invece del valore globale di compendio (vedi ItemService.stampaLabelScopedPerPersonaggio)")
+            @RequestParam(required = false) Integer idPersonaggio
     ) {
         Item itm = repo.findItemById(id);
+        itemService.stampaLabelScopedPerPersonaggio(itm, idPersonaggio);
 
         return ResponseEntity.ok(itm);
     }
