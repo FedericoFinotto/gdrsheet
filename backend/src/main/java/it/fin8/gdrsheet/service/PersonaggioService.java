@@ -2273,17 +2273,25 @@ public class PersonaggioService {
         }
     }
 
-    /** Array slot dalla tabella custom della sezione per il dato livello di classe (1-based). */
+    /**
+     * Array slot dalla tabella custom della sezione per il dato livello di classe (1-based).
+     * Sopra l'ultimo livello compilato in tabella si usa l'ULTIMA riga disponibile (vedi
+     * ProgressioneIncantesimi.slotsPerLivello per lo stesso fallback sulle progressioni preset).
+     */
     private int[] slotArrayDaSezione(SezioneIncantesimi sez, int livelloClasse) {
+        if (sez.slot() == null || sez.slot().isEmpty()) return new int[0];
         int idx = livelloClasse - 1;
-        if (idx < 0 || idx >= sez.slot().size()) return new int[0];
+        if (idx < 0) return new int[0];
+        if (idx >= sez.slot().size()) idx = sez.slot().size() - 1;
         return parseSlotRow(sez.slot().get(idx));
     }
 
     /** Array incantesimi conosciuti dalla tabella custom della sezione per il dato livello di classe (1-based). */
     private int[] conosciutiArrayDaSezione(SezioneIncantesimi sez, int livelloClasse) {
+        if (sez.conosciuti() == null || sez.conosciuti().isEmpty()) return new int[0];
         int idx = livelloClasse - 1;
-        if (sez.conosciuti() == null || idx < 0 || idx >= sez.conosciuti().size()) return new int[0];
+        if (idx < 0) return new int[0];
+        if (idx >= sez.conosciuti().size()) idx = sez.conosciuti().size() - 1;
         return parseSlotRow(sez.conosciuti().get(idx));
     }
 

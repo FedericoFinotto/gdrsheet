@@ -22,13 +22,20 @@ public final class ProgressioneIncantesimi {
     // tabelle: chiave = nome progressione, valore = slot[classLevel-1][spellLevel]
     private static final Map<String, int[][]> TABELLE = new HashMap<>();
 
-    /** Slot base per il dato livello di classe (1..20). Array vuoto se non applicabile. */
+    /**
+     * Slot base per il dato livello di classe. Array vuoto se non applicabile (progressione
+     * sconosciuta, o livello sotto 1). Sopra l'ultimo livello coperto dalla tabella (es. 21+ su
+     * una tabella di 20 righe: multiclasse/item che concedono livelli virtuali per gli
+     * incantesimi non hanno un tetto a 20) si usa l'ULTIMA riga disponibile invece di tornare
+     * vuoto — meglio "come al livello massimo noto" che silenziosamente zero incantesimi.
+     */
     public static int[] slotsPerLivello(String progressione, int livelloClasse) {
         if (progressione == null) return new int[0];
         int[][] t = TABELLE.get(progressione.trim().toUpperCase());
-        if (t == null) return new int[0];
+        if (t == null || t.length == 0) return new int[0];
         int idx = livelloClasse - 1;
-        if (idx < 0 || idx >= t.length) return new int[0];
+        if (idx < 0) return new int[0];
+        if (idx >= t.length) idx = t.length - 1;
         return t[idx];
     }
 
