@@ -109,6 +109,7 @@ const form = reactive<{
   effetti: ChildRef[]
   sezioniIncantesimi: Array<{
     liste: string[]; bonus: string; slot: string; conosciutiSeparati: boolean; conosciuti: string
+    slotConContatore: boolean
     personalizzata: boolean; incantesimiCustom: Array<{ id: number; nome: string; livello: number }>
   }>
   aggiunteClasse: Array<{
@@ -321,8 +322,8 @@ async function preload() {
       form.campiMulti[key].push(val)
     } else if (campoKeys.has(key) && !form.campi[key]) {
       form.campi[key] = val
-    } else if (/^SPELL_\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_CUSTOM|_INCANTESIMI)?$/.test(key)) {
-      const m = key.match(/^SPELL_(\d+)(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_CUSTOM|_INCANTESIMI)?$/)!
+    } else if (/^SPELL_\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CUSTOM|_INCANTESIMI)?$/.test(key)) {
+      const m = key.match(/^SPELL_(\d+)(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CUSTOM|_INCANTESIMI)?$/)!
       const n = Number(m[1])
       const suffix = m[2] ?? ''
       const row = (spellRaw[n] ??= {})
@@ -331,6 +332,7 @@ async function preload() {
       else if (suffix === '_SLOT') row.slot = val
       else if (suffix === '_HA_CONOSCIUTI') row.haConosciuti = val
       else if (suffix === '_CONOSCIUTI') row.conosciuti = val
+      else if (suffix === '_SLOT_CONTATORE') row.slotConContatore = val
       else if (suffix === '_CUSTOM') row.personalizzata = val
       else if (suffix === '_INCANTESIMI') row.incantesimi = val
       // _PROG: ignorata, gli item non hanno progressione (sempre a slot fisso)
@@ -366,6 +368,7 @@ async function preload() {
       slot: r.slot ?? '',
       conosciutiSeparati: r.haConosciuti === '1',
       conosciuti: r.conosciuti ?? '',
+      slotConContatore: r.slotConContatore === '1',
       personalizzata: r.personalizzata === '1',
       incantesimiCustom,
     }
@@ -447,6 +450,7 @@ async function preload() {
 function addSezioneIncantesimi() {
   form.sezioniIncantesimi.push({
     liste: [], bonus: '', slot: '', conosciutiSeparati: false, conosciuti: '',
+    slotConContatore: false,
     personalizzata: false, incantesimiCustom: [],
   })
 }
@@ -788,6 +792,7 @@ function buildPayload(): UpdateItemRequest {
         labels.push({label: `SPELL_${n}_HA_CONOSCIUTI`, valore: '1'})
         if (s.conosciuti.trim()) labels.push({label: `SPELL_${n}_CONOSCIUTI`, valore: s.conosciuti.trim()})
       }
+      if (s.slotConContatore) labels.push({label: `SPELL_${n}_SLOT_CONTATORE`, valore: '1'})
       if (s.personalizzata) {
         labels.push({label: `SPELL_${n}_CUSTOM`, valore: '1'})
         labels.push({label: `SPELL_${n}_INCANTESIMI`, valore: custom.map(c => `${c.id}:${c.livello}`).join(',')})
@@ -1389,6 +1394,11 @@ function onCancel() {
             <span class="lbl">Incantesimi conosciuti — stesso formato degli slot</span>
             <input v-model.trim="s.conosciuti" type="text" placeholder="2,1,-,-,-,-,-,-,-,-" :disabled="disabledAll"/>
           </div>
+
+          <label class="field checkbox-field">
+            <input type="checkbox" v-model="s.slotConContatore" :disabled="disabledAll"/>
+            <span class="lbl">Traccia gli slot per livello con Contatore</span>
+          </label>
         </div>
 
         <button type="button" class="btn outline" :disabled="disabledAll" @click="addSezioneIncantesimi">+ Aggiungi sezione</button>

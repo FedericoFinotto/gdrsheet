@@ -1,25 +1,29 @@
 <script setup lang="ts">
 import {computed, defineAsyncComponent, onMounted, onUnmounted, ref} from 'vue'
-import {useRouter} from 'vue-router'
+import {useRoute, useRouter} from 'vue-router'
 import Icona from "./Icona/Icona.vue";
 import DiceD20Overlay from "./DiceD20Overlay.vue";
 import usePopup from "../function/usePopup";
 import useDiceRoll from "../function/useDiceRoll";
 import {useAuthStore} from '../stores/auth'
 import {useMondoStore} from '../stores/mondo'
+import {useCharacterStore} from '../stores/personaggio'
 import {getNotizie, getViste as getVisteNotizie, segnaViste as segnaVisteNotizie, type NotiziaDTO} from '../service/NotizieService'
 import NotiziePopup from './NotiziePopup.vue'
 import {catturaScreenshot} from '../function/reportScreenshot'
 import {listaSegnalazioni} from '../service/SegnalazioniService'
 import {contaNonLette} from '../function/segnalazioniNotifiche'
 import {getTheme, toggleTheme} from '../function/useTheme'
+import {resetCachePersonaggio} from '../service/PersonaggioService'
 
 const DiceRollerPopup = defineAsyncComponent(() => import('./DiceRollerPopup.vue'))
 const DiceForcePopup = defineAsyncComponent(() => import('./DiceForcePopup.vue'))
 const SegnalazioneCreatePopup = defineAsyncComponent(() => import('./SegnalazioneCreatePopup.vue'))
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
+const characterStore = useCharacterStore()
 const mondoStore = useMondoStore()
 const {openPopup, isVisible: popupAperto} = usePopup()
 const {risultato, mostraOverlay, lanciaD20, annulla} = useDiceRoll()
@@ -58,6 +62,31 @@ const canManageUsers = computed(() => {
   const r = auth.effectiveRuolo.toUpperCase()
   return r === 'MASTER' || r === 'ADMIN' || r === 'SUPERUSER'
 })
+
+// Personaggio aperto in questo momento (solo sulla scheda, route "Scheda" — vedi router/index.js):
+// serve per il tasto "Reset cache", che agisce su QUEL personaggio.
+const idPersonaggioAperto = computed<number | null>(() => {
+  if (route.name !== 'Scheda') return null
+  const n = Number(route.params.id)
+  return Number.isFinite(n) ? n : null
+})
+
+const resettingCache = ref(false)
+async function handleResetCache() {
+  const id = idPersonaggioAperto.value
+  if (!id || resettingCache.value) return
+  resettingCache.value = true
+  try {
+    await resetCachePersonaggio(id)
+    // ricarica subito i dati del personaggio aperto, coerente col nuovo stato della cache
+    await characterStore.fetchCharacter(id, true)
+  } catch (e) {
+    console.error('Errore reset cache personaggio:', e)
+  } finally {
+    resettingCache.value = false
+    chiudiMenu()
+  }
+}
 
 // il reload va rimandato al prossimo tick: chiamarlo subito nello stesso handler del click
 // fa gareggiare la navigazione col teardown di Vue Router, generando un errore in console
@@ -358,6 +387,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
                AuthzService.isAdmin lato backend, che sarebbe l'unico a bloccarla comunque). -->
           <button v-if="auth.isRealAdmin && auth.adminMode" class="menu-item" @click="naviga('/mondi-admin')">
             <i class="fa-solid fa-globe menu-icon"></i> Permessi per mondo
+          </button>
+          <!-- Solo sulla scheda di un personaggio (idPersonaggioAperto): invalida la cache
+               (personaggioItems/personaggioModificatori) di QUEL personaggio — utile quando la
+               scheda non riflette una modifica appena fatta a una classe/razza condivisa. -->
+          <button v-if="auth.isRealAdmin && auth.adminMode && idPersonaggioAperto" class="menu-item"
+                  :disabled="resettingCache" @click="handleResetCache">
+            <i class="fa-solid fa-arrows-rotate menu-icon"></i> {{ resettingCache ? 'Reset cache…' : 'Reset cache' }}
           </button>
           <button class="menu-item" @click="naviga('/compendio')">
             <i class="fa-solid fa-book menu-icon"></i> Compendio

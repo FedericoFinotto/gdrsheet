@@ -34,20 +34,30 @@ public class ItemMapper {
     }
 
     public ItemDTO toDTO(Item entity, Integer utilizziTotale, Integer utilizziUsati) {
+        return toDTO(entity, utilizziTotale, utilizziUsati, null);
+    }
+
+    /**
+     * variabili: mappa @id/$id→valore del personaggio (stessa di CalcoloService.calcola), usata
+     * per valutare BARR_MAX come formula invece di un numero fisso (es. "10+@LVL"). Null = nessuna
+     * variabile disponibile (chiamante senza contesto personaggio): la formula viene comunque
+     * valutata, semplicemente ogni "@..." al suo interno resta non sostituito.
+     */
+    public ItemDTO toDTO(Item entity, Integer utilizziTotale, Integer utilizziUsati, Map<String, Integer> variabili) {
         ItemDTO dto = new ItemDTO();
-        populateBase(dto, entity, utilizziTotale, utilizziUsati);
+        populateBase(dto, entity, utilizziTotale, utilizziUsati, variabili);
         return dto;
     }
 
     /** FRUTTO: stessi campi di {@link #toDTO}, più il campo trasformazioni (valorizzato dal chiamante). */
-    public FruttoDTO toFruttoDTO(Item entity, Integer utilizziTotale, Integer utilizziUsati) {
+    public FruttoDTO toFruttoDTO(Item entity, Integer utilizziTotale, Integer utilizziUsati, Map<String, Integer> variabili) {
         FruttoDTO dto = new FruttoDTO();
-        populateBase(dto, entity, utilizziTotale, utilizziUsati);
+        populateBase(dto, entity, utilizziTotale, utilizziUsati, variabili);
         dto.setTrasformazioni(new ArrayList<>());
         return dto;
     }
 
-    private void populateBase(ItemDTO dto, Item entity, Integer utilizziTotale, Integer utilizziUsati) {
+    private void populateBase(ItemDTO dto, Item entity, Integer utilizziTotale, Integer utilizziUsati, Map<String, Integer> variabili) {
         dto.setId(entity.getId());
         dto.setNome(entity.getNome());
         dto.setTipo(entity.getTipo());
@@ -57,7 +67,13 @@ public class ItemMapper {
 
         if (Constants.ITEM_TIPO_BARRIERA.equalsIgnoreCase(entity.getLabel(Constants.ITEM_LABEL_TIPO))) {
             dto.setBarriera(true);
-            dto.setBarrMax(parseIntOrZero(entity.getLabel(Constants.ITEM_LABEL_BARR_MAX)));
+            // BARR_MAX può essere una formula (es. "10+@LVL"), non solo un numero fisso: calcola()
+            // valuta anche un numero semplice senza variabili, quindi va bene farci passare
+            // sempre e comunque il valore della label, invece di provare a distinguere i due casi.
+            Map<String, String> variabiliStr = variabili == null ? Map.of() : variabili.entrySet().stream()
+                    .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, e -> String.valueOf(e.getValue())));
+            dto.setBarrMax(parseIntOrZero(calcoloService.calcola(
+                    entity.getLabel(Constants.ITEM_LABEL_BARR_MAX), variabiliStr)));
             dto.setBarrCons(parseIntOrZero(entity.getLabel(Constants.ITEM_LABEL_BARR_CONS)));
         }
 

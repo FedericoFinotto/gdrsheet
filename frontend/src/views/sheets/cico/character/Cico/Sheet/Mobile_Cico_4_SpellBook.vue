@@ -3,11 +3,12 @@ import {computed, defineProps, markRaw, reactive, ref, watch} from 'vue';
 import Tabella from '../../../../../../components/Tabella.vue';
 import UtilizziBadge from '../../../../../../components/UtilizziBadge.vue';
 import Mobile_DettaglioItem from '../../Dettaglio/Mobile_DettaglioItem.vue';
+import SlotContatorePopup from '../../Dettaglio/SlotContatorePopup.vue';
 import {useCharacterStore} from '../../../../../../stores/personaggio';
 import {storeToRefs} from 'pinia';
 import usePopup from '../../../../../../function/usePopup';
 import Mobile_Cico_4_SpellBookPrepare from '../../Dettaglio/Mobile_Cico_4_SpellBookPrepare.vue';
-import {updatePreparedSpells, updateSpellUsage} from '../../../../../../service/PersonaggioService';
+import {updatePreparedSpells, updateSpellUsage, resetSlotUsati} from '../../../../../../service/PersonaggioService';
 import {getValoreFormula} from '../../../../../../function/Calcolo';
 import {iconForComponent} from "../../../../../../function/Utils";
 import {SpellBook, SpellBookLivello} from "../../../../../../models/dto/SpellBook";
@@ -23,7 +24,8 @@ const {openPopup} = usePopup();
 /* ----------------- Normalizzazione (sincrona) ----------------- */
 /** ATTENZIONE: qui rendiamo ogni riga REATTIVA con reactive(...) */
 function normalizeLevels(livelli: any): Array<{
-  livello: number; slot?: number; conosciuti?: number; bonus?: any[]; incantesimi: any[];
+  livello: number; slot?: number; conosciuti?: number; slotConContatore?: boolean; slotUsati?: number;
+  bonus?: any[]; incantesimi: any[];
 }> {
   if (!livelli) return [];
   const arr = Array.isArray(livelli) ? livelli : Object.values(livelli);
@@ -32,6 +34,8 @@ function normalizeLevels(livelli: any): Array<{
         livello: Number(lv?.livello ?? 0),
         slot: Number(lv?.slot ?? 0),        // base; i bonus arrivano async
         conosciuti: lv?.conosciuti == null ? undefined : Number(lv.conosciuti),
+        slotConContatore: Boolean(lv?.slotConContatore),
+        slotUsati: lv?.slotUsati == null ? undefined : Number(lv.slotUsati),
         bonus: Array.isArray(lv?.bonus) ? lv.bonus : [],
         incantesimi: (lv?.incantesimi ?? []).map((itm: any) => {
           const nprepared = Number(itm?.nprepared ?? 0);
@@ -69,6 +73,7 @@ const groupedByClassLevel = computed(() => {
       .map((sb: any) => ({
         classe: sb?.nomeClasse ?? 'Sconosciuta',
         idClasse: sb?.idClasse,
+        sezioneIndice: sb?.sezioneIndice,
         fonteTipo: sb?.fonteTipo,
         spellList: sb?.spellList,
         casterLevel: sb?.casterLevel,
@@ -147,6 +152,106 @@ const getSlotDisplay = computed<
   const bonus = slotBonusMap.value[keySlot(idClasse, livello)] ?? 0;
   return Number(base ?? 0) + Number(bonus ?? 0);
 });
+
+// Testo "slot: X" sulla riga per una sezione con contatore: se non è stato usato nulla (attuale
+// == totale) mostra solo il totale, altrimenti "attuale/totale" — stesso criterio di 2/2 vs 1/2
+// già usato per gli utilizzi.
+const testoSlotRiga = computed<
+    (group: any, lv: SpellBookLivello) => string
+>(() => (group, lv) => {
+  const totale = getSlotDisplay.value(group.idClasse, lv.livello, lv.slot);
+  const attuale = Math.max(0, totale - (lv.slotUsati ?? 0));
+  return attuale === totale ? `${totale}` : `${attuale}/${totale}`;
+});
+
+// Somma di attuale/totale su tutti i livelli con contatore di una sezione, per il riepilogo nel
+// titolo ("· Slot: attuale/totale") — null se la sezione non traccia nessun livello con contatore.
+const riepilogoSlotGruppo = computed<
+    (group: any) => { attuale: number; totale: number } | null
+>(() => (group) => {
+  const livelliConContatore = (group.levels ?? []).filter((lv: SpellBookLivello) => lv.slotConContatore);
+  if (!livelliConContatore.length) return null;
+  return livelliConContatore.reduce((acc: { attuale: number; totale: number }, lv: SpellBookLivello) => {
+    const totale = getSlotDisplay.value(group.idClasse, lv.livello, lv.slot);
+    const attuale = Math.max(0, totale - (lv.slotUsati ?? 0));
+    return {attuale: acc.attuale + attuale, totale: acc.totale + totale};
+  }, {attuale: 0, totale: 0});
+});
+
+// Testo "Slot: X" nel titolo: stesso criterio della riga per livello, solo il totale se non è
+// stato usato nulla in tutta la sezione, altrimenti "attuale/totale". Null se non applicabile
+// (nessun livello con contatore in questa sezione).
+const testoSlotGruppo = computed<
+    (group: any) => string | null
+>(() => (group) => {
+  const r = riepilogoSlotGruppo.value(group);
+  if (!r) return null;
+  return r.attuale === r.totale ? `${r.totale}` : `${r.attuale}/${r.totale}`;
+});
+
+// Totale copie preparate a un livello: somma di nprepared su tutti gli incantesimi del livello
+// (se un incantesimo ha più copie preparate, contano tutte — non solo "presente/assente"). Un
+// incantesimo "sempre preparato" (alwaysPrep) conta 1, anche se il suo nprepared non è tracciato
+// numericamente (è sempre disponibile, non consuma una "copia" preparata come gli altri).
+const totalePreparatiLivello = computed<
+    (lv: SpellBookLivello) => number
+>(() => (lv) => {
+  return (lv.incantesimi ?? []).reduce((tot: number, itm: any) => {
+    if (itm?.alwaysPrep) return tot + 1;
+    const n = Number(itm?.nprepared ?? 0);
+    return tot + (Number.isFinite(n) ? Math.max(0, n) : 0);
+  }, 0);
+});
+
+// Sezioni di livello apribili/chiudibili come una card, chiuse di default (nessuna chiave nel Set
+// all'avvio). Chiave = idClasse (o nome classe come fallback) + livello, stessa usata per :key.
+const livelliAperti = ref<Set<string>>(new Set())
+
+function levelKey(group: any, lv: SpellBookLivello): string {
+  return `${group.idClasse ?? group.classe}-${lv.livello}`
+}
+
+function isLivelloAperto(group: any, lv: SpellBookLivello): boolean {
+  return livelliAperti.value.has(levelKey(group, lv))
+}
+
+function toggleLivello(group: any, lv: SpellBookLivello) {
+  const key = levelKey(group, lv)
+  const next = new Set(livelliAperti.value)
+  next.has(key) ? next.delete(key) : next.add(key)
+  livelliAperti.value = next
+}
+
+// Un click/tap su "slot: X" (solo se la sezione traccia gli slot con contatore) apre il popup
+// con la scomposizione slot/bonus/totale e i controlli per modificare gli slot usati.
+function apriPopupSlot(group: any, lv: SpellBookLivello) {
+  const bonus = getSlotDisplay.value(group.idClasse, lv.livello, 0)
+  openPopup(
+      SlotContatorePopup,
+      {
+        itemId: group.idClasse,
+        personaggioId: props.idPersonaggio,
+        sezioneIndice: group.sezioneIndice,
+        livello: lv.livello,
+        slot: lv.slot,
+        bonus,
+        usati: lv.slotUsati ?? 0,
+      },
+      {closable: true, autoClose: 0, title: `Slot · Livello ${lv.livello}`}
+  )
+}
+
+// Azzera tutti i contatori "slot usati" (sezioni con SPELL_<n>_SLOT_CONTATORE) del personaggio.
+const resettingSlot = ref(false)
+async function handleResetSlot() {
+  resettingSlot.value = true
+  try {
+    await resetSlotUsati(props.idPersonaggio)
+    await characterStore.fetchCharacter(props.idPersonaggio, true)
+  } finally {
+    resettingSlot.value = false
+  }
+}
 
 /* ----------------- Interazioni UI (optimistic + save) ----------------- */
 const saving = ref<Set<number>>(new Set());
@@ -293,20 +398,32 @@ function showPopup(opts: ShowPopupOpts) {
 
 <template>
   <div>
+    <div class="reset-slot-row">
+      <button class="btn-reset" type="button" :disabled="resettingSlot" @click="handleResetSlot">
+        {{ resettingSlot ? '…' : 'Azzera slot incantesimo' }}
+      </button>
+    </div>
     <section v-for="group in groupedByClassLevel" :key="group.classe" class="mb-4">
       <h3 class="classe-title">
         {{ group.classe }}
         <span class="muted fonte-tipo">Da: {{ fonteTipoLabel(group.fonteTipo) }}</span>
         <span v-if="group.casterLevel != null" class="muted"> · CL: {{ group.casterLevel }}</span>
         <span v-if="group.cd != null" class="muted"> · CD: {{ group.cd }}</span>
+        <span v-if="testoSlotGruppo(group)" class="muted"> · Slot: {{ testoSlotGruppo(group) }}</span>
       </h3>
 
       <div v-for="lv in group.levels" :key="`${group.idClasse ?? group.classe}-${lv.livello}`" class="level-block">
         <div class="level-header">
-          <div class="level-title">
+          <div class="level-title" @click="toggleLivello(group, lv)">
+            <span class="chev" :class="{ open: isLivelloAperto(group, lv) }">▸</span>
             {{ lv.livello === 0 ? 'Cantrip' : `Livello ${lv.livello}` }}
-            <span class="muted"> · slot: {{ getSlotDisplay(group.idClasse, lv.livello, lv.slot) }}</span>
+            <span v-if="!lv.slotConContatore" class="muted"> · slot: {{ getSlotDisplay(group.idClasse, lv.livello, lv.slot) }}</span>
+            <!-- sezione con contatore: un click apre il popup slot/bonus/totale + controlli -->
+            <span v-else class="muted slot-hold" @click.stop="apriPopupSlot(group, lv)">
+              · slot: {{ testoSlotRiga(group, lv) }}
+            </span>
             <span v-if="lv.conosciuti != null" class="muted"> · conosciuti: {{ lv.conosciuti }}</span>
+            <span class="muted"> · preparati: {{ totalePreparatiLivello(lv) }}</span>
           </div>
           <button
               class="prepare-btn"
@@ -318,6 +435,7 @@ function showPopup(opts: ShowPopupOpts) {
         </div>
 
         <Tabella
+            v-if="isLivelloAperto(group, lv)"
             class="mb-3"
             :columns="columnsForLevel(lv.livello, group.spellList)"
             :expandable="true"
@@ -343,3 +461,39 @@ function showPopup(opts: ShowPopupOpts) {
     </section>
   </div>
 </template>
+
+<style scoped>
+.slot-hold {
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+.level-title {
+  cursor: pointer;
+  user-select: none;
+}
+.chev {
+  display: inline-block;
+  transition: transform .15s ease;
+  margin-right: .3rem;
+}
+.chev.open { transform: rotate(90deg); }
+.reset-slot-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: .75rem;
+}
+.btn-reset {
+  flex-shrink: 0;
+  padding: .35rem .75rem;
+  border: 1px solid var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-radius: .5rem;
+  cursor: pointer;
+}
+.btn-reset:hover { background: var(--danger-border); }
+.btn-reset:disabled { opacity: .5; cursor: default; }
+</style>

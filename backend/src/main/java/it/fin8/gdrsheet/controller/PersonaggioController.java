@@ -14,6 +14,7 @@ import it.fin8.gdrsheet.service.AuthzService;
 import it.fin8.gdrsheet.service.ItemService;
 import it.fin8.gdrsheet.service.ModificatoriService;
 import it.fin8.gdrsheet.service.PartyService;
+import it.fin8.gdrsheet.service.PersonaggioCacheService;
 import it.fin8.gdrsheet.service.PersonaggioService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -37,8 +38,9 @@ public class PersonaggioController {
     private final ItemService itemService;
     private final AuthzService authzService;
     private final AuthService authService;
+    private final PersonaggioCacheService personaggioCacheService;
 
-    public PersonaggioController(PersonaggioRepository repo, PersonaggioService personaggioService, ItemMapper itemMapper, ModificatoriService modificatoriService, PartyService partyService, ItemService itemService, AuthzService authzService, AuthService authService) {
+    public PersonaggioController(PersonaggioRepository repo, PersonaggioService personaggioService, ItemMapper itemMapper, ModificatoriService modificatoriService, PartyService partyService, ItemService itemService, AuthzService authzService, AuthService authService, PersonaggioCacheService personaggioCacheService) {
         this.repo = repo;
         this.personaggioService = personaggioService;
         this.itemMapper = itemMapper;
@@ -47,6 +49,7 @@ public class PersonaggioController {
         this.authzService = authzService;
         this.itemService = itemService;
         this.authService = authService;
+        this.personaggioCacheService = personaggioCacheService;
     }
 
     @Operation(
@@ -336,5 +339,21 @@ public class PersonaggioController {
         return ResponseEntity.ok(result);
     }
 
+    @Operation(
+            summary = "Invalida la cache (personaggioItems/personaggioModificatori) del personaggio",
+            description = "Riservato agli admin. Da usare quando i dati calcolati in scheda sembrano non riflettere una modifica appena fatta (es. a una classe/razza condivisa)."
+    )
+    @PostMapping("/{id}/reset-cache")
+    public ResponseEntity<Void> resetCache(
+            @Parameter(description = "ID Personaggio", required = true)
+            @PathVariable Integer id,
+            @AuthenticationPrincipal Utente utente
+    ) {
+        if (!authzService.isAdmin(utente)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Riservato agli admin");
+        }
+        personaggioCacheService.invalidaPersonaggio(id);
+        return ResponseEntity.noContent().build();
+    }
 
 }

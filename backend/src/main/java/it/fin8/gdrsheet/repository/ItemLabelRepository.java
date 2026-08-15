@@ -34,6 +34,13 @@ public interface ItemLabelRepository extends JpaRepository<ItemLabel, Integer> {
     void deleteByLabelAndPersonaggio_Id(String label, Integer personaggioId);
 
     /**
+     * Azzera in blocco un GRUPPO di label (es. tutti gli SPELL_&lt;n&gt;_SLOT_USATI_&lt;livello&gt; di un
+     * personaggio, indipendentemente da sezione/livello) invece di una label esatta come sopra —
+     * usato dal "reset slot" sulla pagina Incantesimi (vedi ItemService.resetSlotUsati).
+     */
+    void deleteByLabelContainingAndPersonaggio_Id(String labelFragment, Integer personaggioId);
+
+    /**
      * Id degli item con quella label a "1" per un personaggio (es. DISABLED): un'unica query
      * prima del flatten invece di controllare item per item durante la traversata. Nessun filtro
      * su item.id: il numero di item esplicitamente disabilitati da un personaggio è tipicamente

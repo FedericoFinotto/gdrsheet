@@ -546,6 +546,16 @@ public class ItemController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Azzera tutti gli slot incantesimo usati (contatore) di un personaggio")
+    @DeleteMapping("/spell-slot-usati/{personaggioId}")
+    public ResponseEntity<Void> resetSlotUsati(
+            @PathVariable Integer personaggioId,
+            @AuthenticationPrincipal Utente utente) {
+        authzService.assertCanEditPersonaggio(utente, personaggioId);
+        itemService.resetSlotUsati(personaggioId);
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "Aggiorna utilizzi di un item per un personaggio")
     @PutMapping("/{itemId}/utilizzi/{personaggioId}")
     public ResponseEntity<Void> setUtilizzi(
@@ -557,6 +567,37 @@ public class ItemController {
         Integer usati = body.get("usati");
         if (usati == null) return ResponseEntity.badRequest().build();
         itemService.setUtilizziUsati(itemId, personaggioId, usati);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Aggiorna gli slot incantesimo usati di un livello (sezione con contatore) per un personaggio")
+    @PutMapping("/{itemId}/spell-slot-usati/{personaggioId}/{sezioneIndice}/{livello}")
+    public ResponseEntity<Void> setSlotUsatiPerLivello(
+            @PathVariable Integer itemId,
+            @PathVariable Integer personaggioId,
+            @PathVariable Integer sezioneIndice,
+            @PathVariable Integer livello,
+            @RequestBody java.util.Map<String, Integer> body,
+            @AuthenticationPrincipal Utente utente) {
+        authzService.assertCanEditPersonaggio(utente, personaggioId);
+        Integer usati = body.get("usati");
+        if (usati == null) return ResponseEntity.badRequest().build();
+        itemService.setSlotUsatiPerLivello(itemId, personaggioId, sezioneIndice, livello, usati);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Aggiorna il valore di un contatore item ($V_<nome>) per un personaggio")
+    @PutMapping("/{itemId}/contatore/{personaggioId}/{nome}")
+    public ResponseEntity<Void> setContatoreItem(
+            @PathVariable Integer itemId,
+            @PathVariable Integer personaggioId,
+            @PathVariable String nome,
+            @RequestBody java.util.Map<String, Integer> body,
+            @AuthenticationPrincipal Utente utente) {
+        authzService.assertCanEditPersonaggio(utente, personaggioId);
+        Integer valore = body.get("valore");
+        if (valore == null) return ResponseEntity.badRequest().build();
+        itemService.setContatoreItem(itemId, personaggioId, nome, valore);
         return ResponseEntity.noContent().build();
     }
 

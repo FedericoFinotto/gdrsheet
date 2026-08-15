@@ -149,6 +149,7 @@ public class ClasseService {
             s.setConosciuti(conosciutiRaw == null || conosciutiRaw.isBlank()
                     ? List.of()
                     : Arrays.stream(conosciutiRaw.split(";")).map(String::trim).toList());
+            s.setSlotConContatore("1".equals(classe.getLabel("SPELL_" + n + "_SLOT_CONTATORE")));
             s.setCaratteristica(classe.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CARATTERISTICA_SUFFIX));
             s.setCasterLevelSorgente(classe.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CL_SORGENTE_SUFFIX));
             s.setSlotLivelloSorgente(classe.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_SLOT_SORGENTE_SUFFIX));
@@ -217,7 +218,7 @@ public class ClasseService {
                 String k = l.getLabel();
                 return k != null && (k.equals(Constants.ITEM_LABEL_LISTA_INCANTESIMI)
                         || k.equals(Constants.ITEM_LABEL_SPELL_SLOT_BONUS)
-                        || k.matches("SPELL_\\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_CARATTERISTICA|_CL_SRC|_SLOT_SRC)?"));
+                        || k.matches("SPELL_\\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CARATTERISTICA|_CL_SRC|_SLOT_SRC)?"));
             });
         }
         List<ClasseDetailDTO.SezioneSpellDTO> sezioni = dto.getSezioniIncantesimi();
@@ -268,6 +269,7 @@ public class ClasseService {
                         }
                     }
                 }
+                putSingleLabel(classe, "SPELL_" + n + "_SLOT_CONTATORE", s.isSlotConContatore() ? "1" : null);
                 if (representativeList == null) representativeList = liste.get(0);
                 n++;
             }

@@ -18,6 +18,10 @@ export interface SpellBookLivello {
     livello: number;                         // 0..9
     slot: number;                            // slot disponibili per il livello
     conosciuti?: number;                     // incantesimi conosciuti per il livello, se la sezione li traccia separatamente
+    // true = la sezione traccia gli slot usati a questo livello con un contatore dedicato
+    // (SPELL_<n>_SLOT_CONTATORE): mostrare uno stepper usati/slot invece del solo numero statico.
+    slotConContatore?: boolean;
+    slotUsati?: number;                      // slot già usati a questo livello, se slotConContatore
     bonus: string[];                         // note/bonus (es. domini, oggetti)
     incantesimi: SpellBookIncantesimo[];  // incantesimi del livello
 }
@@ -31,6 +35,9 @@ export interface SpellBook {
     casterLevel?: number;              // classi: livello effettivo (+prestigio); oggetti: valore fisso da label
     caratteristica?: string;           // stat id usata per la CD (es. "INT")
     cd?: number;                       // 10 + casterLevel + modificatore caratteristica
+    // Indice "n" della sezione (SPELL_<n>...) sulla fonte (idClasse): serve per aggiornare il
+    // contatore slot usati di un livello (setSlotUsatiPerLivello). Assente sulle sezioni legacy.
+    sezioneIndice?: number;
     livelli: SpellBookLivello[];   // inizializzato a []
     spurii?: SpellBookIncantesimo[];   // incantesimi non da lista/catalogo, utilizzi propri o di gruppo
 }

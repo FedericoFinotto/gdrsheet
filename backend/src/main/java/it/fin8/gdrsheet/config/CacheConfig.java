@@ -24,6 +24,11 @@ public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager(EntityManagerFactory entityManagerFactory, ObjectMapper objectMapper) {
-        return new DbCacheManager(entityManagerFactory, objectMapper, Duration.ofMinutes(30));
+        // Constants.CACHE_REGIONS_PERSONAGGIO pre-registrate SUBITO (vedi DbCacheManager): serve a
+        // PersonaggioCacheService.invalidaPersonaggio per poter evict-are anche una region mai
+        // ancora acceduta in questa esecuzione, altrimenti una riga stale da un'esecuzione
+        // precedente resterebbe servita finché non scade il TTL di backstop qui sotto.
+        return new DbCacheManager(entityManagerFactory, objectMapper, Duration.ofMinutes(30),
+                it.fin8.gdrsheet.config.Constants.CACHE_REGIONS_PERSONAGGIO);
     }
 }

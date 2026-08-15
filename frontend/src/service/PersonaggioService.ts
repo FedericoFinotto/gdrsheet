@@ -39,6 +39,13 @@ export function setPreferito(id: number, preferito: boolean): Promise<AxiosRespo
     return api.put<void>(`/personaggi/${id}/preferito`, {preferito});
 }
 
+// Invalida la cache (personaggioItems/personaggioModificatori) del personaggio — riservato agli
+// admin lato backend (AuthzService.isAdmin). Da usare quando i dati calcolati in scheda sembrano
+// non riflettere una modifica appena fatta (es. a una classe/razza condivisa).
+export function resetCachePersonaggio(id: number): Promise<AxiosResponse<void>> {
+    return api.post<void>(`/personaggi/${id}/reset-cache`, null);
+}
+
 export function getAllPersonaggioItemsDTOByIdPersonaggio(id: number): Promise<AxiosResponse<Items>> {
     return api.get(`/personaggi/items/${id}`);
 }
@@ -247,4 +254,21 @@ export function setUtilizziUsati(itemId: number, personaggioId: number, usati: n
 
 export function resetUtilizzi(personaggioId: number): Promise<AxiosResponse<void>> {
     return api.delete<void>(`/item/utilizzi/${personaggioId}`);
+}
+
+// Slot incantesimo usati per un livello di una sezione che li traccia con contatore (vedi
+// SpellBookLivello.slotConContatore/SpellBook.sezioneIndice) — stesso schema di setUtilizziUsati.
+export function setSlotUsatiPerLivello(itemId: number, personaggioId: number, sezioneIndice: number, livello: number, usati: number): Promise<AxiosResponse<void>> {
+    return api.put<void>(`/item/${itemId}/spell-slot-usati/${personaggioId}/${sezioneIndice}/${livello}`, {usati});
+}
+
+// Azzera tutti gli slot incantesimo usati (contatore) di un personaggio, su ogni sezione/livello.
+export function resetSlotUsati(personaggioId: number): Promise<AxiosResponse<void>> {
+    return api.delete<void>(`/item/spell-slot-usati/${personaggioId}`);
+}
+
+// Contatore item ($V_<nome>, es. "$V_CARICHE") mostrato/editabile in Mobile_DettaglioItem.vue
+// quando l'item ha il flag globale SHOW_$V_<nome>=1 — scoped per personaggio come UTILIZZI_USATI.
+export function setContatoreItem(itemId: number, personaggioId: number, nome: string, valore: number): Promise<AxiosResponse<void>> {
+    return api.put<void>(`/item/${itemId}/contatore/${personaggioId}/${encodeURIComponent(nome)}`, {valore});
 }

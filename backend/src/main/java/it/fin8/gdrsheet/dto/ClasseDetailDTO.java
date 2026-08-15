@@ -102,6 +102,10 @@ public class ClasseDetailDTO {
          */
         private boolean conosciutiSeparati;
         private List<String> conosciuti;  // stesso formato/dash di "slot" (una riga "4,2,1,-,…" per livello)
+        // Traccia gli slot USATI per livello con un contatore dedicato (vedi
+        // PersonaggioService.SezioneIncantesimi.slotConContatore) invece di mostrare solo il
+        // numero statico di slot disponibili.
+        private boolean slotConContatore;
         private String caratteristica;    // stat id usata per la CD di questa sezione (es. "INT")
 
         /**

@@ -89,6 +89,8 @@ public class PersonaggioService {
     @Autowired
     private PersonaggioCacheService personaggioCacheService;
 
+    // Nomi allineati a Constants.CACHE_REGIONS_PERSONAGGIO (pre-registrate in DbCacheManager
+    // così l'invalidazione le trova anche se non ancora accedute in questa esecuzione — vedi lì).
     private static final String CACHE_MODIFICATORI = "personaggioModificatori";
     private static final String CACHE_ITEMS = "personaggioItems";
 
@@ -434,7 +436,7 @@ public class PersonaggioService {
                 // Frutti/Abilità/Talenti/Attacchi/Spellbook/ecc. Coerente con l'esclusione dalla
                 // "mechanical" flatten in getDatiPersonaggio: è carico, non dotazione, "come se
                 // non fosse collegato al personaggio" (il peso però continua a contare altrove).
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
                 destinazioneLista(null, sepId, inventariSeparati, itemById).add(dto);
                 continue;
@@ -445,52 +447,52 @@ public class PersonaggioService {
             // un altro item (es. un Privilegio di Classe concesso dalla Classe). Il frontend lo
             // usa anche per decidere se mostrare "Dai" su un item (vedi Mobile_DettaglioItem.vue).
             if (TipoItem.ABILITA.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getAbilita().add(dto);
             }
             if (TipoItem.TALENTO.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getTalenti().add(dto);
             }
             if (TipoItem.SKILL_TRICK.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getSkillTrick().add(dto);
             }
             if (TipoItem.OGGETTO.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getOggetti().add(dto);
             }
             if (TipoItem.CONSUMABILE.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getConsumabili().add(dto);
             }
             if (TipoItem.ARMA.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getArmi().add(dto);
             }
             if (TipoItem.MUNIZIONE.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getMunizioni().add(dto);
             }
             if (TipoItem.EQUIPAGGIAMENTO.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getEquipaggiamento().add(dto);
             }
             if (TipoItem.RAZZA.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getRazze().add(dto);
             }
@@ -501,12 +503,12 @@ public class PersonaggioService {
                 itemsDTO.getLivelli().add(itemMapper.toLivelloDTO(itm));
             }
             if (TipoItem.MALEDIZIONE.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getMaledizioni().add(dto);
             }
             if (TipoItem.VEICOLO.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getVeicoli().add(dto);
             }
@@ -514,36 +516,36 @@ public class PersonaggioService {
                 flatTrasformazioni.add(itemMapper.toTrasformazioneDTO(itm));
             }
             if (TipoItem.COMP.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getCompetenze().add(dto);
             }
             if (TipoItem.LINGUA.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getLingue().add(dto);
             }
             if (TipoItem.IDOLO.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getIdoli().add(dto);
             }
             if (TipoItem.CONTENITORE.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getContenitori().add(dto);
             }
             if (TipoItem.FRUTTO.equals(itm.getTipo())) {
-                itemsDTO.getFrutti().add(itemMapper.toFruttoDTO(itm, uTotale, uUsati));
+                itemsDTO.getFrutti().add(itemMapper.toFruttoDTO(itm, uTotale, uUsati, variabili));
             }
             if (TipoItem.FORMA.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getForme().add(dto);
             }
             if (TipoItem.PRIVILEGIO.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getPrivilegi().add(dto);
                 String gruppo = itm.getLabel(Constants.ITEM_LABEL_GRUPPO_PRIVILEGI);
@@ -561,24 +563,24 @@ public class PersonaggioService {
                 }
             }
             if (TipoItem.ALTRO.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getAltro().add(dto);
             }
             if (TipoItem.PATTO.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 if (qtaPersoMap.containsKey(itm.getId())) dto.setQuantita(qtaPersoMap.get(itm.getId()));
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getPatti().add(dto);
             }
             if (TipoItem.NOTIZIA.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getNotizie().add(dto);
             }
             if (TipoItem.IMMAGINE.equals(itm.getTipo())) {
-                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati);
+                ItemDTO dto = itemMapper.toDTO(itm, uTotale, uUsati, variabili);
                 dto.setScollegabile(scollegabiliIds.contains(itm.getId()));
                 itemsDTO.getImmagini().add(dto);
             }
@@ -2091,7 +2093,15 @@ public class PersonaggioService {
                                       boolean conosciutiSeparati, List<String> conosciuti,
                                       boolean personalizzata, List<String> incantesimiCustom,
                                       String caratteristica, Integer casterLevelFisso,
-                                      String casterLevelSorgente, String slotLivelloSorgente) {}
+                                      String casterLevelSorgente, String slotLivelloSorgente,
+                                      // Traccia gli slot USATI per livello con un contatore dedicato
+                                      // (label SPELL_<n>_SLOT_USATI_<livello>, scoped per personaggio come
+                                      // UTILIZZI_USATI) invece di mostrare solo il numero statico di slot.
+                                      boolean slotConContatore,
+                                      // Indice "n" della sezione (da SPELL_<n>...), serve a comporre le
+                                      // label SPELL_<n>_SLOT_USATI_<livello> e a esporlo nel SpellBookDTO
+                                      // così il frontend sa quale sezione aggiornare.
+                                      int indice) {}
 
     /**
      * Legge le sezioni incantatore "nuove" di un item dalle label indicizzate:
@@ -2132,6 +2142,7 @@ public class PersonaggioService {
             List<String> conosciuti = (conosciutiRaw == null || conosciutiRaw.isBlank())
                     ? List.of()
                     : Arrays.stream(conosciutiRaw.split(";")).map(String::trim).toList();
+            boolean slotConContatore = "1".equals(item.getLabel("SPELL_" + n + "_SLOT_CONTATORE"));
             String incantesimiRaw = item.getLabel("SPELL_" + n + "_INCANTESIMI");
             List<String> incantesimiCustom = (incantesimiRaw == null || incantesimiRaw.isBlank())
                     ? List.of()
@@ -2142,7 +2153,7 @@ public class PersonaggioService {
             String slotLivelloSorgente = item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_SLOT_SORGENTE_SUFFIX);
             out.add(new SezioneIncantesimi(listeArr, prog, bonus, slot, conosciutiSeparati, conosciuti,
                     personalizzata, incantesimiCustom, caratteristica, casterLevelFisso,
-                    casterLevelSorgente, slotLivelloSorgente));
+                    casterLevelSorgente, slotLivelloSorgente, slotConContatore, n));
         }
         return out;
     }
@@ -2171,6 +2182,7 @@ public class PersonaggioService {
         spellBook.setNomeClasse(classe.getNome());
         spellBook.setFonteTipo(classe.getTipo() != null ? classe.getTipo().name() : null);
         spellBook.setSpellList(String.join(",", sez.liste()));
+        spellBook.setSezioneIndice(sez.indice());
         spellBook.setSpurii(generateSpurii(classe, idPersonaggio));
         // CasterLevel (mostrato in scheda come "CL"): sugli oggetti (fisso=true) è un valore
         // impostato a mano (l'oggetto non ha "livelli"), sulle classi è già stato aggregato dal
@@ -2228,6 +2240,10 @@ public class PersonaggioService {
             if (i < conosciuti.length && conosciuti[i] != SLOT_DASH) {
                 liv.setConosciuti(conosciuti[i]);
             }
+            if (sez.slotConContatore()) {
+                liv.setSlotConContatore(true);
+                liv.setSlotUsati(getSlotUsatiPerLivello(classe.getId(), idPersonaggio, sez.indice(), i));
+            }
             if (sez.bonus() != null && !sez.bonus().isBlank() && i > 0) {
                 liv.getBonus().add(sez.bonus());
             }
@@ -2271,6 +2287,25 @@ public class PersonaggioService {
         } catch (Exception e) {
             return new int[0];
         }
+    }
+
+    /**
+     * Slot USATI a questo livello per questo personaggio (label SPELL_&lt;n&gt;_SLOT_USATI_&lt;livello&gt;,
+     * scoped per personaggio come QTA/UTILIZZI_USATI — vedi ItemService.setSlotUsatiPerLivello per
+     * la scrittura). 0 se non tracciato/mai toccato.
+     */
+    private int getSlotUsatiPerLivello(Integer itemId, Integer idPersonaggio, int sezioneIndice, int livello) {
+        if (itemId == null || idPersonaggio == null) return 0;
+        return itemLabelRepository
+                .findByItem_IdAndLabelAndPersonaggio_Id(itemId, "SPELL_" + sezioneIndice + "_SLOT_USATI_" + livello, idPersonaggio)
+                .map(l -> {
+                    try {
+                        return Integer.parseInt(l.getValore());
+                    } catch (Exception e) {
+                        return 0;
+                    }
+                })
+                .orElse(0);
     }
 
     /**

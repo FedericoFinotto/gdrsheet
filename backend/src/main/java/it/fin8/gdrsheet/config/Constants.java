@@ -368,5 +368,19 @@ public final class Constants {
             ITEM_LABEL_PREFISSO_OGGETTI,
             ITEM_LABEL_BARR_CONS
     );
+
+    // Nomi delle cache region su tabella Postgres (cache_entry, vedi DbCache/DbCacheManager) legate
+    // a un personaggio (PersonaggioService.CACHE_ITEMS/CACHE_MODIFICATORI). Centralizzate qui (invece
+    // che scoperte "al volo" da DbCacheManager alla prima getCache(name)) perché
+    // PersonaggioCacheService.invalidaPersonaggio/invalidaPerClasse devono poter evict-are anche una
+    // region MAI ancora acceduta in QUESTA esecuzione della JVM: altrimenti, se un'invalidazione
+    // scatta prima che quella region sia mai stata richiesta (es. si modifica una classe subito dopo
+    // un riavvio, prima di aver mai aperto la scheda di un personaggio), l'eviction non la trova
+    // affatto (DbCacheManager.getCacheNames() è vuoto per lei) e una riga STALE lasciata nella
+    // tabella da un'esecuzione precedente resta servita finché non scade il TTL di backstop.
+    public static final java.util.Set<String> CACHE_REGIONS_PERSONAGGIO = java.util.Set.of(
+            "personaggioItems",
+            "personaggioModificatori"
+    );
 }
 

@@ -189,7 +189,7 @@ const confirm = () => {
 <template>
   <div class="popup-root">
     <header class="popup-header">
-      <h3 class="title">{{ livello === 0 ? 'Cantrip' : `Livello ${livello}` }} · {{ classe }}</h3>
+      <h3 class="title">{{ livello === 0 ? 'Cantrip' : `Livello ${livello}` }} · {{ classe }} ({{ spells.length }})</h3>
     </header>
 
     <div class="popup-body">

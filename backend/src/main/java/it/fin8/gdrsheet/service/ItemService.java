@@ -278,10 +278,29 @@ public class ItemService {
         String utilizziUsati = itemLabelRepository
                 .findByItem_IdAndLabelAndPersonaggio_Id(itm.getId(), Constants.LABEL_UTILIZZI_USATI, idPersonaggio)
                 .map(ItemLabel::getValore).orElse(null);
-        // stampa DOPO entrambe le letture: nessuna query va eseguita tra una mutazione e l'altra,
+        // Contatori item ($V_<NOME>) mostrati/editabili in Mobile_DettaglioItem.vue (flag globale
+        // SHOW_$V_<NOME>=1 sull'item): come QTA/UTILIZZI_USATI, il valore scoped per questo
+        // personaggio va letto e "stampato" QUI, altrimenti Item.getLabel($V_<NOME>) vedrebbe
+        // sempre e solo la riga globale (@Where su Item.labels) — lo stesso identico bug già
+        // risolto per QTA, ma sui contatori $V_ (che il resto del backend, vedi
+        // PersonaggioService.calcolaDatiPersonaggio, legge tuttora SENZA scoping: qui almeno la
+        // GET di un singolo item mostra/scrive il valore giusto per il personaggio che la apre).
+        List<String> nomiContatoriMostrati = itm.getLabels() == null ? List.of() : itm.getLabels().stream()
+                .filter(l -> l.getLabel() != null && l.getLabel().startsWith("SHOW_$V_") && "1".equals(l.getValore()))
+                .map(l -> l.getLabel().substring("SHOW_$V_".length()))
+                .filter(n -> !n.isBlank())
+                .distinct()
+                .toList();
+        Map<String, String> contatoriScoped = new LinkedHashMap<>();
+        for (String nome : nomiContatoriMostrati) {
+            itemLabelRepository.findByItem_IdAndLabelAndPersonaggio_Id(itm.getId(), "$V_" + nome, idPersonaggio)
+                    .ifPresent(l -> contatoriScoped.put(nome, l.getValore()));
+        }
+        // stampa DOPO tutte le letture: nessuna query va eseguita tra una mutazione e l'altra,
         // altrimenti rischierebbe di far scattare un flush che le persiste per sbaglio.
         if (qta != null) itm.setLabel(Constants.LABEL_QTA, qta);
         if (utilizziUsati != null) itm.setLabel(Constants.LABEL_UTILIZZI_USATI, utilizziUsati);
+        contatoriScoped.forEach((nome, valore) -> itm.setLabel("$V_" + nome, valore));
     }
 
     /* =====================================================================
@@ -1522,6 +1541,63 @@ public class ItemService {
                     return nl;
                 });
         label.setValore(String.valueOf(Math.max(0, usati)));
+        itemLabelRepository.save(label);
+        personaggioCacheService.invalidaPersonaggio(personaggioId);
+    }
+
+    /**
+     * Azzera TUTTI gli slot incantesimo usati (contatore) di un personaggio, su qualunque
+     * sezione/livello — stesso schema di resetUtilizzi, ma su un gruppo di label indicizzate
+     * (SPELL_&lt;n&gt;_SLOT_USATI_&lt;livello&gt;) invece di una singola label esatta.
+     */
+    @Transactional
+    public void resetSlotUsati(Integer personaggioId) {
+        itemLabelRepository.deleteByLabelContainingAndPersonaggio_Id("_SLOT_USATI_", personaggioId);
+        personaggioCacheService.invalidaPersonaggio(personaggioId);
+    }
+
+    /**
+     * Slot usati per un livello di una sezione incantesimi che traccia gli slot con contatore
+     * (SPELL_&lt;n&gt;_SLOT_CONTATORE) — stesso schema personaggio-scoped di setUtilizziUsati, ma su
+     * una label indicizzata per sezione+livello (SPELL_&lt;n&gt;_SLOT_USATI_&lt;livello&gt;) invece che su
+     * UTILIZZI_USATI, perché una fonte (classe/oggetto) può avere più sezioni e più livelli, non
+     * un solo contatore. Vedi PersonaggioService.getSlotUsatiPerLivello per la lettura.
+     */
+    public void setSlotUsatiPerLivello(Integer itemId, Integer personaggioId, int sezioneIndice, int livello, int usati) {
+        String labelKey = "SPELL_" + sezioneIndice + "_SLOT_USATI_" + livello;
+        ItemLabel label = itemLabelRepository
+                .findByItem_IdAndLabelAndPersonaggio_Id(itemId, labelKey, personaggioId)
+                .orElseGet(() -> {
+                    ItemLabel nl = new ItemLabel();
+                    nl.setItem(em.getReference(Item.class, itemId));
+                    nl.setPersonaggio(em.getReference(Personaggio.class, personaggioId));
+                    nl.setLabel(labelKey);
+                    return nl;
+                });
+        label.setValore(String.valueOf(Math.max(0, usati)));
+        itemLabelRepository.save(label);
+        personaggioCacheService.invalidaPersonaggio(personaggioId);
+    }
+
+    /**
+     * Valore di un contatore item ($V_&lt;nome&gt;, es. "$V_CARICHE") per un personaggio — mostrato/
+     * editabile in Mobile_DettaglioItem.vue quando l'item ha il flag globale SHOW_$V_&lt;nome&gt;=1
+     * (vedi stampaLabelScopedPerPersonaggio per la lettura). Stesso schema personaggio-scoped di
+     * setUtilizziUsati/setSlotUsatiPerLivello, ma senza clamp a un massimo: un $V_ è una variabile
+     * generica usabile nelle formule (cariche, moltiplicatori, ecc.), non ha un "totale" implicito.
+     */
+    public void setContatoreItem(Integer itemId, Integer personaggioId, String nome, int valore) {
+        String labelKey = "$V_" + nome;
+        ItemLabel label = itemLabelRepository
+                .findByItem_IdAndLabelAndPersonaggio_Id(itemId, labelKey, personaggioId)
+                .orElseGet(() -> {
+                    ItemLabel nl = new ItemLabel();
+                    nl.setItem(em.getReference(Item.class, itemId));
+                    nl.setPersonaggio(em.getReference(Personaggio.class, personaggioId));
+                    nl.setLabel(labelKey);
+                    return nl;
+                });
+        label.setValore(String.valueOf(valore));
         itemLabelRepository.save(label);
         personaggioCacheService.invalidaPersonaggio(personaggioId);
     }

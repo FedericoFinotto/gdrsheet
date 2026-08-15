@@ -73,7 +73,7 @@ const form = reactive({
   // + incantesimi conosciuti (opzionale/flaggabile, indipendente dalla progressione slot)
   sezioni: [] as Array<{
     liste: string[]; progressione: string; bonus: string; slot: string[]
-    conosciutiSeparati: boolean; conosciuti: string[]; caratteristica: string
+    conosciutiSeparati: boolean; conosciuti: string[]; slotConContatore: boolean; caratteristica: string
     casterLevelSorgente: string; slotLivelloSorgente: string
   }>,
   rank1: '',
@@ -159,6 +159,7 @@ onMounted(async () => {
       slot: Array.isArray(s.slot) ? s.slot.slice() : [],
       conosciutiSeparati: !!s.conosciutiSeparati,
       conosciuti: Array.isArray(s.conosciuti) ? s.conosciuti.slice() : [],
+      slotConContatore: !!s.slotConContatore,
       caratteristica: s.caratteristica ?? '',
       casterLevelSorgente: s.casterLevelSorgente ?? 'NM',
       slotLivelloSorgente: s.slotLivelloSorgente ?? 'NM',
@@ -425,6 +426,7 @@ function buildClassePayload() {
             slot: slot.some(x => x) ? slot : null,
             conosciutiSeparati: s.conosciutiSeparati,
             conosciuti: conosciuti.some(x => x) ? conosciuti : null,
+            slotConContatore: s.slotConContatore,
             caratteristica: (s.caratteristica || '').trim() || null,
             casterLevelSorgente: s.casterLevelSorgente || null,
             slotLivelloSorgente: s.slotLivelloSorgente || null,
@@ -507,6 +509,7 @@ const PROGRESSIONI = ['CUSTOM', 'MAGO', 'STREGONE', 'CHIERICO', 'DRUIDO', 'BARDO
 function addSezione() {
   form.sezioni.push({
     liste: [], progressione: 'CUSTOM', bonus: '', slot: [], conosciutiSeparati: false, conosciuti: [],
+    slotConContatore: false,
     caratteristica: '', casterLevelSorgente: 'NM', slotLivelloSorgente: 'NM',
   })
 }
@@ -862,6 +865,11 @@ const sumInfoRazza = computed(() => {
                 </div>
               </div>
             </div>
+
+            <label class="field checkbox-field">
+              <input type="checkbox" v-model="s.slotConContatore" :disabled="disabledAll"/>
+              <span class="lbl">Traccia gli slot per livello con Contatore</span>
+            </label>
           </div>
 
           <button type="button" class="btn outline" :disabled="disabledAll" @click="addSezione">+ Aggiungi sezione</button>

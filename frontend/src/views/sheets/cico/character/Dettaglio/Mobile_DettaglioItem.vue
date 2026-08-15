@@ -11,7 +11,7 @@ import {
   testoModificatoreConTipo,
   testoTaglia
 } from "../../../../../function/Utils";
-import {getItem, getNoteItem, switchItemState} from "../../../../../service/PersonaggioService";
+import {getItem, getNoteItem, setContatoreItem, switchItemState} from "../../../../../service/PersonaggioService";
 import {Nota} from "../../../../../models/dto/Quest";
 import {ItemDB, TIPO_ITEM} from "../../../../../models/entity/ItemDB";
 import {useCharacterStore} from "../../../../../stores/personaggio";
@@ -27,9 +27,9 @@ import {getItemLabel, getItemLabels, LABELS, thereIsValoreLabel} from "../../../
 import {coloreIncarico} from "../../../../../function/coloreIncarico";
 import {useHp} from "../../../../../function/useHp";
 import {getImmagini, ItemImmagine} from "../../../../../service/ImmagineService";
-import ImmagineAllegatoPopup from "../../../../../components/ImmagineAllegatoPopup.vue";
 
 const DaiOggettoPopup = defineAsyncComponent(() => import("../../../../../components/DaiOggettoPopup.vue"))
+const ImmagineAllegatoPopup = defineAsyncComponent(() => import("../../../../../components/ImmagineAllegatoPopup.vue"))
 
 const router = useRouter()
 const {openPopup} = usePopup()
@@ -54,6 +54,58 @@ const idPersonaggioCorrente = personaggio?.modificatori?.id;
 const hpApi = idPersonaggioCorrente ? useHp(idPersonaggioCorrente) : null;
 const barriera = computed(() =>
     hpApi?.barriere.value.find((b: any) => b.id === item.id) ?? null);
+
+// --- contatori item ($V_<nome>): mostrati/editabili quando l'item ha il flag globale
+// SHOW_$V_<nome>=1 (vedi ItemService.stampaLabelScopedPerPersonaggio per lo scoping per
+// personaggio già applicato dal backend su questi stessi label in itemDetail.labels).
+const contatoriMostrati = computed(() => {
+  const labels = itemDetail.value?.labels ?? []
+  return labels
+      .filter((l: any) => l.label?.startsWith('SHOW_$V_') && l.valore === '1')
+      .map((l: any) => {
+        const nome = l.label.substring('SHOW_$V_'.length)
+        const valLabel = labels.find((x: any) => x.label === '$V_' + nome)
+        const valore = valLabel ? (parseInt(valLabel.valore, 10) || 0) : 0
+        return {nome, valore}
+      })
+})
+
+const savingContatore = ref<Record<string, boolean>>({})
+
+async function salvaContatore(nome: string, nuovoValore: number) {
+  if (!idPersonaggioCorrente || savingContatore.value[nome]) return
+  savingContatore.value = {...savingContatore.value, [nome]: true}
+  try {
+    await setContatoreItem(item.id, idPersonaggioCorrente, nome, nuovoValore)
+    // aggiornamento ottimistico locale: il popup mostra subito il nuovo valore senza aspettare
+    // il refetch completo sotto
+    const labels = itemDetail.value?.labels
+    if (labels) {
+      const key = '$V_' + nome
+      const existing = labels.find((l: any) => l.label === key)
+      if (existing) existing.valore = String(nuovoValore)
+      else labels.push({id: -Date.now(), label: key, valore: String(nuovoValore)} as any)
+    }
+    // Un $V_ alimenta le formule di tutto il personaggio (attacchi, spellbook, ecc. — vedi
+    // ModificatoriService.costruisciVariabili): va trattato come uno switch abilita/disabilita
+    // (vedi switchState sopra), non come un semplice numero locale — serve un ricalcolo completo.
+    await characterStore.fetchCharacter(idPersonaggioCorrente, true)
+  } catch (e) {
+    console.error('Errore salvataggio contatore item:', e)
+  } finally {
+    savingContatore.value = {...savingContatore.value, [nome]: false}
+  }
+}
+
+function cambiaContatore(nome: string, valoreAttuale: number, delta: number) {
+  salvaContatore(nome, Math.max(0, valoreAttuale + delta))
+}
+
+function onInputContatore(nome: string, raw: string) {
+  const n = parseInt(raw, 10)
+  if (!Number.isFinite(n)) return
+  salvaContatore(nome, n)
+}
 
 
 const listaAbilita = ref<ItemDB[]>([]);
@@ -572,6 +624,20 @@ function toggleExpand(key: string) {
           <span>🖐</span>
           <span>Dai</span>
         </button>
+      </div>
+    </div>
+
+    <!-- Contatori item ($V_<nome>, es. $V_CARICHE): mostrati/editabili quando l'item ha il flag
+         globale SHOW_$V_<nome>=1 — valore/inserimento libero + stepper, scoped per personaggio. -->
+    <div v-for="c in contatoriMostrati" :key="c.nome" class="contatore-box">
+      <span class="titolo">{{ c.nome }}</span>
+      <div class="contatore-actions">
+        <button class="btn" :disabled="readonly || savingContatore[c.nome] || c.valore <= 0"
+                @click="cambiaContatore(c.nome, c.valore, -1)">−</button>
+        <input class="contatore-input" type="number" :value="c.valore" :disabled="readonly || savingContatore[c.nome]"
+               @change="onInputContatore(c.nome, ($event.target as HTMLInputElement).value)"/>
+        <button class="btn" :disabled="readonly || savingContatore[c.nome]"
+                @click="cambiaContatore(c.nome, c.valore, +1)">+</button>
       </div>
     </div>
 
@@ -1104,6 +1170,28 @@ function toggleExpand(key: string) {
 }
 .barr-actions .btn:disabled { opacity: .5; cursor: default; }
 .barr-actions .btn.danger { border-color: var(--danger-border); background: var(--danger-bg); color: var(--danger-text); }
+.contatore-box {
+  border: 1px solid var(--info-border);
+  background: var(--info-bg);
+  border-radius: .6rem;
+  padding: .5rem .6rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: .5rem;
+  margin: .5rem 0;
+}
+.contatore-box .titolo { font-weight: 700; }
+.contatore-actions { display: flex; align-items: center; gap: .35rem; }
+.contatore-actions .btn {
+  border: 1px solid var(--hairline); background: var(--surface-0); border-radius: .5rem;
+  padding: .35rem .65rem; cursor: pointer; font-weight: 600; font-size: .85rem;
+}
+.contatore-actions .btn:disabled { opacity: .5; cursor: default; }
+.contatore-input {
+  width: 4rem; text-align: center; border: 1px solid var(--hairline); border-radius: .5rem;
+  padding: .3rem; font-weight: 700; font-variant-numeric: tabular-nums;
+}
 .contenitore-box {
   border: 1px solid var(--hairline);
   border-radius: .6rem;
