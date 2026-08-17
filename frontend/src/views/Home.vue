@@ -2,6 +2,7 @@
 import {computed, onMounted, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {useAuthStore} from '../stores/auth'
+import {useMondoStore} from '../stores/mondo'
 import {getHome} from '../service/AuthService'
 import {Home} from '../models/dto/Auth'
 import {createParty, getMieiMondi, Mondo} from '../service/PartyService'
@@ -9,6 +10,7 @@ import SearchSelect from '../components/SearchSelect.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+const mondoStore = useMondoStore()
 
 const home = ref<Home | null>(null)
 const loading = ref(true)
@@ -52,14 +54,30 @@ const canCreateParty = computed(() => {
   return r === 'MASTER' || r === 'ADMIN'
 })
 
+// Filtro per il mondo selezionato nello switcher (UpperBar.vue): un utente associato a party di
+// mondi diversi vede in home solo quelli del mondo corrente — coerente con "master di un mondo
+// implica master di tutti i suoi party" (vedi backend), qui applicato anche in sola lettura per
+// i giocatori. mondoId assente/null (dato legacy o personaggio "libero" senza party) resta
+// sempre visibile, non essendoci un mondo su cui filtrarlo. Nessun filtro finché il mondo store
+// non ha ancora caricato "corrente" (mostra tutto invece di svuotare la home per un istante).
+function delMondoCorrente(mondoId: number | null | undefined): boolean {
+  return mondoStore.corrente == null || mondoId == null || mondoId === mondoStore.corrente
+}
+const partiesFiltrati = computed(() => (home.value?.parties ?? []).filter(p => delMondoCorrente(p.mondoId)))
+
 // I preferiti (VISUALIZZATORE marcato con la stellina in scheda) compaiono assieme ai propri,
 // non nella sezione "visualizzabili": è esattamente lo scopo della stellina.
 const personaggiProprietario = computed(() =>
-    home.value?.personaggi.filter(p => p.permesso === 'PROPRIETARIO' || p.preferito) ?? [])
+    (home.value?.personaggi ?? [])
+        .filter(p => p.permesso === 'PROPRIETARIO' || p.preferito)
+        .filter(p => delMondoCorrente(p.mondoId)))
 const personaggiVisualizzatore = computed(() =>
-    home.value?.personaggi.filter(p => p.permesso === 'VISUALIZZATORE' && !p.preferito) ?? [])
+    (home.value?.personaggi ?? [])
+        .filter(p => p.permesso === 'VISUALIZZATORE' && !p.preferito)
+        .filter(p => delMondoCorrente(p.mondoId)))
 
 onMounted(async () => {
+  mondoStore.carica() // idempotente; non blocca il caricamento della home, il filtro si applica reattivamente
   try {
     const res = await getHome()
     home.value = res.data
@@ -110,10 +128,10 @@ function apriScheda(p: {id: number; tipoPersonaggio?: string | null}) {
       </section>
 
       <!-- Party -->
-      <section v-if="home.parties.length" class="block">
+      <section v-if="partiesFiltrati.length" class="block">
         <h2>I tuoi party</h2>
         <ul class="cards">
-          <li v-for="p in home.parties" :key="p.id">
+          <li v-for="p in partiesFiltrati" :key="p.id">
             <button class="card clickable" @click="router.push(`/party/${p.id}`)">
               <span class="nome">{{ p.nome }}</span>
               <span class="pill" :class="p.ruolo === 'MASTER' ? 'master' : 'giocatore'">
@@ -151,8 +169,8 @@ function apriScheda(p: {id: number; tipoPersonaggio?: string | null}) {
         </ul>
       </section>
 
-      <div v-if="!home.parties.length && !home.personaggi.length" class="state">
-        Nessun party o personaggio associato al tuo utente.
+      <div v-if="!partiesFiltrati.length && !personaggiProprietario.length && !personaggiVisualizzatore.length" class="state">
+        Nessun party o personaggio associato al tuo utente{{ mondoStore.mostraSwitcher ? ' in questo mondo' : '' }}.
       </div>
     </template>
   </div>

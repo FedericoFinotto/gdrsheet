@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref, watch} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
 import {ItemDB} from '../../../../../../../models/entity/ItemDB'
 import {Stat} from '../../../../../../../models/entity/Stat'
-import {Item} from '../../../../../../../models/dto/Item'
 import api from '../../../../../../../service/api'
-import {getItem, getStats, searchItems, updateItem} from '../../../../../../../service/PersonaggioService'
+import {getStats} from '../../../../../../../service/PersonaggioService'
 import HtmlEditor from '../../../../../../../components/HtmlEditor.vue'
 import Icona from '../../../../../../../components/Icona/Icona.vue'
-import {SPELL_LIST_CODES, spellListLabel} from '../../../../../../../function/spellLists'
 import SearchSelect from '../../../../../../../components/SearchSelect.vue'
 import {useMondoSistema} from '../../../../../../../function/useMondoSistema'
-import {LABELS} from '../../../../../../../models/entity/ItemLabel'
+import {getConfigMondo, getTipoItemConfig} from '../../../../../../../service/MondoAdminService'
 import {LabelRow} from '../../../../../../../models/dto/UpdateItemRequest'
-import {TAGLIE_OPTIONS_NOME} from '../../../../../../../function/Utils'
+import CardInfoRazza from '../Classe/CardInfoRazza.vue'
+import CardAbilitaClasse from '../Classe/CardAbilitaClasse.vue'
+import CardIncantesimiClasse from '../Classe/CardIncantesimiClasse.vue'
+import CardTabellaLivelli from '../Classe/CardTabellaLivelli.vue'
+import CardPrivilegiClasse from '../Classe/CardPrivilegiClasse.vue'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
 const emit = defineEmits<{
@@ -22,14 +23,7 @@ const emit = defineEmits<{
   (e: 'savedResta', item: { id: number }): void
 }>()
 
-const router = useRouter()
-const route = useRoute()
 const {mondoOptions, sistemaOptions, autoMondo, autoSistema} = useMondoSistema()
-
-function editConcessa(itemId: number) {
-  const idPg = route.query.personaggio
-  router.push(`/itemeditor/${itemId}` + (idPg ? `?personaggio=${idPg}` : ''))
-}
 
 interface LivelloClasse {
   livello: number
@@ -99,8 +93,35 @@ watch([autoMondo, autoSistema], ([m, s]) => {
   if (s !== null && form.idSistema === null) form.idSistema = s
 }, {immediate: true})
 
+// Liste/domini incantesimi abilitati per il mondo scelto (vedi MondoListaIncantesimiAbilitata
+// lato backend): null finché non risolto o in caso di errore = nessuna restrizione, per non far
+// sparire di colpo la tendina se la chiamata fallisce o il mondo non è ancora impostato.
+const listeAbilitateMondo = ref<Set<string> | null>(null)
+watch(() => form.idMondo, async (idMondo) => {
+  if (!idMondo) { listeAbilitateMondo.value = null; return }
+  try {
+    const {data} = await getConfigMondo(idMondo)
+    listeAbilitateMondo.value = new Set(data.listeIncantesimiAbilitate.map(l => l.codice))
+  } catch (e) {
+    console.error('Errore caricamento configurazione mondo:', e)
+    listeAbilitateMondo.value = null
+  }
+}, {immediate: true})
+
+// Card strutturali abilitate per (mondo, tipo item): vedi MondoTipoItemCardAbilitata lato backend.
+const cards = ref<Set<string>>(new Set())
+watch(() => form.idMondo, async (idMondo) => {
+  if (!idMondo) { cards.value = new Set(); return }
+  try {
+    const {data} = await getTipoItemConfig(idMondo, props.item.tipo)
+    cards.value = new Set(data.cardAbilitate)
+  } catch (e) {
+    console.error('Errore caricamento configurazione card:', e)
+    cards.value = new Set()
+  }
+}, {immediate: true})
+
 const isRazza = computed(() => props.item.tipo === 'RAZZA')
-const TAGLIE_RAZZA = [{value: '', label: '— nessuna —'}, ...TAGLIE_OPTIONS_NOME]
 
 const loading = ref(props.mode !== 'create')
 const busy = ref(false)
@@ -114,13 +135,9 @@ function ensureLivelli(n: number) {
     form.livelli.push({livello: i + 1, bab: '', tmp: '', rfl: '', vlt: '', spSlot: ''})
   }
 }
-function clampNumLivelli() {
-  const n = Math.max(1, Math.min(100, Math.floor(Number(form.numLivelli) || 20)))
-  form.numLivelli = n
-  ensureLivelli(n)
-}
-watch(() => form.numLivelli, clampNumLivelli)
-const livelliVisibili = computed<LivelloClasse[]>(() => form.livelli.slice(0, form.numLivelli))
+// righe compilate della tabella livelli, per il riepilogo del fold (vedi CardTabellaLivelli
+// per la gestione interattiva della tabella stessa)
+const livelliCompilati = computed(() => form.livelli.slice(0, form.numLivelli).filter(l => l.bab).length)
 
 /* ---- caricamento ---- */
 onMounted(async () => {
@@ -191,7 +208,6 @@ onMounted(async () => {
 
 /* ---- abilità di classe (multi-selezione dalle stat) ---- */
 const stats = ref<Stat[]>([])
-const filtroAbilita = ref('')
 // id abilità marcate come "abilità personaggio" (serializzate con "!"):
 // valgono anche nei livelli che non usano questa classe
 const abPersonaggio = ref<Set<string>>(new Set())
@@ -208,186 +224,6 @@ async function loadStats() {
     console.error('Errore caricamento stats:', e)
   }
 }
-
-// placeholder "famiglia intera" (Tutte le Abilità/Conoscenze/Intrattenere/Artigianato): non sono
-// abilità vere e proprie, non vanno mai mostrate/selezionate nella lista singola — solo tramite
-// i toggle dedicati qui sotto. Restano scelte come bersaglio di modificatori (altrove).
-const FAMIGLIA_PLACEHOLDER: { id: string; label: string }[] = [
-  {id: 'AB00', label: 'Tutte le Abilità'},
-  {id: 'CO00', label: 'Tutte le Conoscenze'},
-  {id: 'IN00', label: 'Tutti gli Intrattenere'},
-  {id: 'AR00', label: 'Tutti gli Artigianati'},
-]
-const FAMIGLIA_PLACEHOLDER_IDS = new Set(FAMIGLIA_PLACEHOLDER.map(f => f.id))
-
-const abilitaDisponibili = computed(() =>
-    stats.value
-        .filter(s => s.tipo === 'AB')
-        .filter(s => !FAMIGLIA_PLACEHOLDER_IDS.has(s.id))
-        .filter(s => !filtroAbilita.value.trim()
-            || s.label.toLowerCase().includes(filtroAbilita.value.trim().toLowerCase()))
-)
-
-function isSelected(id: string): boolean {
-  return form.abilitaClasse.includes(id)
-}
-
-function isPersonaggio(id: string): boolean {
-  return abPersonaggio.value.has(id)
-}
-
-function isEsclusaCap(id: string): boolean {
-  return abEsclusaCap.value.has(id)
-}
-
-function toggleAbilita(id: string) {
-  const i = form.abilitaClasse.indexOf(id)
-  if (i >= 0) {
-    form.abilitaClasse.splice(i, 1)
-    abPersonaggio.value.delete(id) // deselezionando, perde anche i flag PG ed esclusione cap
-    abEsclusaCap.value.delete(id)
-  } else {
-    form.abilitaClasse.push(id)
-  }
-}
-
-function togglePersonaggio(id: string) {
-  if (!isSelected(id)) return
-  if (abPersonaggio.value.has(id)) abPersonaggio.value.delete(id)
-  else abPersonaggio.value.add(id)
-}
-
-function toggleEsclusaCap(id: string) {
-  if (!isSelected(id)) return
-  if (abEsclusaCap.value.has(id)) abEsclusaCap.value.delete(id)
-  else abEsclusaCap.value.add(id)
-}
-
-function statLabel(id: string): string {
-  return stats.value.find(s => s.id === id)?.label ?? id
-}
-
-/* ---- generatori progressioni standard ---- */
-const gen = reactive({
-  bab: 'MEDIO' as 'ALTO' | 'MEDIO' | 'BASSO',
-  tmp: 'BUONO' as 'BUONO' | 'SCARSO',
-  rfl: 'SCARSO' as 'BUONO' | 'SCARSO',
-  vlt: 'BUONO' as 'BUONO' | 'SCARSO',
-})
-
-function babPer(l: number): number {
-  if (gen.bab === 'ALTO') return l
-  if (gen.bab === 'MEDIO') return Math.floor(l * 3 / 4)
-  return Math.floor(l / 2)
-}
-
-function tsPer(l: number, tipo: 'BUONO' | 'SCARSO'): number {
-  return tipo === 'BUONO' ? 2 + Math.floor(l / 2) : Math.floor(l / 3)
-}
-
-function generaTabella() {
-  for (const row of livelliVisibili.value) {
-    const l = row.livello
-    row.bab = `+${babPer(l)}`
-    row.tmp = `+${tsPer(l, gen.tmp)}`
-    row.rfl = `+${tsPer(l, gen.rfl)}`
-    row.vlt = `+${tsPer(l, gen.vlt)}`
-  }
-}
-
-/* ---- abilità concesse ---- */
-const queryConcessa = ref('')
-const livelloConcessa = ref(1)
-const risultatiConcessa = ref<Item[]>([])
-const searching = ref(false)
-let searchToken = 0
-let debounceTimer: any = null
-
-function onQueryConcessa() {
-  if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(async () => {
-    const q = queryConcessa.value.trim()
-    if (q.length < 2) {
-      risultatiConcessa.value = []
-      return
-    }
-    const token = ++searchToken
-    searching.value = true
-    try {
-      const res = await searchItems(q)
-      if (token !== searchToken) return
-      risultatiConcessa.value = (res.data ?? []).filter(r =>
-          !['ATTACCO', 'AVANZAMENTO', 'CLASSE', 'LIVELLO'].includes(r.tipo))
-    } catch (e) {
-      console.error('Errore ricerca:', e)
-    } finally {
-      if (token === searchToken) searching.value = false
-    }
-  }, 250)
-}
-
-function aggiungiConcessa(itm: Item) {
-  const l = Math.min(20, Math.max(1, Math.floor(Number(livelloConcessa.value) || 1)))
-  if (form.abilitaConcesse.some(a => a.itemId === itm.id && a.livello === l)) return
-  form.abilitaConcesse.push({livello: l, itemId: itm.id, nome: itm.nome, tipo: itm.tipo})
-  form.abilitaConcesse.sort((a, b) => a.livello - b.livello || a.nome.localeCompare(b.nome))
-  risultatiConcessa.value = []
-  queryConcessa.value = ''
-}
-
-// Privilegio "nuovo": creato come PRIVILEGIO al salvataggio della classe
-function aggiungiNuovo() {
-  const nome = queryConcessa.value.trim()
-  if (!nome) return
-  const l = Math.min(20, Math.max(1, Math.floor(Number(livelloConcessa.value) || 1)))
-  form.abilitaConcesse.push({livello: l, itemId: null, nome, tipo: 'PRIVILEGIO', nuovo: true})
-  form.abilitaConcesse.sort((a, b) => a.livello - b.livello || a.nome.localeCompare(b.nome))
-  risultatiConcessa.value = []
-  queryConcessa.value = ''
-}
-
-// mostra l'opzione "NEW" se c'è testo e nessun risultato ha esattamente quel nome
-const mostraNuovo = computed(() => {
-  const q = queryConcessa.value.trim().toLowerCase()
-  if (q.length < 2) return false
-  return !risultatiConcessa.value.some(r => (r.nome ?? '').toLowerCase() === q)
-})
-
-function rimuoviConcessa(i: number) {
-  form.abilitaConcesse.splice(i, 1)
-}
-
-/* ---- Privilegi di Classe: modalità avanzata (livello + descrizione + descrittori) ---- */
-const modalitaAvanzata = ref(false)
-const DESCR_LABELS: string[] = [
-  LABELS.DESCR_STRAORDINARIA, LABELS.DESCR_MAGICA, LABELS.DESCR_SOPRANNATURALE, LABELS.DESCR_NATURALE,
-  LABELS.GRUPPO_PRIVILEGI,
-]
-
-async function caricaDettagliAvanzati(a: AbilitaConcessa) {
-  if (!a.itemId || a.caricato) return
-  try {
-    const it = (await getItem(a.itemId)).data
-    a.descrizione = it.descrizione ?? ''
-    const val = (label: string) => it.labels?.find(l => l.label === label)?.valore
-    a.straordinaria = val(LABELS.DESCR_STRAORDINARIA) === '1'
-    a.magica = val(LABELS.DESCR_MAGICA) === '1'
-    a.soprannaturale = val(LABELS.DESCR_SOPRANNATURALE) === '1'
-    a.naturale = val(LABELS.DESCR_NATURALE) === '1'
-    a.gruppoPrivilegi = val(LABELS.GRUPPO_PRIVILEGI) ?? ''
-    a.altreLabels = (it.labels ?? [])
-        .filter(l => l.label && !DESCR_LABELS.includes(l.label))
-        .map(l => ({label: l.label!, valore: l.valore ?? ''}))
-    a.caricato = true
-  } catch (e) {
-    console.error('Errore caricamento dettagli privilegio:', e)
-  }
-}
-
-watch(modalitaAvanzata, (attiva) => {
-  if (!attiva) return
-  for (const a of form.abilitaConcesse) caricaDettagliAvanzati(a)
-})
 
 /* ---- salvataggio ---- */
 function buildClassePayload() {
@@ -479,127 +315,21 @@ async function onSalvaResta() {
   timerSalvato = setTimeout(() => salvato.value = false, 2000)
 }
 
-// Salvataggio della singola riga "Privilegi di Classe" in modalità avanzata: persiste
-// descrizione/descrittori sull'item collegato e il livello (che vive solo nel collegamento
-// avanzamento classe->item) tramite lo stesso endpoint di salvataggio della classe, ma SENZA
-// emettere 'saved' — l'editor resta aperto, a differenza del bottone "Salva classe".
-async function salvaRigaAvanzata(a: AbilitaConcessa) {
-  if (!a.itemId || a.salvandoRiga) return
-  a.salvandoRiga = true
+// Persistenza usata dalla card "Privilegi di Classe" per il bottone "Salva riga" in modalità
+// avanzata: la card aggiorna prima l'item collegato, poi richiama questa per ripersistere la
+// classe (senza emettere 'saved' — l'editor resta aperto, a differenza del bottone "Salva classe").
+async function persistiClasseInline(): Promise<void> {
   errorMsg.value = null
   try {
-    const labels: LabelRow[] = [...(a.altreLabels ?? [])]
-    if (a.straordinaria) labels.push({label: LABELS.DESCR_STRAORDINARIA, valore: '1'})
-    if (a.magica) labels.push({label: LABELS.DESCR_MAGICA, valore: '1'})
-    if (a.soprannaturale) labels.push({label: LABELS.DESCR_SOPRANNATURALE, valore: '1'})
-    if (a.naturale) labels.push({label: LABELS.DESCR_NATURALE, valore: '1'})
-    if (a.gruppoPrivilegi?.trim()) labels.push({label: LABELS.GRUPPO_PRIVILEGI, valore: a.gruppoPrivilegi.trim()})
-    await updateItem(a.itemId, {descrizione: a.descrizione ?? '', labels})
     await api.post('/item/classe', buildClassePayload())
-  } catch (e: any) {
+  } catch (e) {
     errorMsg.value = 'Errore nel salvataggio del privilegio'
     console.error('Errore salvataggio riga privilegio:', e)
-  } finally {
-    a.salvandoRiga = false
+    throw e
   }
 }
 
-const PROGRESSIONI = ['CUSTOM', 'MAGO', 'STREGONE', 'CHIERICO', 'DRUIDO', 'BARDO', 'RANGER', 'PALADINO']
-
-function addSezione() {
-  form.sezioni.push({
-    liste: [], progressione: 'CUSTOM', bonus: '', slot: [], conosciutiSeparati: false, conosciuti: [],
-    slotConContatore: false,
-    caratteristica: '', casterLevelSorgente: 'NM', slotLivelloSorgente: 'NM',
-  })
-}
-
-const OPZIONI_CASTER_LEVEL = [
-  {value: 'NM', label: 'Caster Level Non Maledetto'},
-  {value: 'TOT', label: 'Caster Level Totale'},
-]
-const OPZIONI_LIVELLO_SLOT = [
-  {value: 'MNM', label: 'Livello Massimo Non Maledetto'},
-  {value: 'NM', label: 'Livello Totale Non Maledetto'},
-  {value: 'TOT', label: 'Livello Totale'},
-]
-function removeSezione(i: number) {
-  form.sezioni.splice(i, 1)
-}
-function addLista(s: { liste: string[] }, code: string) {
-  if (code && !s.liste.includes(code)) s.liste.push(code)
-}
-function removeLista(s: { liste: string[] }, code: string) {
-  const i = s.liste.indexOf(code)
-  if (i >= 0) s.liste.splice(i, 1)
-}
-// liste non ancora selezionate (per la tendina "aggiungi")
-function listeDisponibili(s: { liste: string[] }): string[] {
-  return SPELL_LIST_CODES.filter(c => !s.liste.includes(c))
-}
-// codice libero (non nel catalogo SPELL_LIST_CODES), indicizzato per sezione
-const customListaCode = reactive<string[]>([])
-function confirmCustomLista(s: { liste: string[] }, i: number) {
-  const code = (customListaCode[i] ?? '').trim().toUpperCase()
-  if (!code) return
-  addLista(s, code)
-  customListaCode[i] = ''
-}
-// assicura la riga slot per il livello di classe (1-based)
-function slotDi(s: { slot: string[] }, livello: number): string {
-  return s.slot[livello - 1] ?? ''
-}
-function setSlot(s: { slot: string[] }, livello: number, val: string) {
-  while (s.slot.length < livello) s.slot.push('')
-  s.slot[livello - 1] = val
-}
-// riga incantesimi conosciuti (opzionale, indipendente dalla progressione slot)
-function conosciutiDi(s: { conosciuti: string[] }, livello: number): string {
-  return s.conosciuti[livello - 1] ?? ''
-}
-function setConosciuti(s: { conosciuti: string[] }, livello: number, val: string) {
-  while (s.conosciuti.length < livello) s.conosciuti.push('')
-  s.conosciuti[livello - 1] = val
-}
-
 const incantatore = computed(() => form.sezioni.some(s => s.liste.length > 0))
-// abilità di classe: tutte le stat di tipo AB
-function tutteAbIds(): string[] {
-  return stats.value
-      .filter(s => s.tipo === 'AB')
-      .filter(s => !FAMIGLIA_PLACEHOLDER_IDS.has(s.id))
-      .map(s => s.id)
-}
-function selezionaTutteAbilita() {
-  form.abilitaClasse = tutteAbIds()
-}
-// seleziona tutte e marca anche PG su tutte (long-press su "Tutte")
-function selezionaTuttePg() {
-  const ids = tutteAbIds()
-  form.abilitaClasse = ids
-  abPersonaggio.value = new Set(ids)
-}
-function deselezionaTutteAbilita() {
-  form.abilitaClasse = []
-  abPersonaggio.value = new Set()
-  abEsclusaCap.value = new Set()
-}
-
-// long-press sul pulsante "Tutte": click = solo abilità, hold = anche PG
-let lpTimer: any = null
-let lpFired = false
-function lpStart() {
-  if (disabledAll.value) return
-  lpFired = false
-  lpTimer = setTimeout(() => { lpFired = true; selezionaTuttePg() }, 550)
-}
-function lpEnd() {
-  if (lpTimer) { clearTimeout(lpTimer); lpTimer = null }
-}
-function lpClick() {
-  if (lpFired) { lpFired = false; return } // il hold ha già agito
-  selezionaTutteAbilita()
-}
 
 /* sezioni richiudibili */
 const open = reactive({abilita: false, incantesimi: false, tabella: false, concesse: false, infoRazza: false})
@@ -655,401 +385,75 @@ const sumInfoRazza = computed(() => {
       </label>
 
       <!-- Info Razza (solo tipo RAZZA): campi puramente descrittivi -->
-      <section v-if="isRazza" class="fold">
+      <section v-if="isRazza && cards.has('CLASSE_INFO_RAZZA')" class="fold">
         <button type="button" class="fold-head" @click="open.infoRazza = !open.infoRazza">
           <span class="fold-title">Info Razza</span>
           <span class="fold-summary">{{ sumInfoRazza }}</span>
           <span class="chev" :class="{ open: open.infoRazza }">▸</span>
         </button>
         <div v-show="open.infoRazza" class="fold-body">
-          <div class="rank-grid">
-            <label class="field">
-              <span class="lbl">Taglia</span>
-              <SearchSelect v-model="form.razzaTaglia" :options="TAGLIE_RAZZA" :disabled="disabledAll" :sort="false"/>
-            </label>
-            <label class="field">
-              <span class="lbl">Velocità</span>
-              <input v-model.trim="form.razzaVelocita" type="text" placeholder="Es.: 9 m" :disabled="disabledAll"/>
-            </label>
-          </div>
-          <label class="field">
-            <span class="lbl">Caratteristiche</span>
-            <input v-model.trim="form.razzaCaratteristiche" type="text" placeholder="Es.: +2 Destrezza, -2 Forza" :disabled="disabledAll"/>
-          </label>
-          <div class="rank-grid">
-            <label class="field">
-              <span class="lbl">LAP (Level Adjustment)</span>
-              <input v-model.trim="form.razzaLap" type="text" placeholder="Es.: +0" :disabled="disabledAll"/>
-            </label>
-            <label class="field">
-              <span class="lbl">Spazio</span>
-              <input v-model.trim="form.razzaSpazio" type="text" placeholder="Es.: 1,5 m" :disabled="disabledAll"/>
-            </label>
-          </div>
-          <label class="field">
-            <span class="lbl">Portata</span>
-            <input v-model.trim="form.razzaPortata" type="text" placeholder="Es.: 1,5 m" :disabled="disabledAll"/>
-          </label>
+          <CardInfoRazza
+              v-model:taglia="form.razzaTaglia" v-model:velocita="form.razzaVelocita"
+              v-model:caratteristiche="form.razzaCaratteristiche" v-model:lap="form.razzaLap"
+              v-model:spazio="form.razzaSpazio" v-model:portata="form.razzaPortata"
+              :disabled="disabledAll"/>
         </div>
       </section>
 
       <!-- Abilità di classe -->
-      <section class="fold">
+      <section v-if="cards.has('CLASSE_ABILITA')" class="fold">
         <button type="button" class="fold-head" @click="open.abilita = !open.abilita">
           <span class="fold-title">Abilità di classe</span>
           <span class="fold-summary">{{ form.abilitaClasse.length }} selezionate</span>
           <span class="chev" :class="{ open: open.abilita }">▸</span>
         </button>
         <div v-show="open.abilita" class="fold-body">
-          <!-- Gradi (abilità): formule a livello di classe -->
-          <div class="rank-grid">
-            <label class="field">
-              <span class="lbl">Gradi al 1° livello del personaggio (RANK_1)</span>
-              <input v-model.trim="form.rank1" type="text" placeholder="Es.: 4*(@INT+4)" :disabled="disabledAll"/>
-            </label>
-            <label class="field">
-              <span class="lbl">Gradi agli altri livelli (RANK)</span>
-              <input v-model.trim="form.rank" type="text" placeholder="Es.: (@INT+4)" :disabled="disabledAll"/>
-            </label>
-          </div>
-
-          <div class="ab-list ab-famiglie">
-            <div v-for="f in FAMIGLIA_PLACEHOLDER" :key="f.id" class="ab-riga" :class="{ sel: isSelected(f.id) }">
-              <button type="button" class="ab-toggle" :disabled="disabledAll" @click="toggleAbilita(f.id)">
-                <span class="dot">{{ isSelected(f.id) ? '●' : '○' }}</span>
-                <span class="ab-nome">{{ f.label }}</span>
-              </button>
-              <button v-if="isSelected(f.id)" type="button" class="ab-pg" :class="{ on: isPersonaggio(f.id) }"
-                      :disabled="disabledAll" @click="togglePersonaggio(f.id)"
-                      title="Abilità personaggio: vale anche nei livelli di altre classi">
-                PG
-              </button>
-              <button v-if="isSelected(f.id)" type="button" class="ab-cap" :class="{ on: isEsclusaCap(f.id) }"
-                      :disabled="disabledAll" @click="toggleEsclusaCap(f.id)"
-                      title="Esclusa dal limite gradi: resta spendibile ma non alza il limite massimo (come cross-class), a meno che non sia di classe anche per un altro motivo">
-                ?
-              </button>
-            </div>
-          </div>
-
-          <div class="ab-tools">
-            <input v-model="filtroAbilita" type="text" placeholder="Filtra abilità…" :disabled="disabledAll" class="grow"/>
-            <button type="button" class="btn outline sm" :disabled="disabledAll"
-                    title="Click: tutte. Tieni premuto: tutte + PG"
-                    @click="lpClick"
-                    @mousedown="lpStart" @mouseup="lpEnd" @mouseleave="lpEnd"
-                    @touchstart.passive="lpStart" @touchend="lpEnd" @touchcancel="lpEnd">Tutte</button>
-            <button type="button" class="btn outline sm" :disabled="disabledAll" @click="deselezionaTutteAbilita">Nessuna</button>
-          </div>
-          <p class="muted hint-pg">
-            <strong>PG</strong> = abilità personaggio: vale anche nei livelli che non usano questa classe.
-            <strong>?</strong> = esclusa dal limite gradi: resta spendibile ma non alza il limite massimo
-            (come cross-class), a meno che non sia di classe anche per un altro motivo.
-          </p>
-          <div class="ab-list">
-            <div v-for="s in abilitaDisponibili" :key="s.id" class="ab-riga" :class="{ sel: isSelected(s.id) }">
-              <button type="button" class="ab-toggle" :disabled="disabledAll" @click="toggleAbilita(s.id)">
-                <span class="dot">{{ isSelected(s.id) ? '●' : '○' }}</span>
-                <span class="ab-nome">{{ s.label }}</span>
-              </button>
-              <button v-if="isSelected(s.id)" type="button" class="ab-pg" :class="{ on: isPersonaggio(s.id) }"
-                      :disabled="disabledAll" @click="togglePersonaggio(s.id)"
-                      title="Abilità personaggio: vale anche nei livelli di altre classi">
-                PG
-              </button>
-              <button v-if="isSelected(s.id)" type="button" class="ab-cap" :class="{ on: isEsclusaCap(s.id) }"
-                      :disabled="disabledAll" @click="toggleEsclusaCap(s.id)"
-                      title="Esclusa dal limite gradi: resta spendibile ma non alza il limite massimo (come cross-class), a meno che non sia di classe anche per un altro motivo">
-                ?
-              </button>
-            </div>
-          </div>
+          <CardAbilitaClasse
+              v-model:rank1="form.rank1" v-model:rank="form.rank"
+              :abilita-classe="form.abilitaClasse" :ab-personaggio="abPersonaggio" :ab-esclusa-cap="abEsclusaCap"
+              :stats="stats" :disabled="disabledAll"/>
         </div>
       </section>
 
       <!-- Incantesimi: sezioni incantatore -->
-      <section class="fold">
+      <section v-if="cards.has('CLASSE_INCANTESIMI')" class="fold">
         <button type="button" class="fold-head" @click="open.incantesimi = !open.incantesimi">
           <span class="fold-title">Incantesimi</span>
           <span class="fold-summary">{{ incantatore ? `${form.sezioni.length} sezioni` : 'non incantatore' }}</span>
           <span class="chev" :class="{ open: open.incantesimi }">▸</span>
         </button>
         <div v-show="open.incantesimi" class="fold-body">
-          <p class="muted">
-            Ogni <strong>sezione</strong> ha una o più liste (sempre unite) e una progressione di slot.
-            Per tenere liste separate, crea più sezioni.
-          </p>
-
-          <div v-for="(s, i) in form.sezioni" :key="i" class="sez-card">
-            <div class="sez-head">
-              <span class="sez-title">Sezione {{ i + 1 }}</span>
-              <button type="button" class="btn-del" :disabled="disabledAll" @click="removeSezione(i)" title="Rimuovi">✕</button>
-            </div>
-
-            <div class="field">
-              <span class="lbl">Liste incantesimi (unite in questa sezione)</span>
-              <div v-if="s.liste.length" class="chips">
-                <span v-for="code in s.liste" :key="code" class="chip">
-                  {{ spellListLabel(code) }}
-                  <button type="button" class="chip-x" :disabled="disabledAll" @click="removeLista(s, code)">✕</button>
-                </span>
-              </div>
-              <SearchSelect :model-value="''" :disabled="disabledAll" placeholder="+ Aggiungi lista…"
-                            :options="listeDisponibili(s).map(c => ({value: c, label: `${spellListLabel(c)} (${c})`}))"
-                            @update:model-value="addLista(s, $event as string)"/>
-              <div class="custom-lista-row">
-                <input v-model.trim="customListaCode[i]" type="text" placeholder="Codice personalizzato, es. SP_MIA_LISTA"
-                       :disabled="disabledAll" @keydown.enter.prevent="confirmCustomLista(s, i)"/>
-                <button type="button" class="btn ghost" :disabled="disabledAll || !customListaCode[i]?.trim()"
-                        @click="confirmCustomLista(s, i)">Aggiungi</button>
-              </div>
-            </div>
-
-            <div class="rank-grid">
-              <label class="field">
-                <span class="lbl">Progressione</span>
-                <SearchSelect v-model="s.progressione" :disabled="disabledAll"
-                              :options="PROGRESSIONI" :sort="false"/>
-              </label>
-              <label class="field">
-                <span class="lbl">Formula slot bonus</span>
-                <input v-model.trim="s.bonus" type="text" placeholder="Es.: 1+(@SAG-#L)/4)" :disabled="disabledAll"/>
-              </label>
-              <label class="field">
-                <span class="lbl">Caratteristica (per la CD: 10 + CL + modificatore)</span>
-                <SearchSelect v-model="s.caratteristica" :disabled="disabledAll"
-                              :options="[{value: '', label: '— nessuna —'}, ...stats.filter(x => x.tipo === 'CAR').map(x => ({value: x.id, label: x.label}))]"
-                              :sort="false"/>
-              </label>
-              <label class="field">
-                <span class="lbl">Livello usato per il CL</span>
-                <SearchSelect v-model="s.casterLevelSorgente" :disabled="disabledAll"
-                              :options="OPZIONI_CASTER_LEVEL" :sort="false"/>
-              </label>
-              <label class="field">
-                <span class="lbl">Livello usato per pescare gli slot</span>
-                <SearchSelect v-model="s.slotLivelloSorgente" :disabled="disabledAll"
-                              :options="OPZIONI_LIVELLO_SLOT" :sort="false"/>
-              </label>
-            </div>
-
-            <div v-if="(s.progressione || 'CUSTOM') === 'CUSTOM'" class="field">
-              <span class="lbl">
-                Slot per livello (CUSTOM) — formato "4,2,1,-,…" dal liv. 0 al 9.
-                Usa <strong>-</strong> (o lascia vuoto) per "nessun accesso" (—), e <strong>0</strong>
-                per "accesso ma 0 slot base" (es. slot bonus da caratteristica alta).
-              </span>
-              <div class="slot-list">
-                <div v-for="l in form.numLivelli" :key="l" class="slot-row">
-                  <span class="slot-liv">{{ l }}</span>
-                  <input type="text" :value="slotDi(s, l)" placeholder="4,2,1,0,0,0,0,0,0,0"
-                         :disabled="disabledAll" @input="setSlot(s, l, ($event.target as HTMLInputElement).value)"/>
-                </div>
-              </div>
-            </div>
-
-            <label class="field checkbox-field">
-              <input type="checkbox" v-model="s.conosciutiSeparati" :disabled="disabledAll"/>
-              <span class="lbl">Traccia incantesimi conosciuti separatamente dagli slot</span>
-            </label>
-            <div v-if="s.conosciutiSeparati" class="field">
-              <span class="lbl">
-                Incantesimi conosciuti per livello — stesso formato degli slot ("-" = nessun accesso).
-                Nessun bonus da formula: il bonus da caratteristica si applica solo agli slot.
-              </span>
-              <div class="slot-list">
-                <div v-for="l in form.numLivelli" :key="l" class="slot-row">
-                  <span class="slot-liv">{{ l }}</span>
-                  <input type="text" :value="conosciutiDi(s, l)" placeholder="4,2,1,-,-,-,-,-,-,-"
-                         :disabled="disabledAll" @input="setConosciuti(s, l, ($event.target as HTMLInputElement).value)"/>
-                </div>
-              </div>
-            </div>
-
-            <label class="field checkbox-field">
-              <input type="checkbox" v-model="s.slotConContatore" :disabled="disabledAll"/>
-              <span class="lbl">Traccia gli slot per livello con Contatore</span>
-            </label>
-          </div>
-
-          <button type="button" class="btn outline" :disabled="disabledAll" @click="addSezione">+ Aggiungi sezione</button>
+          <CardIncantesimiClasse
+              :sezioni="form.sezioni" :num-livelli="form.numLivelli" :stats="stats"
+              :liste-abilitate-mondo="listeAbilitateMondo" :disabled="disabledAll"/>
         </div>
       </section>
 
       <!-- Generatore + tabella livelli -->
-      <section class="fold">
+      <section v-if="cards.has('CLASSE_TABELLA_LIVELLI')" class="fold">
         <button type="button" class="fold-head" @click="open.tabella = !open.tabella">
           <span class="fold-title">Tabella livelli</span>
-          <span class="fold-summary">{{ livelliVisibili.filter(l => l.bab).length }}/{{ form.numLivelli }} compilati</span>
+          <span class="fold-summary">{{ livelliCompilati }}/{{ form.numLivelli }} compilati</span>
           <span class="chev" :class="{ open: open.tabella }">▸</span>
         </button>
         <div v-show="open.tabella" class="fold-body">
-          <div class="rank-grid">
-            <label class="field">
-              <span class="lbl">Livelli classe</span>
-              <input v-model.number="form.numLivelli" type="number" min="1" max="100" :disabled="disabledAll"/>
-              <span class="muted">Quanti livelli ha la classe (default 20).</span>
-            </label>
-            <label class="field">
-              <span class="lbl">Dadi vita</span>
-              <input v-model.trim="form.dv" type="text" placeholder="Es.: 2d10 — vuoto = nessuno" :disabled="disabledAll"/>
-              <span class="muted">Impostato a ogni livello preso in questa classe. Vuoto = la classe non dà dadi vita.</span>
-            </label>
-          </div>
-
-          <!-- generatore -->
-          <div class="gen">
-            <div class="gen-grid">
-              <label class="field">
-                <span class="lbl">BAB</span>
-                <SearchSelect v-model="gen.bab" :disabled="disabledAll" :sort="false"
-                              :options="[{value:'ALTO',label:'Alto (guerriero)'},{value:'MEDIO',label:'Medio (chierico)'},{value:'BASSO',label:'Basso (mago)'}]"/>
-              </label>
-              <label class="field">
-                <span class="lbl">Tempra</span>
-                <SearchSelect v-model="gen.tmp" :disabled="disabledAll" :sort="false"
-                              :options="[{value:'BUONO',label:'Buono'},{value:'SCARSO',label:'Scarso'}]"/>
-              </label>
-              <label class="field">
-                <span class="lbl">Riflessi</span>
-                <SearchSelect v-model="gen.rfl" :disabled="disabledAll" :sort="false"
-                              :options="[{value:'BUONO',label:'Buono'},{value:'SCARSO',label:'Scarso'}]"/>
-              </label>
-              <label class="field">
-                <span class="lbl">Volontà</span>
-                <SearchSelect v-model="gen.vlt" :disabled="disabledAll" :sort="false"
-                              :options="[{value:'BUONO',label:'Buono'},{value:'SCARSO',label:'Scarso'}]"/>
-              </label>
-            </div>
-            <button type="button" class="btn outline" :disabled="disabledAll" @click="generaTabella">
-              ⚙ Genera tabella livelli
-            </button>
-          </div>
-
-          <!-- tabella -->
-          <div class="liv-list">
-            <div v-for="row in livelliVisibili" :key="row.livello" class="liv-card">
-              <div class="liv-num">{{ row.livello }}</div>
-              <div class="liv-fields">
-                <label><span>BAB</span><input v-model.trim="row.bab" :disabled="disabledAll"/></label>
-                <label><span>TMP</span><input v-model.trim="row.tmp" :disabled="disabledAll"/></label>
-                <label><span>RFL</span><input v-model.trim="row.rfl" :disabled="disabledAll"/></label>
-                <label><span>VLT</span><input v-model.trim="row.vlt" :disabled="disabledAll"/></label>
-              </div>
-            </div>
-          </div>
+          <CardTabellaLivelli
+              :num-livelli="form.numLivelli" @update:num-livelli="form.numLivelli = $event"
+              v-model:dv="form.dv" :livelli="form.livelli" :disabled="disabledAll"/>
         </div>
       </section>
 
       <!-- Privilegi di Classe -->
-      <section class="fold">
+      <section v-if="cards.has('CLASSE_PRIVILEGI')" class="fold">
         <button type="button" class="fold-head" @click="open.concesse = !open.concesse">
           <span class="fold-title">Privilegi di Classe</span>
           <span class="fold-summary">{{ form.abilitaConcesse.length }}</span>
           <span class="chev" :class="{ open: open.concesse }">▸</span>
         </button>
         <div v-show="open.concesse" class="fold-body">
-          <label class="adv-toggle">
-            <span class="switch">
-              <input type="checkbox" v-model="modalitaAvanzata" :disabled="disabledAll"/>
-              <span class="switch-track"><span class="switch-thumb"></span></span>
-            </span>
-            <span class="adv-toggle-label">{{ modalitaAvanzata ? 'Modalità avanzata' : 'Modalità semplice' }}</span>
-          </label>
-
-          <div v-for="(a, i) in form.abilitaConcesse" :key="`${a.itemId ?? 'new'}-${a.nome}-${a.livello}`" class="conc-item">
-            <div class="conc-row">
-              <span class="liv-pill">Liv {{ a.livello }}</span>
-              <span class="nome"><span v-if="a.nuovo" class="new-chip">NEW</span>{{ a.nome }}</span>
-              <input
-                  class="qty-input"
-                  type="number"
-                  min="1"
-                  step="1"
-                  :value="a.qty ?? ''"
-                  :disabled="disabledAll"
-                  placeholder="—"
-                  title="Utilizzi concessi"
-                  @change="a.qty = ($event.target as HTMLInputElement).value ? parseInt(($event.target as HTMLInputElement).value) || null : null"
-              />
-              <button type="button" class="btn-edit" :disabled="disabledAll || !a.itemId"
-                      @click="editConcessa(a.itemId!)" title="Modifica">✎</button>
-              <button type="button" class="btn-del" :disabled="disabledAll" @click="rimuoviConcessa(i)">✕</button>
-            </div>
-
-            <div v-if="modalitaAvanzata" class="conc-adv">
-              <p v-if="!a.itemId" class="muted">Salva prima la classe per poter modificare questo nuovo privilegio.</p>
-              <template v-else>
-                <div class="conc-adv-top">
-                  <label class="field liv-input">
-                    <span class="lbl">Livello</span>
-                    <input v-model.number="a.livello" type="number" min="1" :max="form.numLivelli" :disabled="disabledAll"/>
-                  </label>
-                  <label class="field gruppo-input"
-                         title="Se il personaggio ha più privilegi con lo stesso gruppo (es. una versione potenziata sbloccata da una classe di prestigio), in scheda si vede solo quello del livello più alto.">
-                    <span class="lbl">Gruppo privilegi</span>
-                    <input v-model="a.gruppoPrivilegi" type="text" placeholder="es. FURIA" :disabled="disabledAll"/>
-                  </label>
-                </div>
-                <div class="conc-adv-body">
-                  <label class="field grow">
-                    <span class="lbl">Descrizione</span>
-                    <HtmlEditor v-model="a.descrizione" :rows="3" :disabled="disabledAll"/>
-                  </label>
-                  <div class="conc-adv-flags">
-                    <label class="chk-row">
-                      <input type="checkbox" v-model="a.straordinaria" :disabled="disabledAll"/>
-                      <span>Straordinaria</span>
-                    </label>
-                    <label class="chk-row">
-                      <input type="checkbox" v-model="a.magica" :disabled="disabledAll"/>
-                      <span>Magica</span>
-                    </label>
-                    <label class="chk-row">
-                      <input type="checkbox" v-model="a.soprannaturale" :disabled="disabledAll"/>
-                      <span>Soprannaturale</span>
-                    </label>
-                    <label class="chk-row">
-                      <input type="checkbox" v-model="a.naturale" :disabled="disabledAll"/>
-                      <span>Naturale</span>
-                    </label>
-                  </div>
-                </div>
-                <div class="conc-adv-actions">
-                  <button type="button" class="btn primary sm" :disabled="disabledAll || a.salvandoRiga"
-                          @click="salvaRigaAvanzata(a)">
-                    {{ a.salvandoRiga ? 'Salvataggio…' : 'Salva riga' }}
-                  </button>
-                </div>
-              </template>
-            </div>
-          </div>
-
-          <div class="conc-add">
-            <label class="field liv-input">
-              <span class="lbl">Liv</span>
-              <input v-model.number="livelloConcessa" type="number" min="1" max="20" :disabled="disabledAll"/>
-            </label>
-            <input class="grow" v-model="queryConcessa" type="text"
-                   placeholder="Cerca o scrivi un nuovo privilegio…" :disabled="disabledAll" @input="onQueryConcessa"/>
-          </div>
-          <div v-if="searching" class="muted">Ricerca…</div>
-          <ul v-else-if="risultatiConcessa.length || mostraNuovo" class="results">
-            <li v-for="r in risultatiConcessa" :key="r.id">
-              <button type="button" class="result" :disabled="disabledAll" @click="aggiungiConcessa(r)">
-                <span class="nome">{{ r.nome }}</span>
-                <span class="liv-pill">{{ r.tipo }}</span>
-                <span class="plus">+</span>
-              </button>
-            </li>
-            <li v-if="mostraNuovo">
-              <button type="button" class="result" :disabled="disabledAll" @click="aggiungiNuovo">
-                <span class="nome">{{ queryConcessa.trim() }}</span>
-                <span class="new-chip">NEW</span>
-                <span class="plus">+</span>
-              </button>
-            </li>
-          </ul>
+          <CardPrivilegiClasse
+              :abilita-concesse="form.abilitaConcesse" :num-livelli="form.numLivelli"
+              :disabled="disabledAll" :salva-classe="persistiClasseInline"/>
         </div>
       </section>
 

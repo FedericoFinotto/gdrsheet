@@ -1,15 +1,18 @@
 package it.fin8.gdrsheet.service;
 
+import it.fin8.gdrsheet.def.TipoPermessoMondo;
 import it.fin8.gdrsheet.dto.CreateUserRequest;
 import it.fin8.gdrsheet.dto.HomeDTO;
 import it.fin8.gdrsheet.dto.LoginRequest;
 import it.fin8.gdrsheet.dto.LoginResponse;
 import it.fin8.gdrsheet.dto.UtenteAdminDTO;
+import it.fin8.gdrsheet.entity.Party;
 import it.fin8.gdrsheet.entity.PermessiParty;
 import it.fin8.gdrsheet.entity.PermessiPersonaggi;
 import it.fin8.gdrsheet.entity.Utente;
 import it.fin8.gdrsheet.def.TipoPermessoPersonaggio;
 import it.fin8.gdrsheet.repository.PartyRepository;
+import it.fin8.gdrsheet.repository.PermessiMondoRepository;
 import it.fin8.gdrsheet.repository.PermessiPartyRepository;
 import it.fin8.gdrsheet.repository.PermessiPersonaggiRepository;
 import it.fin8.gdrsheet.repository.PersonaggioRepository;
@@ -22,7 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class AuthService {
@@ -30,6 +35,7 @@ public class AuthService {
     private final UtenteRepository utenteRepository;
     private final PermessiPartyRepository permessiPartyRepository;
     private final PermessiPersonaggiRepository permessiPersonaggiRepository;
+    private final PermessiMondoRepository permessiMondoRepository;
     private final PartyRepository partyRepository;
     private final PersonaggioRepository personaggioRepository;
     private final AuthzService authzService;
@@ -39,6 +45,7 @@ public class AuthService {
     public AuthService(UtenteRepository utenteRepository,
                        PermessiPartyRepository permessiPartyRepository,
                        PermessiPersonaggiRepository permessiPersonaggiRepository,
+                       PermessiMondoRepository permessiMondoRepository,
                        PartyRepository partyRepository,
                        PersonaggioRepository personaggioRepository,
                        AuthzService authzService,
@@ -47,6 +54,7 @@ public class AuthService {
         this.utenteRepository = utenteRepository;
         this.permessiPartyRepository = permessiPartyRepository;
         this.permessiPersonaggiRepository = permessiPersonaggiRepository;
+        this.permessiMondoRepository = permessiMondoRepository;
         this.partyRepository = partyRepository;
         this.personaggioRepository = personaggioRepository;
         this.authzService = authzService;
@@ -180,16 +188,27 @@ public class AuthService {
     }
 
     public HomeDTO getHome(Utente utente) {
-        // Party: l'admin vede tutti; gli altri solo quelli a cui sono associati
+        // Party: l'admin vede tutti; gli altri quelli a cui sono associati direttamente PIÙ quelli
+        // dei mondi di cui sono master (essere master di un mondo implica essere master di ogni
+        // party di quel mondo, vedi AuthzService.isMasterParty) — con ruolo forzato a MASTER anche
+        // se esisteva già un permesso esplicito con un ruolo più basso su quel party.
         List<HomeDTO.PartyHomeDTO> parties;
         if (authzService.isAdmin(utente)) {
             parties = partyRepository.findAll().stream()
-                    .map(p -> new HomeDTO.PartyHomeDTO(p.getId(), p.getNome(), "MASTER"))
+                    .map(p -> partyDTO(p, "MASTER"))
                     .sorted(Comparator.comparing(HomeDTO.PartyHomeDTO::getNome, String.CASE_INSENSITIVE_ORDER))
                     .toList();
         } else {
-            parties = permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
-                    .map(this::toPartyDTO)
+            Map<Integer, HomeDTO.PartyHomeDTO> perParty = new LinkedHashMap<>();
+            for (PermessiParty pp : permessiPartyRepository.findAllByIdUtente_Id(utente.getId())) {
+                perParty.put(pp.getIdParty().getId(), toPartyDTO(pp));
+            }
+            for (var pm : permessiMondoRepository.findAllByIdUtente_IdAndPermesso(utente.getId(), TipoPermessoMondo.MASTER)) {
+                for (Party p : partyRepository.findAllByMondo_IdOrderByNomeAsc(pm.getIdMondo().getId())) {
+                    perParty.put(p.getId(), partyDTO(p, "MASTER"));
+                }
+            }
+            parties = perParty.values().stream()
                     .sorted(Comparator.comparing(HomeDTO.PartyHomeDTO::getNome, String.CASE_INSENSITIVE_ORDER))
                     .toList();
         }
@@ -208,16 +227,25 @@ public class AuthService {
     }
 
     private HomeDTO.PartyHomeDTO toPartyDTO(PermessiParty p) {
+        return partyDTO(p.getIdParty(), p.getRuolo() != null ? p.getRuolo().name() : null);
+    }
+
+    /** Costruisce il DTO party includendo mondo (id/nome), per il filtro home per mondo selezionato. */
+    private HomeDTO.PartyHomeDTO partyDTO(Party p, String ruolo) {
+        var mondo = p.getMondo();
         return new HomeDTO.PartyHomeDTO(
-                p.getIdParty().getId(),
-                p.getIdParty().getNome(),
-                p.getRuolo() != null ? p.getRuolo().name() : null
+                p.getId(),
+                p.getNome(),
+                ruolo,
+                mondo != null ? mondo.getId() : null,
+                mondo != null ? mondo.getDescrizione() : null
         );
     }
 
     private HomeDTO.PersonaggioHomeDTO toPersonaggioDTO(PermessiPersonaggi p) {
         var pg = p.getIdPersonaggio();
         var party = pg.getParty();
+        var mondo = party != null ? party.getMondo() : null;
         return new HomeDTO.PersonaggioHomeDTO(
                 pg.getId(),
                 pg.getNome(),
@@ -225,7 +253,9 @@ public class AuthService {
                 party != null ? party.getId() : null,
                 party != null ? party.getNome() : null,
                 PartyService.tipoPersonaggio(pg),
-                p.isPreferito()
+                p.isPreferito(),
+                mondo != null ? mondo.getId() : null,
+                mondo != null ? mondo.getDescrizione() : null
         );
     }
 

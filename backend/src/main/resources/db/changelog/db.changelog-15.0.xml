@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        Estende la configurazione per (mondo, tipo item) a CLASSE, RAZZA, INCANTESIMO e LIVELLO
+        (esclusi in db.changelog-14.0.xml perché hanno editor completamente custom, non
+        BaseItemEditor.vue). Usa le stesse tabelle di db.changelog-14.0.xml e i nuovi valori
+        CLASSE_*/SPELL_*/LIVELLO_* di CardEditorItem. Seed per i mondi già esistenti: tutte le
+        sezioni di questi 4 tipi sono oggi mostrate incondizionatamente (nessun v-if in
+        ClasseEditor.vue/SpellEditor.vue/LivelloEditor.vue), quindi vengono abilitate tutte, per
+        non cambiare comportamento. RAZZA ha in più CLASSE_INFO_RAZZA rispetto a CLASSE.
+    -->
+
+    <changeSet id="1500" author="developer">
+        <comment>Seed card abilitate per Classe/Razza/Incantesimo/Livello sui mondi già esistenti.</comment>
+        <sql>
+            INSERT INTO mondo_tipo_item_card_abilitata (id_mondo, tipo, card)
+            SELECT m.id, t.tipo, t.card
+            FROM mondo m
+            CROSS JOIN (VALUES
+                ('CLASSE', 'CLASSE_ABILITA'),
+                ('CLASSE', 'CLASSE_INCANTESIMI'),
+                ('CLASSE', 'CLASSE_TABELLA_LIVELLI'),
+                ('CLASSE', 'CLASSE_PRIVILEGI'),
+                ('RAZZA', 'CLASSE_INFO_RAZZA'),
+                ('RAZZA', 'CLASSE_ABILITA'),
+                ('RAZZA', 'CLASSE_INCANTESIMI'),
+                ('RAZZA', 'CLASSE_TABELLA_LIVELLI'),
+                ('RAZZA', 'CLASSE_PRIVILEGI'),
+                ('INCANTESIMO', 'SPELL_SCUOLE'),
+                ('INCANTESIMO', 'SPELL_SOTTOSCUOLE'),
+                ('INCANTESIMO', 'SPELL_DESCRITTORI'),
+                ('INCANTESIMO', 'SPELL_CLASSI_DOMINI'),
+                ('INCANTESIMO', 'SPELL_COMPONENTI'),
+                ('LIVELLO', 'LIVELLO_CLASSE_MALEDIZIONE'),
+                ('LIVELLO', 'LIVELLO_DV_PF_GRADI'),
+                ('LIVELLO', 'LIVELLO_CONTENUTI'),
+                ('LIVELLO', 'LIVELLO_ITEM_EXTRA'),
+                ('LIVELLO', 'LIVELLO_MODIFICATORI'),
+                ('LIVELLO', 'LIVELLO_ABILITA_RANGHI')
+            ) AS t(tipo, card);
+        </sql>
+        <rollback>
+            <sql>
+                DELETE FROM mondo_tipo_item_card_abilitata
+                WHERE tipo IN ('CLASSE', 'RAZZA', 'INCANTESIMO', 'LIVELLO');
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

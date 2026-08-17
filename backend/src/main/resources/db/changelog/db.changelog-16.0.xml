@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        Le card AMBITO/COMPLETATA/ARCHIVIATA coprono quello che oggi vive nello slot "specifico" di
+        QuestEditor.vue/InfoEditor.vue (vedi db.changelog-14.0.xml, dove QUEST/INFO avevano già le
+        card generiche MONDO_SISTEMA/ITEM_COLLEGATI/NOTE/IN_CARICO ma non questo pezzo, lasciato
+        fuori dal sistema perché all'epoca gestito da un componente Vue dedicato). Seed per i mondi
+        già esistenti: comportamento invariato, tutto ciò che oggi è mostrato incondizionatamente
+        resta abilitato. INFO non ha "Completata" (il backend non ha QUEST_COMPLETATA per gli INFO).
+    -->
+
+    <changeSet id="1600" author="developer">
+        <comment>Seed card Ambito/Completata/Archiviata per Quest e Info sui mondi già esistenti.</comment>
+        <sql>
+            INSERT INTO mondo_tipo_item_card_abilitata (id_mondo, tipo, card)
+            SELECT m.id, t.tipo, t.card
+            FROM mondo m
+            CROSS JOIN (VALUES
+                ('QUEST', 'AMBITO'),
+                ('QUEST', 'COMPLETATA'),
+                ('QUEST', 'ARCHIVIATA'),
+                ('INFO', 'AMBITO'),
+                ('INFO', 'ARCHIVIATA')
+            ) AS t(tipo, card);
+        </sql>
+        <rollback>
+            <sql>
+                DELETE FROM mondo_tipo_item_card_abilitata
+                WHERE tipo IN ('QUEST', 'INFO') AND card IN ('AMBITO', 'COMPLETATA', 'ARCHIVIATA');
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

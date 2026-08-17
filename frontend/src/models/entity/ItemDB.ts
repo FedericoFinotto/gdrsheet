@@ -62,3 +62,45 @@ export const TIPO_ITEM = {
 } as const;
 export type TipoItem = typeof TIPO_ITEM[keyof typeof TIPO_ITEM];
 
+// Etichette leggibili per tipo item (titolo dell'editor, selettore di creazione, ecc.).
+// Vive qui (non in editorRegistry.ts) perché BaseItemEditor.vue ne ha bisogno per il proprio
+// titolo e importarla da editorRegistry.ts (che importa BaseItemEditor.vue) creerebbe un ciclo.
+export const TIPO_ITEM_LABELS: Record<TipoItem, string> = {
+    [TIPO_ITEM.ABILITA]: 'Abilità',
+    [TIPO_ITEM.TALENTO]: 'Talento',
+    [TIPO_ITEM.OGGETTO]: 'Oggetto',
+    [TIPO_ITEM.CONSUMABILE]: 'Consumabile',
+    [TIPO_ITEM.ARMA]: 'Arma',
+    [TIPO_ITEM.MUNIZIONE]: 'Munizione',
+    [TIPO_ITEM.EQUIPAGGIAMENTO]: 'Equipaggiamento',
+    [TIPO_ITEM.PERSONAGGIO]: 'Personaggio',
+    [TIPO_ITEM.CLASSE]: 'Classe',
+    [TIPO_ITEM.RAZZA]: 'Razza',
+    [TIPO_ITEM.ATTACCO]: 'Attacco',
+    [TIPO_ITEM.ALTRO]: 'Altro',
+    [TIPO_ITEM.LIVELLO]: 'Livello',
+    [TIPO_ITEM.MALEDIZIONE]: 'Maledizione',
+    [TIPO_ITEM.INCANTESIMO]: 'Incantesimo',
+    [TIPO_ITEM.TRASFORMAZIONE]: 'Trasformazione',
+    [TIPO_ITEM.AVANZAMENTO]: 'Avanzamento',
+    [TIPO_ITEM.COMPETENZA]: 'Competenza',
+    [TIPO_ITEM.LINGUA]: 'Lingua',
+    [TIPO_ITEM.IDOLO]: 'Idolo',
+    [TIPO_ITEM.FRUTTO]: 'Frutto',
+    [TIPO_ITEM.FORMA]: 'Forma',
+    [TIPO_ITEM.PRIVILEGIO]: 'Privilegio di Classe',
+    [TIPO_ITEM.CONTENITORE]: 'Contenitore',
+    [TIPO_ITEM.PATTO]: 'Patto',
+    [TIPO_ITEM.NOTIZIA]: 'Notizia',
+    [TIPO_ITEM.EFFETTO]: 'Effetto',
+    [TIPO_ITEM.QUEST]: 'Quest',
+    [TIPO_ITEM.VEICOLO]: 'Veicolo',
+    [TIPO_ITEM.INFO]: 'Info',
+    [TIPO_ITEM.CATEGORIA]: 'Categoria',
+    [TIPO_ITEM.TAG]: 'Tag',
+    [TIPO_ITEM.RANDOMIZZATORE]: 'Randomizzatore',
+    [TIPO_ITEM.CASO]: 'Caso',
+    [TIPO_ITEM.SKILL_TRICK]: 'Skill Trick',
+    [TIPO_ITEM.IMMAGINE]: 'Immagine',
+};
+

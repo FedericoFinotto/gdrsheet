@@ -25,6 +25,8 @@ export interface PartyHome {
     id: number;
     nome: string;
     ruolo: 'MASTER' | 'GIOCATORE';
+    mondoId?: number | null; // per filtrare la home sul mondo selezionato nello switcher
+    mondoNome?: string | null;
 }
 
 export interface PersonaggioHome {
@@ -35,6 +37,10 @@ export interface PersonaggioHome {
     partyNome?: string;
     tipoPersonaggio?: string | null; // NAVE, STELLA, null
     preferito: boolean; // per-utente: mostralo assieme a "I tuoi personaggi" anche se VISUALIZZATORE
+    // mondo del party del personaggio; null se personaggio "libero" (senza party) — in quel caso
+    // resta sempre visibile a prescindere dal mondo selezionato, non essendoci un mondo da filtrare.
+    mondoId?: number | null;
+    mondoNome?: string | null;
 }
 
 export interface Home {

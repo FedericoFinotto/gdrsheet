@@ -24,7 +24,7 @@ import TagEditor from './Sections/TagEditor.vue'
 import TriggerRandomizzatoriEditor from './Sections/TriggerRandomizzatoriEditor.vue'
 import ImmaginiEditor from './Sections/ImmaginiEditor.vue'
 import MultiSelectField from './Sections/MultiSelectField.vue'
-import {getTagsItem, ItemTag, setTagsItem} from '../../../../../../service/RandomizzatoreService'
+import {getCategorie, getTagsItem, ItemTag, setTagsItem} from '../../../../../../service/RandomizzatoreService'
 import MultiValueField from './Sections/MultiValueField.vue'
 import ModificatoriEditor from './Sections/ModificatoriEditor.vue'
 import AttacchiEditor from './Sections/AttacchiEditor.vue'
@@ -34,26 +34,75 @@ import SottoQuestEditor from './Sections/SottoQuestEditor.vue'
 import NotesEditor, {NotaRow} from './Sections/NotesEditor.vue'
 import {SPELL_LIST_CODES, spellListLabel} from '../../../../../../function/spellLists'
 import {TAGLIE_OPTIONS_NOME} from '../../../../../../function/Utils'
+import {TIPO_ITEM_LABELS} from '../../../../../../models/entity/ItemDB'
+import {getTipoItemConfig} from '../../../../../../service/MondoAdminService'
 
 const props = withDefaults(defineProps<{
   item: ItemDB
-  titolo?: string
-  campiLabel?: CampoLabel[]      // campi specifici per tipo, mappati su ItemLabel
-  campiLabelTitolo?: string      // titolo card per la sezione campiLabel (opzionale)
-  suggestedKeys?: string[]       // chiavi suggerite nella sezione labels generiche
   readonly?: boolean
   mode?: 'edit' | 'create'
   idPersonaggio?: number      // solo create: aggancia l'item al FromCompendio del personaggio
-  idParty?: number            // solo create QUEST di ambito PARTY: party a cui associare la quest (se non in un contesto personaggio)
-  separateForme?: boolean     // separa i child FORMA in una sezione dedicata
-  minimal?: boolean           // nasconde sezioni avanzate (EN name, manuale, utilizzi, compendio, folds)
-  forceImmagini?: boolean     // mostra comunque il fold Immagini anche in minimal (es. ImmagineEditor.vue)
+  idParty?: number            // solo create QUEST/INFO di ambito PARTY: party a cui associare la radice (se non in un contesto personaggio)
+  // true se ItemEditor.vue ha trovato genitori per questo item (solo INFO): è quindi un
+  // sotto-info aperto direttamente, non una radice — niente ambito da scegliere.
+  hasParents?: boolean
 }>(), {
-  titolo: 'Item',
-  campiLabel: () => [],
-  suggestedKeys: () => [],
   mode: 'edit',
 })
+
+// Titolo dell'editor: l'etichetta italiana del tipo item, sempre la stessa per tutti i mondi
+// (non fa parte della config per-mondo, è solo la traduzione del TipoItem).
+const titolo = computed(() => TIPO_ITEM_LABELS[props.item.tipo] ?? 'Item')
+
+// Card strutturali abilitate e campi liberi per (mondo, tipo item) — vedi MondoAdminController
+// /tipo-item/{tipo}/config. Sostituiscono gli ex prop campiLabel/campiLabelTitolo/minimal/
+// forceImmagini: quello che prima decideva un wrapper "Editor/Tipi/*.vue" ora arriva dal backend.
+const cards = ref<Set<string>>(new Set())
+const campiLiberi = ref<CampoLabel[]>([])
+const campiTitolo = ref<string | undefined>(undefined)
+
+async function caricaConfigTipoItem(idMondo: number | null) {
+  if (!idMondo) { cards.value = new Set(); campiLiberi.value = []; campiTitolo.value = undefined; return }
+  try {
+    const {data: res} = await getTipoItemConfig(idMondo, props.item.tipo)
+    cards.value = new Set(res.cardAbilitate)
+    campiTitolo.value = res.campiTitolo ?? undefined
+    campiLiberi.value = res.campiLiberi.map(c => ({
+      key: c.chiave,
+      label: c.etichetta,
+      placeholder: c.placeholder ?? undefined,
+      tipo: c.tipoCampo === 'CHECKBOX' ? 'checkbox' : c.tipoCampo === 'SELECT' ? 'select' : c.tipoCampo === 'DATETIME' ? 'datetime-local' : undefined,
+      textarea: c.textarea || undefined,
+      multiValore: c.multiValore || undefined,
+      html: c.html || undefined,
+      options: c.opzioni?.length ? c.opzioni.map(o => ({value: o.value, label: o.label})) : undefined,
+    }))
+    // CATEGORIA (Tag) / RAND_SCELTA / RAND_PRESENTE (Randomizzatore): le opzioni sono le Categorie
+    // esistenti nel compendio, cambiano quando un master ne crea/rinomina — non seminabili
+    // staticamente come le altre select. Le carichiamo qui, PRIMA che preload() prosegua a
+    // leggere le label (v. commento su CampoLabel.options: devono essere note al primo render).
+    const CHIAVI_CATEGORIA = ['CATEGORIA', 'RAND_SCELTA', 'RAND_PRESENTE']
+    if (campiLiberi.value.some(c => CHIAVI_CATEGORIA.includes(c.key) && !c.options?.length)) {
+      const categorie = (await getCategorie()).data ?? []
+      const opzioniCategorie = categorie.map(cat => ({value: String(cat.id), label: cat.nome}))
+      campiLiberi.value = campiLiberi.value.map(c =>
+          CHIAVI_CATEGORIA.includes(c.key) ? {...c, options: opzioniCategorie} : c)
+    }
+  } catch (e) {
+    console.error('Errore caricamento configurazione tipo item:', e)
+    cards.value = new Set()
+    campiLiberi.value = []
+    campiTitolo.value = undefined
+  }
+}
+
+// "Layout compatto": nessuna delle card "pesanti" è abilitata per questo (mondo, tipo) — stesso
+// indicatore che prima era il prop `minimal` impostato a mano per Quest/Info/Notizia/Immagine,
+// ora emerge dalla config invece di essere hardcoded per tipo.
+const CARD_PESANTI = ['UTILIZZI_MAX', 'NOME_EN', 'MANUALE', 'DESCRITTORI_OGGETTO', 'INFO_OGGETTO',
+  'DESCRITTORI_ABILITA', 'ATTACCHI', 'EFFETTI', 'INCANTESIMI', 'AGGIUNTA_CLASSE', 'LABELS', 'TAG',
+  'RANDOMIZZATORI_INNESCATI', 'MODIFICATORI']
+const isCompact = computed(() => !CARD_PESANTI.some(c => cards.value.has(c)))
 
 const emit = defineEmits<{
   (e: 'saved'): void
@@ -64,9 +113,12 @@ const emit = defineEmits<{
   (e: 'savedResta', item: ItemDB): void
 }>()
 
-// tipi con gestione quantità (label QTA, moltiplica il peso)
-const TIPI_CON_QTA = ['OGGETTO', 'CONSUMABILE', 'ARMA', 'MUNIZIONE', 'EQUIPAGGIAMENTO']
-const showQta = computed(() => TIPI_CON_QTA.includes(props.item.tipo))
+const router = useRouter()
+const route = useRoute()
+
+// quantità (label QTA, moltiplica il peso): abilitata dalla card QUANTITA (era un elenco di tipi
+// hardcoded, ora arriva dalla config mondo+tipo)
+const showQta = computed(() => cards.value.has('QUANTITA'))
 
 // QUEST: albero di sotto-quest (child collegati di tipo QUEST). L'ambito (a chi è associata
 // la quest RADICE: personaggio/party/mondo) si sceglie solo in creazione e solo per la radice
@@ -77,17 +129,34 @@ const isQuest = computed(() => props.item.tipo === 'QUEST')
 // ciascuna diversa). isAmbito raggruppa le sezioni condivise da entrambi i tipi.
 const isInfo = computed(() => props.item.tipo === 'INFO')
 const isAmbito = computed(() => isQuest.value || isInfo.value)
-const isVeicolo = computed(() => props.item.tipo === 'VEICOLO')
+const isVeicolo = computed(() => cards.value.has('INFO_VEICOLO'))
 // Sezione "Incantesimi" su item generico (non classe): stessa lettura SPELL_<n>* del backend,
 // ma slot/conosciuti sono un valore fisso (una riga), non una progressione a 20 livelli.
-const TIPI_CON_INCANTESIMI = ['OGGETTO', 'EQUIPAGGIAMENTO', 'CONSUMABILE', 'ALTRO']
-const canHaveSpells = computed(() => TIPI_CON_INCANTESIMI.includes(props.item.tipo))
-const QUEST_SCOPE_OPTS = [
-  {value: 'PERSONAGGIO', label: 'Personaggio'},
-  {value: 'PARTY', label: 'Party'},
-  {value: 'MONDO', label: 'Mondo (visibile a tutti i party)'},
-]
+const canHaveSpells = computed(() => cards.value.has('INCANTESIMI'))
 
+// Ambito Quest/Info (ex QuestEditor.vue/InfoEditor.vue, ora card AMBITO/COMPLETATA/ARCHIVIATA
+// dello stesso editor): "sotto-X" = creato dal flusso "crea e collega" (route ?link=1), oppure —
+// solo per INFO — aperto direttamente per modifica e con genitori noti (hasParents, rilevato da
+// ItemEditor.vue). In entrambi i casi niente ambito da scegliere: eredita dal padre.
+const isSubQuest = computed(() => isQuest.value && props.mode === 'create' && !!route.query.link)
+const isSubInfo = computed(() => isInfo.value && ((props.mode === 'create' && !!route.query.link) || !!props.hasParents))
+const isSubAmbito = computed(() => isQuest.value ? isSubQuest.value : isSubInfo.value)
+// La select Ambito si vede: per QUEST solo in creazione (in modifica l'ambito della quest radice
+// non si cambia più); per INFO anche in modifica (il suo ambito resta cambiabile dopo la
+// creazione, vedi buildPayload più sotto) — sempre che non sia una sotto-entità.
+const canEditAmbito = computed(() => !isSubAmbito.value && (isInfo.value || props.mode === 'create'))
+// Quest: Personaggio/Party/Mondo. Info: solo Party (se c'è un party corrente)/Mondo — si gestisce
+// esclusivamente dalla scheda party, non esiste un ambito "Personaggio".
+const AMBITO_OPTS = computed(() => isQuest.value
+    ? [
+      {value: 'PERSONAGGIO', label: 'Personaggio'},
+      {value: 'PARTY', label: 'Party'},
+      {value: 'MONDO', label: 'Mondo (visibile a tutti i party)'},
+    ]
+    : [
+      ...(props.idParty != null ? [{value: 'PARTY', label: 'Party'}] : []),
+      {value: 'MONDO', label: 'Mondo (visibile a tutti i party)'},
+    ])
 const form = reactive<{
   nome: string
   enName: string
@@ -136,8 +205,9 @@ const form = reactive<{
   manuale: '',
   descrizione: '',
   descrizioneEn: '',
-  campi: Object.fromEntries(props.campiLabel.filter(c => !c.multiValore).map(c => [c.key, ''])),
-  campiMulti: Object.fromEntries(props.campiLabel.filter(c => c.multiValore).map(c => [c.key, [] as string[]])),
+  // ripopolati da preload() una volta caricata la config (campi liberi) del mondo dell'item
+  campi: {} as Record<string, string>,
+  campiMulti: {} as Record<string, string[]>,
   descrOggetto: {magico: false, psionico: false, divino: false, leggendario: false, unico: false},
   infoOggetto: {taglia: '', costo: '', materiale: '', prefisso: ''},
   infoVeicolo: {velocita: ''},
@@ -164,6 +234,14 @@ const form = reactive<{
   completata: false,
   archiviata: false,
 })
+
+// Default dell'ambito alla radice, in creazione: Quest preferisce Personaggio se c'è un
+// personaggio nel contesto, altrimenti Party; Info parte sempre da Party.
+watch([() => props.mode, isAmbito, isSubAmbito], () => {
+  if (props.mode === 'create' && isAmbito.value && !isSubAmbito.value && !form.questScope) {
+    form.questScope = isQuest.value ? (props.idPersonaggio ? 'PERSONAGGIO' : 'PARTY') : 'PARTY'
+  }
+}, {immediate: true})
 
 const open = reactive({
   labels: false, modificatori: false, attacchi: false, children: false, forme: false, effetti: false,
@@ -210,10 +288,14 @@ async function preload() {
   form.descrizione = props.item.descrizione ?? ''
   caricaTags()
 
-  const campoKeys = new Set(props.campiLabel.filter(c => !c.multiValore).map(c => c.key))
-  const campoKeysMulti = new Set(props.campiLabel.filter(c => c.multiValore).map(c => c.key))
-  form.campi = Object.fromEntries(props.campiLabel.filter(c => !c.multiValore).map(c => [c.key, '']))
-  form.campiMulti = Object.fromEntries(props.campiLabel.filter(c => c.multiValore).map(c => [c.key, []]))
+  // card abilitate + campi liberi per il mondo di QUESTO item: serve subito sotto per sapere
+  // quali campi popolare e come smistare le label (FORME vs item collegati generici, ecc.)
+  await caricaConfigTipoItem(props.item.mondo?.id ?? null)
+
+  const campoKeys = new Set(campiLiberi.value.filter(c => !c.multiValore).map(c => c.key))
+  const campoKeysMulti = new Set(campiLiberi.value.filter(c => c.multiValore).map(c => c.key))
+  form.campi = Object.fromEntries(campiLiberi.value.filter(c => !c.multiValore).map(c => [c.key, '']))
+  form.campiMulti = Object.fromEntries(campiLiberi.value.filter(c => c.multiValore).map(c => [c.key, []]))
 
   // QTA: preferisce quantita già calcolata (da inventario personaggio), poi labels globali (compendio)
   form.qta = (showQta.value && props.item.quantita != null) ? props.item.quantita : 1
@@ -352,7 +434,7 @@ async function preload() {
     }
   }
   // INFO in modifica: pre-seleziona l'Ambito attuale (Party se ha INFO_PARTY, altrimenti Mondo) —
-  // in creazione resta vuoto, lo decide InfoEditor.vue al primo render (default Party).
+  // in creazione resta vuoto, lo decide il watch su isAmbito/isSubAmbito sopra (default Party).
   if (isInfo.value && props.mode === 'edit') {
     form.questScope = form.infoPartyId != null ? 'PARTY' : 'MONDO'
   }
@@ -406,7 +488,7 @@ async function preload() {
     sempreAttivo: !!m.sempreAttivo,
   }))
 
-  // child: ATTACCO -> sezione attacchi, FORMA (se separateForme) -> forme, il resto -> item collegati
+  // child: ATTACCO -> sezione attacchi, FORMA (se card FORME abilitata) -> forme, il resto -> item collegati
   const collegamentiNonAttacco = (props.item.child ?? []).filter(c => c.itemTarget?.tipo !== 'ATTACCO')
   const attacchi = (props.item.child ?? []).filter(c => c.itemTarget?.tipo === 'ATTACCO')
   form.attacchi = attacchi.map(c => {
@@ -435,7 +517,7 @@ async function preload() {
   const getColLabel = (c: any, key: string) => (c.labels ?? []).find((l: any) => l.label === key)?.valore ?? null
   const toChildRef = (c: any) => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null, nascosto: isColNascosto(c), condizione: getColLabel(c, 'CONDIZIONE')})
   const collegamentiNonEffetto = collegamentiNonAttacco.filter(c => c.itemTarget.tipo !== 'EFFETTO')
-  if (props.separateForme) {
+  if (cards.value.has('FORME')) {
     form.forme = collegamentiNonEffetto.filter(c => c.itemTarget.tipo === 'FORMA').map(toChildRef)
     form.children = collegamentiNonEffetto.filter(c => c.itemTarget.tipo !== 'FORMA').map(toChildRef)
   } else {
@@ -546,8 +628,6 @@ async function onPickClasseAggiunta(row: { idClasse: number | null; nomeClasse: 
   try { row.nomeClasse = (await getItem(row.idClasse)).data?.nome ?? `#${row.idClasse}` } catch { row.nomeClasse = `#${row.idClasse}` }
 }
 
-const router = useRouter()
-const route = useRoute()
 const childCreate = useChildCreate()
 const {mondoOptions, sistemaOptions, autoMondo, autoSistema} = useMondoSistema()
 
@@ -557,6 +637,10 @@ watch([autoMondo, autoSistema], ([m, s]) => {
   if (m !== null && form.idMondo === null) form.idMondo = m
   if (s !== null && form.idSistema === null) form.idSistema = s
 }, {immediate: true})
+
+// Ricarica card/campi liberi ogni volta che il mondo dell'item cambia (impostato da preload() in
+// modifica, o dal watch sopra in creazione).
+watch(() => form.idMondo, (idMondo) => { caricaConfigTipoItem(idMondo) }, {immediate: true})
 
 // editor figlio aperto dal flusso "crea e collega": ha ?link=1 nell'URL
 const isLinkCreate = computed(() => props.mode === 'create' && !!route.query.link)
@@ -688,7 +772,7 @@ const sumDescrAbilita = computed(() => {
 })
 const sumCampiLabel = computed(() => {
   const filled = []
-  for (const c of props.campiLabel) {
+  for (const c of campiLiberi.value) {
     const has = c.multiValore
         ? (form.campiMulti[c.key] ?? []).some(v => v.trim())
         : !!(form.campi[c.key] ?? '').trim()
@@ -704,7 +788,7 @@ function buildPayload(): UpdateItemRequest {
     labels.push({label: 'QTA', valore: String(Math.max(0, Math.floor(Number(form.qta) || 0)))})
   }
   // campi specifici -> labels
-  for (const c of props.campiLabel) {
+  for (const c of campiLiberi.value) {
     if (c.multiValore) {
       for (const v of (form.campiMulti[c.key] ?? [])) {
         const trimmed = v.trim()
@@ -904,8 +988,8 @@ async function onSalvaResta() {
 function resetForNew() {
   form.nome = ''
   form.descrizione = ''
-  form.campi = Object.fromEntries(props.campiLabel.filter(c => !c.multiValore).map(c => [c.key, '']))
-  form.campiMulti = Object.fromEntries(props.campiLabel.filter(c => c.multiValore).map(c => [c.key, []]))
+  form.campi = Object.fromEntries(campiLiberi.value.filter(c => !c.multiValore).map(c => [c.key, '']))
+  form.campiMulti = Object.fromEntries(campiLiberi.value.filter(c => c.multiValore).map(c => [c.key, []]))
   form.descrOggetto = {magico: false, psionico: false, divino: false, leggendario: false, unico: false}
   form.infoOggetto = {taglia: '', costo: '', materiale: '', prefisso: ''}
   form.infoVeicolo = {velocita: ''}
@@ -942,7 +1026,7 @@ function onCancel() {
 
     <div class="row nome-qta">
       <label class="field grow">
-        <span class="lbl"><span v-if="!minimal" class="fi fi-it lang-flag-inline"></span> Nome</span>
+        <span class="lbl"><span v-if="!isCompact" class="fi fi-it lang-flag-inline"></span> Nome</span>
         <input v-model.trim="form.nome" type="text" :disabled="disabledAll" required/>
       </label>
       <label v-if="showQta" class="field qta-field">
@@ -956,20 +1040,20 @@ function onCancel() {
                   @click="form.qta = (Number(form.qta) || 0) + 1">+</button>
         </div>
       </label>
-      <label v-if="!minimal" class="field utilizzi-field">
+      <label v-if="cards.has('UTILIZZI_MAX')" class="field utilizzi-field">
         <span class="lbl">Utilizzi max</span>
         <input v-model.number="form.utilizzi" type="number" min="1" step="1" inputmode="numeric"
                :disabled="disabledAll"/>
       </label>
     </div>
 
-    <label v-if="!minimal" class="field">
+    <label v-if="cards.has('NOME_EN')" class="field">
       <span class="lbl"><span class="fi fi-gb lang-flag-inline"></span> Nome (EN)</span>
       <input v-model.trim="form.enName" type="text" :disabled="disabledAll"
              placeholder="Nome originale in inglese"/>
     </label>
 
-    <div v-if="!minimal" class="row two">
+    <div v-if="cards.has('MANUALE')" class="row two">
       <label class="field">
         <span class="lbl">Manuale</span>
         <input v-model.trim="form.manuale" type="text" :disabled="disabledAll"
@@ -977,16 +1061,16 @@ function onCancel() {
       </label>
     </div>
 
-    <!-- descrizione anticipata in modalità minimal: comprende anche QUEST/sotto-quest, che sono
-         sempre minimal e altrimenti non avrebbero NESSUN modo di modificare la descrizione dopo
-         la creazione (l'altro blocco, più sotto, è per !minimal e quindi non le raggiunge mai) -->
-    <label v-if="minimal" class="field">
+    <!-- descrizione anticipata in layout compatto: comprende anche QUEST/sotto-quest, che sono
+         sempre compatte e altrimenti non avrebbero NESSUN modo di modificare la descrizione dopo
+         la creazione (l'altro blocco, più sotto, è per !isCompact e quindi non le raggiunge mai) -->
+    <label v-if="isCompact" class="field">
       <span class="lbl">Descrizione</span>
       <HtmlEditor v-model="form.descrizione" :rows="10" :disabled="disabledAll"/>
     </label>
 
     <!-- Descrittori Oggetto (validi per qualunque item) -->
-    <section v-if="!minimal" class="fold">
+    <section v-if="cards.has('DESCRITTORI_OGGETTO')" class="fold">
       <button type="button" class="fold-head" @click="open.descrOggetto = !open.descrOggetto"
               :aria-expanded="open.descrOggetto ? 'true' : 'false'">
         <span class="fold-title">Descrittori Oggetto</span>
@@ -1020,7 +1104,7 @@ function onCancel() {
     </section>
 
     <!-- Info Oggetto: taglia fisica dell'oggetto (diversa dalla taglia del personaggio), costo, materiale -->
-    <section v-if="!minimal" class="fold">
+    <section v-if="cards.has('INFO_OGGETTO')" class="fold">
       <button type="button" class="fold-head" @click="open.infoOggetto = !open.infoOggetto"
               :aria-expanded="open.infoOggetto ? 'true' : 'false'">
         <span class="fold-title">Info Oggetto</span>
@@ -1066,7 +1150,7 @@ function onCancel() {
     </section>
 
     <!-- Descrittori Abilità (validi per qualunque item, possono essere attivi insieme) -->
-    <section v-if="!minimal" class="fold">
+    <section v-if="cards.has('DESCRITTORI_ABILITA')" class="fold">
       <button type="button" class="fold-head" @click="open.descrAbilita = !open.descrAbilita"
               :aria-expanded="open.descrAbilita ? 'true' : 'false'">
         <span class="fold-title">Descrittori Abilità</span>
@@ -1099,18 +1183,18 @@ function onCancel() {
       </div>
     </section>
 
-    <!-- campi specifici per tipo -->
-    <template v-if="campiLabel.length">
-      <section v-if="campiLabelTitolo" class="fold">
+    <!-- campi liberi (definiti per mondo+tipo, ex CAMPI hardcoded nei wrapper) -->
+    <template v-if="campiLiberi.length">
+      <section v-if="campiTitolo" class="fold">
         <button type="button" class="fold-head" @click="open.campiLabel = !open.campiLabel"
                 :aria-expanded="open.campiLabel ? 'true' : 'false'">
-          <span class="fold-title">{{ campiLabelTitolo }}</span>
+          <span class="fold-title">{{ campiTitolo }}</span>
           <span class="fold-summary">{{ sumCampiLabel }}</span>
           <span class="chev" :class="{ open: open.campiLabel }">▸</span>
         </button>
         <div v-show="open.campiLabel" class="fold-body">
           <div class="row two">
-            <label v-for="c in campiLabel" :key="c.key" class="field"
+            <label v-for="c in campiLiberi" :key="c.key" class="field"
                    :class="{ full: c.textarea || c.multiValore, 'field-checkbox': c.tipo === 'checkbox' }">
               <template v-if="c.multiValore && c.options">
                 <span class="lbl">{{ c.label }}</span>
@@ -1148,7 +1232,7 @@ function onCancel() {
         </div>
       </section>
       <div v-else class="row two">
-        <label v-for="c in campiLabel" :key="c.key" class="field"
+        <label v-for="c in campiLiberi" :key="c.key" class="field"
                :class="{ full: c.textarea || c.multiValore, 'field-checkbox': c.tipo === 'checkbox' }">
           <template v-if="c.multiValore && c.options">
             <span class="lbl">{{ c.label }}</span>
@@ -1184,14 +1268,29 @@ function onCancel() {
       </div>
     </template>
 
-    <!-- slot per estensioni specifiche del tipo -->
-    <slot name="specifico" :disabled="disabledAll"
-          :quest-scope="form.questScope" :set-quest-scope="(v: string) => form.questScope = v"
-          :completata="form.completata" :set-completata="(v: boolean) => form.completata = v"
-          :archiviata="form.archiviata" :set-archiviata="(v: boolean) => form.archiviata = v"/>
+    <!-- Ambito/Completata/Archiviata (solo QUEST/INFO, ex slot #specifico di QuestEditor/InfoEditor.vue) -->
+    <section v-if="cards.has('AMBITO') || cards.has('COMPLETATA') || cards.has('ARCHIVIATA')" class="fold quest-info">
+      <div class="fold-head static">
+        <span class="fold-title">{{ isInfo ? 'Info' : 'Info Quest' }}</span>
+      </div>
+      <div class="fold-body">
+        <label v-if="cards.has('AMBITO') && canEditAmbito" class="field">
+          <span class="lbl">{{ isQuest ? 'Ambito della quest' : 'Ambito' }}</span>
+          <SearchSelect v-model="form.questScope" :options="AMBITO_OPTS" :disabled="disabledAll" :sort="false"/>
+        </label>
+        <label v-if="cards.has('COMPLETATA')" class="checkbox-row">
+          <input type="checkbox" v-model="form.completata" :disabled="disabledAll"/>
+          <span>Completata (solo se senza sotto-quest)</span>
+        </label>
+        <label v-if="cards.has('ARCHIVIATA')" class="checkbox-row">
+          <input type="checkbox" v-model="form.archiviata" :disabled="disabledAll"/>
+          <span>{{ isInfo ? 'Archiviato (non caricato più in automatico entrando negli info)' : 'Archiviata (non caricata più in automatico entrando nelle quest)' }}</span>
+        </label>
+      </div>
+    </section>
 
-    <!-- mondo / sistema + visibilità: in non-minimal restano qui, in minimal vanno in fondo -->
-    <template v-if="!minimal">
+    <!-- mondo / sistema + visibilità: in layout non compatto restano qui, in compatto vanno in fondo -->
+    <template v-if="!isCompact">
       <div class="row two">
         <label class="field">
           <span class="lbl">Mondo</span>
@@ -1213,7 +1312,7 @@ function onCancel() {
     </template>
 
     <!-- Attacchi (item ATTACCO figli) -->
-    <section v-if="!minimal" class="fold">
+    <section v-if="cards.has('ATTACCHI')" class="fold">
       <button type="button" class="fold-head" @click="open.attacchi = !open.attacchi"
               :aria-expanded="open.attacchi ? 'true' : 'false'">
         <span class="fold-title">Attacchi</span>
@@ -1225,8 +1324,8 @@ function onCancel() {
       </div>
     </section>
 
-    <!-- Forme (child FORMA, solo se separateForme) -->
-    <section v-if="separateForme" class="fold">
+    <!-- Forme (child FORMA, solo se card FORME abilitata) -->
+    <section v-if="cards.has('FORME')" class="fold">
       <button type="button" class="fold-head" @click="open.forme = !open.forme"
               :aria-expanded="open.forme ? 'true' : 'false'">
         <span class="fold-title">Forme</span>
@@ -1240,8 +1339,8 @@ function onCancel() {
     </section>
 
     <!-- Item collegati (child) — per QUEST/INFO, solo altri item dello stesso tipo (sotto-quest/
-         sotto-info): resta visibile anche in minimal -->
-    <section v-if="!minimal || isAmbito" class="fold">
+         sotto-info): resta visibile anche in layout compatto -->
+    <section v-if="cards.has('ITEM_COLLEGATI')" class="fold">
       <button type="button" class="fold-head" @click="open.children = !open.children"
               :aria-expanded="open.children ? 'true' : 'false'">
         <span class="fold-title">{{ isQuest ? 'Sotto-quest' : isInfo ? 'Sotto-info' : 'Item collegati' }}</span>
@@ -1252,13 +1351,13 @@ function onCancel() {
         <SottoQuestEditor v-if="isAmbito" v-model="form.children" :disabled="disabledAll"
                           :tipo="props.item.tipo" :id-personaggio="props.idPersonaggio" :id-party="props.idParty"/>
         <ChildrenEditor v-else v-model="form.children" :disabled="disabledAll" :exclude-id="props.item.id"
-                        :exclude-tipo="separateForme ? 'FORMA' : undefined"
+                        :exclude-tipo="cards.has('FORME') ? 'FORMA' : undefined"
                         @create-new="(t, n) => onCreateChild('children', t, n)"/>
       </div>
     </section>
 
     <!-- Effetti: sezione dedicata e slegata dagli item collegati generici -->
-    <section v-if="!minimal" class="fold">
+    <section v-if="cards.has('EFFETTI')" class="fold">
       <button type="button" class="fold-head" @click="open.effetti = !open.effetti"
               :aria-expanded="open.effetti ? 'true' : 'false'">
         <span class="fold-title">Effetti</span>
@@ -1285,7 +1384,7 @@ function onCancel() {
 
     <!-- In carico: solo QUEST, righe di testo libero (nome personaggio/party) mostrate come chip
          in cima all'accordion della quest/sotto-quest in scheda -->
-    <section v-if="isQuest" class="fold">
+    <section v-if="cards.has('IN_CARICO')" class="fold">
       <button type="button" class="fold-head" @click="open.inCarico = !open.inCarico"
               :aria-expanded="open.inCarico ? 'true' : 'false'">
         <span class="fold-title">In carico</span>
@@ -1305,7 +1404,7 @@ function onCancel() {
     </section>
 
     <!-- Incantesimi (item generico): liste + slot/conosciuti a valore fisso, niente progressione -->
-    <section v-if="!minimal && canHaveSpells" class="fold">
+    <section v-if="canHaveSpells" class="fold">
       <button type="button" class="fold-head" @click="open.incantesimi = !open.incantesimi"
               :aria-expanded="open.incantesimi ? 'true' : 'false'">
         <span class="fold-title">Incantesimi</span>
@@ -1407,7 +1506,7 @@ function onCancel() {
 
     <!-- Aggiunta Classe: N righe ADD_CLASSE_<n>* — livelli virtuali (anche da formula) concessi a
          una classe del personaggio, con flag opzionali per cosa quei livelli concedono -->
-    <section v-if="!minimal" class="fold">
+    <section v-if="cards.has('AGGIUNTA_CLASSE')" class="fold">
       <button type="button" class="fold-head" @click="open.aggiunteClasse = !open.aggiunteClasse"
               :aria-expanded="open.aggiunteClasse ? 'true' : 'false'">
         <span class="fold-title">Aggiunta Classe</span>
@@ -1465,7 +1564,7 @@ function onCancel() {
     </section>
 
     <!-- Labels generiche -->
-    <section v-if="!minimal" class="fold">
+    <section v-if="cards.has('LABELS')" class="fold">
       <button type="button" class="fold-head" @click="open.labels = !open.labels"
               :aria-expanded="open.labels ? 'true' : 'false'">
         <span class="fold-title">Labels</span>
@@ -1473,12 +1572,12 @@ function onCancel() {
         <span class="chev" :class="{ open: open.labels }">▸</span>
       </button>
       <div v-show="open.labels" class="fold-body">
-        <LabelsEditor v-model="form.labels" :suggested-keys="suggestedKeys" :disabled="disabledAll"/>
+        <LabelsEditor v-model="form.labels" :disabled="disabledAll"/>
       </div>
     </section>
 
     <!-- Tag pesati (randomizzatori) -->
-    <section v-if="!minimal" class="fold">
+    <section v-if="cards.has('TAG')" class="fold">
       <button type="button" class="fold-head" @click="open.tags = !open.tags"
               :aria-expanded="open.tags ? 'true' : 'false'">
         <span class="fold-title">Tag</span>
@@ -1491,7 +1590,7 @@ function onCancel() {
     </section>
 
     <!-- Immagini (caricate su un host esterno, non sul database) -->
-    <section v-if="!minimal || forceImmagini" class="fold">
+    <section v-if="cards.has('IMMAGINI')" class="fold">
       <button type="button" class="fold-head" @click="open.immagini = !open.immagini"
               :aria-expanded="open.immagini ? 'true' : 'false'">
         <span class="fold-title">Immagini</span>
@@ -1506,7 +1605,7 @@ function onCancel() {
     </section>
 
     <!-- Randomizzatori innescati da questo oggetto (catene) -->
-    <section v-if="!minimal" class="fold">
+    <section v-if="cards.has('RANDOMIZZATORI_INNESCATI')" class="fold">
       <button type="button" class="fold-head" @click="open.randTrigger = !open.randTrigger"
               :aria-expanded="open.randTrigger ? 'true' : 'false'">
         <span class="fold-title">Randomizzatori innescati</span>
@@ -1520,7 +1619,7 @@ function onCancel() {
     </section>
 
     <!-- Modificatori -->
-    <section v-if="!minimal" class="fold">
+    <section v-if="cards.has('MODIFICATORI')" class="fold">
       <button type="button" class="fold-head" @click="open.modificatori = !open.modificatori"
               :aria-expanded="open.modificatori ? 'true' : 'false'">
         <span class="fold-title">Modificatori</span>
@@ -1532,7 +1631,7 @@ function onCancel() {
       </div>
     </section>
 
-    <label v-if="!minimal && !isQuest" class="field">
+    <label v-if="!isCompact" class="field">
       <span class="lbl">Descrizione{{ mostraDescrizioneEn ? ' (EN)' : '' }}</span>
       <HtmlEditor v-if="!mostraDescrizioneEn" v-model="form.descrizione" :rows="10" :disabled="disabledAll">
         <template #toolbar-extra>
@@ -1552,8 +1651,8 @@ function onCancel() {
       </HtmlEditor>
     </label>
 
-    <!-- in minimal: mondo/sistema e visibilità in fondo -->
-    <template v-if="minimal">
+    <!-- in layout compatto: mondo/sistema e visibilità in fondo -->
+    <template v-if="isCompact">
       <div class="row two">
         <label class="field">
           <span class="lbl">Mondo</span>
@@ -1627,6 +1726,12 @@ textarea { resize: vertical; }
 .chev { transition: transform .15s ease; }
 .chev.open { transform: rotate(90deg); }
 .fold-body { padding: .6rem .75rem; }
+
+/* Ambito/Completata/Archiviata (ex QuestEditor.vue/InfoEditor.vue): card sempre aperta, non
+ * richiudibile come le altre fold (nessun bottone/chevron). */
+.fold-head.static { padding: .5rem .75rem; background: var(--btn-bg); border-bottom: 1px solid var(--hairline); }
+.checkbox-row { display: inline-flex; align-items: center; gap: .5rem; font-size: .85rem; cursor: pointer; width: fit-content; }
+.checkbox-row input { width: auto; }
 
 .error {
   margin: 0; padding: .5rem .75rem; border-radius: .5rem;

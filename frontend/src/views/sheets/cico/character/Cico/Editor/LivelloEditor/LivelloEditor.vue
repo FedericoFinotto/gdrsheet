@@ -31,6 +31,7 @@ import Icona from '../../../../../../../components/Icona/Icona.vue'
 import ModificatoriEditor from '../Sections/ModificatoriEditor.vue'
 import {ModificatoreRow} from '../../../../../../../models/dto/UpdateItemRequest'
 import {GrantRow} from "../../../../../../../models/dto/GrantRow";
+import {getTipoItemConfig} from '../../../../../../../service/MondoAdminService'
 
 type Id = number
 interface Caratteristiche {
@@ -57,6 +58,19 @@ const emit = defineEmits<{
 const router = useRouter()
 const route = useRoute()
 const childCreate = useChildCreate()
+
+// Card strutturali abilitate per (mondo, LIVELLO): vedi MondoTipoItemCardAbilitata lato backend.
+const cards = ref<Set<string>>(new Set())
+watch(() => props.item.mondo?.id, async (idMondo) => {
+  if (!idMondo) { cards.value = new Set(); return }
+  try {
+    const {data} = await getTipoItemConfig(idMondo, 'LIVELLO')
+    cards.value = new Set(data.cardAbilitate)
+  } catch (e) {
+    console.error('Errore caricamento configurazione card:', e)
+    cards.value = new Set()
+  }
+}, {immediate: true})
 
 // segnalato dal pulsante "Aggiungi Razza" (Mobile_Cico_7_Livelli.vue): apre subito la tab
 // "Caratteristiche" invece di lasciarla chiusa come nel flusso normale di modifica di un livello
@@ -671,6 +685,7 @@ const sumClasseMaledizione = computed(() =>
     />
 
     <TabClasseMaledizione
+        v-if="cards.has('LIVELLO_CLASSE_MALEDIZIONE')"
         :disabled="disabledAll"
         :search-classi="searchClassi"
         :classe-detail="classeDetail"
@@ -681,7 +696,7 @@ const sumClasseMaledizione = computed(() =>
         :summary="sumClasseMaledizione"
     />
 
-    <div v-if="form.classeId" class="dv-row">
+    <div v-if="form.classeId && cards.has('LIVELLO_DV_PF_GRADI')" class="dv-row">
       <label class="dv-field">
         <span class="dv-lbl">Dadi vita</span>
         <input v-model.trim="form.dv" type="text" placeholder="Es.: 2d10" :disabled="disabledAll"/>
@@ -697,6 +712,7 @@ const sumClasseMaledizione = computed(() =>
     </div>
 
     <TabContenutiLivello
+        v-if="cards.has('LIVELLO_CONTENUTI')"
         :disabled="disabledAll"
         :loading="busy"
         :classe-id="form.classeId"
@@ -710,6 +726,7 @@ const sumClasseMaledizione = computed(() =>
     />
 
     <TabItemExtra
+        v-if="cards.has('LIVELLO_ITEM_EXTRA')"
         :disabled="disabledAll"
         :loading="busy"
         :items="extraItems"
@@ -718,7 +735,7 @@ const sumClasseMaledizione = computed(() =>
         @create-new="onCreateExtra"
     />
 
-    <TabExpandable title="Modificatori" :loading="busy">
+    <TabExpandable v-if="cards.has('LIVELLO_MODIFICATORI')" title="Modificatori" :loading="busy">
       <template #summary>{{ modificatoriLiberi.filter(m => m.statId).length || '—' }}</template>
       <template #content>
         <ModificatoriEditor v-model="modificatoriLiberi" :disabled="disabledAll"/>
@@ -726,6 +743,7 @@ const sumClasseMaledizione = computed(() =>
     </TabExpandable>
 
     <TabAbilitaRanghi
+        v-if="cards.has('LIVELLO_ABILITA_RANGHI')"
         :disabled="disabledAll"
         :loading="busy"
         :rows="rows"

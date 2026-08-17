@@ -5,20 +5,30 @@ import {ItemDB, TIPO_ITEM, TipoItem} from '../../../../../../models/entity/ItemD
 import {CREATABLE_TYPES, editorForType, TIPO_ITEM_LABELS} from './editorRegistry'
 import {useCharacterStore} from '../../../../../../stores/personaggio'
 import {useAuthStore} from '../../../../../../stores/auth'
+import {useMondoStore} from '../../../../../../stores/mondo'
+import {getConfigMondo} from '../../../../../../service/MondoAdminService'
 import SearchSelect from '../../../../../../components/SearchSelect.vue'
 
 const route = useRoute()
 const router = useRouter()
 const characterStore = useCharacterStore()
 const auth = useAuthStore()
+const mondoStore = useMondoStore()
 
 const canCreateNotizia = computed(() => {
   const r = auth.effectiveRuolo.toUpperCase()
   return r === 'MASTER' || r === 'ADMIN' || r === 'SUPERUSER'
 })
 
+// Tipi abilitati per il mondo corrente (vedi MondoTipoItemAbilitato lato backend): null finché
+// non risolto o in caso di errore = nessuna restrizione, per non rompere la creazione item se la
+// chiamata fallisce o il mondo non è ancora noto.
+const tipiAbilitatiMondo = ref<Set<string> | null>(null)
+
 const creatableTypes = computed(() =>
-    CREATABLE_TYPES.filter(t => t !== TIPO_ITEM.NOTIZIA || canCreateNotizia.value)
+    CREATABLE_TYPES
+        .filter(t => t !== TIPO_ITEM.NOTIZIA || canCreateNotizia.value)
+        .filter(t => !tipiAbilitatiMondo.value || tipiAbilitatiMondo.value.has(t))
 )
 
 // se presente, il nuovo item viene agganciato al FromCompendio del personaggio
@@ -45,6 +55,23 @@ const idSistemaQuery = computed<number | undefined>(() => {
   const n = Number(route.query.sistema)
   return Number.isFinite(n) && n > 0 ? n : undefined
 })
+
+// mondo effettivo per filtrare i tipi creabili: quello in query se presente, altrimenti il
+// mondo corrente dello switcher globale (carica() è idempotente: se già caricato altrove, es.
+// dallo UpperBar, non rifà la chiamata).
+const idMondoEffettivo = computed<number | undefined>(() => idMondoQuery.value ?? mondoStore.corrente ?? undefined)
+
+mondoStore.carica()
+watch(idMondoEffettivo, async (idMondo) => {
+  if (!idMondo) { tipiAbilitatiMondo.value = null; return }
+  try {
+    const {data} = await getConfigMondo(idMondo)
+    tipiAbilitatiMondo.value = new Set(data.tipiAbilitati)
+  } catch (e) {
+    console.error('Errore caricamento configurazione mondo:', e)
+    tipiAbilitatiMondo.value = null
+  }
+}, {immediate: true})
 
 function parseTipo(v: unknown): TipoItem | null {
   const s = String(v ?? '').toUpperCase()

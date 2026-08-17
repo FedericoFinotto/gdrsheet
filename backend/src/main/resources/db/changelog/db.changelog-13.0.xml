@@ -1,0 +1,433 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        Gestione schede per mondo: i tipi item (enum TipoItem) e le liste/domini incantesimi
+        (oggi liberi, catalogo hardcoded in frontend/spellLists.ts) diventano abilitabili
+        singolarmente per mondo, in opt-in (nessuna riga = non abilitato). I mondi già esistenti
+        al momento di questa migration vengono popolati con TUTTO ciò che oggi possono già usare
+        senza restrizioni, per non cambiare comportamento; i mondi creati dopo partono vuoti e
+        devono abilitare esplicitamente quello che usano.
+    -->
+
+    <changeSet id="1300" author="developer">
+        <comment>Catalogo globale dei codici lista/dominio incantesimi (SP_*), condiviso tra tutti i mondi.</comment>
+        <createTable tableName="lista_incantesimi">
+            <column name="codice" type="varchar(50)">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="etichetta" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="1301" author="developer">
+        <comment>Abilitazione opt-in di un TipoItem per un mondo.</comment>
+        <createTable tableName="mondo_tipo_item_abilitato">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_mondo" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="mondo_tipo_item_abilitato"
+                              columnNames="id_mondo, tipo"
+                              constraintName="uq_mondo_tipo_item_abilitato"/>
+        <addForeignKeyConstraint
+                baseTableName="mondo_tipo_item_abilitato"
+                baseColumnNames="id_mondo"
+                referencedTableName="mondo"
+                referencedColumnNames="id"
+                constraintName="fk_mondo_tipo_item_abilitato_mondo"/>
+    </changeSet>
+
+    <changeSet id="1302" author="developer">
+        <comment>Abilitazione opt-in di un codice lista_incantesimi per un mondo.</comment>
+        <createTable tableName="mondo_lista_incantesimi_abilitata">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_mondo" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="codice_lista" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="mondo_lista_incantesimi_abilitata"
+                              columnNames="id_mondo, codice_lista"
+                              constraintName="uq_mondo_lista_incantesimi_abilitata"/>
+        <addForeignKeyConstraint
+                baseTableName="mondo_lista_incantesimi_abilitata"
+                baseColumnNames="id_mondo"
+                referencedTableName="mondo"
+                referencedColumnNames="id"
+                constraintName="fk_mondo_lista_incantesimi_abilitata_mondo"/>
+        <addForeignKeyConstraint
+                baseTableName="mondo_lista_incantesimi_abilitata"
+                baseColumnNames="codice_lista"
+                referencedTableName="lista_incantesimi"
+                referencedColumnNames="codice"
+                constraintName="fk_mondo_lista_incantesimi_abilitata_lista"/>
+    </changeSet>
+
+    <changeSet id="1303" author="developer">
+        <comment>Seed del catalogo lista_incantesimi a partire dal dizionario SPELL_LIST_LABELS (frontend/src/function/spellLists.ts).</comment>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_BLACKGUARD"/>
+            <column name="etichetta" value="Cavaliere Nero"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_STRENGTH"/>
+            <column name="etichetta" value="Forza"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_GREED"/>
+            <column name="etichetta" value="Avarizia"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_CLERIC"/>
+            <column name="etichetta" value="Chierico"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_CORRUPTION"/>
+            <column name="etichetta" value="Corruzione"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_EVIL"/>
+            <column name="etichetta" value="Male"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_DRAGON"/>
+            <column name="etichetta" value="Drago"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_OCEAN"/>
+            <column name="etichetta" value="Oceano"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_FORCE"/>
+            <column name="etichetta" value="Forza (Dominio)"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_CELERITY"/>
+            <column name="etichetta" value="Celerità"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_PLANT"/>
+            <column name="etichetta" value="Vegetale"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_LIBERATION"/>
+            <column name="etichetta" value="Libertà"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_MADNESS"/>
+            <column name="etichetta" value="Follia"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_DEATH"/>
+            <column name="etichetta" value="Morte"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_ADEPT"/>
+            <column name="etichetta" value="Adepto"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_ANIMAL"/>
+            <column name="etichetta" value="Animale"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_WINTER"/>
+            <column name="etichetta" value="Inverno"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_THIRST"/>
+            <column name="etichetta" value="Sete"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_RUNE"/>
+            <column name="etichetta" value="Rune"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_SPITE"/>
+            <column name="etichetta" value="Rancore"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_WATER"/>
+            <column name="etichetta" value="Acqua"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_DRUID"/>
+            <column name="etichetta" value="Druido"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_ASN"/>
+            <column name="etichetta" value="Assassino"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_ASSASIN"/>
+            <column name="etichetta" value="Assassino"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_TEMPTATION"/>
+            <column name="etichetta" value="Tentazione"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_WEATHER"/>
+            <column name="etichetta" value="Meteo"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_EARTH"/>
+            <column name="etichetta" value="Terra"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_MIND"/>
+            <column name="etichetta" value="Mente"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_DEATHBOUND"/>
+            <column name="etichetta" value="Vincolo della Morte"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_KNOWLEDGE"/>
+            <column name="etichetta" value="Conoscenza"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_SEAFOLK"/>
+            <column name="etichetta" value="Genti del Mare"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_FIRE"/>
+            <column name="etichetta" value="Fuoco"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_WAR"/>
+            <column name="etichetta" value="Guerra"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_BEGUILER"/>
+            <column name="etichetta" value="Mistificatore"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_PESTILENCE"/>
+            <column name="etichetta" value="Pestilenza"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_HEXBLADE"/>
+            <column name="etichetta" value="Lama Maledetta"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_HEALER"/>
+            <column name="etichetta" value="Guaritore"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_CREATION"/>
+            <column name="etichetta" value="Creazione"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_CORRUPT"/>
+            <column name="etichetta" value="Corrotto"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_DREAM"/>
+            <column name="etichetta" value="Sogno"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_BARD"/>
+            <column name="etichetta" value="Bardo"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_SORCERER"/>
+            <column name="etichetta" value="Stregone"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_SUMMER"/>
+            <column name="etichetta" value="Estate"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_CHAOS"/>
+            <column name="etichetta" value="Caos"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_HUNGER"/>
+            <column name="etichetta" value="Fame"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_SAND"/>
+            <column name="etichetta" value="Sabbia"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_FURY"/>
+            <column name="etichetta" value="Furia"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_WARMAGE"/>
+            <column name="etichetta" value="Mago da Guerra"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_SHUGENJA"/>
+            <column name="etichetta" value="Shugenja"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_GOOD"/>
+            <column name="etichetta" value="Bene"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_GLORY"/>
+            <column name="etichetta" value="Gloria"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_TRAVEL"/>
+            <column name="etichetta" value="Viaggio"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_PACT"/>
+            <column name="etichetta" value="Patto"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_ONEIROMANCY"/>
+            <column name="etichetta" value="Oniromanzia"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_MAGIC"/>
+            <column name="etichetta" value="Magia"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_WIZARD"/>
+            <column name="etichetta" value="Mago"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_OOZE"/>
+            <column name="etichetta" value="Melma"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_REPOSE"/>
+            <column name="etichetta" value="Riposo"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_CITY"/>
+            <column name="etichetta" value="Città"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_SKY"/>
+            <column name="etichetta" value="Cielo"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_DEMONIC"/>
+            <column name="etichetta" value="Demoniaco"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_COLD"/>
+            <column name="etichetta" value="Freddo"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_DESTRUCTION"/>
+            <column name="etichetta" value="Distruzione"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_AIR"/>
+            <column name="etichetta" value="Aria"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_RANGER"/>
+            <column name="etichetta" value="Ranger"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_LUCK"/>
+            <column name="etichetta" value="Fortuna"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_SUN"/>
+            <column name="etichetta" value="Sole"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_LAW"/>
+            <column name="etichetta" value="Legge"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_DOMINATION"/>
+            <column name="etichetta" value="Dominazione"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_PURIFICATION"/>
+            <column name="etichetta" value="Purificazione"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_PALADIN"/>
+            <column name="etichetta" value="Paladino"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_PROTECTION"/>
+            <column name="etichetta" value="Protezione"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_TRICKERY"/>
+            <column name="etichetta" value="Inganno"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_ENTROPY"/>
+            <column name="etichetta" value="Entropia"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_DESTINY"/>
+            <column name="etichetta" value="Destino"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_HEALING"/>
+            <column name="etichetta" value="Guarigione"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_DUSKBLADE"/>
+            <column name="etichetta" value="Lama Crepuscolare"/>
+        </insert>
+        <insert tableName="lista_incantesimi">
+            <column name="codice" value="SP_BLACKWATER"/>
+            <column name="etichetta" value="Acquenere"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="1304" author="developer">
+        <comment>
+            Abilita per i mondi già esistenti tutti i TipoItem e tutte le liste_incantesimi: i
+            mondi presenti prima di questa migration continuano a poter usare tutto come prima
+            (nessuna restrizione nuova). I mondi creati dopo questa migration NON vengono toccati
+            da questo changeSet (gira solo una volta, al momento dell'upgrade) e partono senza
+            nulla abilitato: dovranno abilitare esplicitamente ciò che usano.
+        </comment>
+        <sql>
+            INSERT INTO mondo_tipo_item_abilitato (id_mondo, tipo)
+            SELECT m.id, t.tipo
+            FROM mondo m
+            CROSS JOIN (VALUES
+                ('ABILITA'),('TALENTO'),('OGGETTO'),('CONSUMABILE'),('ARMA'),('MUNIZIONE'),
+                ('EQUIPAGGIAMENTO'),('PERSONAGGIO'),('CLASSE'),('RAZZA'),('ATTACCO'),('ALTRO'),
+                ('LIVELLO'),('MALEDIZIONE'),('INCANTESIMO'),('TRASFORMAZIONE'),('AVANZAMENTO'),
+                ('COMP'),('LINGUA'),('IDOLO'),('FRUTTO'),('FORMA'),('PRIVILEGIO'),('CONTENITORE'),
+                ('PATTO'),('NOTIZIA'),('EFFETTO'),('QUEST'),('VEICOLO'),('INFO'),('CATEGORIA'),
+                ('TAG'),('RANDOMIZZATORE'),('CASO'),('SKILL_TRICK'),('IMMAGINE')
+            ) AS t(tipo);
+        </sql>
+        <sql>
+            INSERT INTO mondo_lista_incantesimi_abilitata (id_mondo, codice_lista)
+            SELECT m.id, l.codice
+            FROM mondo m
+            CROSS JOIN lista_incantesimi l;
+        </sql>
+        <rollback>
+            <sql>DELETE FROM mondo_tipo_item_abilitato;</sql>
+            <sql>DELETE FROM mondo_lista_incantesimi_abilitata;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

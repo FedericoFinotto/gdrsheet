@@ -1,79 +1,57 @@
 // Registro tipo item -> componente editor.
 // Usato sia dall'editor (ItemEditor) sia dalla pagina di creazione (ItemCreate).
+//
+// Con l'introduzione della configurazione per (mondo, tipo item) — vedi MondoAdminService,
+// GET /mondo/{id}/tipo-item/{tipo}/config — 32 dei 36 tipi condividono ORA lo stesso componente
+// BaseItemEditor.vue: non servono più wrapper "Editor/Tipi/*.vue" per passare CAMPI/titolo/flag,
+// perché BaseItemEditor.vue recupera da solo card abilitate e campi liberi in base a mondo+tipo.
+// Restano famiglie a parte solo i 3 tipi con forma dati radicalmente diversa: CLASSE/RAZZA
+// (ClasseEditor.vue), INCANTESIMO (SpellEditor.vue), LIVELLO (LivelloEditor.vue).
 import type {Component} from 'vue'
-import {TipoItem, TIPO_ITEM} from '../../../../../../models/entity/ItemDB'
+import {TipoItem, TIPO_ITEM, TIPO_ITEM_LABELS} from '../../../../../../models/entity/ItemDB'
 
 import SpellEditor from './SpellEditor.vue'
 import LivelloEditor from './LivelloEditor/LivelloEditor.vue'
 import BaseItemEditor from './BaseItemEditor.vue'
-
-import AbilitaEditor from './Tipi/AbilitaEditor.vue'
-import TalentoEditor from './Tipi/TalentoEditor.vue'
-import OggettoEditor from './Tipi/OggettoEditor.vue'
-import ConsumabileEditor from './Tipi/ConsumabileEditor.vue'
-import ArmaEditor from './Tipi/ArmaEditor.vue'
-import MunizioneEditor from './Tipi/MunizioneEditor.vue'
-import EquipaggiamentoEditor from './Tipi/EquipaggiamentoEditor.vue'
-import PersonaggioEditor from './Tipi/PersonaggioEditor.vue'
 import ClasseEditor from './Tipi/ClasseEditor.vue'
-import AttaccoEditor from './Tipi/AttaccoEditor.vue'
-import AltroEditor from './Tipi/AltroEditor.vue'
-import MaledizioneEditor from './Tipi/MaledizioneEditor.vue'
-import TrasformazioneEditor from './Tipi/TrasformazioneEditor.vue'
-import AvanzamentoEditor from './Tipi/AvanzamentoEditor.vue'
-import CompetenzaEditor from './Tipi/CompetenzaEditor.vue'
-import LinguaEditor from './Tipi/LinguaEditor.vue'
-import IdoloEditor from './Tipi/IdoloEditor.vue'
-import FruttoEditor from './Tipi/FruttoEditor.vue'
-import FormaEditor from './Tipi/FormaEditor.vue'
-import PrivilegioEditor from './Tipi/PrivilegioEditor.vue'
-import ContenitoreEditor from './Tipi/ContenitoreEditor.vue'
-import NotiziaEditor from './Tipi/NotiziaEditor.vue'
-import QuestEditor from './Tipi/QuestEditor.vue'
-import InfoEditor from './Tipi/InfoEditor.vue'
-import CategoriaEditor from './Tipi/CategoriaEditor.vue'
-import TagItemEditor from './Tipi/TagItemEditor.vue'
-import RandomizzatoreEditor from './Tipi/RandomizzatoreEditor.vue'
-import SkillTrickEditor from './Tipi/SkillTrickEditor.vue'
-import ImmagineEditor from './Tipi/ImmagineEditor.vue'
 
 export const EDITOR_BY_TYPE: Record<TipoItem, Component> = {
-    [TIPO_ITEM.ABILITA]: AbilitaEditor,
-    [TIPO_ITEM.TALENTO]: TalentoEditor,
-    [TIPO_ITEM.OGGETTO]: OggettoEditor,
-    [TIPO_ITEM.CONSUMABILE]: ConsumabileEditor,
-    [TIPO_ITEM.ARMA]: ArmaEditor,
-    [TIPO_ITEM.MUNIZIONE]: MunizioneEditor,
-    [TIPO_ITEM.EQUIPAGGIAMENTO]: EquipaggiamentoEditor,
-    [TIPO_ITEM.PERSONAGGIO]: PersonaggioEditor,
+    [TIPO_ITEM.ABILITA]: BaseItemEditor,
+    [TIPO_ITEM.TALENTO]: BaseItemEditor,
+    [TIPO_ITEM.OGGETTO]: BaseItemEditor,
+    [TIPO_ITEM.CONSUMABILE]: BaseItemEditor,
+    [TIPO_ITEM.ARMA]: BaseItemEditor,
+    [TIPO_ITEM.MUNIZIONE]: BaseItemEditor,
+    [TIPO_ITEM.EQUIPAGGIAMENTO]: BaseItemEditor,
+    [TIPO_ITEM.PERSONAGGIO]: BaseItemEditor,
     [TIPO_ITEM.CLASSE]: ClasseEditor,
     [TIPO_ITEM.RAZZA]: ClasseEditor,
-    [TIPO_ITEM.ATTACCO]: AttaccoEditor,
-    [TIPO_ITEM.ALTRO]: AltroEditor,
+    [TIPO_ITEM.ATTACCO]: BaseItemEditor,
+    [TIPO_ITEM.ALTRO]: BaseItemEditor,
     [TIPO_ITEM.LIVELLO]: LivelloEditor,
-    [TIPO_ITEM.MALEDIZIONE]: MaledizioneEditor,
+    [TIPO_ITEM.MALEDIZIONE]: BaseItemEditor,
     [TIPO_ITEM.INCANTESIMO]: SpellEditor,
-    [TIPO_ITEM.TRASFORMAZIONE]: TrasformazioneEditor,
-    [TIPO_ITEM.AVANZAMENTO]: AvanzamentoEditor,
-    [TIPO_ITEM.COMPETENZA]: CompetenzaEditor,
-    [TIPO_ITEM.LINGUA]: LinguaEditor,
-    [TIPO_ITEM.IDOLO]: IdoloEditor,
-    [TIPO_ITEM.FRUTTO]: FruttoEditor,
-    [TIPO_ITEM.FORMA]: FormaEditor,
-    [TIPO_ITEM.PRIVILEGIO]: PrivilegioEditor,
-    [TIPO_ITEM.CONTENITORE]: ContenitoreEditor,
-    [TIPO_ITEM.PATTO]: OggettoEditor,
-    [TIPO_ITEM.NOTIZIA]: NotiziaEditor,
+    [TIPO_ITEM.TRASFORMAZIONE]: BaseItemEditor,
+    [TIPO_ITEM.AVANZAMENTO]: BaseItemEditor,
+    [TIPO_ITEM.COMPETENZA]: BaseItemEditor,
+    [TIPO_ITEM.LINGUA]: BaseItemEditor,
+    [TIPO_ITEM.IDOLO]: BaseItemEditor,
+    [TIPO_ITEM.FRUTTO]: BaseItemEditor,
+    [TIPO_ITEM.FORMA]: BaseItemEditor,
+    [TIPO_ITEM.PRIVILEGIO]: BaseItemEditor,
+    [TIPO_ITEM.CONTENITORE]: BaseItemEditor,
+    [TIPO_ITEM.PATTO]: BaseItemEditor,
+    [TIPO_ITEM.NOTIZIA]: BaseItemEditor,
     [TIPO_ITEM.EFFETTO]: BaseItemEditor,
-    [TIPO_ITEM.QUEST]: QuestEditor,
+    [TIPO_ITEM.QUEST]: BaseItemEditor,
     [TIPO_ITEM.VEICOLO]: BaseItemEditor,
-    [TIPO_ITEM.INFO]: InfoEditor,
-    [TIPO_ITEM.CATEGORIA]: CategoriaEditor,
-    [TIPO_ITEM.TAG]: TagItemEditor,
-    [TIPO_ITEM.RANDOMIZZATORE]: RandomizzatoreEditor,
+    [TIPO_ITEM.INFO]: BaseItemEditor,
+    [TIPO_ITEM.CATEGORIA]: BaseItemEditor,
+    [TIPO_ITEM.TAG]: BaseItemEditor,
+    [TIPO_ITEM.RANDOMIZZATORE]: BaseItemEditor,
     [TIPO_ITEM.CASO]: BaseItemEditor,
-    [TIPO_ITEM.SKILL_TRICK]: SkillTrickEditor,
-    [TIPO_ITEM.IMMAGINE]: ImmagineEditor,
+    [TIPO_ITEM.SKILL_TRICK]: BaseItemEditor,
+    [TIPO_ITEM.IMMAGINE]: BaseItemEditor,
 }
 
 // Fallback per eventuali tipi non mappati
@@ -84,45 +62,9 @@ export function editorForType(tipo: TipoItem | undefined | null): Component | nu
     return EDITOR_BY_TYPE[tipo] ?? FALLBACK_EDITOR
 }
 
-// Etichette leggibili per il selettore della pagina di creazione
-export const TIPO_ITEM_LABELS: Record<TipoItem, string> = {
-    [TIPO_ITEM.ABILITA]: 'Abilità',
-    [TIPO_ITEM.TALENTO]: 'Talento',
-    [TIPO_ITEM.OGGETTO]: 'Oggetto',
-    [TIPO_ITEM.CONSUMABILE]: 'Consumabile',
-    [TIPO_ITEM.ARMA]: 'Arma',
-    [TIPO_ITEM.MUNIZIONE]: 'Munizione',
-    [TIPO_ITEM.EQUIPAGGIAMENTO]: 'Equipaggiamento',
-    [TIPO_ITEM.PERSONAGGIO]: 'Personaggio',
-    [TIPO_ITEM.CLASSE]: 'Classe',
-    [TIPO_ITEM.RAZZA]: 'Razza',
-    [TIPO_ITEM.ATTACCO]: 'Attacco',
-    [TIPO_ITEM.ALTRO]: 'Altro',
-    [TIPO_ITEM.LIVELLO]: 'Livello',
-    [TIPO_ITEM.MALEDIZIONE]: 'Maledizione',
-    [TIPO_ITEM.INCANTESIMO]: 'Incantesimo',
-    [TIPO_ITEM.TRASFORMAZIONE]: 'Trasformazione',
-    [TIPO_ITEM.AVANZAMENTO]: 'Avanzamento',
-    [TIPO_ITEM.COMPETENZA]: 'Competenza',
-    [TIPO_ITEM.LINGUA]: 'Lingua',
-    [TIPO_ITEM.IDOLO]: 'Idolo',
-    [TIPO_ITEM.FRUTTO]: 'Frutto',
-    [TIPO_ITEM.FORMA]: 'Forma',
-    [TIPO_ITEM.PRIVILEGIO]: 'Privilegio di Classe',
-    [TIPO_ITEM.CONTENITORE]: 'Contenitore',
-    [TIPO_ITEM.PATTO]: 'Patto',
-    [TIPO_ITEM.NOTIZIA]: 'Notizia',
-    [TIPO_ITEM.EFFETTO]: 'Effetto',
-    [TIPO_ITEM.QUEST]: 'Quest',
-    [TIPO_ITEM.VEICOLO]: 'Veicolo',
-    [TIPO_ITEM.INFO]: 'Info',
-    [TIPO_ITEM.CATEGORIA]: 'Categoria',
-    [TIPO_ITEM.TAG]: 'Tag',
-    [TIPO_ITEM.RANDOMIZZATORE]: 'Randomizzatore',
-    [TIPO_ITEM.CASO]: 'Caso',
-    [TIPO_ITEM.SKILL_TRICK]: 'Skill Trick',
-    [TIPO_ITEM.IMMAGINE]: 'Immagine',
-}
+// Re-esportata per compatibilità con chi la importava da qui (es. ItemCreate.vue): la
+// definizione vive ora in ItemDB.ts, vedi commento lì.
+export {TIPO_ITEM_LABELS}
 
 // Tipi creabili dalla pagina di creazione.
 // LIVELLO escluso: la creazione di un livello passa dal flusso della scheda

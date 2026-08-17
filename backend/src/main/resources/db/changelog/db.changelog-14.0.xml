@@ -1,0 +1,728 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        Definizione per (mondo, tipo item) di COSA MOSTRA il suo editor in BaseItemEditor.vue:
+        - quali card strutturali esistenti (Attacchi, Effetti, Modificatori, Incantesimi, ecc.)
+          sono abilitate (mondo_tipo_item_card_abilitata) — stessa card, si accende/spegne;
+        - quali campi liberi mostrare (mondo_tipo_item_campo), definiti liberamente per mondo al
+          posto degli array CAMPI hardcoded nei wrapper Editor/Tipi/*.vue;
+        - un titolo opzionale per la card che raggruppa i campi liberi (mondo_tipo_item_meta).
+        Non copre CLASSE/RAZZA/INCANTESIMO/LIVELLO: hanno editor completamente custom (ClasseEditor,
+        SpellEditor, LivelloEditor), non passano da BaseItemEditor, quindi questa configurazione
+        non li tocca (ancora).
+        Seed: per i mondi già esistenti, si riproduce ESATTAMENTE il comportamento attuale del
+        codice (regole minimal/separateForme/tipo di BaseItemEditor.vue e i CAMPI oggi hardocded
+        nei wrapper), così nulla cambia finché nessuno tocca la configurazione. I mondi creati dopo
+        questa migration partono senza nulla (stesso principio opt-in di db.changelog-13.0.xml).
+    -->
+
+    <changeSet id="1400" author="developer">
+        <comment>Abilitazione opt-in di una card strutturale di BaseItemEditor.vue per (mondo, tipo item).</comment>
+        <createTable tableName="mondo_tipo_item_card_abilitata">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_mondo" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="card" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="mondo_tipo_item_card_abilitata"
+                              columnNames="id_mondo, tipo, card"
+                              constraintName="uq_mondo_tipo_item_card_abilitata"/>
+        <addForeignKeyConstraint
+                baseTableName="mondo_tipo_item_card_abilitata"
+                baseColumnNames="id_mondo"
+                referencedTableName="mondo"
+                referencedColumnNames="id"
+                constraintName="fk_mondo_tipo_item_card_abilitata_mondo"/>
+    </changeSet>
+
+    <changeSet id="1401" author="developer">
+        <comment>Campo libero definito da un mondo per un tipo item (sostituisce gli array CAMPI hardcoded).</comment>
+        <createTable tableName="mondo_tipo_item_campo">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_mondo" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="chiave" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="etichetta" type="varchar(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo_campo" type="varchar(20)"/>
+            <column name="placeholder" type="varchar(300)"/>
+            <column name="textarea" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="multi_valore" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="html" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="opzioni" type="text"/>
+            <column name="ordine" type="int" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="mondo_tipo_item_campo"
+                              columnNames="id_mondo, tipo, chiave"
+                              constraintName="uq_mondo_tipo_item_campo"/>
+        <addForeignKeyConstraint
+                baseTableName="mondo_tipo_item_campo"
+                baseColumnNames="id_mondo"
+                referencedTableName="mondo"
+                referencedColumnNames="id"
+                constraintName="fk_mondo_tipo_item_campo_mondo"/>
+    </changeSet>
+
+    <changeSet id="1402" author="developer">
+        <comment>Titolo opzionale della card che raggruppa i campi liberi di un (mondo, tipo item).</comment>
+        <createTable tableName="mondo_tipo_item_meta">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_mondo" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="campi_titolo" type="varchar(200)"/>
+        </createTable>
+        <addUniqueConstraint tableName="mondo_tipo_item_meta"
+                              columnNames="id_mondo, tipo"
+                              constraintName="uq_mondo_tipo_item_meta"/>
+        <addForeignKeyConstraint
+                baseTableName="mondo_tipo_item_meta"
+                baseColumnNames="id_mondo"
+                referencedTableName="mondo"
+                referencedColumnNames="id"
+                constraintName="fk_mondo_tipo_item_meta_mondo"/>
+    </changeSet>
+
+    <changeSet id="1403" author="developer">
+        <comment>
+            Seed card abilitate per i mondi già esistenti: riproduce esattamente le regole attuali
+            di BaseItemEditor.vue (minimal per QUEST/INFO/NOTIZIA/IMMAGINE, showQta per i 5 tipi con
+            quantità, canHaveSpells per OGGETTO/EQUIPAGGIAMENTO/CONSUMABILE/ALTRO, isVeicolo per
+            VEICOLO, separateForme per FRUTTO, isAmbito per QUEST/INFO, forceImmagini per IMMAGINE).
+            NOTE e MONDO_SISTEMA sono universali (nessun v-if nel codice attuale). CLASSE/RAZZA/
+            INCANTESIMO/LIVELLO esclusi (editor custom, non applicabile).
+        </comment>
+        <sql>
+            INSERT INTO mondo_tipo_item_card_abilitata (id_mondo, tipo, card)
+            SELECT m.id, t.tipo, t.card
+            FROM mondo m
+            CROSS JOIN (VALUES
+        ('ABILITA', 'AGGIUNTA_CLASSE'),
+        ('ABILITA', 'ATTACCHI'),
+        ('ABILITA', 'DESCRITTORI_ABILITA'),
+        ('ABILITA', 'DESCRITTORI_OGGETTO'),
+        ('ABILITA', 'EFFETTI'),
+        ('ABILITA', 'IMMAGINI'),
+        ('ABILITA', 'INFO_OGGETTO'),
+        ('ABILITA', 'ITEM_COLLEGATI'),
+        ('ABILITA', 'LABELS'),
+        ('ABILITA', 'MANUALE'),
+        ('ABILITA', 'MODIFICATORI'),
+        ('ABILITA', 'MONDO_SISTEMA'),
+        ('ABILITA', 'NOME_EN'),
+        ('ABILITA', 'NOTE'),
+        ('ABILITA', 'RANDOMIZZATORI_INNESCATI'),
+        ('ABILITA', 'TAG'),
+        ('ABILITA', 'UTILIZZI_MAX'),
+        ('TALENTO', 'AGGIUNTA_CLASSE'),
+        ('TALENTO', 'ATTACCHI'),
+        ('TALENTO', 'DESCRITTORI_ABILITA'),
+        ('TALENTO', 'DESCRITTORI_OGGETTO'),
+        ('TALENTO', 'EFFETTI'),
+        ('TALENTO', 'IMMAGINI'),
+        ('TALENTO', 'INFO_OGGETTO'),
+        ('TALENTO', 'ITEM_COLLEGATI'),
+        ('TALENTO', 'LABELS'),
+        ('TALENTO', 'MANUALE'),
+        ('TALENTO', 'MODIFICATORI'),
+        ('TALENTO', 'MONDO_SISTEMA'),
+        ('TALENTO', 'NOME_EN'),
+        ('TALENTO', 'NOTE'),
+        ('TALENTO', 'RANDOMIZZATORI_INNESCATI'),
+        ('TALENTO', 'TAG'),
+        ('TALENTO', 'UTILIZZI_MAX'),
+        ('OGGETTO', 'AGGIUNTA_CLASSE'),
+        ('OGGETTO', 'ATTACCHI'),
+        ('OGGETTO', 'DESCRITTORI_ABILITA'),
+        ('OGGETTO', 'DESCRITTORI_OGGETTO'),
+        ('OGGETTO', 'EFFETTI'),
+        ('OGGETTO', 'IMMAGINI'),
+        ('OGGETTO', 'INCANTESIMI'),
+        ('OGGETTO', 'INFO_OGGETTO'),
+        ('OGGETTO', 'ITEM_COLLEGATI'),
+        ('OGGETTO', 'LABELS'),
+        ('OGGETTO', 'MANUALE'),
+        ('OGGETTO', 'MODIFICATORI'),
+        ('OGGETTO', 'MONDO_SISTEMA'),
+        ('OGGETTO', 'NOME_EN'),
+        ('OGGETTO', 'NOTE'),
+        ('OGGETTO', 'QUANTITA'),
+        ('OGGETTO', 'RANDOMIZZATORI_INNESCATI'),
+        ('OGGETTO', 'TAG'),
+        ('OGGETTO', 'UTILIZZI_MAX'),
+        ('CONSUMABILE', 'AGGIUNTA_CLASSE'),
+        ('CONSUMABILE', 'ATTACCHI'),
+        ('CONSUMABILE', 'DESCRITTORI_ABILITA'),
+        ('CONSUMABILE', 'DESCRITTORI_OGGETTO'),
+        ('CONSUMABILE', 'EFFETTI'),
+        ('CONSUMABILE', 'IMMAGINI'),
+        ('CONSUMABILE', 'INCANTESIMI'),
+        ('CONSUMABILE', 'INFO_OGGETTO'),
+        ('CONSUMABILE', 'ITEM_COLLEGATI'),
+        ('CONSUMABILE', 'LABELS'),
+        ('CONSUMABILE', 'MANUALE'),
+        ('CONSUMABILE', 'MODIFICATORI'),
+        ('CONSUMABILE', 'MONDO_SISTEMA'),
+        ('CONSUMABILE', 'NOME_EN'),
+        ('CONSUMABILE', 'NOTE'),
+        ('CONSUMABILE', 'QUANTITA'),
+        ('CONSUMABILE', 'RANDOMIZZATORI_INNESCATI'),
+        ('CONSUMABILE', 'TAG'),
+        ('CONSUMABILE', 'UTILIZZI_MAX'),
+        ('ARMA', 'AGGIUNTA_CLASSE'),
+        ('ARMA', 'ATTACCHI'),
+        ('ARMA', 'DESCRITTORI_ABILITA'),
+        ('ARMA', 'DESCRITTORI_OGGETTO'),
+        ('ARMA', 'EFFETTI'),
+        ('ARMA', 'IMMAGINI'),
+        ('ARMA', 'INFO_OGGETTO'),
+        ('ARMA', 'ITEM_COLLEGATI'),
+        ('ARMA', 'LABELS'),
+        ('ARMA', 'MANUALE'),
+        ('ARMA', 'MODIFICATORI'),
+        ('ARMA', 'MONDO_SISTEMA'),
+        ('ARMA', 'NOME_EN'),
+        ('ARMA', 'NOTE'),
+        ('ARMA', 'QUANTITA'),
+        ('ARMA', 'RANDOMIZZATORI_INNESCATI'),
+        ('ARMA', 'TAG'),
+        ('ARMA', 'UTILIZZI_MAX'),
+        ('MUNIZIONE', 'AGGIUNTA_CLASSE'),
+        ('MUNIZIONE', 'ATTACCHI'),
+        ('MUNIZIONE', 'DESCRITTORI_ABILITA'),
+        ('MUNIZIONE', 'DESCRITTORI_OGGETTO'),
+        ('MUNIZIONE', 'EFFETTI'),
+        ('MUNIZIONE', 'IMMAGINI'),
+        ('MUNIZIONE', 'INFO_OGGETTO'),
+        ('MUNIZIONE', 'ITEM_COLLEGATI'),
+        ('MUNIZIONE', 'LABELS'),
+        ('MUNIZIONE', 'MANUALE'),
+        ('MUNIZIONE', 'MODIFICATORI'),
+        ('MUNIZIONE', 'MONDO_SISTEMA'),
+        ('MUNIZIONE', 'NOME_EN'),
+        ('MUNIZIONE', 'NOTE'),
+        ('MUNIZIONE', 'QUANTITA'),
+        ('MUNIZIONE', 'RANDOMIZZATORI_INNESCATI'),
+        ('MUNIZIONE', 'TAG'),
+        ('MUNIZIONE', 'UTILIZZI_MAX'),
+        ('EQUIPAGGIAMENTO', 'AGGIUNTA_CLASSE'),
+        ('EQUIPAGGIAMENTO', 'ATTACCHI'),
+        ('EQUIPAGGIAMENTO', 'DESCRITTORI_ABILITA'),
+        ('EQUIPAGGIAMENTO', 'DESCRITTORI_OGGETTO'),
+        ('EQUIPAGGIAMENTO', 'EFFETTI'),
+        ('EQUIPAGGIAMENTO', 'IMMAGINI'),
+        ('EQUIPAGGIAMENTO', 'INCANTESIMI'),
+        ('EQUIPAGGIAMENTO', 'INFO_OGGETTO'),
+        ('EQUIPAGGIAMENTO', 'ITEM_COLLEGATI'),
+        ('EQUIPAGGIAMENTO', 'LABELS'),
+        ('EQUIPAGGIAMENTO', 'MANUALE'),
+        ('EQUIPAGGIAMENTO', 'MODIFICATORI'),
+        ('EQUIPAGGIAMENTO', 'MONDO_SISTEMA'),
+        ('EQUIPAGGIAMENTO', 'NOME_EN'),
+        ('EQUIPAGGIAMENTO', 'NOTE'),
+        ('EQUIPAGGIAMENTO', 'QUANTITA'),
+        ('EQUIPAGGIAMENTO', 'RANDOMIZZATORI_INNESCATI'),
+        ('EQUIPAGGIAMENTO', 'TAG'),
+        ('EQUIPAGGIAMENTO', 'UTILIZZI_MAX'),
+        ('PERSONAGGIO', 'AGGIUNTA_CLASSE'),
+        ('PERSONAGGIO', 'ATTACCHI'),
+        ('PERSONAGGIO', 'DESCRITTORI_ABILITA'),
+        ('PERSONAGGIO', 'DESCRITTORI_OGGETTO'),
+        ('PERSONAGGIO', 'EFFETTI'),
+        ('PERSONAGGIO', 'IMMAGINI'),
+        ('PERSONAGGIO', 'INFO_OGGETTO'),
+        ('PERSONAGGIO', 'ITEM_COLLEGATI'),
+        ('PERSONAGGIO', 'LABELS'),
+        ('PERSONAGGIO', 'MANUALE'),
+        ('PERSONAGGIO', 'MODIFICATORI'),
+        ('PERSONAGGIO', 'MONDO_SISTEMA'),
+        ('PERSONAGGIO', 'NOME_EN'),
+        ('PERSONAGGIO', 'NOTE'),
+        ('PERSONAGGIO', 'RANDOMIZZATORI_INNESCATI'),
+        ('PERSONAGGIO', 'TAG'),
+        ('PERSONAGGIO', 'UTILIZZI_MAX'),
+        ('ATTACCO', 'AGGIUNTA_CLASSE'),
+        ('ATTACCO', 'ATTACCHI'),
+        ('ATTACCO', 'DESCRITTORI_ABILITA'),
+        ('ATTACCO', 'DESCRITTORI_OGGETTO'),
+        ('ATTACCO', 'EFFETTI'),
+        ('ATTACCO', 'IMMAGINI'),
+        ('ATTACCO', 'INFO_OGGETTO'),
+        ('ATTACCO', 'ITEM_COLLEGATI'),
+        ('ATTACCO', 'LABELS'),
+        ('ATTACCO', 'MANUALE'),
+        ('ATTACCO', 'MODIFICATORI'),
+        ('ATTACCO', 'MONDO_SISTEMA'),
+        ('ATTACCO', 'NOME_EN'),
+        ('ATTACCO', 'NOTE'),
+        ('ATTACCO', 'RANDOMIZZATORI_INNESCATI'),
+        ('ATTACCO', 'TAG'),
+        ('ATTACCO', 'UTILIZZI_MAX'),
+        ('ALTRO', 'AGGIUNTA_CLASSE'),
+        ('ALTRO', 'ATTACCHI'),
+        ('ALTRO', 'DESCRITTORI_ABILITA'),
+        ('ALTRO', 'DESCRITTORI_OGGETTO'),
+        ('ALTRO', 'EFFETTI'),
+        ('ALTRO', 'IMMAGINI'),
+        ('ALTRO', 'INCANTESIMI'),
+        ('ALTRO', 'INFO_OGGETTO'),
+        ('ALTRO', 'ITEM_COLLEGATI'),
+        ('ALTRO', 'LABELS'),
+        ('ALTRO', 'MANUALE'),
+        ('ALTRO', 'MODIFICATORI'),
+        ('ALTRO', 'MONDO_SISTEMA'),
+        ('ALTRO', 'NOME_EN'),
+        ('ALTRO', 'NOTE'),
+        ('ALTRO', 'RANDOMIZZATORI_INNESCATI'),
+        ('ALTRO', 'TAG'),
+        ('ALTRO', 'UTILIZZI_MAX'),
+        ('MALEDIZIONE', 'AGGIUNTA_CLASSE'),
+        ('MALEDIZIONE', 'ATTACCHI'),
+        ('MALEDIZIONE', 'DESCRITTORI_ABILITA'),
+        ('MALEDIZIONE', 'DESCRITTORI_OGGETTO'),
+        ('MALEDIZIONE', 'EFFETTI'),
+        ('MALEDIZIONE', 'IMMAGINI'),
+        ('MALEDIZIONE', 'INFO_OGGETTO'),
+        ('MALEDIZIONE', 'ITEM_COLLEGATI'),
+        ('MALEDIZIONE', 'LABELS'),
+        ('MALEDIZIONE', 'MANUALE'),
+        ('MALEDIZIONE', 'MODIFICATORI'),
+        ('MALEDIZIONE', 'MONDO_SISTEMA'),
+        ('MALEDIZIONE', 'NOME_EN'),
+        ('MALEDIZIONE', 'NOTE'),
+        ('MALEDIZIONE', 'RANDOMIZZATORI_INNESCATI'),
+        ('MALEDIZIONE', 'TAG'),
+        ('MALEDIZIONE', 'UTILIZZI_MAX'),
+        ('TRASFORMAZIONE', 'AGGIUNTA_CLASSE'),
+        ('TRASFORMAZIONE', 'ATTACCHI'),
+        ('TRASFORMAZIONE', 'DESCRITTORI_ABILITA'),
+        ('TRASFORMAZIONE', 'DESCRITTORI_OGGETTO'),
+        ('TRASFORMAZIONE', 'EFFETTI'),
+        ('TRASFORMAZIONE', 'IMMAGINI'),
+        ('TRASFORMAZIONE', 'INFO_OGGETTO'),
+        ('TRASFORMAZIONE', 'ITEM_COLLEGATI'),
+        ('TRASFORMAZIONE', 'LABELS'),
+        ('TRASFORMAZIONE', 'MANUALE'),
+        ('TRASFORMAZIONE', 'MODIFICATORI'),
+        ('TRASFORMAZIONE', 'MONDO_SISTEMA'),
+        ('TRASFORMAZIONE', 'NOME_EN'),
+        ('TRASFORMAZIONE', 'NOTE'),
+        ('TRASFORMAZIONE', 'RANDOMIZZATORI_INNESCATI'),
+        ('TRASFORMAZIONE', 'TAG'),
+        ('TRASFORMAZIONE', 'UTILIZZI_MAX'),
+        ('AVANZAMENTO', 'AGGIUNTA_CLASSE'),
+        ('AVANZAMENTO', 'ATTACCHI'),
+        ('AVANZAMENTO', 'DESCRITTORI_ABILITA'),
+        ('AVANZAMENTO', 'DESCRITTORI_OGGETTO'),
+        ('AVANZAMENTO', 'EFFETTI'),
+        ('AVANZAMENTO', 'IMMAGINI'),
+        ('AVANZAMENTO', 'INFO_OGGETTO'),
+        ('AVANZAMENTO', 'ITEM_COLLEGATI'),
+        ('AVANZAMENTO', 'LABELS'),
+        ('AVANZAMENTO', 'MANUALE'),
+        ('AVANZAMENTO', 'MODIFICATORI'),
+        ('AVANZAMENTO', 'MONDO_SISTEMA'),
+        ('AVANZAMENTO', 'NOME_EN'),
+        ('AVANZAMENTO', 'NOTE'),
+        ('AVANZAMENTO', 'RANDOMIZZATORI_INNESCATI'),
+        ('AVANZAMENTO', 'TAG'),
+        ('AVANZAMENTO', 'UTILIZZI_MAX'),
+        ('COMP', 'AGGIUNTA_CLASSE'),
+        ('COMP', 'ATTACCHI'),
+        ('COMP', 'DESCRITTORI_ABILITA'),
+        ('COMP', 'DESCRITTORI_OGGETTO'),
+        ('COMP', 'EFFETTI'),
+        ('COMP', 'IMMAGINI'),
+        ('COMP', 'INFO_OGGETTO'),
+        ('COMP', 'ITEM_COLLEGATI'),
+        ('COMP', 'LABELS'),
+        ('COMP', 'MANUALE'),
+        ('COMP', 'MODIFICATORI'),
+        ('COMP', 'MONDO_SISTEMA'),
+        ('COMP', 'NOME_EN'),
+        ('COMP', 'NOTE'),
+        ('COMP', 'RANDOMIZZATORI_INNESCATI'),
+        ('COMP', 'TAG'),
+        ('COMP', 'UTILIZZI_MAX'),
+        ('LINGUA', 'AGGIUNTA_CLASSE'),
+        ('LINGUA', 'ATTACCHI'),
+        ('LINGUA', 'DESCRITTORI_ABILITA'),
+        ('LINGUA', 'DESCRITTORI_OGGETTO'),
+        ('LINGUA', 'EFFETTI'),
+        ('LINGUA', 'IMMAGINI'),
+        ('LINGUA', 'INFO_OGGETTO'),
+        ('LINGUA', 'ITEM_COLLEGATI'),
+        ('LINGUA', 'LABELS'),
+        ('LINGUA', 'MANUALE'),
+        ('LINGUA', 'MODIFICATORI'),
+        ('LINGUA', 'MONDO_SISTEMA'),
+        ('LINGUA', 'NOME_EN'),
+        ('LINGUA', 'NOTE'),
+        ('LINGUA', 'RANDOMIZZATORI_INNESCATI'),
+        ('LINGUA', 'TAG'),
+        ('LINGUA', 'UTILIZZI_MAX'),
+        ('IDOLO', 'AGGIUNTA_CLASSE'),
+        ('IDOLO', 'ATTACCHI'),
+        ('IDOLO', 'DESCRITTORI_ABILITA'),
+        ('IDOLO', 'DESCRITTORI_OGGETTO'),
+        ('IDOLO', 'EFFETTI'),
+        ('IDOLO', 'IMMAGINI'),
+        ('IDOLO', 'INFO_OGGETTO'),
+        ('IDOLO', 'ITEM_COLLEGATI'),
+        ('IDOLO', 'LABELS'),
+        ('IDOLO', 'MANUALE'),
+        ('IDOLO', 'MODIFICATORI'),
+        ('IDOLO', 'MONDO_SISTEMA'),
+        ('IDOLO', 'NOME_EN'),
+        ('IDOLO', 'NOTE'),
+        ('IDOLO', 'RANDOMIZZATORI_INNESCATI'),
+        ('IDOLO', 'TAG'),
+        ('IDOLO', 'UTILIZZI_MAX'),
+        ('FRUTTO', 'AGGIUNTA_CLASSE'),
+        ('FRUTTO', 'ATTACCHI'),
+        ('FRUTTO', 'DESCRITTORI_ABILITA'),
+        ('FRUTTO', 'DESCRITTORI_OGGETTO'),
+        ('FRUTTO', 'EFFETTI'),
+        ('FRUTTO', 'FORME'),
+        ('FRUTTO', 'IMMAGINI'),
+        ('FRUTTO', 'INFO_OGGETTO'),
+        ('FRUTTO', 'ITEM_COLLEGATI'),
+        ('FRUTTO', 'LABELS'),
+        ('FRUTTO', 'MANUALE'),
+        ('FRUTTO', 'MODIFICATORI'),
+        ('FRUTTO', 'MONDO_SISTEMA'),
+        ('FRUTTO', 'NOME_EN'),
+        ('FRUTTO', 'NOTE'),
+        ('FRUTTO', 'RANDOMIZZATORI_INNESCATI'),
+        ('FRUTTO', 'TAG'),
+        ('FRUTTO', 'UTILIZZI_MAX'),
+        ('FORMA', 'AGGIUNTA_CLASSE'),
+        ('FORMA', 'ATTACCHI'),
+        ('FORMA', 'DESCRITTORI_ABILITA'),
+        ('FORMA', 'DESCRITTORI_OGGETTO'),
+        ('FORMA', 'EFFETTI'),
+        ('FORMA', 'IMMAGINI'),
+        ('FORMA', 'INFO_OGGETTO'),
+        ('FORMA', 'ITEM_COLLEGATI'),
+        ('FORMA', 'LABELS'),
+        ('FORMA', 'MANUALE'),
+        ('FORMA', 'MODIFICATORI'),
+        ('FORMA', 'MONDO_SISTEMA'),
+        ('FORMA', 'NOME_EN'),
+        ('FORMA', 'NOTE'),
+        ('FORMA', 'RANDOMIZZATORI_INNESCATI'),
+        ('FORMA', 'TAG'),
+        ('FORMA', 'UTILIZZI_MAX'),
+        ('PRIVILEGIO', 'AGGIUNTA_CLASSE'),
+        ('PRIVILEGIO', 'ATTACCHI'),
+        ('PRIVILEGIO', 'DESCRITTORI_ABILITA'),
+        ('PRIVILEGIO', 'DESCRITTORI_OGGETTO'),
+        ('PRIVILEGIO', 'EFFETTI'),
+        ('PRIVILEGIO', 'IMMAGINI'),
+        ('PRIVILEGIO', 'INFO_OGGETTO'),
+        ('PRIVILEGIO', 'ITEM_COLLEGATI'),
+        ('PRIVILEGIO', 'LABELS'),
+        ('PRIVILEGIO', 'MANUALE'),
+        ('PRIVILEGIO', 'MODIFICATORI'),
+        ('PRIVILEGIO', 'MONDO_SISTEMA'),
+        ('PRIVILEGIO', 'NOME_EN'),
+        ('PRIVILEGIO', 'NOTE'),
+        ('PRIVILEGIO', 'RANDOMIZZATORI_INNESCATI'),
+        ('PRIVILEGIO', 'TAG'),
+        ('PRIVILEGIO', 'UTILIZZI_MAX'),
+        ('CONTENITORE', 'AGGIUNTA_CLASSE'),
+        ('CONTENITORE', 'ATTACCHI'),
+        ('CONTENITORE', 'DESCRITTORI_ABILITA'),
+        ('CONTENITORE', 'DESCRITTORI_OGGETTO'),
+        ('CONTENITORE', 'EFFETTI'),
+        ('CONTENITORE', 'IMMAGINI'),
+        ('CONTENITORE', 'INFO_OGGETTO'),
+        ('CONTENITORE', 'ITEM_COLLEGATI'),
+        ('CONTENITORE', 'LABELS'),
+        ('CONTENITORE', 'MANUALE'),
+        ('CONTENITORE', 'MODIFICATORI'),
+        ('CONTENITORE', 'MONDO_SISTEMA'),
+        ('CONTENITORE', 'NOME_EN'),
+        ('CONTENITORE', 'NOTE'),
+        ('CONTENITORE', 'RANDOMIZZATORI_INNESCATI'),
+        ('CONTENITORE', 'TAG'),
+        ('CONTENITORE', 'UTILIZZI_MAX'),
+        ('PATTO', 'AGGIUNTA_CLASSE'),
+        ('PATTO', 'ATTACCHI'),
+        ('PATTO', 'DESCRITTORI_ABILITA'),
+        ('PATTO', 'DESCRITTORI_OGGETTO'),
+        ('PATTO', 'EFFETTI'),
+        ('PATTO', 'IMMAGINI'),
+        ('PATTO', 'INFO_OGGETTO'),
+        ('PATTO', 'ITEM_COLLEGATI'),
+        ('PATTO', 'LABELS'),
+        ('PATTO', 'MANUALE'),
+        ('PATTO', 'MODIFICATORI'),
+        ('PATTO', 'MONDO_SISTEMA'),
+        ('PATTO', 'NOME_EN'),
+        ('PATTO', 'NOTE'),
+        ('PATTO', 'RANDOMIZZATORI_INNESCATI'),
+        ('PATTO', 'TAG'),
+        ('PATTO', 'UTILIZZI_MAX'),
+        ('NOTIZIA', 'MONDO_SISTEMA'),
+        ('NOTIZIA', 'NOTE'),
+        ('EFFETTO', 'AGGIUNTA_CLASSE'),
+        ('EFFETTO', 'ATTACCHI'),
+        ('EFFETTO', 'DESCRITTORI_ABILITA'),
+        ('EFFETTO', 'DESCRITTORI_OGGETTO'),
+        ('EFFETTO', 'EFFETTI'),
+        ('EFFETTO', 'IMMAGINI'),
+        ('EFFETTO', 'INFO_OGGETTO'),
+        ('EFFETTO', 'ITEM_COLLEGATI'),
+        ('EFFETTO', 'LABELS'),
+        ('EFFETTO', 'MANUALE'),
+        ('EFFETTO', 'MODIFICATORI'),
+        ('EFFETTO', 'MONDO_SISTEMA'),
+        ('EFFETTO', 'NOME_EN'),
+        ('EFFETTO', 'NOTE'),
+        ('EFFETTO', 'RANDOMIZZATORI_INNESCATI'),
+        ('EFFETTO', 'TAG'),
+        ('EFFETTO', 'UTILIZZI_MAX'),
+        ('QUEST', 'IN_CARICO'),
+        ('QUEST', 'ITEM_COLLEGATI'),
+        ('QUEST', 'MONDO_SISTEMA'),
+        ('QUEST', 'NOTE'),
+        ('VEICOLO', 'AGGIUNTA_CLASSE'),
+        ('VEICOLO', 'ATTACCHI'),
+        ('VEICOLO', 'DESCRITTORI_ABILITA'),
+        ('VEICOLO', 'DESCRITTORI_OGGETTO'),
+        ('VEICOLO', 'EFFETTI'),
+        ('VEICOLO', 'IMMAGINI'),
+        ('VEICOLO', 'INFO_OGGETTO'),
+        ('VEICOLO', 'INFO_VEICOLO'),
+        ('VEICOLO', 'ITEM_COLLEGATI'),
+        ('VEICOLO', 'LABELS'),
+        ('VEICOLO', 'MANUALE'),
+        ('VEICOLO', 'MODIFICATORI'),
+        ('VEICOLO', 'MONDO_SISTEMA'),
+        ('VEICOLO', 'NOME_EN'),
+        ('VEICOLO', 'NOTE'),
+        ('VEICOLO', 'RANDOMIZZATORI_INNESCATI'),
+        ('VEICOLO', 'TAG'),
+        ('VEICOLO', 'UTILIZZI_MAX'),
+        ('INFO', 'ITEM_COLLEGATI'),
+        ('INFO', 'MONDO_SISTEMA'),
+        ('INFO', 'NOTE'),
+        ('CATEGORIA', 'AGGIUNTA_CLASSE'),
+        ('CATEGORIA', 'ATTACCHI'),
+        ('CATEGORIA', 'DESCRITTORI_ABILITA'),
+        ('CATEGORIA', 'DESCRITTORI_OGGETTO'),
+        ('CATEGORIA', 'EFFETTI'),
+        ('CATEGORIA', 'IMMAGINI'),
+        ('CATEGORIA', 'INFO_OGGETTO'),
+        ('CATEGORIA', 'ITEM_COLLEGATI'),
+        ('CATEGORIA', 'LABELS'),
+        ('CATEGORIA', 'MANUALE'),
+        ('CATEGORIA', 'MODIFICATORI'),
+        ('CATEGORIA', 'MONDO_SISTEMA'),
+        ('CATEGORIA', 'NOME_EN'),
+        ('CATEGORIA', 'NOTE'),
+        ('CATEGORIA', 'RANDOMIZZATORI_INNESCATI'),
+        ('CATEGORIA', 'TAG'),
+        ('CATEGORIA', 'UTILIZZI_MAX'),
+        ('TAG', 'AGGIUNTA_CLASSE'),
+        ('TAG', 'ATTACCHI'),
+        ('TAG', 'DESCRITTORI_ABILITA'),
+        ('TAG', 'DESCRITTORI_OGGETTO'),
+        ('TAG', 'EFFETTI'),
+        ('TAG', 'IMMAGINI'),
+        ('TAG', 'INFO_OGGETTO'),
+        ('TAG', 'ITEM_COLLEGATI'),
+        ('TAG', 'LABELS'),
+        ('TAG', 'MANUALE'),
+        ('TAG', 'MODIFICATORI'),
+        ('TAG', 'MONDO_SISTEMA'),
+        ('TAG', 'NOME_EN'),
+        ('TAG', 'NOTE'),
+        ('TAG', 'RANDOMIZZATORI_INNESCATI'),
+        ('TAG', 'TAG'),
+        ('TAG', 'UTILIZZI_MAX'),
+        ('RANDOMIZZATORE', 'AGGIUNTA_CLASSE'),
+        ('RANDOMIZZATORE', 'ATTACCHI'),
+        ('RANDOMIZZATORE', 'DESCRITTORI_ABILITA'),
+        ('RANDOMIZZATORE', 'DESCRITTORI_OGGETTO'),
+        ('RANDOMIZZATORE', 'EFFETTI'),
+        ('RANDOMIZZATORE', 'IMMAGINI'),
+        ('RANDOMIZZATORE', 'INFO_OGGETTO'),
+        ('RANDOMIZZATORE', 'ITEM_COLLEGATI'),
+        ('RANDOMIZZATORE', 'LABELS'),
+        ('RANDOMIZZATORE', 'MANUALE'),
+        ('RANDOMIZZATORE', 'MODIFICATORI'),
+        ('RANDOMIZZATORE', 'MONDO_SISTEMA'),
+        ('RANDOMIZZATORE', 'NOME_EN'),
+        ('RANDOMIZZATORE', 'NOTE'),
+        ('RANDOMIZZATORE', 'RANDOMIZZATORI_INNESCATI'),
+        ('RANDOMIZZATORE', 'TAG'),
+        ('RANDOMIZZATORE', 'UTILIZZI_MAX'),
+        ('CASO', 'AGGIUNTA_CLASSE'),
+        ('CASO', 'ATTACCHI'),
+        ('CASO', 'DESCRITTORI_ABILITA'),
+        ('CASO', 'DESCRITTORI_OGGETTO'),
+        ('CASO', 'EFFETTI'),
+        ('CASO', 'IMMAGINI'),
+        ('CASO', 'INFO_OGGETTO'),
+        ('CASO', 'ITEM_COLLEGATI'),
+        ('CASO', 'LABELS'),
+        ('CASO', 'MANUALE'),
+        ('CASO', 'MODIFICATORI'),
+        ('CASO', 'MONDO_SISTEMA'),
+        ('CASO', 'NOME_EN'),
+        ('CASO', 'NOTE'),
+        ('CASO', 'RANDOMIZZATORI_INNESCATI'),
+        ('CASO', 'TAG'),
+        ('CASO', 'UTILIZZI_MAX'),
+        ('SKILL_TRICK', 'AGGIUNTA_CLASSE'),
+        ('SKILL_TRICK', 'ATTACCHI'),
+        ('SKILL_TRICK', 'DESCRITTORI_ABILITA'),
+        ('SKILL_TRICK', 'DESCRITTORI_OGGETTO'),
+        ('SKILL_TRICK', 'EFFETTI'),
+        ('SKILL_TRICK', 'IMMAGINI'),
+        ('SKILL_TRICK', 'INFO_OGGETTO'),
+        ('SKILL_TRICK', 'ITEM_COLLEGATI'),
+        ('SKILL_TRICK', 'LABELS'),
+        ('SKILL_TRICK', 'MANUALE'),
+        ('SKILL_TRICK', 'MODIFICATORI'),
+        ('SKILL_TRICK', 'MONDO_SISTEMA'),
+        ('SKILL_TRICK', 'NOME_EN'),
+        ('SKILL_TRICK', 'NOTE'),
+        ('SKILL_TRICK', 'RANDOMIZZATORI_INNESCATI'),
+        ('SKILL_TRICK', 'TAG'),
+        ('SKILL_TRICK', 'UTILIZZI_MAX'),
+        ('IMMAGINE', 'IMMAGINI'),
+        ('IMMAGINE', 'MONDO_SISTEMA'),
+        ('IMMAGINE', 'NOTE')
+            ) AS t(tipo, card);
+        </sql>
+        <rollback>
+            <sql>DELETE FROM mondo_tipo_item_card_abilitata;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1404" author="developer">
+        <comment>Seed campi liberi per i mondi già esistenti, a partire dagli array CAMPI oggi hardcoded nei wrapper Editor/Tipi/*.vue (PATTO condivide OggettoEditor.vue: stessi campi di OGGETTO).</comment>
+        <sql>
+            INSERT INTO mondo_tipo_item_campo (id_mondo, tipo, chiave, etichetta, tipo_campo, placeholder, textarea, multi_valore, html, opzioni, ordine)
+            SELECT m.id, t.tipo, t.chiave, t.etichetta, t.tipo_campo, t.placeholder, t.textarea, t.multi_valore, t.html, t.opzioni, t.ordine
+            FROM mondo m
+            CROSS JOIN (VALUES
+        ('TALENTO', 'PAGE', 'Pagina', NULL, 'es. 47', false, false, false, NULL, 0),
+        ('TALENTO', 'LINK', 'Link di riferimento', NULL, 'https://dndtools.org/feats/...', false, false, false, NULL, 1),
+        ('TALENTO', 'CATEGORY', 'Categorie', NULL, 'es. General', false, true, false, NULL, 2),
+        ('TALENTO', 'PREREQUISITE', 'Prerequisito', NULL, NULL, true, false, false, NULL, 3),
+        ('TALENTO', 'REQUIRED_FOR', 'Richiesto per', NULL, NULL, true, false, false, NULL, 4),
+        ('TALENTO', 'BENEFIT', 'Beneficio', NULL, NULL, true, false, false, NULL, 5),
+        ('TALENTO', 'NORMAL', 'Normale', NULL, NULL, true, false, false, NULL, 6),
+        ('TALENTO', 'SPECIAL', 'Speciale', NULL, NULL, true, false, false, NULL, 7),
+        ('TALENTO', 'EXTRA', 'Altre sezioni', NULL, 'Titolo: testo', true, true, false, NULL, 8),
+        ('OGGETTO', 'PESO', 'Peso (kg)', NULL, 'Es.: 1.5', false, false, false, NULL, 0),
+        ('OGGETTO', 'TAGLIA', 'Modifica taglia personaggio', 'SELECT', NULL, false, false, false, '[{"value": "-14", "label": "Piccolissima 10-"}, {"value": "-13", "label": "Piccolissima 9-"}, {"value": "-12", "label": "Piccolissima 8-"}, {"value": "-11", "label": "Piccolissima 7-"}, {"value": "-10", "label": "Piccolissima 6-"}, {"value": "-9", "label": "Piccolissima 5-"}, {"value": "-8", "label": "Piccolissima 4-"}, {"value": "-7", "label": "Piccolissima 3-"}, {"value": "-6", "label": "Piccolissima--"}, {"value": "-5", "label": "Piccolissima-"}, {"value": "-4", "label": "Piccolissima"}, {"value": "-3", "label": "Minuta"}, {"value": "-2", "label": "Minuscola"}, {"value": "-1", "label": "Piccola"}, {"value": "0", "label": "Media"}, {"value": "1", "label": "Grande"}, {"value": "2", "label": "Enorme"}, {"value": "3", "label": "Mastodontica"}, {"value": "4", "label": "Colossale"}, {"value": "5", "label": "Colossale+"}, {"value": "6", "label": "Colossale++"}, {"value": "7", "label": "Colossale 3+"}, {"value": "8", "label": "Colossale 4+"}, {"value": "9", "label": "Colossale 5+"}, {"value": "10", "label": "Colossale 6+"}, {"value": "11", "label": "Colossale 7+"}, {"value": "12", "label": "Colossale 8+"}, {"value": "13", "label": "Colossale 9+"}, {"value": "14", "label": "Colossale 10+"}]', 1),
+        ('PATTO', 'PESO', 'Peso (kg)', NULL, 'Es.: 1.5', false, false, false, NULL, 0),
+        ('PATTO', 'TAGLIA', 'Modifica taglia personaggio', 'SELECT', NULL, false, false, false, '[{"value": "-14", "label": "Piccolissima 10-"}, {"value": "-13", "label": "Piccolissima 9-"}, {"value": "-12", "label": "Piccolissima 8-"}, {"value": "-11", "label": "Piccolissima 7-"}, {"value": "-10", "label": "Piccolissima 6-"}, {"value": "-9", "label": "Piccolissima 5-"}, {"value": "-8", "label": "Piccolissima 4-"}, {"value": "-7", "label": "Piccolissima 3-"}, {"value": "-6", "label": "Piccolissima--"}, {"value": "-5", "label": "Piccolissima-"}, {"value": "-4", "label": "Piccolissima"}, {"value": "-3", "label": "Minuta"}, {"value": "-2", "label": "Minuscola"}, {"value": "-1", "label": "Piccola"}, {"value": "0", "label": "Media"}, {"value": "1", "label": "Grande"}, {"value": "2", "label": "Enorme"}, {"value": "3", "label": "Mastodontica"}, {"value": "4", "label": "Colossale"}, {"value": "5", "label": "Colossale+"}, {"value": "6", "label": "Colossale++"}, {"value": "7", "label": "Colossale 3+"}, {"value": "8", "label": "Colossale 4+"}, {"value": "9", "label": "Colossale 5+"}, {"value": "10", "label": "Colossale 6+"}, {"value": "11", "label": "Colossale 7+"}, {"value": "12", "label": "Colossale 8+"}, {"value": "13", "label": "Colossale 9+"}, {"value": "14", "label": "Colossale 10+"}]', 1),
+        ('CONSUMABILE', 'PESO', 'Peso (kg)', NULL, 'Es.: 1.5', false, false, false, NULL, 0),
+        ('ARMA', 'PESO', 'Peso (kg)', NULL, 'Es.: 1.5', false, false, false, NULL, 0),
+        ('ARMA', 'TAGLIA', 'Modifica taglia personaggio', 'SELECT', NULL, false, false, false, '[{"value": "-14", "label": "Piccolissima 10-"}, {"value": "-13", "label": "Piccolissima 9-"}, {"value": "-12", "label": "Piccolissima 8-"}, {"value": "-11", "label": "Piccolissima 7-"}, {"value": "-10", "label": "Piccolissima 6-"}, {"value": "-9", "label": "Piccolissima 5-"}, {"value": "-8", "label": "Piccolissima 4-"}, {"value": "-7", "label": "Piccolissima 3-"}, {"value": "-6", "label": "Piccolissima--"}, {"value": "-5", "label": "Piccolissima-"}, {"value": "-4", "label": "Piccolissima"}, {"value": "-3", "label": "Minuta"}, {"value": "-2", "label": "Minuscola"}, {"value": "-1", "label": "Piccola"}, {"value": "0", "label": "Media"}, {"value": "1", "label": "Grande"}, {"value": "2", "label": "Enorme"}, {"value": "3", "label": "Mastodontica"}, {"value": "4", "label": "Colossale"}, {"value": "5", "label": "Colossale+"}, {"value": "6", "label": "Colossale++"}, {"value": "7", "label": "Colossale 3+"}, {"value": "8", "label": "Colossale 4+"}, {"value": "9", "label": "Colossale 5+"}, {"value": "10", "label": "Colossale 6+"}, {"value": "11", "label": "Colossale 7+"}, {"value": "12", "label": "Colossale 8+"}, {"value": "13", "label": "Colossale 9+"}, {"value": "14", "label": "Colossale 10+"}]', 1),
+        ('ARMA', 'REQ_COMP', 'Competenza richiesta', NULL, 'Es.: Armi da guerra', false, false, false, NULL, 2),
+        ('MUNIZIONE', 'PESO', 'Peso (kg)', NULL, 'Es.: 1.5', false, false, false, NULL, 0),
+        ('MUNIZIONE', 'REQ_COMP', 'Competenza richiesta', NULL, NULL, false, false, false, NULL, 1),
+        ('EQUIPAGGIAMENTO', 'PESO', 'Peso (kg)', NULL, 'Es.: 1.5', false, false, false, NULL, 0),
+        ('EQUIPAGGIAMENTO', 'TAGLIA', 'Modifica taglia personaggio', 'SELECT', NULL, false, false, false, '[{"value": "-14", "label": "Piccolissima 10-"}, {"value": "-13", "label": "Piccolissima 9-"}, {"value": "-12", "label": "Piccolissima 8-"}, {"value": "-11", "label": "Piccolissima 7-"}, {"value": "-10", "label": "Piccolissima 6-"}, {"value": "-9", "label": "Piccolissima 5-"}, {"value": "-8", "label": "Piccolissima 4-"}, {"value": "-7", "label": "Piccolissima 3-"}, {"value": "-6", "label": "Piccolissima--"}, {"value": "-5", "label": "Piccolissima-"}, {"value": "-4", "label": "Piccolissima"}, {"value": "-3", "label": "Minuta"}, {"value": "-2", "label": "Minuscola"}, {"value": "-1", "label": "Piccola"}, {"value": "0", "label": "Media"}, {"value": "1", "label": "Grande"}, {"value": "2", "label": "Enorme"}, {"value": "3", "label": "Mastodontica"}, {"value": "4", "label": "Colossale"}, {"value": "5", "label": "Colossale+"}, {"value": "6", "label": "Colossale++"}, {"value": "7", "label": "Colossale 3+"}, {"value": "8", "label": "Colossale 4+"}, {"value": "9", "label": "Colossale 5+"}, {"value": "10", "label": "Colossale 6+"}, {"value": "11", "label": "Colossale 7+"}, {"value": "12", "label": "Colossale 8+"}, {"value": "13", "label": "Colossale 9+"}, {"value": "14", "label": "Colossale 10+"}]', 1),
+        ('ATTACCO', 'TPC', 'Tiro per colpire', NULL, 'Formula, es.: BAB+FOR', false, false, false, NULL, 0),
+        ('ATTACCO', 'TPD', 'Danni', NULL, 'Formula, es.: 1d8+FOR', false, false, false, NULL, 1),
+        ('ATTACCO', 'TDANNO', 'Tipo danni', NULL, 'Es.: Perforante', false, false, false, NULL, 2),
+        ('ATTACCO', 'TRANGE', 'Range', NULL, 'Es.: 9 m', false, false, false, NULL, 3),
+        ('ATTACCO', 'TTS', 'Tiro salvezza', NULL, 'Es.: Tempra dimezza', false, false, false, NULL, 4),
+        ('TRASFORMAZIONE', 'GRP_TRASF', 'Gruppo trasformazione', NULL, 'Gruppo di mutua esclusione', false, false, false, NULL, 0),
+        ('TRASFORMAZIONE', 'TAGLIA', 'Taglia assunta dal personaggio', 'SELECT', NULL, false, false, false, '[{"value": "-14", "label": "Piccolissima 10-"}, {"value": "-13", "label": "Piccolissima 9-"}, {"value": "-12", "label": "Piccolissima 8-"}, {"value": "-11", "label": "Piccolissima 7-"}, {"value": "-10", "label": "Piccolissima 6-"}, {"value": "-9", "label": "Piccolissima 5-"}, {"value": "-8", "label": "Piccolissima 4-"}, {"value": "-7", "label": "Piccolissima 3-"}, {"value": "-6", "label": "Piccolissima--"}, {"value": "-5", "label": "Piccolissima-"}, {"value": "-4", "label": "Piccolissima"}, {"value": "-3", "label": "Minuta"}, {"value": "-2", "label": "Minuscola"}, {"value": "-1", "label": "Piccola"}, {"value": "0", "label": "Media"}, {"value": "1", "label": "Grande"}, {"value": "2", "label": "Enorme"}, {"value": "3", "label": "Mastodontica"}, {"value": "4", "label": "Colossale"}, {"value": "5", "label": "Colossale+"}, {"value": "6", "label": "Colossale++"}, {"value": "7", "label": "Colossale 3+"}, {"value": "8", "label": "Colossale 4+"}, {"value": "9", "label": "Colossale 5+"}, {"value": "10", "label": "Colossale 6+"}, {"value": "11", "label": "Colossale 7+"}, {"value": "12", "label": "Colossale 8+"}, {"value": "13", "label": "Colossale 9+"}, {"value": "14", "label": "Colossale 10+"}]', 1),
+        ('TRASFORMAZIONE', 'DV', 'Dadi vita', NULL, 'DV della forma', false, false, false, NULL, 2),
+        ('FORMA', 'GRP_TRASF', 'Gruppo', NULL, 'Gruppo di mutua esclusione', false, false, false, NULL, 0),
+        ('FORMA', 'TAGLIA', 'Taglia assunta dal personaggio', 'SELECT', NULL, false, false, false, '[{"value": "-14", "label": "Piccolissima 10-"}, {"value": "-13", "label": "Piccolissima 9-"}, {"value": "-12", "label": "Piccolissima 8-"}, {"value": "-11", "label": "Piccolissima 7-"}, {"value": "-10", "label": "Piccolissima 6-"}, {"value": "-9", "label": "Piccolissima 5-"}, {"value": "-8", "label": "Piccolissima 4-"}, {"value": "-7", "label": "Piccolissima 3-"}, {"value": "-6", "label": "Piccolissima--"}, {"value": "-5", "label": "Piccolissima-"}, {"value": "-4", "label": "Piccolissima"}, {"value": "-3", "label": "Minuta"}, {"value": "-2", "label": "Minuscola"}, {"value": "-1", "label": "Piccola"}, {"value": "0", "label": "Media"}, {"value": "1", "label": "Grande"}, {"value": "2", "label": "Enorme"}, {"value": "3", "label": "Mastodontica"}, {"value": "4", "label": "Colossale"}, {"value": "5", "label": "Colossale+"}, {"value": "6", "label": "Colossale++"}, {"value": "7", "label": "Colossale 3+"}, {"value": "8", "label": "Colossale 4+"}, {"value": "9", "label": "Colossale 5+"}, {"value": "10", "label": "Colossale 6+"}, {"value": "11", "label": "Colossale 7+"}, {"value": "12", "label": "Colossale 8+"}, {"value": "13", "label": "Colossale 9+"}, {"value": "14", "label": "Colossale 10+"}]', 1),
+        ('FORMA', 'DV', 'Dadi vita', NULL, 'DV della forma', false, false, false, NULL, 2),
+        ('PRIVILEGIO', 'GRUPPO_PRIVILEGI', 'Gruppo privilegi', NULL, 'es. FURIA', false, false, false, NULL, 0),
+        ('CONTENITORE', 'PESO', 'Peso a capienza piena (kg)', NULL, 'Es.: 10', false, false, false, NULL, 0),
+        ('CONTENITORE', 'CAPIENZA', 'Capienza massima (kg)', NULL, 'Es.: 700', false, false, false, NULL, 1),
+        ('CONTENITORE', 'INCLUDI_ARMI_ABILITATE', 'Includi armi equipaggiate', 'CHECKBOX', NULL, false, false, false, NULL, 2),
+        ('CONTENITORE', 'INCLUDI_OGGETTI_ABILITATI', 'Includi oggetti equipaggiati', 'CHECKBOX', NULL, false, false, false, NULL, 3),
+        ('CONTENITORE', 'INCLUDI_CONSUMABILI_ABILITATI', 'Includi consumabili equipaggiati', 'CHECKBOX', NULL, false, false, false, NULL, 4),
+        ('CONTENITORE', 'INCLUDI_TUTTI_ABILITATI', 'Tutto quello che pesa', 'CHECKBOX', NULL, false, false, false, NULL, 5),
+        ('CONTENITORE', 'INVENTARIO_SEPARATO', 'Inventario separato (sezione a parte in scheda)', 'CHECKBOX', NULL, false, false, false, NULL, 6),
+        ('NOTIZIA', 'ABILITATA', 'Abilitata', 'CHECKBOX', NULL, false, false, false, NULL, 0),
+        ('NOTIZIA', 'DATA_INIZIO', 'Data inizio', 'DATETIME', NULL, false, false, false, NULL, 1),
+        ('NOTIZIA', 'DATA_FINE', 'Data fine', 'DATETIME', NULL, false, false, false, NULL, 2),
+        ('TAG', 'CATEGORIA', 'Categoria di appartenenza', 'SELECT', 'Scegli la categoria…', false, false, false, NULL, 0),
+        ('RANDOMIZZATORE', 'RAND_SCELTA', 'Categorie da scegliere all''uso', NULL, NULL, false, true, false, NULL, 0),
+        ('RANDOMIZZATORE', 'RAND_PRESENTE', 'Categorie che l''oggetto deve avere', NULL, NULL, false, true, false, NULL, 1),
+        ('RANDOMIZZATORE', 'RAND_COMBINA', 'Combinazione dei pesi', 'SELECT', 'Prodotto (predefinito)', false, false, false, '[{"value": "PRODOTTO", "label": "Prodotto — premia chi è forte su tutte le categorie"}, {"value": "SOMMA", "label": "Somma — una categoria debole si compensa con una forte"}]', 2),
+        ('SKILL_TRICK', 'PAGE', 'Pagina', NULL, 'es. 47', false, false, false, NULL, 0),
+        ('SKILL_TRICK', 'LINK', 'Link di riferimento', NULL, 'https://dndtools.org/...', false, false, false, NULL, 1),
+        ('SKILL_TRICK', 'CATEGORY', 'Categorie', NULL, 'es. Movement, Mental, Manipulation, Interaction', false, true, false, NULL, 2),
+        ('SKILL_TRICK', 'PREREQUISITE', 'Prerequisito', NULL, NULL, true, false, false, NULL, 3),
+        ('SKILL_TRICK', 'BENEFIT', 'Beneficio', NULL, NULL, true, false, false, NULL, 4)
+            ) AS t(tipo, chiave, etichetta, tipo_campo, placeholder, textarea, multi_valore, html, opzioni, ordine);
+        </sql>
+        <rollback>
+            <sql>DELETE FROM mondo_tipo_item_campo;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1405" author="developer">
+        <comment>Seed titolo card campi liberi per i mondi già esistenti.</comment>
+        <sql>
+            INSERT INTO mondo_tipo_item_meta (id_mondo, tipo, campi_titolo)
+            SELECT m.id, t.tipo, t.campi_titolo
+            FROM mondo m
+            CROSS JOIN (VALUES
+        ('TALENTO', 'Dati Talento'),
+        ('CONTENITORE', 'Contenitore'),
+        ('NOTIZIA', 'Visibilità'),
+        ('TAG', 'Dati Tag'),
+        ('RANDOMIZZATORE', 'Configurazione Randomizzatore'),
+        ('SKILL_TRICK', 'Dati Skill Trick')
+            ) AS t(tipo, campi_titolo);
+        </sql>
+        <rollback>
+            <sql>DELETE FROM mondo_tipo_item_meta;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

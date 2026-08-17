@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, reactive, ref, toRaw} from 'vue'
+import {computed, onMounted, reactive, ref, toRaw, watch} from 'vue'
 import {saveSpell} from '../../../../../../service/PersonaggioService'
 import {ItemLabel} from "../../../../../../models/entity/ItemLabel";
 import {ItemDB} from "../../../../../../models/entity/ItemDB";
@@ -8,6 +8,12 @@ import HtmlEditor from "../../../../../../components/HtmlEditor.vue";
 import SearchSelect from "../../../../../../components/SearchSelect.vue";
 import Icona from "../../../../../../components/Icona/Icona.vue";
 import {useMondoSistema} from '../../../../../../function/useMondoSistema'
+import {getConfigMondo, getTipoItemConfig} from '../../../../../../service/MondoAdminService'
+import CardScuole from './Spell/CardScuole.vue'
+import CardSottoscuole from './Spell/CardSottoscuole.vue'
+import CardDescrittori from './Spell/CardDescrittori.vue'
+import CardClassiDomini from './Spell/CardClassiDomini.vue'
+import CardComponenti from './Spell/CardComponenti.vue'
 
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean }>()
@@ -145,6 +151,55 @@ function emptyDraft(): SpellDraft {
   }
 }
 const form = reactive<SpellDraft>(emptyDraft())
+
+// Card strutturali abilitate per (mondo, INCANTESIMO): vedi MondoTipoItemCardAbilitata lato backend.
+const cards = ref<Set<string>>(new Set())
+watch(() => form.idMondo, async (idMondo) => {
+  if (!idMondo) { cards.value = new Set(); return }
+  try {
+    const {data} = await getTipoItemConfig(idMondo, 'INCANTESIMO')
+    cards.value = new Set(data.cardAbilitate)
+  } catch (e) {
+    console.error('Errore caricamento configurazione card:', e)
+    cards.value = new Set()
+  }
+}, {immediate: true})
+
+// Liste/domini incantesimi abilitati per il mondo scelto (vedi MondoListaIncantesimiAbilitata
+// lato backend): codice -> etichetta (l'etichetta serve per i codici abilitati dall'admin che NON
+// sono nel catalogo statico CLASS_LABELS qui sotto, es. liste create al volo per un mondo).
+// null finché non risolto o in caso di errore = nessuna restrizione, per non far sparire di colpo
+// la griglia Classi/Domìni se la chiamata fallisce o il mondo non è impostato.
+const listeAbilitateMondo = ref<Map<string, string> | null>(null)
+watch(() => form.idMondo, async (idMondo) => {
+  if (!idMondo) { listeAbilitateMondo.value = null; return }
+  try {
+    const {data} = await getConfigMondo(idMondo)
+    const mappa = new Map(data.listeIncantesimiAbilitate.map(l => [l.codice, l.etichetta] as const))
+    listeAbilitateMondo.value = mappa
+    // i codici abilitati per il mondo ma assenti dal catalogo statico (es. liste create ad hoc per
+    // questo mondo) devono avere comunque una entry in form.classi, altrimenti il relativo <select>
+    // della griglia non avrebbe nulla a cui legarsi (v-model su una chiave mai inizializzata)
+    for (const codice of mappa.keys()) {
+      if (form.classi[codice] === undefined) form.classi[codice] = ''
+    }
+  } catch (e) {
+    console.error('Errore caricamento configurazione mondo:', e)
+    listeAbilitateMondo.value = null
+  }
+}, {immediate: true})
+
+// Codici classi/domìni mostrati nella griglia "Classi / Domìni": quelli abilitati per il mondo
+// (catalogo statico o dinamico) PIÙ qualunque codice già valorizzato sull'incantesimo anche se non
+// (più) abilitato — altrimenti disabilitare una lista dopo il fatto ne nasconderebbe silenziosamente
+// il livello già impostato. Nessuna restrizione nota (mondo non impostato/errore) = tutto il
+// catalogo statico, comportamento precedente.
+const classCodesVisibili = computed(() => {
+  if (!listeAbilitateMondo.value) return CLASS_CODES
+  const abilitati = listeAbilitateMondo.value
+  const staticiValorizzatiNonAbilitati = CLASS_CODES.filter(c => !abilitati.has(c) && !!form.classi[c])
+  return [...abilitati.keys(), ...staticiValorizzatiNonAbilitati]
+})
 
 /* ========= Stato di espansione ========= */
 const open = reactive({scuole: false, sub: false, desc: false, classi: false, comp: false})
@@ -558,12 +613,16 @@ const sumComp = computed(() => {
   return picked.join(', ') || '—'
 })
 function friendlyNameFromCode(code: string): string {
+  const dinamica = listeAbilitateMondo.value?.get(code)
+  if (dinamica) return dinamica
   if (CLASS_LABELS[code]) return CLASS_LABELS[code]
   return code.replace(/^SP_/, '').toLowerCase().replace(/_/g, ' ').replace(/(^|\s)\w/g, m => m.toUpperCase())
 }
 const sumClassi = computed(() => {
   const items: string[] = []
-  for (const code of CLASS_CODES) {
+  // Object.keys(form.classi), non CLASS_CODES: include anche i codici abilitati dal mondo ma
+  // assenti dal catalogo statico (vedi listeAbilitateMondo/classCodesVisibili sopra).
+  for (const code of Object.keys(form.classi)) {
     const v = form.classi[code]
     if (v !== '' && v != null) items.push(`${friendlyNameFromCode(code)} ${v}`)
   }
@@ -572,13 +631,6 @@ const sumClassi = computed(() => {
   }
   return items.join(', ') || '—'
 })
-
-function addClasseCustom() {
-  form.classiCustom.push({codice: '', livello: ''})
-}
-function removeClasseCustom(i: number) {
-  form.classiCustom.splice(i, 1)
-}
 
 /* ========= Salvataggio ========= */
 const busy = ref(false)
@@ -601,7 +653,9 @@ async function salva(): Promise<ItemDB | null> {
     const descArr = arrFromBoolMap(form.descrittori)
 
     const classi: Array<{ classe: string; livello: number }> = []
-    for (const code of CLASS_CODES) {
+    // Object.keys(form.classi), non CLASS_CODES: altrimenti un codice abilitato dal mondo ma
+    // assente dal catalogo statico verrebbe silenziosamente scartato al salvataggio.
+    for (const code of Object.keys(form.classi)) {
       const v = form.classi[code]
       if (v === '' || v == null) continue
       const n = Number(v)
@@ -729,7 +783,7 @@ function onCancel() { emit('cancel') }
     </div>
 
     <!-- Scuole -->
-    <section class="fold">
+    <section v-if="cards.has('SPELL_SCUOLE')" class="fold">
       <button type="button" class="fold-head" @click="open.scuole = !open.scuole"
               :aria-expanded="open.scuole ? 'true' : 'false'">
         <span class="fold-title">Scuole</span>
@@ -737,18 +791,12 @@ function onCancel() { emit('cancel') }
         <span class="chev" :class="{ open: open.scuole }">▸</span>
       </button>
       <div v-show="open.scuole" class="fold-body">
-        <fieldset class="components">
-          <legend class="sr-only">Scuole</legend>
-          <label v-for="s in IT_SCHOOLS" :key="s" class="chk">
-            <input type="checkbox" v-model="form.scuole[s]" :disabled="disabledAll"/>
-            <span class="chk-label">{{ s }}</span>
-          </label>
-        </fieldset>
+        <CardScuole :scuole="form.scuole" :schools="IT_SCHOOLS" :disabled="disabledAll"/>
       </div>
     </section>
 
     <!-- Sottoscuole -->
-    <section class="fold">
+    <section v-if="cards.has('SPELL_SOTTOSCUOLE')" class="fold">
       <button type="button" class="fold-head" @click="open.sub = !open.sub"
               :aria-expanded="open.sub ? 'true' : 'false'">
         <span class="fold-title">Sottoscuole</span>
@@ -756,18 +804,12 @@ function onCancel() { emit('cancel') }
         <span class="chev" :class="{ open: open.sub }">▸</span>
       </button>
       <div v-show="open.sub" class="fold-body">
-        <fieldset class="components">
-          <legend class="sr-only">Sottoscuole</legend>
-          <label v-for="s in IT_SUBS" :key="s" class="chk">
-            <input type="checkbox" v-model="form.subscuole[s]" :disabled="disabledAll"/>
-            <span class="chk-label">{{ s }}</span>
-          </label>
-        </fieldset>
+        <CardSottoscuole :subscuole="form.subscuole" :subs="IT_SUBS" :disabled="disabledAll"/>
       </div>
     </section>
 
     <!-- Descrittori -->
-    <section class="fold">
+    <section v-if="cards.has('SPELL_DESCRITTORI')" class="fold">
       <button type="button" class="fold-head" @click="open.desc = !open.desc"
               :aria-expanded="open.desc ? 'true' : 'false'">
         <span class="fold-title">Descrittori</span>
@@ -775,18 +817,12 @@ function onCancel() { emit('cancel') }
         <span class="chev" :class="{ open: open.desc }">▸</span>
       </button>
       <div v-show="open.desc" class="fold-body">
-        <fieldset class="components">
-          <legend class="sr-only">Descrittori</legend>
-          <label v-for="d in IT_DESCS" :key="d" class="chk">
-            <input type="checkbox" v-model="form.descrittori[d]" :disabled="disabledAll"/>
-            <span class="chk-label">{{ d }}</span>
-          </label>
-        </fieldset>
+        <CardDescrittori :descrittori="form.descrittori" :descs="IT_DESCS" :disabled="disabledAll"/>
       </div>
     </section>
 
     <!-- Classi/Domini -->
-    <section class="fold">
+    <section v-if="cards.has('SPELL_CLASSI_DOMINI')" class="fold">
       <button type="button" class="fold-head" @click="open.classi = !open.classi"
               :aria-expanded="open.classi ? 'true' : 'false'">
         <span class="fold-title">Classi / Domìni</span>
@@ -794,41 +830,14 @@ function onCancel() { emit('cancel') }
         <span class="chev" :class="{ open: open.classi }">▸</span>
       </button>
       <div v-show="open.classi" class="fold-body">
-        <fieldset class="components">
-          <legend class="sr-only">Classi / Domìni</legend>
-          <div class="class-grid">
-            <label v-for="code in CLASS_CODES" :key="code" class="class-row">
-              <span class="class-name">{{ friendlyNameFromCode(code) }}</span>
-              <select v-model="form.classi[code]" :disabled="disabledAll" class="level-select">
-                <option value="">—</option>
-                <option v-for="n in 10" :key="n-1" :value="String(n-1)">{{ n - 1 }}</option>
-              </select>
-            </label>
-          </div>
-        </fieldset>
-
-        <fieldset class="components custom-classi">
-          <legend class="sr-only">Liste personalizzate</legend>
-          <p class="muted">
-            Liste/classi non nel catalogo qui sopra (es. per un oggetto con una lista incantesimi
-            propria): il codice va scritto come lo useresti nella sezione "Liste incantesimi"
-            dell'oggetto o della classe.
-          </p>
-          <div v-for="(c, i) in form.classiCustom" :key="i" class="class-row custom-row">
-            <input v-model.trim="c.codice" type="text" placeholder="Es. SP_ANELLO_CUSTOM" :disabled="disabledAll" class="custom-code"/>
-            <select v-model="c.livello" :disabled="disabledAll" class="level-select">
-              <option value="">—</option>
-              <option v-for="n in 10" :key="n-1" :value="String(n-1)">{{ n - 1 }}</option>
-            </select>
-            <button type="button" class="btn-del" :disabled="disabledAll" @click="removeClasseCustom(i)" title="Rimuovi">✕</button>
-          </div>
-          <button type="button" class="btn outline" :disabled="disabledAll" @click="addClasseCustom">+ Aggiungi lista personalizzata</button>
-        </fieldset>
+        <CardClassiDomini
+            :classi="form.classi" :classi-custom="form.classiCustom" :class-codes="classCodesVisibili"
+            :friendly-name="friendlyNameFromCode" :disabled="disabledAll"/>
       </div>
     </section>
 
     <!-- Componenti -->
-    <section class="fold">
+    <section v-if="cards.has('SPELL_COMPONENTI')" class="fold">
       <button type="button" class="fold-head" @click="open.comp = !open.comp"
               :aria-expanded="open.comp ? 'true' : 'false'">
         <span class="fold-title">Componenti</span>
@@ -836,13 +845,9 @@ function onCancel() { emit('cancel') }
         <span class="chev" :class="{ open: open.comp }">▸</span>
       </button>
       <div v-show="open.comp" class="fold-body">
-        <fieldset class="components">
-          <legend class="sr-only">Componenti</legend>
-          <label v-for="k in ['V','S','M','F','DF','XP','X','CORRUPT','COLDFIRE','FROSTFELL','B']" :key="k" class="chk">
-            <input type="checkbox" v-model="form.comp[k as any]" :disabled="disabledAll"/>
-            <span class="chk-label">{{ k }}</span>
-          </label>
-        </fieldset>
+        <CardComponenti
+            :comp="form.comp" :keys="['V','S','M','F','DF','XP','X','CORRUPT','COLDFIRE','FROSTFELL','B']"
+            :disabled="disabledAll"/>
       </div>
     </section>
 

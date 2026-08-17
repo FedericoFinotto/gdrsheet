@@ -3,6 +3,8 @@ package it.fin8.gdrsheet.service;
 import it.fin8.gdrsheet.def.TipoPermessoMondo;
 import it.fin8.gdrsheet.def.TipoPermessoPersonaggio;
 import it.fin8.gdrsheet.def.TipoRuoloParty;
+import it.fin8.gdrsheet.entity.Mondo;
+import it.fin8.gdrsheet.entity.Party;
 import it.fin8.gdrsheet.entity.PermessiPersonaggi;
 import it.fin8.gdrsheet.entity.Personaggio;
 import it.fin8.gdrsheet.entity.Utente;
@@ -103,24 +105,43 @@ public class AuthzService {
     }
 
     /**
-     * L'utente è membro (qualsiasi ruolo) del party.
+     * L'utente è master del MONDO a cui appartiene questo party (vedi {@link #isMasterMondo}):
+     * essere master di un mondo implica essere master di ogni party di quel mondo, anche senza
+     * un permesso esplicito su quel party. Un party senza mondo (mondo_id nullo) non abilita mai
+     * nulla per questa via.
+     */
+    private boolean isMasterMondoDelParty(Utente utente, Integer partyId) {
+        if (partyId == null) return false;
+        return partyRepository.findById(partyId)
+                .map(Party::getMondo)
+                .map(Mondo::getId)
+                .map(mondoId -> isMasterMondo(utente, mondoId))
+                .orElse(false);
+    }
+
+    /**
+     * L'utente è membro (qualsiasi ruolo) del party — oppure master del mondo del party, che
+     * implica almeno la membership (vedi {@link #isMasterMondoDelParty}).
      */
     public boolean isMembroParty(Utente utente, Integer partyId) {
         if (isAdmin(utente)) return true;
         if (partyId == null) return false;
-        return permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
+        boolean membro = permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
                 .anyMatch(p -> Objects.equals(p.getIdParty().getId(), partyId));
+        return membro || isMasterMondoDelParty(utente, partyId);
     }
 
     /**
-     * L'utente è master del party.
+     * L'utente è master del party — esplicitamente, oppure perché è master del mondo a cui il
+     * party appartiene (vedi {@link #isMasterMondoDelParty}).
      */
     public boolean isMasterParty(Utente utente, Integer partyId) {
         if (isAdmin(utente)) return true;
         if (partyId == null) return false;
-        return permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
+        boolean master = permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
                 .anyMatch(p -> Objects.equals(p.getIdParty().getId(), partyId)
                         && TipoRuoloParty.MASTER.equals(p.getRuolo()));
+        return master || isMasterMondoDelParty(utente, partyId);
     }
 
     public boolean canEditPersonaggio(Utente utente, Integer personaggioId) {

@@ -98,15 +98,17 @@ public class PartyService {
                 .filter(p -> Objects.equals(p.getIdParty().getId(), partyId))
                 .findFirst()
                 .orElse(null);
-        if (permesso == null && !authzService.isAdmin(utente))
+        // isMasterParty copre ADMIN, master esplicito del party, e master del mondo del party
+        // (che deve poter vedere il party anche senza un permesso esplicito su di esso).
+        boolean master = authzService.isMasterParty(utente, partyId);
+        if (permesso == null && !master)
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Non fai parte di questo party");
 
         Party party = permesso != null ? permesso.getIdParty()
                 : partyRepository.findById(partyId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Party non trovato"));
-        String ruoloUtente = permesso != null && permesso.getRuolo() != null
-                ? permesso.getRuolo().name()
-                : (authzService.isAdmin(utente) ? "MASTER" : null);
+        String ruoloUtente = master ? "MASTER"
+                : (permesso != null && permesso.getRuolo() != null ? permesso.getRuolo().name() : null);
 
         List<Personaggio> membri = personaggioRepository.findAllByParty_IdOrderByNomeAsc(partyId);
 

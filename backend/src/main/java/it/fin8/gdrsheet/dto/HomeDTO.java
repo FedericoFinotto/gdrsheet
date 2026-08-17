@@ -28,6 +28,8 @@ public class HomeDTO {
         private Integer id;
         private String nome;
         private String ruolo; // MASTER | GIOCATORE
+        private Integer mondoId; // per il filtro "solo il mondo selezionato" nello switcher (frontend)
+        private String mondoNome;
     }
 
     @Getter
@@ -42,5 +44,10 @@ public class HomeDTO {
         private String partyNome;
         private String tipoPersonaggio; // label TIPO_PERSONAGGIO (NAVE, STELLA), null se normale
         private boolean preferito; // per-utente: mostralo assieme a "I tuoi personaggi" anche se VISUALIZZATORE
+        // mondo del party del personaggio, per il filtro "solo il mondo selezionato" (frontend);
+        // null se il personaggio non ha un party (personaggio "libero": nessun mondo derivabile
+        // oggi, quindi resta sempre visibile a prescindere dal mondo selezionato).
+        private Integer mondoId;
+        private String mondoNome;
     }
 }
