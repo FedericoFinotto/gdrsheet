@@ -2498,7 +2498,14 @@ public class PersonaggioService {
     /**
      * Garantisce che il personaggio abbia una riga in stat_value per ogni
      * stat_default del mondo di cui fa parte: quelle mancanti vengono create
-     * con valore, mod e addestramento presi dal default.
+     * con valore, mod e addestramento presi dal default. Per quelle già
+     * esistenti, l'addestramento viene riallineato al default corrente — non
+     * può differire da esso: se l'admin lo cambia in "Gestione statistiche"
+     * dopo che la riga era già stata creata (es. per un personaggio più
+     * vecchio), altrimenti resterebbe bloccato sul valore di quando la riga
+     * fu creata la prima volta, disallineandosi dal resto del mondo (visto
+     * live: stessa abilità visibile su un personaggio e non su un altro,
+     * solo perché le rispettive righe risalgono a momenti diversi).
      */
     @org.springframework.transaction.annotation.Transactional
     public void ensureStatValues(Integer idPersonaggio) {
@@ -2507,15 +2514,25 @@ public class PersonaggioService {
         if (personaggio.getParty() == null || personaggio.getParty().getMondo() == null
                 || personaggio.getParty().getMondo().getDefaultStats() == null) return;
 
-        Set<String> esistenti = statValueRepository.findAllByPersonaggioId(idPersonaggio).stream()
-                .map(sv -> sv.getStat().getId())
-                .collect(Collectors.toSet());
+        Map<String, StatValue> esistenti = statValueRepository.findAllByPersonaggioId(idPersonaggio).stream()
+                .collect(Collectors.toMap(sv -> sv.getStat().getId(), sv -> sv, (a, b) -> a));
 
         List<StatValue> daCreare = new ArrayList<>();
+        List<StatValue> daAggiornare = new ArrayList<>();
         Set<String> giaPreviste = new HashSet<>();
         for (StatDefault def : personaggio.getParty().getMondo().getDefaultStats()) {
             String statId = def.getStatId();
-            if (statId == null || esistenti.contains(statId) || !giaPreviste.add(statId)) continue;
+            if (statId == null || !giaPreviste.add(statId)) continue;
+
+            StatValue esistente = esistenti.get(statId);
+            if (esistente != null) {
+                boolean addestramentoDefault = Boolean.TRUE.equals(def.getAddestramento());
+                if (!Objects.equals(esistente.getAddestramento(), addestramentoDefault)) {
+                    esistente.setAddestramento(addestramentoDefault);
+                    daAggiornare.add(esistente);
+                }
+                continue;
+            }
 
             Stat stat = statRepository.findById(statId).orElse(null);
             if (stat == null) continue; // default che punta a una stat inesistente: ignora
@@ -2537,7 +2554,15 @@ public class PersonaggioService {
             daCreare.add(sv);
         }
 
-        if (!daCreare.isEmpty()) statValueRepository.saveAll(daCreare);
+        boolean modificato = false;
+        if (!daCreare.isEmpty()) { statValueRepository.saveAll(daCreare); modificato = true; }
+        if (!daAggiornare.isEmpty()) { statValueRepository.saveAll(daAggiornare); modificato = true; }
+        if (modificato) {
+            // Senza invalidare, una cache già calda (es. scheda aperta prima che l'admin abilitasse
+            // o modificasse questa stat in "Gestione statistiche") continuerebbe a servire la
+            // risposta vecchia — anche se le righe qui sopra sono già state create/aggiornate.
+            personaggioCacheService.invalidaPersonaggio(idPersonaggio);
+        }
     }
 
     public Integer getPersonaggioIdDaLivello(Integer idLivello) {

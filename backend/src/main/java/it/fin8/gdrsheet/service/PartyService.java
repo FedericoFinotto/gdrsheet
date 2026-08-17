@@ -559,8 +559,21 @@ public class PartyService {
                 .map(Personaggio::getId)
                 .collect(Collectors.toSet());
 
+        // Le banche sono condivise, ma solo tra i party dello STESSO mondo — i mondi sono
+        // compartimenti stagni: un party non deve vedere (nemmeno solo per nome, senza conti)
+        // le banche di un mondo diverso dal proprio. mondoId null (party legacy senza mondo)
+        // significa nessun filtro, per non rompere party pre-esistenti mai assegnati a un mondo.
+        Party partyCorrente = partyRepository.findById(partyId).orElse(null);
+        Integer mondoId = partyCorrente != null && partyCorrente.getMondo() != null
+                ? partyCorrente.getMondo().getId() : null;
+
         List<BancaDTO> result = new ArrayList<>();
         for (Personaggio banca : personaggioRepository.findAllBanche()) {
+            if (mondoId != null) {
+                Integer mondoBanca = banca.getParty() != null && banca.getParty().getMondo() != null
+                        ? banca.getParty().getMondo().getId() : null;
+                if (!mondoId.equals(mondoBanca)) continue;
+            }
             boolean home = banca.getParty() != null && Objects.equals(banca.getParty().getId(), partyId);
 
             List<BancaDTO.ContoDTO> conti = new ArrayList<>();
@@ -585,8 +598,20 @@ public class PartyService {
      */
     public List<BancaDTO> getContiPersonaggio(Integer personaggioId) {
         String cc = Constants.LABEL_CC_GIOCATORE_PREFIX + personaggioId;
+
+        // Stesso confinamento per mondo di getBanche sopra: un personaggio non deve vedere (nemmeno
+        // solo come "banca senza conto, apribile") le banche di un mondo diverso dal proprio.
+        Personaggio pg = personaggioRepository.findPersonaggioById(personaggioId);
+        Integer mondoId = pg != null && pg.getParty() != null && pg.getParty().getMondo() != null
+                ? pg.getParty().getMondo().getId() : null;
+
         List<BancaDTO> result = new ArrayList<>();
         for (Personaggio banca : personaggioRepository.findAllBanche()) {
+            if (mondoId != null) {
+                Integer mondoBanca = banca.getParty() != null && banca.getParty().getMondo() != null
+                        ? banca.getParty().getMondo().getId() : null;
+                if (!mondoId.equals(mondoBanca)) continue;
+            }
             Item conto = (banca.getItems() != null ? banca.getItems() : List.<Item>of()).stream()
                     .filter(i -> cc.equals(i.getLabel(Constants.LABEL_CC)))
                     .findFirst()

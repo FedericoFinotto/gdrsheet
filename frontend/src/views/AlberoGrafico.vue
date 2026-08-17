@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, markRaw, onMounted, ref} from 'vue'
+import {computed, markRaw, nextTick, onMounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useMondoStore} from '../stores/mondo'
 import {getAlberoNodo, NodoAlbero} from '../service/PersonaggioService'
@@ -25,6 +25,10 @@ onMounted(async () => {
     errorMsg.value = 'Errore nel caricamento dell\'albero'
   } finally {
     loading.value = false
+    // il riquadro con i nodi (v-else) entra nel DOM solo ORA che loading passa a false: bisogna
+    // aspettare che Vue lo monti (nextTick) prima di poter leggere le sue dimensioni per adattarci.
+    await nextTick()
+    adattaVista()
   }
 })
 
@@ -127,7 +131,10 @@ const ordineVisita = computed(() => {
 // dei figli, quei figli hanno GIÀ la posizione DEFINITIVA (compresa l'eventuale correzione anti-
 // sovrapposizione) — evita il bug per cui il genitore restava centrato su una posizione dei figli
 // poi corretta subito dopo, finendo visibilmente sbilanciato rispetto alla campata reale.
-const layout = computed(() => {
+// Posizione orizzontale "a slot" di ogni nodo (unità = SLOT, non ancora px/angolo): stessa
+// disposizione condivisa dalle DUE visualizzazioni sotto (lineare e concentrica) — cambia solo
+// come questa coordinata astratta viene proiettata sullo schermo (X diretta oppure angolo).
+const xSlot = computed(() => {
   const idx = idIndex.value
   const ordine = ordineVisita.value
   const xFinale = new Map<number, number>()
@@ -219,24 +226,193 @@ const layout = computed(() => {
     }
   }
 
+  return xFinale
+})
+
+// Visualizzazione 1: lineare, radici in cima e rami che scendono (quella di prima, invariata).
+const layoutLineare = computed(() => {
   const pos = new Map<number, { x: number; y: number }>()
   nodi.value.forEach((n, i) => {
-    pos.set(n.id, {x: (xFinale.get(n.id) ?? 0) + PAD, y: livelli.value[i] * (NODE_H + GAP_Y) + PAD})
+    pos.set(n.id, {x: (xSlot.value.get(n.id) ?? 0) + PAD, y: livelli.value[i] * (NODE_H + GAP_Y) + PAD})
   })
   return pos
 })
+
+// Visualizzazione 2: concentrica, radici vicino al centro e rami che si estendono verso
+// l'esterno anello per anello (un anello per livello). NON riusa xSlot: quella è pensata per
+// distanze fisse in pixel, che vanno bene in orizzontale ma gonfiano la campata di un ramo che si
+// biforca e riconverge subito dopo (vedi il "diamante" 2/1→2/2,2/2C,2/2B→2/3) — proiettata su un
+// angolo, quella larghezza gonfiata sparge i tre rami su una fetta di cerchio enorme, anche se poi
+// tornano tutti nello stesso punto. Qui si ricalcola tutto in RADIANTI con lo stesso schema (centro
+// sulla campata dei figli, anti-sovrapposizione, ricentraggio dei punti di merge), ma la distanza
+// minima è pensata in ARCO (angolo × raggio) così un nodo occupa sempre lo stesso spazio "in
+// pixel" a qualsiasi raggio si trovi, e mai meno di quello — niente sovrapposizioni estetiche, e
+// resta sempre spazio per vedere la lineetta che collega due nodi.
+const RADIUS_BASE = 120 // raggio del primo anello (radici): non zero, altrimenti si accavallano al centro
+const RADIUS_STEP = 220 // distanza minima tra un anello e il successivo (> diagonale di un box, altrimenti anelli adiacenti potrebbero toccarsi)
+const MIN_ARCO = NODE_W + GAP_X // spazio minimo (in "pixel" d'arco) fra due nodi consecutivi sullo stesso anello, compresa la lineetta
+// Risultato completo del calcolo concentrico: posizioni dei nodi + raggio di ogni anello + centro
+// (nello stesso spazio traslato delle posizioni) — questi ultimi due servono a disegnare le
+// circonferenze guida di ogni livello (vedi anelliConcentrici sotto), che devono passare
+// esattamente sopra i nodi di quel livello, quindi condividere lo stesso centro e lo stesso raggio.
+const concentricoRaw = computed(() => {
+  const idx = idIndex.value
+  const ordine = ordineVisita.value
+  const maxLivello = Math.max(0, ...livelli.value)
+
+  const nodiPerLivello: NodoAlbero[][] = []
+  nodi.value.forEach((n, i) => {
+    const l = livelli.value[i]
+    if (!nodiPerLivello[l]) nodiPerLivello[l] = []
+    nodiPerLivello[l].push(n)
+  })
+  // raggio di ogni anello: quello base, allargato se i suoi nodi non ci starebbero altrimenti
+  // senza sovrapposizioni (circonferenza 2π·raggio deve contenere N·MIN_ARCO).
+  const raggioLivello: number[] = []
+  for (let l = 0; l <= maxLivello; l++) {
+    const n = nodiPerLivello[l]?.length ?? 0
+    const base = RADIUS_BASE + l * RADIUS_STEP
+    const minimo = n > 0 ? (n * MIN_ARCO) / (2 * Math.PI) : 0
+    raggioLivello[l] = Math.max(base, minimo)
+  }
+
+  // indice globale (0..L-1) di ogni FOGLIA (nodo senza figli nel set) nell'ordine di visita
+  // dell'intero albero — non per livello: ogni foglia riceve così una fetta FISSA di 2π/L,
+  // sempre la stessa frazione dell'intero cerchio indipendentemente dal proprio livello. Prima
+  // (bug) la fetta di una foglia dipendeva dal raggio del SUO livello tramite gapMinimo, e il
+  // livello più profondo (raggio più grande, quindi gapMinimo più piccolo) comprimeva l'intero
+  // albero in una fettina minuscola invece di occupare tutto il cerchio.
+  const foglieOrdine = new Map<number, number>()
+  {
+    let k = 0
+    const ordinati = [...nodi.value].sort((a, b) => (ordine.get(a.id) ?? 0) - (ordine.get(b.id) ?? 0))
+    for (const n of ordinati) {
+      const haFigli = (n.figli ?? []).some(f => idx.has(f))
+      if (!haFigli) foglieOrdine.set(n.id, k++)
+    }
+  }
+  const fettaFoglia = (2 * Math.PI) / Math.max(1, foglieOrdine.size)
+
+  const angoloFinale = new Map<number, number>()
+  const contaGenitori = new Map<number, number>()
+  for (const n of nodi.value) for (const f of n.figli) {
+    if (!idx.has(f)) continue
+    contaGenitori.set(f, (contaGenitori.get(f) ?? 0) + 1)
+  }
+  function spostaDiscendenti(id: number, delta: number) {
+    const i = idx.get(id)
+    if (i === undefined) return
+    for (const f of nodi.value[i].figli ?? []) {
+      if (!idx.has(f) || !angoloFinale.has(f)) continue
+      if ((contaGenitori.get(f) ?? 0) > 1) continue // punto di merge: non lo si strappa via
+      angoloFinale.set(f, angoloFinale.get(f)! + delta)
+      spostaDiscendenti(f, delta)
+    }
+  }
+
+  for (let l = maxLivello; l >= 0; l--) {
+    const nodiLivello = nodiPerLivello[l] ?? []
+    if (!nodiLivello.length) continue
+    const gapMinimo = MIN_ARCO / raggioLivello[l] // angolo minimo tra due nodi consecutivi su questo anello
+
+    const preliminari = nodiLivello.map(n => {
+      const figli = (n.figli ?? []).filter(f => idx.has(f) && angoloFinale.has(f))
+      const aCentro = figli.length
+          ? (Math.min(...figli.map(f => angoloFinale.get(f)!)) + Math.max(...figli.map(f => angoloFinale.get(f)!))) / 2
+          : null
+      return {id: n.id, aCentro}
+    })
+    preliminari.sort((a, b) => (ordine.get(a.id) ?? 0) - (ordine.get(b.id) ?? 0))
+
+    let prevA = -Infinity
+    for (const p of preliminari) {
+      const base = p.aCentro ?? (foglieOrdine.get(p.id)! + 0.5) * fettaFoglia
+      const a = Math.max(base, prevA + gapMinimo)
+      angoloFinale.set(p.id, a)
+      prevA = a
+      if (p.aCentro !== null && a !== p.aCentro) spostaDiscendenti(p.id, a - p.aCentro)
+    }
+  }
+
+  // ricentraggio dei punti di merge sulla campata angolare dei genitori (stessa idea della vista
+  // lineare, qui sull'angolo invece che sulla x)
+  const genitoriDi = new Map<number, number[]>()
+  for (const n of nodi.value) for (const f of n.figli) {
+    if (!idx.has(f)) continue
+    if (!genitoriDi.has(f)) genitoriDi.set(f, [])
+    genitoriDi.get(f)!.push(n.id)
+  }
+  for (let l = 0; l <= maxLivello; l++) {
+    for (const n of nodiPerLivello[l] ?? []) {
+      const genitori = genitoriDi.get(n.id) ?? []
+      if (genitori.length < 2) continue
+      const as = genitori.map(g => angoloFinale.get(g)).filter((a): a is number => a !== undefined)
+      if (!as.length) continue
+      const nuovaA = (Math.min(...as) + Math.max(...as)) / 2
+      const vecchiaA = angoloFinale.get(n.id)!
+      if (nuovaA !== vecchiaA) {
+        angoloFinale.set(n.id, nuovaA)
+        spostaDiscendenti(n.id, nuovaA - vecchiaA)
+      }
+    }
+  }
+
+  // Centro e lato del canvas basati sul raggio MASSIMO (l'anello più esterno), non sul riquadro
+  // dei nodi: i nodi di un livello di solito non occupano l'intera circonferenza (vedi fettaFoglia
+  // sopra), ma l'anello guida sì — dimensionare il canvas sui soli nodi lo avrebbe tagliato dove
+  // non c'erano nodi a "spingerne" il limite. Un quadrato di lato 2·(raggioMax+metà nodo+PAD),
+  // centrato in (metàLato,metàLato), garantisce che la circonferenza più grande ci entri sempre
+  // per intero, con lo stesso margine PAD della vista lineare.
+  const raggioMax = Math.max(0, ...raggioLivello)
+  const metaLato = raggioMax + NODE_W / 2 + PAD
+  const pos = new Map<number, { x: number; y: number }>()
+  nodi.value.forEach((n, i) => {
+    const a = angoloFinale.get(n.id) ?? 0
+    const r = raggioLivello[livelli.value[i]]
+    pos.set(n.id, {x: metaLato + r * Math.cos(a) - NODE_W / 2, y: metaLato + r * Math.sin(a) - NODE_H / 2})
+  })
+  return {pos, raggioLivello, cx: metaLato, cy: metaLato, lato: metaLato * 2}
+})
+const layoutConcentrico = computed(() => concentricoRaw.value.pos)
+
+const modalitaVista = ref<'lineare' | 'concentrica'>('lineare')
+const layout = computed(() => modalitaVista.value === 'concentrica' ? layoutConcentrico.value : layoutLineare.value)
+
+// Una circonferenza guida per livello, colorata diversamente (30% di opacità, come richiesto):
+// stesso centro dei nodi e raggio identico a quello del loro anello, così passa esattamente sopra
+// tutti i nodi di quel livello — qualunque essi siano, indipendentemente dal nome/contenuto.
+const COLORI_ANELLI = [
+  '#e11d48', '#0ea5e9', '#16a34a', '#f97316', '#7c3aed', '#ca8a04', '#0891b2', '#db2777',
+  '#4d7c0f', '#2563eb', '#b91c1c', '#059669', '#9333ea', '#ea580c', '#0d9488', '#c026d3',
+]
+const anelliConcentrici = computed(() => {
+  if (modalitaVista.value !== 'concentrica') return []
+  const {raggioLivello, cx, cy} = concentricoRaw.value
+  return raggioLivello.map((r, l) => ({livello: l, r, cx, cy, colore: COLORI_ANELLI[l % COLORI_ANELLI.length]}))
+})
+
+// concentrica: canvas quadrato dimensionato sull'anello più esterno (vedi concentricoRaw), non sul
+// riquadro dei nodi — altrimenti gli anelli senza nodi fino in fondo alla loro circonferenza
+// verrebbero tagliati dal canvas. lineare: riquadro dei nodi come prima.
 const larghezza = computed(() => {
+  if (modalitaVista.value === 'concentrica') return concentricoRaw.value.lato
   let max = 0
   for (const p of layout.value.values()) max = Math.max(max, p.x + NODE_W)
   return max + PAD
 })
 const altezza = computed(() => {
+  if (modalitaVista.value === 'concentrica') return concentricoRaw.value.lato
   let max = 0
   for (const p of layout.value.values()) max = Math.max(max, p.y + NODE_H)
   return max + PAD
 })
 
 const archi = computed(() => {
+  // lineare: dal bordo inferiore del genitore al bordo superiore del figlio (sopra/sotto, come
+  // una gerarchia verticale). concentrica: da centro a centro — non esiste un "sopra/sotto" tra
+  // due box disposti su anelli concentrici, la linea centro-centro è quella naturale per un
+  // grafico radiale (e comunque i box non si toccano mai, restando ben visibile).
+  const centroCentro = modalitaVista.value === 'concentrica'
   const lin: { x1: number; y1: number; x2: number; y2: number; key: string }[] = []
   for (const n of nodi.value) {
     const da = layout.value.get(n.id)
@@ -244,7 +420,11 @@ const archi = computed(() => {
     for (const f of n.figli) {
       const a = layout.value.get(f)
       if (!a) continue
-      lin.push({
+      lin.push(centroCentro ? {
+        x1: da.x + NODE_W / 2, y1: da.y + NODE_H / 2,
+        x2: a.x + NODE_W / 2, y2: a.y + NODE_H / 2,
+        key: `${n.id}-${f}`,
+      } : {
         x1: da.x + NODE_W / 2, y1: da.y + NODE_H,
         x2: a.x + NODE_W / 2, y2: a.y,
         key: `${n.id}-${f}`,
@@ -346,7 +526,31 @@ function onWheel(e: WheelEvent) {
   scale.value = clampScale(scale.value * (1 - e.deltaY * 0.001))
 }
 function zoomBtn(delta: number) { scale.value = clampScale(scale.value + delta) }
-function resetView() { scale.value = 1; tx.value = 0; ty.value = 0 }
+
+// Centra il contenuto e lo zooma esattamente allo spazio disponibile nel riquadro (contain: tutto
+// visibile, niente tagliato), poi da lì l'utente può zoomare/spostarsi liberamente. Usata sia
+// all'apertura della pagina sia come "reset vista" (il bottone ⟲) — un semplice scale=1,tx=0,ty=0
+// non avrebbe senso qui, dato che la dimensione del disegno varia moltissimo da un albero all'altro.
+function adattaVista() {
+  const el = viewportEl.value
+  if (!el || !larghezza.value || !altezza.value) return
+  const vw = el.clientWidth, vh = el.clientHeight
+  if (!vw || !vh) return
+  const s = clampScale(Math.min(vw / larghezza.value, vh / altezza.value))
+  scale.value = s
+  tx.value = (vw - larghezza.value * s) / 2
+  ty.value = (vh - altezza.value * s) / 2
+}
+function resetView() { adattaVista() }
+
+// Cambiare visualizzazione cambia completamente lo spazio delle coordinate (lineare vs
+// concentrica): un pan/zoom lasciato dall'altra vista non avrebbe più senso, si riparte da vista
+// adattata così la nuova disposizione si vede subito tutta.
+function cambiaVista(v: 'lineare' | 'concentrica') {
+  if (modalitaVista.value === v) return
+  modalitaVista.value = v
+  resetView()
+}
 </script>
 
 <template>
@@ -356,6 +560,14 @@ function resetView() { scale.value = 1; tx.value = 0; ty.value = 0 }
       <div class="title">
         <h1>🌳 {{ albero }}</h1>
         <span v-if="nodi.length" class="muted">{{ nodi.length }} nodi</span>
+      </div>
+      <div v-if="nodi.length" class="vista-toggle">
+        <button type="button" :class="{on: modalitaVista === 'lineare'}" @click="cambiaVista('lineare')">
+          🌳 Lineare
+        </button>
+        <button type="button" :class="{on: modalitaVista === 'concentrica'}" @click="cambiaVista('concentrica')">
+          ◎ Concentrica
+        </button>
       </div>
     </header>
 
@@ -375,6 +587,10 @@ function resetView() { scale.value = 1; tx.value = 0; ty.value = 0 }
              width: larghezza + 'px', height: altezza + 'px',
              transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
            }">
+        <svg v-if="anelliConcentrici.length" class="anelli" :width="larghezza" :height="altezza">
+          <circle v-for="a in anelliConcentrici" :key="a.livello"
+                  :cx="a.cx" :cy="a.cy" :r="a.r" fill="none" :stroke="a.colore" stroke-width="3" opacity=".3"/>
+        </svg>
         <svg class="edges" :width="larghezza" :height="altezza">
           <line v-for="e in archi" :key="e.key" :x1="e.x1" :y1="e.y1" :x2="e.x2" :y2="e.y2"/>
         </svg>
@@ -402,10 +618,28 @@ function resetView() { scale.value = 1; tx.value = 0; ty.value = 0 }
   height: 100%;
   min-height: 0;
 }
-.head { display: flex; align-items: center; gap: .5rem; }
+.head { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .title { flex: 1; display: grid; min-width: 0; }
 .title h1 { margin: 0; font-size: 1.2rem; overflow-wrap: break-word; }
 .muted { opacity: .65; font-size: .85rem; }
+
+.vista-toggle {
+  display: flex;
+  gap: .3rem;
+  flex: none;
+}
+.vista-toggle button {
+  padding: .4rem .7rem;
+  border-radius: .5rem;
+  border: 1px solid var(--hairline);
+  background: var(--surface-0);
+  color: var(--text-muted);
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vista-toggle button.on { border-color: var(--info-border); background: var(--info-bg); color: var(--info-text); }
 
 .state { padding: .75rem; border: 1px dashed var(--hairline); border-radius: .5rem; }
 .state.error { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
@@ -433,6 +667,7 @@ function resetView() { scale.value = 1; tx.value = 0; ty.value = 0 }
   cursor: grab;
 }
 .graph { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.anelli { position: absolute; top: 0; left: 0; pointer-events: none; }
 .edges { position: absolute; top: 0; left: 0; pointer-events: none; }
 .edges line { stroke: var(--info-border); stroke-width: 2; }
 
