@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import {getCompendio, searchCompendioDeep} from '../service/PersonaggioService'
+import {getAlberiNodo, getCompendio, searchCompendioDeep} from '../service/PersonaggioService'
 import {ItemSearchResult} from '../service/PartyService'
 import SearchSelect from '../components/SearchSelect.vue'
 import {Page} from '../models/dto/Party'
@@ -10,6 +10,7 @@ import {TIPO_ITEM_LABELS} from './sheets/cico/character/Cico/Editor/editorRegist
 import Mobile_DettaglioItem from './sheets/cico/character/Dettaglio/Mobile_DettaglioItem.vue'
 import QuestNode from './sheets/cico/character/Cico/Sheet/QuestNode.vue'
 import {useMondoStore} from '../stores/mondo'
+import {getConfigMondo} from '../service/MondoAdminService'
 import {highlightMatch} from '../function/textHighlight'
 import {getQuestAlbero} from '../service/QuestService'
 import {Quest} from '../models/dto/Quest'
@@ -30,6 +31,23 @@ const urlCreaOggetto = computed(() => {
   if (sistemaId) params.set('sistema', String(sistemaId))
   return `/itemcreate?${params.toString()}`
 })
+
+// Tastino "Alberi": visibile solo se nel mondo corrente esiste almeno un albero NODO (nodi con
+// label ALBERO_NODO impostata) — niente da mostrare altrimenti, non ha senso proporre una pagina
+// vuota. Ricaricato ogni volta che cambia il mondo, come tipiAbilitatiMondo sotto.
+const alberiNodoDisponibili = ref<string[]>([])
+async function caricaAlberiNodo() {
+  if (filtroMondo.value == null) { alberiNodoDisponibili.value = []; return }
+  try {
+    const {data} = await getAlberiNodo(filtroMondo.value)
+    alberiNodoDisponibili.value = data ?? []
+  } catch (e) {
+    console.error('Errore caricamento alberi NODO:', e)
+    alberiNodoDisponibili.value = []
+  }
+}
+watch(filtroMondo, caricaAlberiNodo)
+const mostraAlberi = computed(() => alberiNodoDisponibili.value.length > 0)
 
 // Ricerca profonda (nome, descrizione, label, note, note modificatori): visibile solo se si è
 // master del mondo corrente (o admin) — mondoStore.corrente è per costruzione sempre uno dei
@@ -84,10 +102,28 @@ const filtroTipo = ref(String(route.query.tipo ?? ''))
 const page = ref(Math.max(0, Number(route.query.page) || 0))
 const PAGE_SIZE = 10
 
-const TIPI_FILTRO = [
+// Tipi abilitati per il mondo corrente: null finché non risolto (o mondo assente) mostra tutto il
+// catalogo statico, altrimenti restringe il filtro agli stessi tipi che si possono creare/editare
+// in quel mondo (vedi lo stesso pattern in ItemCreate.vue/SpellEditor.vue).
+const tipiAbilitatiMondo = ref<Set<string> | null>(null)
+async function caricaTipiAbilitati() {
+  if (filtroMondo.value == null) { tipiAbilitatiMondo.value = null; return }
+  try {
+    const {data} = await getConfigMondo(filtroMondo.value)
+    tipiAbilitatiMondo.value = new Set(data.tipiAbilitati)
+  } catch (e) {
+    console.error('Errore caricamento tipi abilitati mondo:', e)
+    tipiAbilitatiMondo.value = null
+  }
+}
+watch(filtroMondo, caricaTipiAbilitati)
+
+const TIPI_FILTRO = computed(() => [
   {value: '', label: 'Tutti i tipi'},
-  ...Object.entries(TIPO_ITEM_LABELS).map(([value, label]) => ({value, label})),
-]
+  ...Object.entries(TIPO_ITEM_LABELS)
+      .filter(([value]) => !tipiAbilitatiMondo.value || tipiAbilitatiMondo.value.has(value))
+      .map(([value, label]) => ({value, label})),
+])
 
 const expandedId = ref<number | null>(null)
 
@@ -188,6 +224,8 @@ const personaggioShim = {
 onMounted(async () => {
   await mondoStore.carica()
   mondoPronto.value = true
+  await caricaTipiAbilitati()
+  await caricaAlberiNodo()
   if (inRicercaGlobale.value) eseguiRicercaGlobale()
   else load()
 })
@@ -201,6 +239,7 @@ onMounted(async () => {
         <h1>📖 Compendio</h1>
         <span v-if="pagina" class="muted">{{ pagina.totalElements }} item</span>
       </div>
+      <button v-if="mostraAlberi" class="btn ghost btn-alberi" title="Alberi" @click="router.push('/nodi/alberi')">🌳</button>
       <button class="btn primary" @click="router.push(urlCreaOggetto)">+ Crea oggetto</button>
     </header>
 
@@ -498,4 +537,5 @@ onMounted(async () => {
 }
 .btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; font-weight: 600; }
 .btn:disabled { opacity: .6; cursor: default; }
+.btn-alberi { font-size: 1.1rem; padding: .45rem .6rem; }
 </style>

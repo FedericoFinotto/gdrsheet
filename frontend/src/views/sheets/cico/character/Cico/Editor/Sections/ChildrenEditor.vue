@@ -4,6 +4,7 @@ import {useRoute, useRouter} from 'vue-router'
 import {ChildRef} from '../../../../../../../models/dto/UpdateItemRequest'
 import {searchItems} from '../../../../../../../service/PersonaggioService'
 import {Item} from '../../../../../../../models/dto/Item'
+import {useMondoStore} from '../../../../../../../stores/mondo'
 
 const props = defineProps<{
   modelValue: ChildRef[]
@@ -11,6 +12,7 @@ const props = defineProps<{
   excludeId?: number   // id dell'item in editing: non collegabile a se stesso
   onlyTipo?: string    // mostra/cerca solo questo tipo
   excludeTipo?: string // mostra/cerca qualsiasi tipo tranne questo
+  hideCreate?: boolean // nasconde "+ Crea nuovo" e il "+" accanto alla ricerca (es. picker NODO)
 }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', v: ChildRef[]): void
@@ -19,6 +21,8 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const route = useRoute()
+const mondoStore = useMondoStore()
+mondoStore.carica() // idempotente: se già in corso/fatto altrove (es. UpperBar) non rifà la chiamata
 
 function editChild(c: ChildRef) {
   const idPg = route.query.personaggio
@@ -40,14 +44,16 @@ async function doSearch() {
   const token = ++searchToken
   searching.value = true
   try {
-    const res = await searchItems(q)
+    // onlyTipo passato al backend, non solo filtrato dopo: altrimenti con onlyTipo impostato (es.
+    // "A"/"Da" di un NODO, ristretti a soli NODO) i primi 20 risultati per nome potevano essere
+    // tutti di altri tipi, lasciando fuori dai risultati proprio i NODO che si stavano cercando.
+    const res = await searchItems(q, props.onlyTipo, mondoStore.corrente)
     if (token !== searchToken) return
     results.value = (res.data ?? []).filter(r =>
         r.tipo !== 'ATTACCO' &&
         r.tipo !== 'EFFETTO' &&
         r.id !== props.excludeId &&
         !props.modelValue.some(c => c.id === r.id) &&
-        (!props.onlyTipo || r.tipo === props.onlyTipo) &&
         (!props.excludeTipo || r.tipo !== props.excludeTipo)
     )
   } catch (e) {
@@ -196,7 +202,7 @@ function remove(idx: number) {
             @input="onQueryInput"
         />
         <button
-            v-if="query.trim().length"
+            v-if="query.trim().length && !hideCreate"
             type="button"
             class="btn-add-named"
             :disabled="disabled"
@@ -217,7 +223,7 @@ function remove(idx: number) {
       <div v-else-if="query.trim().length >= 2" class="hint">Nessun risultato.</div>
     </div>
 
-    <button type="button" class="btn-create" :disabled="disabled" @click="emit('create-new', onlyTipo)">
+    <button v-if="!hideCreate" type="button" class="btn-create" :disabled="disabled" @click="emit('create-new', onlyTipo)">
       + Crea nuovo
     </button>
   </div>

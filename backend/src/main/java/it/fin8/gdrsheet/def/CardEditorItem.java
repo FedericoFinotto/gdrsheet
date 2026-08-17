@@ -31,6 +31,17 @@ public enum CardEditorItem {
     IMMAGINI,
     RANDOMIZZATORI_INNESCATI,
     MODIFICATORI,
+    // Struttura ad albero (solo tipo NODO): collegamento al "contenuto" del nodo (un item di
+    // qualunque tipo), campo Albero (label ALBERO_NODO) e i nodi successivi/predecessori — vedi
+    // ItemService.applyNodoTipo/applyNodoA/applyNodoDa.
+    NODO_STRUTTURA,
+    // N sezioni, ciascuna con una lista di item candidati (label SCELTA_<n>_TITOLO/_CANDIDATI,
+    // globali): quando un personaggio possiede l'item, indica per ciascuna sezione quale
+    // candidato scelto (label SCELTA_<n>_FATTA, scoped per personaggio) — vedi ItemService.
+    // setScelta/stampaLabelScopedPerPersonaggio e Mobile_DettaglioItem.vue. Aggiungibile a
+    // qualunque tipo item, ma NON seedata come abilitata per i mondi esistenti: a differenza di
+    // tutte le altre card, questa nasce disabilitata ovunque (va attivata a mano per mondo/tipo).
+    SCELTE,
 
     // --- ClasseEditor.vue (CLASSE, RAZZA) --- Nome/Nome EN/Manuale/Mondo-Sistema/Descrizione
     // restano sempre presenti, non toggle-abili (come Nome/Descrizione sopra).

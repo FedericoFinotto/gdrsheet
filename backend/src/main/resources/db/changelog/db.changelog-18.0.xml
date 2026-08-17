@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        Nuovo TipoItem NODO: nodo di un albero di scelta (es. albero delle abilità). Card
+        NODO_STRUTTURA (collegamento al "contenuto" del nodo, campo Albero, nodi successivi/
+        predecessori) — vedi CardEditorItem.NODO_STRUTTURA e ItemService.applyNodoTipo/applyNodoA/
+        applyNodoDa. Nessun vincolo a livello colonna (items.tipo è varchar libero, enum solo
+        lato Java): la migration serve solo ad abilitare il nuovo tipo/card per i mondi esistenti,
+        stessa logica "opt-in, seed fedele" delle precedenti introduzioni di tipo/card.
+    -->
+
+    <changeSet id="1800" author="developer">
+        <comment>Abilita il tipo item NODO per tutti i mondi già esistenti.</comment>
+        <sql>
+            INSERT INTO mondo_tipo_item_abilitato (id_mondo, tipo)
+            SELECT m.id, 'NODO'
+            FROM mondo m;
+        </sql>
+        <rollback>
+            <sql>DELETE FROM mondo_tipo_item_abilitato WHERE tipo = 'NODO';</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1801" author="developer">
+        <comment>Abilita la card NODO_STRUTTURA per (mondo, NODO) su tutti i mondi già esistenti.</comment>
+        <sql>
+            INSERT INTO mondo_tipo_item_card_abilitata (id_mondo, tipo, card)
+            SELECT m.id, 'NODO', 'NODO_STRUTTURA'
+            FROM mondo m;
+        </sql>
+        <rollback>
+            <sql>DELETE FROM mondo_tipo_item_card_abilitata WHERE tipo = 'NODO' AND card = 'NODO_STRUTTURA';</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

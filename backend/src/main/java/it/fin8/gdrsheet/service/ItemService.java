@@ -296,11 +296,58 @@ public class ItemService {
             itemLabelRepository.findByItem_IdAndLabelAndPersonaggio_Id(itm.getId(), "$V_" + nome, idPersonaggio)
                     .ifPresent(l -> contatoriScoped.put(nome, l.getValore()));
         }
+        // Card SCELTE (Mobile_DettaglioItem.vue): per ogni sezione definita globalmente
+        // (SCELTA_<n>_CANDIDATI, uguale per tutti), stampa la scelta di QUESTO personaggio
+        // (SCELTA_<n>_FATTA, personaggio-scoped) — stesso identico schema dei contatori sopra.
+        List<Integer> indiciSezioniScelte = itm.getLabels() == null ? List.of() : itm.getLabels().stream()
+                .filter(l -> l.getLabel() != null && l.getLabel().startsWith("SCELTA_") && l.getLabel().endsWith("_CANDIDATI"))
+                .map(l -> {
+                    try {
+                        return Integer.parseInt(l.getLabel().substring("SCELTA_".length(), l.getLabel().length() - "_CANDIDATI".length()));
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<String, String> scelteScoped = new LinkedHashMap<>();
+        for (Integer n : indiciSezioniScelte) {
+            String labelKey = "SCELTA_" + n + "_FATTA";
+            itemLabelRepository.findByItem_IdAndLabelAndPersonaggio_Id(itm.getId(), labelKey, idPersonaggio)
+                    .ifPresent(l -> scelteScoped.put(labelKey, l.getValore()));
+        }
         // stampa DOPO tutte le letture: nessuna query va eseguita tra una mutazione e l'altra,
         // altrimenti rischierebbe di far scattare un flush che le persiste per sbaglio.
         if (qta != null) itm.setLabel(Constants.LABEL_QTA, qta);
         if (utilizziUsati != null) itm.setLabel(Constants.LABEL_UTILIZZI_USATI, utilizziUsati);
         contatoriScoped.forEach((nome, valore) -> itm.setLabel("$V_" + nome, valore));
+        scelteScoped.forEach(itm::setLabel);
+    }
+
+    /**
+     * Registra la scelta di un personaggio per una sezione della card SCELTE (label
+     * SCELTA_&lt;sezioneIndice&gt;_FATTA, personaggio-scoped — vedi stampaLabelScopedPerPersonaggio
+     * per la lettura). sceltoId null = nessuna scelta fatta (rimuove la label esistente).
+     */
+    public void setScelta(Integer itemId, Integer personaggioId, int sezioneIndice, Integer sceltoId) {
+        String labelKey = "SCELTA_" + sezioneIndice + "_FATTA";
+        Optional<ItemLabel> esistente = itemLabelRepository
+                .findByItem_IdAndLabelAndPersonaggio_Id(itemId, labelKey, personaggioId);
+        if (sceltoId == null) {
+            esistente.ifPresent(itemLabelRepository::delete);
+            return;
+        }
+        ItemLabel label = esistente.orElseGet(() -> {
+            ItemLabel nl = new ItemLabel();
+            nl.setItem(em.getReference(Item.class, itemId));
+            nl.setPersonaggio(em.getReference(Personaggio.class, personaggioId));
+            nl.setLabel(labelKey);
+            return nl;
+        });
+        label.setValore(String.valueOf(sceltoId));
+        itemLabelRepository.save(label);
+        personaggioCacheService.invalidaPersonaggio(personaggioId);
     }
 
     /* =====================================================================
@@ -380,6 +427,11 @@ public class ItemService {
         applyModificatori(saved, request.getModificatori());
         applyAttacchi(saved, request.getAttacchi());
         applyChildren(saved, request.getChildren());
+        if (TipoItem.NODO.equals(saved.getTipo())) {
+            applyNodoTipo(saved, request.getNodoTipoItemId());
+            applyNodoA(saved, request.getNodoA());
+            applyNodoDa(saved, request.getNodoDa());
+        }
 
         // bootstrap struttura di un frutto appena creato (variabile livello + 3 forme)
         if (TipoItem.FRUTTO.equals(saved.getTipo())) {
@@ -714,6 +766,11 @@ public class ItemService {
         applyModificatori(itm, request.getModificatori());
         applyAttacchi(itm, request.getAttacchi());
         applyChildren(itm, request.getChildren());
+        if (TipoItem.NODO.equals(itm.getTipo())) {
+            applyNodoTipo(itm, request.getNodoTipoItemId());
+            applyNodoA(itm, request.getNodoA());
+            applyNodoDa(itm, request.getNodoDa());
+        }
 
         Item saved = itemRepository.save(itm);
         // se è un TAG e la sua categoria è cambiata, riallinea la colonna denormalizzata
@@ -800,14 +857,44 @@ public class ItemService {
                 .toList();
     }
 
-    public List<Item> searchItems(String query, TipoItem tipo) {
+    public List<Item> searchItems(String query, TipoItem tipo, Integer idMondo) {
         String q = query == null ? "" : query.trim();
         if (q.isEmpty()) return List.of();
         var top20 = org.springframework.data.domain.PageRequest.of(0, 20);
-        // Cerca sia nel nome sia nella label EN_NAME (nome originale inglese).
+        // Cerca sia nel nome sia nella label EN_NAME (nome originale inglese). idMondo confina la
+        // ricerca al mondo selezionato: i mondi sono compartimenti stagni, niente item di altri
+        // mondi tra i risultati (idMondo null = nessun filtro, solo per contesti senza un mondo).
         return tipo == null
-                ? itemRepository.findTop20ByNomeOrEnNameContainingIgnoreCase(q, top20)
-                : itemRepository.findTop20ByNomeOrEnNameContainingIgnoreCaseAndTipo(q, tipo, top20);
+                ? itemRepository.findTop20ByNomeOrEnNameContainingIgnoreCase(q, idMondo, top20)
+                : itemRepository.findTop20ByNomeOrEnNameContainingIgnoreCaseAndTipo(q, tipo, idMondo, top20);
+    }
+
+    /** Alberi (valori distinti di ALBERO_NODO) tra i NODO di un mondo: lista da mostrare nella pagina "Alberi". */
+    public List<String> getAlberiNodo(Integer idMondo) {
+        return itemRepository.findAlberiNodo(idMondo);
+    }
+
+    /**
+     * Grafo di un albero di NODO: un {@link NodoAlberoDTO} per nodo, con gli id dei figli "A" (già
+     * ristretti a quelli nello stesso albero). Il frontend deriva le radici (nessun genitore, cioè
+     * nessun id che compare come figlio altrove) e i livelli da questi archi.
+     */
+    public List<NodoAlberoDTO> getAlberoNodo(Integer idMondo, String albero) {
+        List<Item> nodi = itemRepository.findNodiByMondoAndAlbero(idMondo, albero);
+        Set<Integer> idsNelSet = nodi.stream().map(Item::getId).collect(Collectors.toSet());
+        return nodi.stream().map(n -> {
+            List<Collegamento> child = n.getChild() != null ? n.getChild() : List.of();
+            List<Integer> figli = child.stream()
+                    .filter(c -> TipoItem.NODO.equals(c.getItemTarget().getTipo()))
+                    .map(c -> c.getItemTarget().getId())
+                    .filter(idsNelSet::contains)
+                    .toList();
+            String tipoNome = child.stream()
+                    .filter(c -> !TipoItem.NODO.equals(c.getItemTarget().getTipo()))
+                    .map(c -> c.getItemTarget().getNome())
+                    .findFirst().orElse(null);
+            return new NodoAlberoDTO(n.getId(), n.getNome(), tipoNome, figli);
+        }).toList();
     }
 
     /**
@@ -923,8 +1010,12 @@ public class ItemService {
         for (UpdateItemRequest.ChildRefDTO c : children)
             desiderati.put(c.getId(), new ChildInfo(c.getQty(), c.getFormulaQty(), c.getScelta(), Boolean.TRUE.equals(c.getNascosto()), c.getCondizione()));
 
+        // esclusi ATTACCO (gestiti da applyAttacchi) e NODO (struttura ad albero, gestita da
+        // applyNodoTipo/applyNodoA qui sotto — non deve mai essere toccata da questo metodo,
+        // anche se in futuro ITEM_COLLEGATI venisse abilitata per un NODO)
         List<Collegamento> linkAltri = (itm.getChild() != null ? itm.getChild() : List.<Collegamento>of()).stream()
                 .filter(c -> !TipoItem.ATTACCO.equals(c.getItemTarget().getTipo()))
+                .filter(c -> !TipoItem.NODO.equals(c.getItemTarget().getTipo()))
                 .toList();
 
         List<Collegamento> daEliminare = linkAltri.stream()
@@ -970,6 +1061,112 @@ public class ItemService {
                 if (info.condizione() != null) link.setLabel(Constants.COLLEGAMENTO_LABEL_CONDIZIONE, info.condizione());
                 collegamentoRepository.save(link);
             }
+        }
+    }
+
+    /**
+     * Solo tipo NODO (card NODO_STRUTTURA): collegamento singolo al "contenuto" del nodo (un item
+     * di qualunque tipo, incluso eventualmente un altro NODO). Cardinalità 1: il Collegamento con
+     * target.tipo diverso da NODO tra i child di questo item (al massimo uno, per costruzione).
+     * Null = rimuove il collegamento esistente (non "non toccare": il form invia sempre lo stato
+     * corrente, coerente con come BaseItemEditor.vue costruisce il payload).
+     */
+    private void applyNodoTipo(Item itm, Integer targetId) {
+        Collegamento esistente = (itm.getChild() != null ? itm.getChild() : List.<Collegamento>of()).stream()
+                .filter(c -> !TipoItem.NODO.equals(c.getItemTarget().getTipo()))
+                .findFirst().orElse(null);
+        if (targetId == null) {
+            if (esistente != null) {
+                collegamentoRepository.delete(esistente);
+                itm.getChild().remove(esistente);
+            }
+            return;
+        }
+        if (esistente != null && Objects.equals(esistente.getItemTarget().getId(), targetId)) return; // già corretto
+        if (esistente != null) {
+            collegamentoRepository.delete(esistente);
+            itm.getChild().remove(esistente);
+        }
+        Item target = itemRepository.findById(targetId)
+                .orElseThrow(() -> new RuntimeException("Item da collegare non trovato: " + targetId));
+        Collegamento link = new Collegamento();
+        link.setItemSource(itm);
+        link.setItemTarget(target);
+        collegamentoRepository.save(link);
+    }
+
+    /**
+     * Solo tipo NODO: nodi NODO successivi (verso cui si può andare da questo nodo) — stato
+     * completo desiderato, stesso pattern "diff e riallinea" di {@link #applyChildren}, ma
+     * ristretto ai Collegamento con target.tipo=NODO. Null = non toccare.
+     */
+    private void applyNodoA(Item itm, List<Integer> desideratiIds) {
+        if (desideratiIds == null) return;
+        List<Collegamento> attuali = (itm.getChild() != null ? itm.getChild() : List.<Collegamento>of()).stream()
+                .filter(c -> TipoItem.NODO.equals(c.getItemTarget().getTipo()))
+                .toList();
+        Set<Integer> desiderati = new HashSet<>(desideratiIds);
+
+        List<Collegamento> daEliminare = attuali.stream()
+                .filter(c -> !desiderati.contains(c.getItemTarget().getId()))
+                .toList();
+        collegamentoRepository.deleteAll(daEliminare);
+        if (itm.getChild() != null) itm.getChild().removeAll(daEliminare);
+
+        Set<Integer> restanti = attuali.stream()
+                .map(c -> c.getItemTarget().getId())
+                .filter(desiderati::contains)
+                .collect(Collectors.toSet());
+
+        for (Integer targetId : desideratiIds) {
+            if (Objects.equals(targetId, itm.getId())) continue; // no self-link
+            if (restanti.contains(targetId)) continue;
+            Item target = itemRepository.findById(targetId)
+                    .orElseThrow(() -> new RuntimeException("Nodo da collegare non trovato: " + targetId));
+            if (!TipoItem.NODO.equals(target.getTipo()))
+                throw new RuntimeException("L'item " + targetId + " non è un NODO");
+            Collegamento link = new Collegamento();
+            link.setItemSource(itm);
+            link.setItemTarget(target);
+            collegamentoRepository.save(link);
+        }
+    }
+
+    /**
+     * Solo tipo NODO: nodi NODO predecessori (da cui si arriva a questo nodo). Non esiste una
+     * colonna "Da" su questo item: editare questa lista scrive invece sull'ALTRO nodo, aggiungendo
+     * o togliendo QUESTO item dalla SUA {@link #applyNodoA}. Stato completo desiderato — il
+     * predecessore attuale si ottiene con una query sui parent (Collegamento con questo item come
+     * target, sorgente di tipo NODO), non da una relazione diretta sull'item. Null = non toccare.
+     */
+    private void applyNodoDa(Item itm, List<Integer> desideratiIds) {
+        if (desideratiIds == null) return;
+        List<Collegamento> attualiInArrivo = collegamentoRepository.findAllByItemTarget_Id(itm.getId()).stream()
+                .filter(c -> TipoItem.NODO.equals(c.getItemSource().getTipo()))
+                .toList();
+        Set<Integer> desiderati = new HashSet<>(desideratiIds);
+
+        List<Collegamento> daEliminare = attualiInArrivo.stream()
+                .filter(c -> !desiderati.contains(c.getItemSource().getId()))
+                .toList();
+        collegamentoRepository.deleteAll(daEliminare);
+
+        Set<Integer> restanti = attualiInArrivo.stream()
+                .map(c -> c.getItemSource().getId())
+                .filter(desiderati::contains)
+                .collect(Collectors.toSet());
+
+        for (Integer sourceId : desideratiIds) {
+            if (Objects.equals(sourceId, itm.getId())) continue; // no self-link
+            if (restanti.contains(sourceId)) continue;
+            Item source = itemRepository.findById(sourceId)
+                    .orElseThrow(() -> new RuntimeException("Nodo da collegare non trovato: " + sourceId));
+            if (!TipoItem.NODO.equals(source.getTipo()))
+                throw new RuntimeException("L'item " + sourceId + " non è un NODO");
+            Collegamento link = new Collegamento();
+            link.setItemSource(source);
+            link.setItemTarget(itm);
+            collegamentoRepository.save(link);
         }
     }
 

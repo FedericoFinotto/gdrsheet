@@ -39,6 +39,31 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
     @Query("SELECT i FROM Item i WHERE i.id IN :ids")
     List<Item> findItemsByIds(@Param("ids") List<Integer> ids);
 
+    /** Valori distinti della label ALBERO_NODO tra i NODO di un mondo: popola la lista "alberi" del compendio. */
+    @Query("""
+            SELECT DISTINCT il.valore FROM ItemLabel il
+            WHERE il.item.tipo = it.fin8.gdrsheet.def.TipoItem.NODO
+              AND il.item.mondo.id = :idMondo
+              AND il.label = 'ALBERO_NODO'
+              AND il.personaggio IS NULL
+              AND il.valore IS NOT NULL AND il.valore <> ''
+            ORDER BY il.valore
+            """)
+    List<String> findAlberiNodo(@Param("idMondo") Integer idMondo);
+
+    /** Tutti i NODO di un mondo con un dato valore di ALBERO_NODO: nodi da disegnare per quell'albero. */
+    @Query("""
+            SELECT i FROM Item i
+            JOIN i.labels il
+            WHERE i.tipo = it.fin8.gdrsheet.def.TipoItem.NODO
+              AND i.mondo.id = :idMondo
+              AND il.label = 'ALBERO_NODO'
+              AND il.valore = :albero
+              AND il.personaggio IS NULL
+            ORDER BY i.nome
+            """)
+    List<Item> findNodiByMondoAndAlbero(@Param("idMondo") Integer idMondo, @Param("albero") String albero);
+
     /**
      * Tag (item di tipo TAG) appartenenti alle categorie indicate, con l'id della categoria
      * di appartenenza (label CATEGORIA, confrontata come stringa perché il valore è testuale).
@@ -66,13 +91,14 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
     // Cerca sia nel nome sia nella label EN_NAME (nome originale inglese), non solo nel nome.
     @Query("""
             SELECT i FROM Item i
-            WHERE lower(i.nome) LIKE lower(concat('%', :nome, '%'))
+            WHERE (lower(i.nome) LIKE lower(concat('%', :nome, '%'))
                OR EXISTS (SELECT 1 FROM ItemLabel ien
                           WHERE ien.item = i AND ien.label = 'EN_NAME'
-                            AND lower(ien.valore) LIKE lower(concat('%', :nome, '%')))
+                            AND lower(ien.valore) LIKE lower(concat('%', :nome, '%'))))
+              AND (:idMondo IS NULL OR (i.mondo IS NOT NULL AND i.mondo.id = :idMondo))
             ORDER BY i.nome ASC
             """)
-    List<Item> findTop20ByNomeOrEnNameContainingIgnoreCase(@Param("nome") String nome, org.springframework.data.domain.Pageable pageable);
+    List<Item> findTop20ByNomeOrEnNameContainingIgnoreCase(@Param("nome") String nome, @Param("idMondo") Integer idMondo, org.springframework.data.domain.Pageable pageable);
 
     /**
      * Ricerca profonda tra gli item di compendio (personaggio IS NULL): nome, descrizione, valore
@@ -156,9 +182,10 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
                    OR EXISTS (SELECT 1 FROM ItemLabel ien
                               WHERE ien.item = i AND ien.label = 'EN_NAME'
                                 AND lower(ien.valore) LIKE lower(concat('%', :nome, '%'))))
+              AND (:idMondo IS NULL OR (i.mondo IS NOT NULL AND i.mondo.id = :idMondo))
             ORDER BY i.nome ASC
             """)
-    List<Item> findTop20ByNomeOrEnNameContainingIgnoreCaseAndTipo(@Param("nome") String nome, @Param("tipo") TipoItem tipo, org.springframework.data.domain.Pageable pageable);
+    List<Item> findTop20ByNomeOrEnNameContainingIgnoreCaseAndTipo(@Param("nome") String nome, @Param("tipo") TipoItem tipo, @Param("idMondo") Integer idMondo, org.springframework.data.domain.Pageable pageable);
 
     /** Compendio senza filtro COMPENDIO — visibile solo ad admin/master. */
     @Query("""

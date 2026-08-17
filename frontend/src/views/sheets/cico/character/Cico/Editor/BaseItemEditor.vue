@@ -34,8 +34,11 @@ import SottoQuestEditor from './Sections/SottoQuestEditor.vue'
 import NotesEditor, {NotaRow} from './Sections/NotesEditor.vue'
 import {SPELL_LIST_CODES, spellListLabel} from '../../../../../../function/spellLists'
 import {TAGLIE_OPTIONS_NOME} from '../../../../../../function/Utils'
-import {TIPO_ITEM_LABELS} from '../../../../../../models/entity/ItemDB'
+import {TIPO_ITEM, TIPO_ITEM_LABELS} from '../../../../../../models/entity/ItemDB'
 import {getTipoItemConfig} from '../../../../../../service/MondoAdminService'
+import {getItemParents} from '../../../../../../service/PersonaggioService'
+import CardNodoStruttura from './Sections/CardNodoStruttura.vue'
+import CardScelte, {SezioneScelta} from './Sections/CardScelte.vue'
 
 const props = withDefaults(defineProps<{
   item: ItemDB
@@ -130,6 +133,10 @@ const isQuest = computed(() => props.item.tipo === 'QUEST')
 const isInfo = computed(() => props.item.tipo === 'INFO')
 const isAmbito = computed(() => isQuest.value || isInfo.value)
 const isVeicolo = computed(() => cards.value.has('INFO_VEICOLO'))
+// NODO: struttura ad albero (vedi CardNodoStruttura.vue) — il campo va sempre letto/scritto
+// indipendentemente da cards.has('NODO_STRUTTURA'), che gate solo la VISIBILITÀ della card in UI
+// (coerente col resto dell'editor: disabilitare una card non deve far perdere dati esistenti).
+const isNodo = computed(() => props.item.tipo === TIPO_ITEM.NODO)
 // Sezione "Incantesimi" su item generico (non classe): stessa lettura SPELL_<n>* del backend,
 // ma slot/conosciuti sono un valore fisso (una riga), non una progressione a 20 livelli.
 const canHaveSpells = computed(() => cards.value.has('INCANTESIMI'))
@@ -187,6 +194,14 @@ const form = reactive<{
   }>
   note: NotaRow[]
   inCarico: string[]
+  // NODO (vedi isNodo sopra): tipoLink 0..1 elementi (riuso ChildrenEditor per il link singolo),
+  // da caricato async in preload() via getItemParents (non è nel payload di Item, vedi backend
+  // Item.java @JsonIgnoreProperties("parent"))
+  nodo: { tipoLink: ChildRef[]; albero: string; a: ChildRef[]; da: ChildRef[] }
+  // card SCELTE (vedi CardScelte.vue): N sezioni di candidati, disponibile per qualunque tipo ma
+  // disabilitata di default — la scelta del personaggio vive altrove (Mobile_DettaglioItem.vue),
+  // qui c'è solo la struttura (globale, non personaggio-scoped).
+  scelte: SezioneScelta[]
   qta: number
   compendio: boolean
   visibilita: string
@@ -223,6 +238,8 @@ const form = reactive<{
   aggiunteClasse: [],
   note: [],
   inCarico: [],
+  nodo: {tipoLink: [], albero: '', a: [], da: []},
+  scelte: [] as SezioneScelta[],
   qta: 1,
   utilizzi: null as number | null,
   compendio: false,
@@ -247,6 +264,7 @@ const open = reactive({
   labels: false, modificatori: false, attacchi: false, children: false, forme: false, effetti: false,
   campiLabel: false, descrOggetto: false, infoOggetto: false, infoVeicolo: false, descrAbilita: false, note: false,
   incantesimi: false, inCarico: false, aggiunteClasse: false, tags: false, randTrigger: false, immagini: false,
+  nodo: false, scelte: false,
 })
 
 /* Tag pesati per i randomizzatori: vivono su una tabella a parte (item_tag), non tra le
@@ -322,6 +340,8 @@ async function preload() {
   form.archiviata = false
   form.sezioniIncantesimi = []
   form.aggiunteClasse = []
+  form.nodo = {tipoLink: [], albero: '', a: [], da: []}
+  form.scelte = []
   // righe SPELL_<n>* raccolte durante il giro delle label, riassemblate in sezioni a fine ciclo
   // (l'ordine delle label non è garantito, es. _SLOT potrebbe comparire prima di SPELL_<n> stesso)
   const spellRaw: Record<number, {
@@ -332,6 +352,8 @@ async function preload() {
   const addClasseRaw: Record<number, {
     idClasse?: string; valore?: string; livello?: string; items?: string; bonus?: string; spell?: string
   }> = {}
+  // righe SCELTA_<n>_TITOLO/_CANDIDATI raccolte allo stesso modo (card SCELTE)
+  const scelteRaw: Record<number, { titolo?: string; candidatiJson?: string }> = {}
   for (const l of (props.item.labels ?? [])) {
     const key = l.label ?? ''
     const val = l.valore ?? ''
@@ -400,6 +422,8 @@ async function preload() {
       form.inCarico.push(val)
     } else if (key === 'INFO_PARTY') {
       form.infoPartyId = Number(val) || null
+    } else if (key === 'ALBERO_NODO') {
+      form.nodo.albero = val
     } else if (campoKeysMulti.has(key)) {
       form.campiMulti[key].push(val)
     } else if (campoKeys.has(key) && !form.campi[key]) {
@@ -418,6 +442,16 @@ async function preload() {
       else if (suffix === '_CUSTOM') row.personalizzata = val
       else if (suffix === '_INCANTESIMI') row.incantesimi = val
       // _PROG: ignorata, gli item non hanno progressione (sempre a slot fisso)
+    } else if (/^SCELTA_\d+_FATTA$/.test(key)) {
+      // scelta del personaggio: personaggio-scoped, mai editata/salvata da questo editor
+      // (compendio/admin) — vedi Mobile_DettaglioItem.vue. Ignorata qui per non finire nel
+      // catch-all "labels generiche" e rischiare di essere ri-salvata come label globale.
+    } else if (/^SCELTA_\d+_(TITOLO|CANDIDATI)$/.test(key)) {
+      const m = key.match(/^SCELTA_(\d+)_(TITOLO|CANDIDATI)$/)!
+      const n = Number(m[1])
+      const row = (scelteRaw[n] ??= {})
+      if (m[2] === 'TITOLO') row.titolo = val
+      else row.candidatiJson = val
     } else if (/^ADD_CLASSE_\d+(_VALUE|_VALORE|_LIVELLO|_ITEMS|_BONUS|_SPELL)?$/.test(key)) {
       const m = key.match(/^ADD_CLASSE_(\d+)(_VALUE|_VALORE|_LIVELLO|_ITEMS|_BONUS|_SPELL)?$/)!
       const n = Number(m[1])
@@ -479,6 +513,15 @@ async function preload() {
     try { a.nomeClasse = (await getItem(a.idClasse)).data?.nome ?? `#${a.idClasse}` } catch { a.nomeClasse = `#${a.idClasse}` }
   }))
 
+  // card SCELTE: i candidati sono già {id,nome,tipo} nel JSON salvato (vedi buildPayload), nessun
+  // fetch aggiuntivo necessario per mostrarli.
+  form.scelte = Object.keys(scelteRaw).map(Number).sort((a, b) => a - b).map(n => {
+    const r = scelteRaw[n]
+    let candidati: ChildRef[] = []
+    try { candidati = JSON.parse(r.candidatiJson ?? '[]') } catch { candidati = [] }
+    return {titolo: r.titolo ?? '', candidati}
+  })
+
   form.modificatori = (props.item.modificatori ?? []).map(m => ({
     id: m.id,
     statId: m.stat?.id ?? '',
@@ -517,7 +560,14 @@ async function preload() {
   const getColLabel = (c: any, key: string) => (c.labels ?? []).find((l: any) => l.label === key)?.valore ?? null
   const toChildRef = (c: any) => ({id: c.itemTarget.id, nome: c.itemTarget.nome, tipo: c.itemTarget.tipo, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null, nascosto: isColNascosto(c), condizione: getColLabel(c, 'CONDIZIONE')})
   const collegamentiNonEffetto = collegamentiNonAttacco.filter(c => c.itemTarget.tipo !== 'EFFETTO')
-  if (cards.value.has('FORME')) {
+  if (isNodo.value) {
+    // per un NODO, TUTTI i child sono struttura ad albero (Tipo-link o lista A) — mai il generico
+    // ITEM_COLLEGATI/FORME (vedi anche ItemService.applyChildren, che li esclude allo stesso modo)
+    form.nodo.tipoLink = collegamentiNonEffetto.filter(c => c.itemTarget.tipo !== 'NODO').map(toChildRef)
+    form.nodo.a = collegamentiNonEffetto.filter(c => c.itemTarget.tipo === 'NODO').map(toChildRef)
+    form.forme = []
+    form.children = []
+  } else if (cards.value.has('FORME')) {
     form.forme = collegamentiNonEffetto.filter(c => c.itemTarget.tipo === 'FORMA').map(toChildRef)
     form.children = collegamentiNonEffetto.filter(c => c.itemTarget.tipo !== 'FORMA').map(toChildRef)
   } else {
@@ -525,6 +575,21 @@ async function preload() {
     form.children = collegamentiNonEffetto.map(toChildRef)
   }
   form.effetti = collegamentiNonAttacco.filter(c => c.itemTarget.tipo === 'EFFETTO').map(toChildRef)
+
+  // "Da" (nodi predecessori): non arriva con l'item (Item.java esclude "parent" dalla
+  // serializzazione), va recuperato con una chiamata dedicata — solo in modifica, un NODO appena
+  // creato non ha ancora un id verso cui altri nodi possano puntare.
+  if (isNodo.value && props.mode === 'edit') {
+    try {
+      const {data} = await getItemParents(props.item.id)
+      form.nodo.da = (data ?? [])
+          .filter((p: any) => p.tipo === 'NODO')
+          .map((p: any) => ({id: p.id, nome: p.nome, tipo: p.tipo}))
+    } catch (e) {
+      console.error('Errore caricamento nodi predecessori:', e)
+      form.nodo.da = []
+    }
+  }
 }
 
 // Sezioni incantesimi (item generico): stesso pattern liste/bonus di ClasseEditor.vue, ma slot/
@@ -578,7 +643,7 @@ function onQueryIncCustom(i: number) {
     const token = ++searchIncToken
     searchingIncCustom[i] = true
     try {
-      const res = await searchItems(q, 'INCANTESIMO')
+      const res = await searchItems(q, 'INCANTESIMO', form.idMondo)
       if (token !== searchIncToken) return
       risultatiIncCustom[i] = res.data ?? []
     } catch (e) {
@@ -612,7 +677,7 @@ function removeAggiuntaClasse(i: number) {
 }
 async function searchClasseAggiunta(q: string) {
   try {
-    const res = await searchItems(q, 'CLASSE')
+    const res = await searchItems(q, 'CLASSE', form.idMondo)
     return (res.data ?? []).map((c: any) => ({value: c.id, label: c.nome}))
   } catch (e) {
     console.error('Errore ricerca classi:', e)
@@ -672,6 +737,8 @@ function restoreSnapshot(snap: any) {
   form.aggiunteClasse = snap.aggiunteClasse ?? []
   form.note = snap.note ?? []
   form.inCarico = snap.inCarico ?? []
+  form.nodo = {...(snap.nodo ?? {tipoLink: [], albero: '', a: [], da: []})}
+  form.scelte = snap.scelte ?? []
   form.qta = snap.qta ?? 1
   form.utilizzi = snap.utilizzi ?? null
   form.compendio = !!snap.compendio
@@ -760,6 +827,15 @@ const sumInfoOggetto = computed(() => {
 })
 const sumInfoVeicolo = computed(() =>
     form.infoVeicolo.velocita.trim() ? `Velocità: ${form.infoVeicolo.velocita.trim()}` : '—')
+const sumNodo = computed(() => {
+  const flags = []
+  if (form.nodo.albero.trim()) flags.push(form.nodo.albero.trim())
+  if (form.nodo.a.length) flags.push(`${form.nodo.a.length} succ.`)
+  if (form.nodo.da.length) flags.push(`${form.nodo.da.length} pred.`)
+  return flags.join(', ') || '—'
+})
+const sumScelte = computed(() =>
+    form.scelte.length ? `${form.scelte.length} sezion${form.scelte.length > 1 ? 'i' : 'e'}` : '—')
 const sumDescrAbilita = computed(() => {
   const d = form.descrAbilita
   const flags = []
@@ -884,6 +960,23 @@ function buildPayload(): UpdateItemRequest {
       n++
     }
   }
+  // NODO: campo Albero (testo libero) — sempre letto/scritto indipendentemente da
+  // cards.has('NODO_STRUTTURA'), che gate solo la visibilità della card in UI (vedi isNodo sopra).
+  if (isNodo.value && form.nodo.albero.trim()) labels.push({label: 'ALBERO_NODO', valore: form.nodo.albero.trim()})
+  // Card SCELTE: struttura globale (titolo + candidati); la scelta del personaggio è altrove
+  // (Mobile_DettaglioItem.vue, label SCELTA_<n>_FATTA scoped, mai toccata da qui).
+  {
+    let n = 0
+    for (const s of form.scelte) {
+      if (!s.candidati.length) continue
+      if (s.titolo.trim()) labels.push({label: `SCELTA_${n}_TITOLO`, valore: s.titolo.trim()})
+      labels.push({
+        label: `SCELTA_${n}_CANDIDATI`,
+        valore: JSON.stringify(s.candidati.map(c => ({id: c.id, nome: c.nome, tipo: c.tipo}))),
+      })
+      n++
+    }
+  }
   // Aggiunta Classe: livelli virtuali (anche da formula) concessi a una classe, disponibile su
   // qualunque item (nessuna restrizione di tipo, come nel backend).
   {
@@ -915,6 +1008,11 @@ function buildPayload(): UpdateItemRequest {
     modificatori: form.modificatori.filter(m => m.statId.trim()),
     attacchi: form.attacchi.filter(a => a.nome.trim()),
     children: [...form.children, ...form.forme, ...form.effetti].map(c => ({id: c.id, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null, nascosto: c.nascosto ?? false, condizione: c.condizione ?? null})),
+    // NODO: sempre inclusi (non gated da cards.has), stesso motivo di ALBERO_NODO sopra —
+    // disabilitare la card non deve far perdere la struttura ad albero già presente.
+    nodoTipoItemId: isNodo.value ? (form.nodo.tipoLink[0]?.id ?? null) : undefined,
+    nodoA: isNodo.value ? form.nodo.a.map(c => c.id) : undefined,
+    nodoDa: isNodo.value ? form.nodo.da.map(c => c.id) : undefined,
   })
 }
 
@@ -1146,6 +1244,35 @@ function onCancel() {
           <span class="lbl">Velocità</span>
           <input v-model.trim="form.infoVeicolo.velocita" type="text" :disabled="disabledAll" placeholder="es. 12 m"/>
         </label>
+      </div>
+    </section>
+
+    <!-- Struttura Nodo (solo tipo NODO) -->
+    <section v-if="cards.has('NODO_STRUTTURA')" class="fold">
+      <button type="button" class="fold-head" @click="open.nodo = !open.nodo"
+              :aria-expanded="open.nodo ? 'true' : 'false'">
+        <span class="fold-title">Struttura Nodo</span>
+        <span class="fold-summary">{{ sumNodo }}</span>
+        <span class="chev" :class="{ open: open.nodo }">▸</span>
+      </button>
+      <div v-show="open.nodo" class="fold-body">
+        <CardNodoStruttura
+            v-model:tipo-link="form.nodo.tipoLink" v-model:albero="form.nodo.albero"
+            v-model:a="form.nodo.a" v-model:da="form.nodo.da"
+            :exclude-id="props.item.id" :disabled="disabledAll"/>
+      </div>
+    </section>
+
+    <!-- Scelte (qualunque tipo, disabilitata di default) -->
+    <section v-if="cards.has('SCELTE')" class="fold">
+      <button type="button" class="fold-head" @click="open.scelte = !open.scelte"
+              :aria-expanded="open.scelte ? 'true' : 'false'">
+        <span class="fold-title">Scelte</span>
+        <span class="fold-summary">{{ sumScelte }}</span>
+        <span class="chev" :class="{ open: open.scelte }">▸</span>
+      </button>
+      <div v-show="open.scelte" class="fold-body">
+        <CardScelte :sezioni="form.scelte" :exclude-id="props.item.id" :disabled="disabledAll"/>
       </div>
     </section>
 

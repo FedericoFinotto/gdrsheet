@@ -21,6 +21,8 @@ import GestisciGruppi from "@/views/GestisciGruppi.vue";
 import MilestoneGruppo from "@/views/MilestoneGruppo.vue";
 import Segnalazioni from "@/views/Segnalazioni.vue";
 import Randomizzatore from "@/views/Randomizzatore.vue";
+import AlberiNodo from "@/views/AlberiNodo.vue";
+import AlberoGrafico from "@/views/AlberoGrafico.vue";
 
 const routes = [
   {path: '/', component: Home},
@@ -35,6 +37,8 @@ const routes = [
   {path: '/banca/:id', name: 'BancaDetail', component: BancaDetail},
   {path: '/compendio', name: 'Compendio', component: Compendio},
   {path: '/randomizzatore/:id', name: 'Randomizzatore', component: Randomizzatore},
+  {path: '/nodi/alberi', name: 'AlberiNodo', component: AlberiNodo},
+  {path: '/nodi/albero/:nome', name: 'AlberoGrafico', component: AlberoGrafico},
   {path: '/users', name: 'Users', component: Users},
   {path: '/stats-admin', name: 'StatsAdmin', component: StatsAdmin},
   {path: '/mondi-admin', name: 'MondiAdmin', component: MondiAdmin},

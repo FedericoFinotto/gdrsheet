@@ -59,6 +59,7 @@ export const TIPO_ITEM = {
     CASO: 'CASO',
     SKILL_TRICK: 'SKILL_TRICK',
     IMMAGINE: 'IMMAGINE',
+    NODO: 'NODO',
 } as const;
 export type TipoItem = typeof TIPO_ITEM[keyof typeof TIPO_ITEM];
 
@@ -102,5 +103,6 @@ export const TIPO_ITEM_LABELS: Record<TipoItem, string> = {
     [TIPO_ITEM.CASO]: 'Caso',
     [TIPO_ITEM.SKILL_TRICK]: 'Skill Trick',
     [TIPO_ITEM.IMMAGINE]: 'Immagine',
+    [TIPO_ITEM.NODO]: 'Nodo',
 };
 

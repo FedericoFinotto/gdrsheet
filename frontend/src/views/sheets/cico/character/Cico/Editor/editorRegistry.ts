@@ -52,6 +52,7 @@ export const EDITOR_BY_TYPE: Record<TipoItem, Component> = {
     [TIPO_ITEM.CASO]: BaseItemEditor,
     [TIPO_ITEM.SKILL_TRICK]: BaseItemEditor,
     [TIPO_ITEM.IMMAGINE]: BaseItemEditor,
+    [TIPO_ITEM.NODO]: BaseItemEditor,
 }
 
 // Fallback per eventuali tipi non mappati

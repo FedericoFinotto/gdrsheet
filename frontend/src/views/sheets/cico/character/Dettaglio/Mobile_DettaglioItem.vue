@@ -11,7 +11,7 @@ import {
   testoModificatoreConTipo,
   testoTaglia
 } from "../../../../../function/Utils";
-import {getItem, getNoteItem, setContatoreItem, switchItemState} from "../../../../../service/PersonaggioService";
+import {getItem, getNoteItem, setContatoreItem, setScelta, switchItemState} from "../../../../../service/PersonaggioService";
 import {Nota} from "../../../../../models/dto/Quest";
 import {ItemDB, TIPO_ITEM} from "../../../../../models/entity/ItemDB";
 import {useCharacterStore} from "../../../../../stores/personaggio";
@@ -43,6 +43,10 @@ const props = defineProps<{
   // (es. editor livello): nasconde la action-bar (Attiva/Disattiva, Modifica), dato che lì lo stato
   // "disabled" dell'item passato non è affidabile e le due azioni non hanno senso nel contesto.
   readonly?: boolean;
+  // true per nascondere SOLO Attiva/Disattiva (a differenza di readonly, che nasconde anche
+  // Modifica): usato dal grafico degli alberi NODO (AlberoGrafico.vue), dove il popup serve a
+  // consultare/editare il contenuto del nodo, non a gestirne il possesso da un personaggio.
+  hideToggle?: boolean;
 }>();
 const {item, personaggio} = props.data;
 
@@ -105,6 +109,53 @@ function onInputContatore(nome: string, raw: string) {
   const n = parseInt(raw, 10)
   if (!Number.isFinite(n)) return
   salvaContatore(nome, n)
+}
+
+// --- card SCELTE: N sezioni definite globalmente (SCELTA_<n>_TITOLO/_CANDIDATI sull'item),
+// scelta del personaggio scoped per lui (SCELTA_<n>_FATTA, già "stampata" da
+// ItemService.stampaLabelScopedPerPersonaggio tra le label di itemDetail, stesso schema dei
+// contatori $V_ sopra).
+const sezioniScelte = computed(() => {
+  const labels = itemDetail.value?.labels ?? []
+  const sezioni: { indice: number; titolo: string; candidati: { id: number; nome: string }[]; scelto: number | null }[] = []
+  for (const l of labels) {
+    const m = l.label?.match(/^SCELTA_(\d+)_CANDIDATI$/)
+    if (!m) continue
+    const n = Number(m[1])
+    let candidati: { id: number; nome: string }[] = []
+    try { candidati = JSON.parse(l.valore ?? '[]') } catch { candidati = [] }
+    const titolo = labels.find((x: any) => x.label === `SCELTA_${n}_TITOLO`)?.valore ?? ''
+    const fatta = labels.find((x: any) => x.label === `SCELTA_${n}_FATTA`)?.valore
+    sezioni.push({indice: n, titolo, candidati, scelto: fatta ? Number(fatta) : null})
+  }
+  return sezioni.sort((a, b) => a.indice - b.indice)
+})
+
+const savingScelta = ref<Record<number, boolean>>({})
+
+async function salvaScelta(sezioneIndice: number, sceltoId: number | null) {
+  if (!idPersonaggioCorrente || savingScelta.value[sezioneIndice]) return
+  savingScelta.value = {...savingScelta.value, [sezioneIndice]: true}
+  try {
+    await setScelta(item.id, idPersonaggioCorrente, sezioneIndice, sceltoId)
+    // aggiornamento ottimistico locale, stesso pattern di salvaContatore
+    const labels = itemDetail.value?.labels
+    if (labels) {
+      const key = `SCELTA_${sezioneIndice}_FATTA`
+      const existing = labels.find((l: any) => l.label === key)
+      if (sceltoId == null) {
+        if (existing) itemDetail.value!.labels = labels.filter((l: any) => l !== existing)
+      } else if (existing) {
+        existing.valore = String(sceltoId)
+      } else {
+        labels.push({id: -Date.now(), label: key, valore: String(sceltoId)} as any)
+      }
+    }
+  } catch (e) {
+    console.error('Errore salvataggio scelta item:', e)
+  } finally {
+    savingScelta.value = {...savingScelta.value, [sezioneIndice]: false}
+  }
 }
 
 
@@ -600,7 +651,7 @@ function toggleExpand(key: string) {
          chiamanti) — qui non va ripetuto. -->
     <div v-if="!readonly || linguaInfo" class="action-bar">
       <button
-          v-if="!readonly && disableLabel"
+          v-if="!readonly && !hideToggle && disableLabel"
           type="button"
           class="action-btn toggle"
           :class="item.disabled ? 'enable' : 'disable'"
@@ -639,6 +690,18 @@ function toggleExpand(key: string) {
         <button class="btn" :disabled="readonly || savingContatore[c.nome]"
                 @click="cambiaContatore(c.nome, c.valore, +1)">+</button>
       </div>
+    </div>
+
+    <!-- Scelte: N sezioni definite sull'item (compendio), il personaggio scieglie un candidato
+         per ciascuna — select semplice, salvataggio immediato scoped per personaggio. -->
+    <div v-for="s in sezioniScelte" :key="s.indice" class="scelta-box">
+      <span class="titolo">{{ s.titolo || `Scelta ${s.indice + 1}` }}</span>
+      <select class="scelta-select" :disabled="readonly || !idPersonaggioCorrente || savingScelta[s.indice]"
+              :value="s.scelto ?? ''"
+              @change="salvaScelta(s.indice, ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)">
+        <option value="">— nessuna scelta —</option>
+        <option v-for="c in s.candidati" :key="c.id" :value="c.id">{{ c.nome }}</option>
+      </select>
     </div>
 
     <!-- Barriera: controlli HP temporanei "blu" -->
@@ -1192,6 +1255,22 @@ function toggleExpand(key: string) {
   width: 4rem; text-align: center; border: 1px solid var(--hairline); border-radius: .5rem;
   padding: .3rem; font-weight: 700; font-variant-numeric: tabular-nums;
 }
+.scelta-box {
+  border: 1px solid var(--info-border);
+  background: var(--info-bg);
+  border-radius: .6rem;
+  padding: .5rem .6rem;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  margin: .5rem 0;
+}
+.scelta-box .titolo { font-weight: 700; }
+.scelta-select {
+  width: 100%; padding: .4rem .5rem; border: 1px solid var(--hairline); border-radius: .5rem;
+  background: var(--surface-0);
+}
+.scelta-select:disabled { opacity: .6; cursor: default; }
 .contenitore-box {
   border: 1px solid var(--hairline);
   border-radius: .6rem;

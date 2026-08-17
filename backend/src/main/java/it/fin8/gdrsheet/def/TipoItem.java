@@ -39,7 +39,8 @@ public enum TipoItem {
     RANDOMIZZATORE("Randomizzatore"),
     CASO("Caso"),
     SKILL_TRICK("Skill Trick"),
-    IMMAGINE("Immagine")
+    IMMAGINE("Immagine"),
+    NODO("Nodo")
     ;
 
     private final String label;

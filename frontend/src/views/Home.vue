@@ -5,8 +5,7 @@ import {useAuthStore} from '../stores/auth'
 import {useMondoStore} from '../stores/mondo'
 import {getHome} from '../service/AuthService'
 import {Home} from '../models/dto/Auth'
-import {createParty, getMieiMondi, Mondo} from '../service/PartyService'
-import SearchSelect from '../components/SearchSelect.vue'
+import {createParty} from '../service/PartyService'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -16,30 +15,24 @@ const home = ref<Home | null>(null)
 const loading = ref(true)
 const errorMsg = ref<string | null>(null)
 
-// creazione party
-const mondi = ref<Mondo[]>([])
+// creazione party: nel mondo selezionato nello switcher (UpperBar.vue) — niente scelta qui,
+// coerente col resto dell'app che segue sempre mondoStore.corrente.
 const showCreaParty = ref(false)
 const nuovoPartyNome = ref('')
-const nuovoPartyMondo = ref<number | null>(null)
 const busyParty = ref(false)
 
-async function apriCreaParty() {
+function apriCreaParty() {
   showCreaParty.value = !showCreaParty.value
-  if (showCreaParty.value && !mondi.value.length) {
-    try {
-      mondi.value = (await getMieiMondi()).data
-      if (mondi.value.length === 1) nuovoPartyMondo.value = mondi.value[0].id
-    } catch (e) {
-      console.error('Errore caricamento mondi:', e)
-    }
-  }
 }
 
+const mondoCorrenteNome = computed(() =>
+    mondoStore.disponibili.find(m => m.id === mondoStore.corrente)?.descrizione ?? '')
+
 async function onCreaParty() {
-  if (!nuovoPartyNome.value.trim() || !nuovoPartyMondo.value || busyParty.value) return
+  if (!nuovoPartyNome.value.trim() || mondoStore.corrente == null || busyParty.value) return
   busyParty.value = true
   try {
-    const res = await createParty(nuovoPartyNome.value.trim(), nuovoPartyMondo.value)
+    const res = await createParty(nuovoPartyNome.value.trim(), mondoStore.corrente)
     router.push(`/party/${res.data}`)
   } catch (e) {
     console.error('Errore creazione party:', e)
@@ -116,14 +109,13 @@ function apriScheda(p: {id: number; tipoPersonaggio?: string | null}) {
           <span class="plus">+</span> Crea party
         </button>
         <div v-if="showCreaParty" class="crea-form">
-          <input v-model="nuovoPartyNome" type="text" placeholder="Nome del party"/>
-          <SearchSelect v-model="nuovoPartyMondo" placeholder="Mondo…"
-                        :options="mondi.map(m => ({value: m.id, label: m.nome}))"/>
-          <button class="btn primary" :disabled="busyParty || !nuovoPartyNome.trim() || !nuovoPartyMondo"
+          <input v-model="nuovoPartyNome" type="text" placeholder="Nome del party" @keyup.enter="onCreaParty"/>
+          <p v-if="mondoCorrenteNome" class="muted">Verrà creato nel mondo «{{ mondoCorrenteNome }}» (vedi menu in alto).</p>
+          <p v-else class="muted">Nessun mondo selezionato: apri il menu in alto e scegline uno.</p>
+          <button class="btn primary" :disabled="busyParty || !nuovoPartyNome.trim() || mondoStore.corrente == null"
                   @click="onCreaParty">
             {{ busyParty ? 'Creazione…' : 'Crea' }}
           </button>
-          <p v-if="!mondi.length" class="muted">Nessun mondo disponibile.</p>
         </div>
       </section>
 

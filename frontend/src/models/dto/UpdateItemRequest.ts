@@ -83,4 +83,14 @@ export interface UpdateItemRequest {
     modificatori?: ModificatoreRow[]; // stato completo dei modificatori
     attacchi?: AttaccoRow[];  // stato completo degli attacchi figli
     children?: { id: number; qty?: number | null; formulaQty?: string | null; scelta?: string | null; nascosto?: boolean; condizione?: string | null }[];  // stato completo degli item collegati (non ATTACCO)
+    // Solo per tipo NODO (vedi CardEditorItem.NODO_STRUTTURA): id dell'item collegato come
+    // "contenuto" del nodo (qualunque tipo); null = nessun collegamento.
+    nodoTipoItemId?: number | null;
+    // Solo per tipo NODO: id dei nodi successivi (verso cui si può andare da questo nodo).
+    // Stato completo, null = non toccare.
+    nodoA?: number[];
+    // Solo per tipo NODO: id dei nodi predecessori (da cui si arriva a questo nodo). Editabile da
+    // qui per comodità, ma salvato sull'ALTRO nodo (aggiunto/rimosso dalla sua lista nodoA) — non
+    // c'è alcun campo "Da" salvato su questo item. Stato completo, null = non toccare.
+    nodoDa?: number[];
 }

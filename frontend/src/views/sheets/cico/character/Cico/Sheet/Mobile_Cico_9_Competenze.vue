@@ -6,9 +6,12 @@ import {linkItem, searchItems, unlinkItem} from "../../../../../../service/Perso
 import Icona from "../../../../../../components/Icona/Icona.vue";
 import {TIPO_ITEM} from "../../../../../../models/entity/ItemDB";
 import SearchSelect from "../../../../../../components/SearchSelect.vue";
+import {useMondoStore} from "../../../../../../stores/mondo";
 
 const characterStore = useCharacterStore();
 const {cache} = storeToRefs(characterStore);
+const mondoStore = useMondoStore();
+mondoStore.carica(); // idempotente
 
 const props = defineProps({idPersonaggio: {type: Number, required: true}});
 
@@ -40,7 +43,7 @@ watch([query, tipoFiltro], () => {
   searching.value = true
   searchTimer = setTimeout(async () => {
     try {
-      const res = await searchItems(query.value.trim(), tipoFiltro.value || undefined)
+      const res = await searchItems(query.value.trim(), tipoFiltro.value || undefined, mondoStore.corrente)
       risultati.value = res.data as any[]
     } catch { risultati.value = [] }
     finally { searching.value = false }

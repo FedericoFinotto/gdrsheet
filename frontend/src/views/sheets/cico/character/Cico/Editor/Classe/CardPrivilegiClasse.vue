@@ -6,6 +6,7 @@ import {getItem, searchItems, updateItem} from '../../../../../../../service/Per
 import {LABELS} from '../../../../../../../models/entity/ItemLabel'
 import {LabelRow} from '../../../../../../../models/dto/UpdateItemRequest'
 import HtmlEditor from '../../../../../../../components/HtmlEditor.vue'
+import {useMondoStore} from '../../../../../../../stores/mondo'
 
 interface AbilitaConcessa {
   livello: number
@@ -34,6 +35,8 @@ const props = defineProps<{
 
 const router = useRouter()
 const route = useRoute()
+const mondoStore = useMondoStore()
+mondoStore.carica() // idempotente
 
 function editConcessa(itemId: number) {
   const idPg = route.query.personaggio
@@ -88,7 +91,7 @@ function onQueryConcessa() {
     const token = ++searchToken
     searching.value = true
     try {
-      const res = await searchItems(q)
+      const res = await searchItems(q, undefined, mondoStore.corrente)
       if (token !== searchToken) return
       risultatiConcessa.value = (res.data ?? []).filter(r =>
           !['ATTACCO', 'AVANZAMENTO', 'CLASSE', 'LIVELLO'].includes(r.tipo))

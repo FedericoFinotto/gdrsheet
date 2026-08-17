@@ -9,6 +9,7 @@ import it.fin8.gdrsheet.dto.ImportJsonlResultDTO;
 import it.fin8.gdrsheet.dto.ItemDTO;
 import it.fin8.gdrsheet.dto.ItemSearchResultDTO;
 import it.fin8.gdrsheet.dto.MondoDTO;
+import it.fin8.gdrsheet.dto.NodoAlberoDTO;
 import it.fin8.gdrsheet.dto.NotaDTO;
 import it.fin8.gdrsheet.dto.NotiziaDTO;
 import it.fin8.gdrsheet.dto.PageDTO;
@@ -243,10 +244,30 @@ public class ItemController {
             @Parameter(description = "Testo da cercare nel nome", required = true)
             @RequestParam String q,
             @Parameter(description = "Tipo item (opzionale)")
-            @RequestParam(required = false) TipoItem tipo
+            @RequestParam(required = false) TipoItem tipo,
+            @Parameter(description = "Mondo su cui confinare la ricerca (opzionale, ma i mondi sono compartimenti stagni: va sempre passato quando esiste un mondo di riferimento)")
+            @RequestParam(required = false) Integer idMondo
     ) {
-        List<ItemDTO> result = itemService.searchItems(q, tipo).stream().map(itemMapper::toDTO).toList();
+        List<ItemDTO> result = itemService.searchItems(q, tipo, idMondo).stream().map(itemMapper::toDTO).toList();
         return ResponseEntity.ok(result);
+    }
+
+    @Operation(
+            summary = "Alberi NODO di un mondo",
+            description = "Valori distinti della label ALBERO_NODO tra i NODO di quel mondo: popola la lista della pagina \"Alberi\"."
+    )
+    @GetMapping("/nodo/alberi")
+    public ResponseEntity<List<String>> getAlberiNodo(@RequestParam Integer idMondo) {
+        return ResponseEntity.ok(itemService.getAlberiNodo(idMondo));
+    }
+
+    @Operation(
+            summary = "Grafo di un albero NODO",
+            description = "Tutti i NODO di un mondo con un dato valore di ALBERO_NODO, con gli archi verso i loro figli (\"A\"), per la visualizzazione grafica."
+    )
+    @GetMapping("/nodo/albero")
+    public ResponseEntity<List<NodoAlberoDTO>> getAlberoNodo(@RequestParam Integer idMondo, @RequestParam String albero) {
+        return ResponseEntity.ok(itemService.getAlberoNodo(idMondo, albero));
     }
 
     @Operation(
@@ -598,6 +619,23 @@ public class ItemController {
         Integer valore = body.get("valore");
         if (valore == null) return ResponseEntity.badRequest().build();
         itemService.setContatoreItem(itemId, personaggioId, nome, valore);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Imposta la scelta di un personaggio per una sezione della card SCELTE",
+            description = "Body {\"itemId\": <id>} con l'id dell'item candidato scelto tra quelli della sezione, " +
+                    "o {\"itemId\": null} per rimuovere la scelta."
+    )
+    @PutMapping("/{itemId}/scelta/{personaggioId}/{sezioneIndice}")
+    public ResponseEntity<Void> setScelta(
+            @PathVariable Integer itemId,
+            @PathVariable Integer personaggioId,
+            @PathVariable Integer sezioneIndice,
+            @RequestBody java.util.Map<String, Integer> body,
+            @AuthenticationPrincipal Utente utente) {
+        authzService.assertCanEditPersonaggio(utente, personaggioId);
+        itemService.setScelta(itemId, personaggioId, sezioneIndice, body.get("itemId"));
         return ResponseEntity.noContent().build();
     }
 

@@ -210,8 +210,27 @@ export function updateBarriera(id: number, consumato: number, idPersonaggio?: nu
     return api.post<void>(`/item/barriera/${id}`, null, {params: {consumato, idPersonaggio}});
 }
 
-export function searchItems(q: string, tipo?: string): Promise<AxiosResponse<Item[]>> {
-    return api.get<Item[]>('/item/search', {params: {q, tipo}});
+// idMondo: confina la ricerca al mondo selezionato (i mondi sono compartimenti stagni) — omesso
+// significa nessun filtro, da usare SOLO dove non esiste un mondo di riferimento.
+export function searchItems(q: string, tipo?: string, idMondo?: number | null): Promise<AxiosResponse<Item[]>> {
+    return api.get<Item[]>('/item/search', {params: {q, tipo, idMondo}});
+}
+
+// Valori distinti della label ALBERO_NODO tra i NODO di un mondo: popola la pagina "Alberi".
+export function getAlberiNodo(idMondo: number): Promise<AxiosResponse<string[]>> {
+    return api.get<string[]>('/item/nodo/alberi', {params: {idMondo}});
+}
+
+export interface NodoAlbero {
+    id: number;
+    nome: string;
+    tipoNome: string | null;
+    figli: number[];
+}
+
+// Grafo (nodi + archi verso i figli "A") di un albero specifico: per la visualizzazione grafica.
+export function getAlberoNodo(idMondo: number, albero: string): Promise<AxiosResponse<NodoAlbero[]>> {
+    return api.get<NodoAlbero[]>('/item/nodo/albero', {params: {idMondo, albero}});
 }
 
 export function getCompendio(
@@ -271,4 +290,10 @@ export function resetSlotUsati(personaggioId: number): Promise<AxiosResponse<voi
 // quando l'item ha il flag globale SHOW_$V_<nome>=1 — scoped per personaggio come UTILIZZI_USATI.
 export function setContatoreItem(itemId: number, personaggioId: number, nome: string, valore: number): Promise<AxiosResponse<void>> {
     return api.put<void>(`/item/${itemId}/contatore/${personaggioId}/${encodeURIComponent(nome)}`, {valore});
+}
+
+// Card SCELTE: registra quale item candidato il personaggio ha scelto per la sezione
+// sezioneIndice di questo item; itemId null = rimuove la scelta.
+export function setScelta(itemId: number, personaggioId: number, sezioneIndice: number, sceltoId: number | null): Promise<AxiosResponse<void>> {
+    return api.put<void>(`/item/${itemId}/scelta/${personaggioId}/${sezioneIndice}`, {itemId: sceltoId});
 }

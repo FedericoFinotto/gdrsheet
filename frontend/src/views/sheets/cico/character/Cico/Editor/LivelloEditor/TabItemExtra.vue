@@ -9,10 +9,13 @@ import usePopup from '../../../../../../../function/usePopup'
 import Mobile_DettaglioItem from '../../../Dettaglio/Mobile_DettaglioItem.vue'
 import {useCharacterStore} from '../../../../../../../stores/personaggio'
 import {storeToRefs} from 'pinia'
+import {useMondoStore} from '../../../../../../../stores/mondo'
 
 const {openPopup} = usePopup()
 const characterStore = useCharacterStore()
 const {cache} = storeToRefs(characterStore)
+const mondoStore = useMondoStore()
+mondoStore.carica() // idempotente
 
 const props = defineProps<{
   disabled: boolean
@@ -79,7 +82,7 @@ watch([query, tipoFiltro], () => {
   searching.value = true
   searchTimer = setTimeout(async () => {
     try {
-      const res = await searchItems(query.value.trim(), tipoFiltro.value || undefined)
+      const res = await searchItems(query.value.trim(), tipoFiltro.value || undefined, mondoStore.corrente)
       risultati.value = (res.data as any[]).filter(
           r => !props.items.find(i => i.id === r.id)
       )

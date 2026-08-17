@@ -95,6 +95,26 @@ public class UpdateItemRequest {
      */
     private List<ChildRefDTO> children;
 
+    /**
+     * Solo per tipo NODO (card NODO_STRUTTURA): id dell'item collegato come "contenuto" del nodo
+     * (qualunque tipo); null = nessun collegamento (rimuove quello esistente).
+     */
+    private Integer nodoTipoItemId;
+
+    /**
+     * Solo per tipo NODO: id dei nodi NODO successivi (verso cui si può andare da questo nodo).
+     * Stato completo desiderato, null = non toccare.
+     */
+    private List<Integer> nodoA;
+
+    /**
+     * Solo per tipo NODO: id dei nodi NODO predecessori (da cui si arriva a questo nodo). Editato
+     * da qui per comodità, ma la scrittura è "al contrario": per ogni id in questa lista, QUEL
+     * nodo viene aggiornato aggiungendo questo item alla SUA {@link #nodoA} — nessuna colonna
+     * "Da" esiste su questo item. Stato completo desiderato, null = non toccare.
+     */
+    private List<Integer> nodoDa;
+
     @Getter
     @Setter
     @NoArgsConstructor
