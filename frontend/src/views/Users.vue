@@ -30,7 +30,12 @@ const nuovoNome = ref('')
 const nuovoRuolo = ref('GIOCATORE')
 const busyCrea = ref(false)
 
+// Elenco utenti + impersona: riservati al vero admin (GET /api/user è admin-only lato backend —
+// "gestione account non è per mondo"). Un MASTER (permessi_mondo, non ruolo globale) vede solo
+// il form di creazione sopra, che l'API accetta anche da lui: nessuna chiamata a listUsers() per
+// evitare un 403 inutile e un errore fuorviante per chi ha comunque accesso alla pagina.
 async function carica() {
+  if (!isAdmin.value) return
   loading.value = true
   errorMsg.value = null
   try {
@@ -56,7 +61,9 @@ async function onCrea() {
     nuovoRuolo.value = 'GIOCATORE'
     await carica()
   } catch (e: any) {
-    errorMsg.value = e?.response?.status === 409 ? 'Username già esistente' : 'Errore nella creazione'
+    errorMsg.value = e?.response?.status === 409 ? 'Username già esistente'
+        : e?.response?.status === 403 ? 'Non autorizzato'
+        : 'Errore nella creazione'
   } finally {
     busyCrea.value = false
   }
@@ -102,8 +109,8 @@ async function onImpersona(u: UtenteAdmin) {
 
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
-    <!-- lista -->
-    <section class="block">
+    <!-- lista + impersona: riservati al vero admin, vedi commento su carica() -->
+    <section v-if="isAdmin" class="block">
       <h2>Utenti</h2>
       <div v-if="loading" class="state">Caricamento…</div>
       <ul v-else class="cards">
@@ -114,7 +121,7 @@ async function onImpersona(u: UtenteAdmin) {
           </div>
           <span class="pill">{{ u.ruolo }}</span>
           <span v-if="u.mustSetPassword" class="pill warn">senza password</span>
-          <button v-if="isAdmin && u.id !== auth.utente?.id" class="btn small"
+          <button v-if="u.id !== auth.utente?.id" class="btn small"
                   @click="onImpersona(u)">Impersona</button>
         </li>
       </ul>

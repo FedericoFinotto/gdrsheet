@@ -84,11 +84,13 @@ public class UserController {
         return ResponseEntity.ok(authService.listUsers());
     }
 
-    @Operation(summary = "Crea un nuovo utente senza password (admin)")
+    @Operation(summary = "Crea un nuovo utente senza password (admin, o master di almeno un mondo)")
     @PostMapping
     public ResponseEntity<UtenteAdminDTO> create(@Valid @RequestBody CreateUserRequest req,
                                                  @AuthenticationPrincipal Utente utente) {
-        if (!authzService.isAdmin(utente))
+        // account non legato a un mondo specifico (vedi list() sopra): basta essere MASTER di
+        // ALMENO un mondo, come un admin — permesso indipendente da STATS/PAGINE.
+        if (!authzService.isMasterOfAnyMondo(utente))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Non autorizzato");
         return ResponseEntity.ok(authService.createUser(req));
     }

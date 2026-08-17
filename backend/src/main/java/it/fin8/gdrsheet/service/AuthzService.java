@@ -2,9 +2,9 @@ package it.fin8.gdrsheet.service;
 
 import it.fin8.gdrsheet.def.TipoPermessoMondo;
 import it.fin8.gdrsheet.def.TipoPermessoPersonaggio;
-import it.fin8.gdrsheet.def.TipoRuoloParty;
 import it.fin8.gdrsheet.entity.Mondo;
 import it.fin8.gdrsheet.entity.Party;
+import it.fin8.gdrsheet.entity.PermessiMondo;
 import it.fin8.gdrsheet.entity.PermessiPersonaggi;
 import it.fin8.gdrsheet.entity.Personaggio;
 import it.fin8.gdrsheet.entity.Utente;
@@ -105,6 +105,68 @@ public class AuthzService {
     }
 
     /**
+     * L'utente può gestire le stat_default del MONDO indicato (StatController): permesso STATS,
+     * indipendente da MASTER (vedi TipoPermessoMondo) — un MASTER non lo ottiene automaticamente,
+     * va assegnato a parte.
+     */
+    public boolean isStatsMondo(Utente utente, Integer mondoId) {
+        if (isAdmin(utente)) return true;
+        if (utente == null || mondoId == null) return false;
+        return permessiMondoRepository.existsByIdUtente_IdAndIdMondo_IdAndPermesso(
+                utente.getId(), mondoId, TipoPermessoMondo.STATS);
+    }
+
+    /**
+     * L'utente può configurare le "pagine" del MONDO indicato (MondoAdminController: tipi item
+     * abilitati, card/campi dell'editor, catalogo scuole/liste incantesimi): permesso PAGINE,
+     * indipendente da MASTER (vedi TipoPermessoMondo).
+     */
+    public boolean isPagineMondo(Utente utente, Integer mondoId) {
+        if (isAdmin(utente)) return true;
+        if (utente == null || mondoId == null) return false;
+        return permessiMondoRepository.existsByIdUtente_IdAndIdMondo_IdAndPermesso(
+                utente.getId(), mondoId, TipoPermessoMondo.PAGINE);
+    }
+
+    /**
+     * Mondi su cui l'utente ha ESATTAMENTE il permesso indicato (nessun bypass admin: per un
+     * admin va gestito a parte da chi chiama, es. "tutti i mondi"). Usato per unire i mondi
+     * "posseduti" per un dato permesso con altre fonti (es. party di cui si è già membri) — vedi
+     * PartyService.getMieiMondi, dove un MASTER deve poter creare la PRIMA party di un mondo anche
+     * senza già farne parte.
+     */
+    public List<Mondo> mondiConPermesso(Utente utente, TipoPermessoMondo permesso) {
+        if (utente == null) return List.of();
+        return permessiMondoRepository.findAllByIdUtente_IdAndPermesso(utente.getId(), permesso).stream()
+                .map(PermessiMondo::getIdMondo)
+                .toList();
+    }
+
+    /**
+     * L'utente è MASTER di almeno un mondo (qualunque): usato per azioni non legate a un mondo
+     * specifico ma comunque riservate a chi ha "un minimo" di potere gestionale, es. creare un
+     * nuovo account (UserController) — oggi riservato ai soli admin, esteso anche a chi è master
+     * di almeno un mondo, senza che l'account creato sia legato a nessun mondo in particolare.
+     */
+    public boolean isMasterOfAnyMondo(Utente utente) {
+        if (isAdmin(utente)) return true;
+        if (utente == null) return false;
+        return !permessiMondoRepository.findAllByIdUtente_IdAndPermesso(utente.getId(), TipoPermessoMondo.MASTER).isEmpty();
+    }
+
+    /**
+     * L'utente ha ALMENO UN permesso su ALMENO UN mondo (MASTER, STATS o PAGINE indifferentemente):
+     * usato per la lettura di cataloghi globali (liste/domini incantesimi, scuole/sottoscuole...)
+     * che servono a decidere cosa abilitare nel proprio mondo, qualunque sia il permesso posseduto
+     * su di esso.
+     */
+    public boolean hasAnyPermessoMondo(Utente utente) {
+        if (isAdmin(utente)) return true;
+        if (utente == null) return false;
+        return !permessiMondoRepository.findAllByIdUtente_Id(utente.getId()).isEmpty();
+    }
+
+    /**
      * L'utente è master del MONDO a cui appartiene questo party (vedi {@link #isMasterMondo}):
      * essere master di un mondo implica essere master di ogni party di quel mondo, anche senza
      * un permesso esplicito su quel party. Un party senza mondo (mondo_id nullo) non abilita mai
@@ -132,16 +194,15 @@ public class AuthzService {
     }
 
     /**
-     * L'utente è master del party — esplicitamente, oppure perché è master del mondo a cui il
-     * party appartiene (vedi {@link #isMasterMondoDelParty}).
+     * L'utente è master del party: SOLO perché è master del mondo a cui il party appartiene (vedi
+     * {@link #isMasterMondoDelParty}) — non esiste più un ruolo "master" a livello di singolo
+     * party (eliminato: chi viene aggiunto a un party è sempre e solo un membro, vedi
+     * PartyService.addMembro/createParty). Gestire un party è quindi interamente una responsabilità
+     * del master del suo mondo.
      */
     public boolean isMasterParty(Utente utente, Integer partyId) {
         if (isAdmin(utente)) return true;
-        if (partyId == null) return false;
-        boolean master = permessiPartyRepository.findAllByIdUtente_Id(utente.getId()).stream()
-                .anyMatch(p -> Objects.equals(p.getIdParty().getId(), partyId)
-                        && TipoRuoloParty.MASTER.equals(p.getRuolo()));
-        return master || isMasterMondoDelParty(utente, partyId);
+        return isMasterMondoDelParty(utente, partyId);
     }
 
     public boolean canEditPersonaggio(Utente utente, Integer personaggioId) {

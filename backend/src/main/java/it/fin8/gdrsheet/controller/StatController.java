@@ -51,10 +51,14 @@ public class StatController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Riservato agli admin");
     }
 
-    /** stat_default invece è per mondo: la gestisce il master di QUEL mondo (o un admin). */
-    private void assertMasterMondo(Utente utente, Integer mondoId) {
-        if (!authzService.isMasterMondo(utente, mondoId))
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Riservato al master di questo mondo");
+    /**
+     * stat_default è per mondo: la gestisce chi ha il permesso STATS su QUEL mondo (o un admin) —
+     * permesso indipendente da MASTER (vedi TipoPermessoMondo), un master non lo ottiene
+     * automaticamente.
+     */
+    private void assertStatsMondo(Utente utente, Integer mondoId) {
+        if (!authzService.isStatsMondo(utente, mondoId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Riservato a chi ha il permesso Statistiche su questo mondo");
     }
 
     @Operation(summary = "Lista delle stat", description = "Tutte le stat disponibili (id, tipo, label), ordinate per label")
@@ -91,12 +95,12 @@ public class StatController {
         return ResponseEntity.ok(statRepository.save(s));
     }
 
-    @Operation(summary = "Mondi disponibili", description = "Tutti i mondi per un admin; solo quelli di cui si è master altrimenti (per associare le stat_default)")
+    @Operation(summary = "Mondi disponibili", description = "Tutti i mondi per un admin; solo quelli su cui si ha il permesso Statistiche altrimenti (per associare le stat_default)")
     @GetMapping("/mondi")
     public ResponseEntity<List<MondoDTO>> getMondi(@AuthenticationPrincipal Utente utente) {
         List<Mondo> mondi = authzService.isAdmin(utente)
                 ? mondoRepository.findAll()
-                : permessiMondoRepository.findAllByIdUtente_IdAndPermesso(utente.getId(), TipoPermessoMondo.MASTER).stream()
+                : permessiMondoRepository.findAllByIdUtente_IdAndPermesso(utente.getId(), TipoPermessoMondo.STATS).stream()
                         .map(PermessiMondo::getIdMondo).toList();
         List<MondoDTO> result = mondi.stream()
                 .map(m -> new MondoDTO(m.getId(), m.getDescrizione(), null, null))
@@ -104,23 +108,23 @@ public class StatController {
         return ResponseEntity.ok(result);
     }
 
-    @Operation(summary = "stat_default di un mondo", description = "Master di quel mondo, o admin")
+    @Operation(summary = "stat_default di un mondo", description = "Chi ha il permesso Statistiche su quel mondo, o admin")
     @GetMapping("/default/{mondoId}")
     public ResponseEntity<List<StatDefaultDTO>> getDefaults(@PathVariable Integer mondoId,
                                                             @AuthenticationPrincipal Utente utente) {
-        assertMasterMondo(utente, mondoId);
+        assertStatsMondo(utente, mondoId);
         List<StatDefaultDTO> result = statDefaultRepository.findAllByMondo_Id(mondoId).stream()
                 .map(this::toDTO).toList();
         return ResponseEntity.ok(result);
     }
 
-    @Operation(summary = "Crea una stat_default per un mondo", description = "Master di quel mondo, o admin")
+    @Operation(summary = "Crea una stat_default per un mondo", description = "Chi ha il permesso Statistiche su quel mondo, o admin")
     @PostMapping("/default")
     public ResponseEntity<StatDefaultDTO> createDefault(@RequestBody StatDefaultDTO req,
                                                         @AuthenticationPrincipal Utente utente) {
         if (req.getMondoId() == null)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mondo obbligatorio");
-        assertMasterMondo(utente, req.getMondoId());
+        assertStatsMondo(utente, req.getMondoId());
         if (req.getStatId() == null || req.getStatId().isBlank())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stat obbligatoria");
         Mondo mondo = mondoRepository.findById(req.getMondoId())
@@ -140,13 +144,13 @@ public class StatController {
         return ResponseEntity.ok(toDTO(statDefaultRepository.save(sd)));
     }
 
-    @Operation(summary = "Aggiorna una stat_default", description = "Aggiorna valore default, modificatore e addestramento. Master di quel mondo, o admin")
+    @Operation(summary = "Aggiorna una stat_default", description = "Aggiorna valore default, modificatore e addestramento. Chi ha il permesso Statistiche su quel mondo, o admin")
     @PutMapping("/default/{id}")
     public ResponseEntity<StatDefaultDTO> updateDefault(@PathVariable Integer id, @RequestBody StatDefaultDTO req,
                                                         @AuthenticationPrincipal Utente utente) {
         StatDefault sd = statDefaultRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "stat_default non trovata"));
-        assertMasterMondo(utente, sd.getMondo() != null ? sd.getMondo().getId() : null);
+        assertStatsMondo(utente, sd.getMondo() != null ? sd.getMondo().getId() : null);
         sd.setValoreDefault(req.getValoreDefault());
         if (req.getDefaultModId() != null && !req.getDefaultModId().isBlank()) {
             sd.setDefaultMod(statRepository.findById(req.getDefaultModId().trim()).orElse(null));
@@ -157,12 +161,12 @@ public class StatController {
         return ResponseEntity.ok(toDTO(statDefaultRepository.save(sd)));
     }
 
-    @Operation(summary = "Elimina una stat_default", description = "Master di quel mondo, o admin")
+    @Operation(summary = "Elimina una stat_default", description = "Chi ha il permesso Statistiche su quel mondo, o admin")
     @DeleteMapping("/default/{id}")
     public ResponseEntity<Void> deleteDefault(@PathVariable Integer id, @AuthenticationPrincipal Utente utente) {
         StatDefault sd = statDefaultRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "stat_default non trovata"));
-        assertMasterMondo(utente, sd.getMondo() != null ? sd.getMondo().getId() : null);
+        assertStatsMondo(utente, sd.getMondo() != null ? sd.getMondo().getId() : null);
         statDefaultRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }

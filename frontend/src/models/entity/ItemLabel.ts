@@ -97,6 +97,10 @@ export const LABELS = {
     // Contenitore: sezione a parte in scheda invece di finire nel pool normale del personaggio
     // (ContenitoreEditor.vue).
     INVENTARIO_SEPARATO: 'INVENTARIO_SEPARATO',
+    // Utilizzi massimi (card UTILIZZI_MAX) e cadenza di reset (card RESET, valore BREVE/LUNGO) —
+    // BaseItemEditor.vue. Puramente informativi: nessun contatore/ripristino automatico.
+    UTILIZZI: 'UTILIZZI',
+    RESET: 'RESET',
 } as const;
 export type TipoLabels = typeof LABELS[keyof typeof LABELS];
 

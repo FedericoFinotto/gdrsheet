@@ -4,6 +4,7 @@ import {TAGLIE_OPTIONS_NOME} from '../../../../../../../function/Utils'
 
 defineProps<{
   taglia: string; velocita: string; caratteristiche: string; lap: string; spazio: string; portata: string
+  eta: string; showEta?: boolean
   disabled?: boolean
 }>()
 defineEmits<{
@@ -13,6 +14,7 @@ defineEmits<{
   (e: 'update:lap', v: string): void
   (e: 'update:spazio', v: string): void
   (e: 'update:portata', v: string): void
+  (e: 'update:eta', v: string): void
 }>()
 
 const TAGLIE_RAZZA = [{value: '', label: '— nessuna —'}, ...TAGLIE_OPTIONS_NOME]
@@ -35,6 +37,11 @@ const TAGLIE_RAZZA = [{value: '', label: '— nessuna —'}, ...TAGLIE_OPTIONS_N
     <span class="lbl">Caratteristiche</span>
     <input :value="caratteristiche" type="text" placeholder="Es.: +2 Destrezza, -2 Forza" :disabled="disabled"
            @input="$emit('update:caratteristiche', ($event.target as HTMLInputElement).value)"/>
+  </label>
+  <label v-if="showEta" class="field">
+    <span class="lbl">Età</span>
+    <input :value="eta" type="text" placeholder="Es.: 80 Anni" :disabled="disabled"
+           @input="$emit('update:eta', ($event.target as HTMLInputElement).value)"/>
   </label>
   <div class="rank-grid">
     <label class="field">

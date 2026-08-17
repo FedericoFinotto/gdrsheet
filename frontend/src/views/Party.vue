@@ -90,10 +90,11 @@ async function onCreaPg() {
 const isMaster = computed(() => party.value?.ruolo === 'MASTER')
 const partyVuoto = computed(() => (party.value?.personaggi.length ?? 0) === 0)
 
-// gestione membri
+// gestione membri: chi viene aggiunto è sempre un semplice membro, non esiste più un ruolo
+// "master" a livello di party (gestire il party resta comunque possibile solo a chi è master
+// del mondo, vedi backend AuthzService.isMasterParty)
 const showGestione = ref(false)
 const nuovoUsername = ref('')
-const nuovoRuolo = ref('GIOCATORE')
 const busyMembro = ref(false)
 
 // autocomplete utenti
@@ -142,7 +143,7 @@ async function onAddMembro() {
   if (!nuovoUsername.value.trim() || busyMembro.value || !party.value) return
   busyMembro.value = true
   try {
-    const res = await addMembro(party.value.id, nuovoUsername.value.trim(), nuovoRuolo.value)
+    const res = await addMembro(party.value.id, nuovoUsername.value.trim())
     membri.value.push(res.data)
     nuovoUsername.value = ''
     ricercaUtente.value = ''
@@ -315,9 +316,6 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
           <div v-for="m in membri" :key="m.utenteId" class="membro">
             <span class="nome">{{ m.name || m.username }}</span>
             <span class="muted">@{{ m.username }}</span>
-            <span class="pill" :class="m.ruolo === 'MASTER' ? 'master' : 'giocatore'">
-              {{ m.ruolo === 'MASTER' ? 'Master' : 'Giocatore' }}
-            </span>
           </div>
         </div>
 
@@ -339,8 +337,6 @@ function livelloMismatch(p: PersonaggioSoldi): boolean {
               </li>
             </ul>
           </div>
-          <SearchSelect v-model="nuovoRuolo" :sort="false"
-                        :options="[{value:'GIOCATORE',label:'Giocatore'},{value:'MASTER',label:'Master'}]"/>
           <button class="btn primary" :disabled="busyMembro || !nuovoUsername.trim()" @click="onAddMembro">
             {{ busyMembro ? 'Associazione…' : 'Associa utente' }}
           </button>

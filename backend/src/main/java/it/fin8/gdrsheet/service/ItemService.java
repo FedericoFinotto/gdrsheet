@@ -1000,8 +1000,10 @@ public class ItemService {
      * Allinea gli item collegati come child (esclusi gli ATTACCO) allo stato
      * richiesto: crea i collegamenti mancanti, elimina quelli non più presenti
      * (solo il collegamento, mai l'item target). Null = non toccare.
+     * Non privato: riusato anche da ClasseService per la card "Item collegati" su CLASSE/RAZZA,
+     * che condividono lo stesso package.
      */
-    private void applyChildren(Item itm, List<UpdateItemRequest.ChildRefDTO> children) {
+    void applyChildren(Item itm, List<UpdateItemRequest.ChildRefDTO> children) {
         if (children == null) return;
 
         record ChildInfo(Integer qty, String formulaQty, String scelta, boolean nascosto, String condizione) {

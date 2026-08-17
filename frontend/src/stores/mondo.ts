@@ -29,8 +29,11 @@ export const useMondoStore = defineStore('mondo', () => {
     // sintomo era Compendio.vue che chiamava /item/compendio due volte (senza e poi con idMondo).
     let caricamentoPromise: Promise<void> | null = null
 
-    function carica(): Promise<void> {
-        if (caricamentoPromise) return caricamentoPromise
+    // force=true: ri-scarica anche se già caricato (invece di riusare la promise memoizzata) —
+    // usato dal toggle modalità admin (UpperBar.vue), dato che i mondi disponibili dipendono
+    // dall'header X-Admin-Mode e vanno aggiornati senza un reload completo della pagina.
+    function carica(force = false): Promise<void> {
+        if (caricamentoPromise && !force) return caricamentoPromise
         caricato.value = true
         caricamentoPromise = (async () => {
             try {

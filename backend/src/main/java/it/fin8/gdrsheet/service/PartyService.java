@@ -3,6 +3,7 @@ package it.fin8.gdrsheet.service;
 import it.fin8.gdrsheet.config.Constants;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoModificatore;
+import it.fin8.gdrsheet.def.TipoPermessoMondo;
 import it.fin8.gdrsheet.def.TipoPermessoPersonaggio;
 import it.fin8.gdrsheet.def.TipoRuoloParty;
 import it.fin8.gdrsheet.dto.*;
@@ -364,6 +365,13 @@ public class PartyService {
                     .toList();
         }
         Map<Integer, MondoDTO> mondi = new LinkedHashMap<>();
+        // MASTER di un mondo (permessi_mondo): deve poter creare la PRIMA party di quel mondo
+        // anche senza già farne parte — altrimenti nessun master "nuovo" potrebbe mai crearne una.
+        for (Mondo m : authzService.mondiConPermesso(utente, TipoPermessoMondo.MASTER)) {
+            mondi.putIfAbsent(m.getId(), new MondoDTO(m.getId(), m.getDescrizione(),
+                    m.getSistema() != null ? m.getSistema().getId() : null,
+                    m.getSistema() != null ? m.getSistema().getDescrizione() : null));
+        }
         for (PermessiParty pp : permessiPartyRepository.findAllByIdUtente_Id(utente.getId())) {
             Party party = pp.getIdParty();
             if (party != null && party.getMondo() != null) {
@@ -379,8 +387,11 @@ public class PartyService {
     }
 
     /**
-     * Crea un party nel mondo indicato (che dev'essere tra i mondi del master)
-     * e rende l'utente MASTER del nuovo party.
+     * Crea un party nel mondo indicato (che dev'essere tra i mondi del master) e ci aggancia
+     * l'utente come semplice membro: non esiste più un ruolo "master" a livello di party (vedi
+     * AuthzService.isMasterParty) — gestire il party (aggiungere membri, eliminarlo) resta
+     * comunque possibile a chi lo ha creato solo se è anche master del mondo, esattamente come per
+     * chiunque altro.
      */
     @Transactional
     public Integer createParty(CreatePartyRequest request, Utente utente) {
@@ -400,7 +411,7 @@ public class PartyService {
         PermessiParty pp = new PermessiParty();
         pp.setIdUtente(utente);
         pp.setIdParty(saved);
-        pp.setRuolo(TipoRuoloParty.MASTER);
+        pp.setRuolo(TipoRuoloParty.GIOCATORE);
         permessiPartyRepository.save(pp);
 
         return saved.getId();
@@ -486,7 +497,9 @@ public class PartyService {
     }
 
     /**
-     * Associa un utente al party (solo il master). Ruolo MASTER o GIOCATORE.
+     * Associa un utente al party come semplice membro (solo il master del mondo può farlo — vedi
+     * AuthzService.isMasterParty). Nessun ruolo a scelta: non esiste più un "master di party",
+     * chi viene aggiunto è sempre e solo un membro.
      */
     @Transactional
     public MembroPartyDTO addMembro(Integer partyId, AddMembroRequest request, Utente utente) {
@@ -500,16 +513,13 @@ public class PartyService {
         if (permessiPartyRepository.existsByIdUtente_IdAndIdParty_Id(target.getId(), partyId))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "L'utente fa già parte del party");
 
-        TipoRuoloParty ruolo = "MASTER".equalsIgnoreCase(request.getRuolo())
-                ? TipoRuoloParty.MASTER : TipoRuoloParty.GIOCATORE;
-
         PermessiParty pp = new PermessiParty();
         pp.setIdUtente(target);
         pp.setIdParty(party);
-        pp.setRuolo(ruolo);
+        pp.setRuolo(TipoRuoloParty.GIOCATORE);
         permessiPartyRepository.save(pp);
 
-        return new MembroPartyDTO(target.getId(), target.getUsername(), target.getName(), ruolo.name());
+        return new MembroPartyDTO(target.getId(), target.getUsername(), target.getName(), TipoRuoloParty.GIOCATORE.name());
     }
 
     private void verificaMaster(Integer partyId, Utente utente) {

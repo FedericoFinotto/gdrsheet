@@ -2,11 +2,12 @@
 import {computed, onMounted, reactive, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {useAuthStore} from '../stores/auth'
+import {useMondoStore} from '../stores/mondo'
 import {
   addMasterMondo, aggiornaConfigMondo, aggiornaMondo, aggiornaTipoItemConfig, creaListaIncantesimi,
   creaMondo, creaSistema, creaValoreCatalogoIncantesimo, getCatalogoIncantesimo, getCatalogoListeIncantesimi,
-  getConfigMondo, getMasterMondo, getMondiAdmin, getSistemiAdmin, getTipoItemConfig,
-  ListaIncantesimiOpt, MasterMondo, removeMasterMondo,
+  getConfigMondo, getMasterMondo, getMondiGestibili, getSistemiAdmin, getTipoItemConfig,
+  ListaIncantesimiOpt, MasterMondo, PermessoMondo, PERMESSO_MONDO_LABELS, removeMasterMondo,
 } from '../service/MondoAdminService'
 import {MondoOpt} from '../function/useMondoSistema'
 import SearchSelect from '../components/SearchSelect.vue'
@@ -15,15 +16,20 @@ import {CARD_LABELS, cardsForTipo} from '../function/cardEditorItems'
 
 const router = useRouter()
 const auth = useAuthStore()
+const mondoStore = useMondoStore()
 
 // Non basta il ruolo admin sull'account: serve la modalità admin attiva (coerente con
-// AuthzService.isAdmin lato backend, che altrimenti risponderebbe 403 a ogni chiamata di questa pagina).
+// AuthzService.isAdmin lato backend, che altrimenti risponderebbe 403 alle azioni riservate qui
+// sotto: crea mondo/sistema, gestione master — "chi comanda dove" resta una decisione admin).
 const isAdmin = computed(() => {
   const r = (auth.utente?.ruolo ?? '').toUpperCase()
   return (r === 'ADMIN' || r === 'SUPERUSER') && auth.adminMode
 })
-
 const mondi = ref<MondoOpt[]>([])
+// Il master di un mondo può invece configurarlo (tipi item abilitati, editor per tipo, catalogo
+// scuole/liste incantesimi) — mondi.value arriva già scoped da getMondiGestibili (tutti per un
+// admin, solo i propri altrimenti), quindi bastare per accedere alla pagina.
+const canManage = computed(() => isAdmin.value || mondi.value.length > 0)
 const mondoOptions = computed(() => mondi.value.map(m => ({value: m.id, label: m.descrizione})))
 const mondoSelezionato = ref<number | null>(null)
 
@@ -42,10 +48,21 @@ async function caricaMondi() {
   loadingMondi.value = true
   errorMsg.value = null
   try {
-    const [rMondi, rSistemi] = await Promise.all([getMondiAdmin(), getSistemiAdmin()])
+    // sistemi: solo per un vero admin (serve solo a "Nuovo mondo"/riassegna sistema, azioni
+    // riservate — l'endpoint stesso è admin-only, chiamarlo per un master darebbe solo un 403 inutile)
+    const [rMondi, rSistemi] = await Promise.all([
+      getMondiGestibili(),
+      isAdmin.value ? getSistemiAdmin() : Promise.resolve({data: []}),
+    ])
     mondi.value = rMondi.data ?? []
     sistemi.value = rSistemi.data ?? []
-    if (mondoSelezionato.value === null && mondi.value.length) mondoSelezionato.value = mondi.value[0].id
+    // di default il mondo "corrente" scelto nel menu (se è tra quelli gestibili qui), non il
+    // primo in ordine alfabetico: questa pagina riguarda "il mio mondo", non un elenco qualsiasi.
+    if (mondoSelezionato.value === null && mondi.value.length) {
+      const corrente = mondoStore.corrente
+      mondoSelezionato.value = corrente !== null && mondi.value.some(m => m.id === corrente)
+          ? corrente : mondi.value[0].id
+    }
   } catch (e: any) {
     errorMsg.value = e?.response?.status === 403 ? 'Non autorizzato' : 'Errore nel caricamento dei mondi'
   } finally {
@@ -119,7 +136,9 @@ async function onCreaMondo() {
 }
 
 async function caricaMaster() {
-  if (mondoSelezionato.value === null) { master.value = []; return }
+  // gestione master: riservata agli admin (v-if="isAdmin" sulla sezione) — l'endpoint stesso lo è,
+  // chiamarlo per un master darebbe solo un 403 inutile.
+  if (mondoSelezionato.value === null || !isAdmin.value) { master.value = []; return }
   loadingMaster.value = true
   errorMsg.value = null
   try {
@@ -134,17 +153,22 @@ async function caricaMaster() {
 
 watch(mondoSelezionato, caricaMaster)
 
+// Tre permessi indipendenti (MASTER/STATS/PAGINE): uno non implica gli altri, si assegnano
+// singolarmente anche per lo stesso utente sullo stesso mondo — vedi backend TipoPermessoMondo.
+const nuovoPermesso = ref<PermessoMondo>('MASTER')
+const PERMESSO_OPTIONS: PermessoMondo[] = ['MASTER', 'STATS', 'PAGINE']
+
 async function onAggiungi() {
   if (!nuovoUsername.value.trim() || mondoSelezionato.value === null || busyAdd.value) return
   busyAdd.value = true
   errorMsg.value = null
   try {
-    await addMasterMondo(mondoSelezionato.value, nuovoUsername.value.trim())
+    await addMasterMondo(mondoSelezionato.value, nuovoUsername.value.trim(), nuovoPermesso.value)
     nuovoUsername.value = ''
     await caricaMaster()
   } catch (e: any) {
     errorMsg.value = e?.response?.status === 404 ? 'Utente non trovato'
-        : e?.response?.status === 409 ? 'È già master di questo mondo'
+        : e?.response?.status === 409 ? 'Ha già questo permesso su questo mondo'
         : 'Errore nell\'assegnazione'
   } finally {
     busyAdd.value = false
@@ -153,13 +177,13 @@ async function onAggiungi() {
 
 async function onRimuovi(m: MasterMondo) {
   if (mondoSelezionato.value === null) return
-  const ok = confirm(`Togliere a ${m.name} (@${m.username}) il permesso master su questo mondo?`)
+  const ok = confirm(`Togliere a ${m.name} (@${m.username}) il permesso ${PERMESSO_MONDO_LABELS[m.permesso]} su questo mondo?`)
   if (!ok) return
   try {
-    await removeMasterMondo(mondoSelezionato.value, m.utenteId)
+    await removeMasterMondo(mondoSelezionato.value, m.utenteId, m.permesso)
     await caricaMaster()
   } catch (e) {
-    console.error('Errore rimozione master mondo:', e)
+    console.error('Errore rimozione permesso mondo:', e)
     errorMsg.value = 'Errore nella rimozione'
   }
 }
@@ -461,8 +485,10 @@ async function onSalvaTipoConfig(t: string) {
 }
 
 onMounted(async () => {
-  if (!isAdmin.value) { router.replace('/'); return }
   await caricaMondi()
+  // getMondiGestibili è già scoped: se torna vuoto per un non-admin, non ha nessun mondo da
+  // configurare qui (né admin né master di alcunché) — solo allora si rimanda alla home.
+  if (!canManage.value) { router.replace('/'); return }
   await caricaMaster()
   await caricaConfigMondo()
   try {
@@ -489,8 +515,10 @@ onMounted(async () => {
     <div v-if="loadingMondi" class="state">Caricamento…</div>
 
     <template v-else>
-      <!-- Sistemi: creazione (un sistema esiste solo per essere assegnato a uno o più mondi) -->
-      <section class="block">
+      <!-- Sistemi: creazione (un sistema esiste solo per essere assegnato a uno o più mondi) —
+           riservato agli admin, come creare un mondo o gestire i master: "chi comanda dove" non è
+           qualcosa che un master delega da solo. Il master di un mondo vede solo la sua config. -->
+      <section v-if="isAdmin" class="block">
         <h2>Nuovo sistema</h2>
         <div class="add-form">
           <input v-model="nuovoSistemaDescrizione" type="text" placeholder="Nome sistema (es. D&D 3.5)"
@@ -502,7 +530,7 @@ onMounted(async () => {
       </section>
 
       <!-- Mondi: creazione, sempre con un sistema (obbligatorio a livello di schema) -->
-      <section class="block">
+      <section v-if="isAdmin" class="block">
         <h2>Nuovo mondo</h2>
         <div class="add-form add-form-mondo">
           <input v-model="nuovoMondoDescrizione" type="text" placeholder="Nome mondo"/>
@@ -520,7 +548,7 @@ onMounted(async () => {
         <SearchSelect v-model="mondoSelezionato" :options="mondoOptions" :sort="false"/>
       </section>
 
-      <section v-if="mondoSelezionato !== null" class="block">
+      <section v-if="mondoSelezionato !== null && isAdmin" class="block">
         <h2>Sistema di questo mondo</h2>
         <div class="add-form">
           <SearchSelect v-model="sistemaDelMondo" :options="sistemaOptions" :sort="false"/>
@@ -530,24 +558,33 @@ onMounted(async () => {
         </div>
       </section>
 
-      <section v-if="mondoSelezionato !== null" class="block">
-        <h2>Aggiungi master</h2>
+      <section v-if="mondoSelezionato !== null && isAdmin" class="block">
+        <h2>Assegna permesso</h2>
+        <p class="muted">Tre permessi indipendenti: Master (potere pieno — party, utenti, item senza restrizioni),
+          Statistiche (solo stat_default), Pagine (solo configurazione: tipi item, editor, cataloghi).
+          Assegnarne uno non dà automaticamente gli altri.</p>
         <div class="add-form">
           <input v-model="nuovoUsername" type="text" placeholder="Username" @keyup.enter="onAggiungi"/>
+          <select v-model="nuovoPermesso">
+            <option v-for="p in PERMESSO_OPTIONS" :key="p" :value="p">{{ PERMESSO_MONDO_LABELS[p] }}</option>
+          </select>
           <button class="btn primary" :disabled="busyAdd || !nuovoUsername.trim()" @click="onAggiungi">
-            {{ busyAdd ? 'Assegnazione…' : 'Rendi master' }}
+            {{ busyAdd ? 'Assegnazione…' : 'Assegna' }}
           </button>
         </div>
       </section>
 
-      <section v-if="mondoSelezionato !== null" class="block">
-        <h2>Master di questo mondo</h2>
+      <section v-if="mondoSelezionato !== null && isAdmin" class="block">
+        <h2>Permessi di questo mondo</h2>
         <div v-if="loadingMaster" class="state">Caricamento…</div>
-        <div v-else-if="!master.length" class="state">Nessun master assegnato (a parte gli admin).</div>
+        <div v-else-if="!master.length" class="state">Nessun permesso assegnato (a parte gli admin).</div>
         <ul v-else class="cards">
-          <li v-for="m in master" :key="m.utenteId" class="card">
+          <li v-for="m in master" :key="`${m.utenteId}-${m.permesso}`" class="card">
             <div class="info">
-              <span class="nome">{{ m.name }}</span>
+              <span class="nome-row">
+                <span class="chip-permesso">{{ PERMESSO_MONDO_LABELS[m.permesso] }}</span>
+                <span class="nome">{{ m.name }}</span>
+              </span>
               <span class="muted">@{{ m.username }}</span>
             </div>
             <button class="btn small danger" @click="onRimuovi(m)">Rimuovi</button>
@@ -733,11 +770,13 @@ onMounted(async () => {
 
 .muted { opacity: .65; font-size: .85rem; margin: 0; }
 
-.add-form { display: flex; gap: .4rem; }
-.add-form input {
-  flex: 1;
+.add-form { display: flex; gap: .4rem; flex-wrap: wrap; }
+.add-form input, .add-form select {
   padding: .45rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem;
+  background: var(--surface-0); color: inherit;
 }
+.add-form input { flex: 1 1 12rem; }
+.add-form select { flex: 0 0 auto; }
 .add-form-mondo { flex-wrap: wrap; }
 .add-form-mondo input { flex: 1 1 12rem; }
 .add-form-lista { flex-wrap: wrap; padding-top: .3rem; border-top: 1px dashed var(--hairline); }
@@ -750,6 +789,11 @@ onMounted(async () => {
 }
 .info { flex: 1; display: grid; }
 .info .nome { font-weight: 600; }
+.nome-row { display: flex; align-items: center; gap: .4rem; }
+.chip-permesso {
+  flex: 0 0 auto; font-size: .7rem; font-weight: 600; padding: .1rem .5rem; border-radius: 1rem;
+  border: 1px solid #4338ca; background: #eef2ff; color: #4338ca; line-height: 1.4;
+}
 
 .state { padding: .6rem; border: 1px dashed var(--hairline); border-radius: .5rem; }
 .error {

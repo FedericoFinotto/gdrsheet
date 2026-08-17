@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        LivelloEditor.vue: la card "Classe / Maledizione" e la riga "Dadi vita / Punti ferita /
+        Gradi" mostravano sempre insieme concetti che un mondo potrebbe voler nascondere solo in
+        parte (es. Maledizione non usata in quel mondo, o Gradi calcolati/mostrati altrove). Due
+        nuovi toggle indipendenti, seed FEDELE al comportamento attuale — non un'aggiunta neutra
+        come SCELTE: dove la card "madre" è già abilitata, il sotto-campo era già visibile, quindi
+        va seedato abilitato lì per non far sparire nulla di già in uso.
+    -->
+
+    <changeSet id="1900" author="developer">
+        <comment>Abilita LIVELLO_MALEDIZIONE ovunque LIVELLO_CLASSE_MALEDIZIONE è già abilitata (stesso comportamento visibile di prima).</comment>
+        <sql>
+            INSERT INTO mondo_tipo_item_card_abilitata (id_mondo, tipo, card)
+            SELECT id_mondo, tipo, 'LIVELLO_MALEDIZIONE'
+            FROM mondo_tipo_item_card_abilitata
+            WHERE tipo = 'LIVELLO' AND card = 'LIVELLO_CLASSE_MALEDIZIONE';
+        </sql>
+        <rollback>
+            <sql>DELETE FROM mondo_tipo_item_card_abilitata WHERE tipo = 'LIVELLO' AND card = 'LIVELLO_MALEDIZIONE';</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1901" author="developer">
+        <comment>Abilita LIVELLO_GRADI ovunque LIVELLO_DV_PF_GRADI è già abilitata (stesso comportamento visibile di prima).</comment>
+        <sql>
+            INSERT INTO mondo_tipo_item_card_abilitata (id_mondo, tipo, card)
+            SELECT id_mondo, tipo, 'LIVELLO_GRADI'
+            FROM mondo_tipo_item_card_abilitata
+            WHERE tipo = 'LIVELLO' AND card = 'LIVELLO_DV_PF_GRADI';
+        </sql>
+        <rollback>
+            <sql>DELETE FROM mondo_tipo_item_card_abilitata WHERE tipo = 'LIVELLO' AND card = 'LIVELLO_GRADI';</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- LIVELLO_SCELTE_CLASSE: NESSUN seed, come SCELTE — nuova funzionalità, nasce disabilitata
+         ovunque, va attivata a mano per mondo. -->
+
+    <changeSet id="1902" author="developer">
+        <comment>Campo Età (razzaEta) nuovo: nasce abilitato di default ovunque CLASSE_INFO_RAZZA è già abilitata, così i mondi con RAZZA già configurata lo vedono subito, restando comunque disattivabile per singolo mondo.</comment>
+        <sql>
+            INSERT INTO mondo_tipo_item_card_abilitata (id_mondo, tipo, card)
+            SELECT id_mondo, tipo, 'CLASSE_ETA'
+            FROM mondo_tipo_item_card_abilitata
+            WHERE tipo = 'RAZZA' AND card = 'CLASSE_INFO_RAZZA';
+        </sql>
+        <rollback>
+            <sql>DELETE FROM mondo_tipo_item_card_abilitata WHERE tipo = 'RAZZA' AND card = 'CLASSE_ETA';</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

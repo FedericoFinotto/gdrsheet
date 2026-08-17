@@ -30,12 +30,14 @@ export const CARD_LABELS: Record<string, string> = {
     MODIFICATORI: 'Modificatori',
     NODO_STRUTTURA: 'Struttura Nodo',
     SCELTE: 'Scelte',
+    RESET: 'Reset (Riposo Breve/Lungo)',
     // ClasseEditor.vue (CLASSE, RAZZA)
     CLASSE_INFO_RAZZA: 'Info Razza',
     CLASSE_ABILITA: 'Abilità di classe',
     CLASSE_INCANTESIMI: 'Incantesimi (classe)',
     CLASSE_TABELLA_LIVELLI: 'Tabella livelli',
     CLASSE_PRIVILEGI: 'Privilegi di classe',
+    CLASSE_ETA: 'Campo Età',
     // SpellEditor.vue (INCANTESIMO)
     SPELL_SCUOLE: 'Scuole',
     SPELL_SOTTOSCUOLE: 'Sottoscuole',
@@ -49,6 +51,9 @@ export const CARD_LABELS: Record<string, string> = {
     LIVELLO_ITEM_EXTRA: 'Item aggiuntivi',
     LIVELLO_MODIFICATORI: 'Modificatori (livello)',
     LIVELLO_ABILITA_RANGHI: 'Abilità / Ranghi',
+    LIVELLO_MALEDIZIONE: 'Campo Maledizione',
+    LIVELLO_GRADI: 'Campo Gradi (punti abilità)',
+    LIVELLO_SCELTE_CLASSE: 'Scelte della Classe/Razza',
     // Quest/Info (parte della famiglia base, si aggiungono solo per questi due tipi)
     AMBITO: 'Ambito',
     COMPLETATA: 'Completata',
@@ -59,14 +64,22 @@ const BASE_CARDS = [
     'QUANTITA', 'UTILIZZI_MAX', 'NOME_EN', 'MANUALE', 'DESCRITTORI_OGGETTO', 'INFO_OGGETTO',
     'INFO_VEICOLO', 'DESCRITTORI_ABILITA', 'MONDO_SISTEMA', 'ATTACCHI', 'FORME', 'ITEM_COLLEGATI',
     'EFFETTI', 'NOTE', 'IN_CARICO', 'INCANTESIMI', 'AGGIUNTA_CLASSE', 'LABELS', 'TAG', 'IMMAGINI',
-    'RANDOMIZZATORI_INNESCATI', 'MODIFICATORI', 'NODO_STRUTTURA', 'SCELTE',
+    'RANDOMIZZATORI_INNESCATI', 'MODIFICATORI', 'NODO_STRUTTURA', 'SCELTE', 'RESET',
 ]
 const AMBITO_CARDS = ['AMBITO', 'COMPLETATA', 'ARCHIVIATA']
-const CLASSE_CARDS = ['CLASSE_INFO_RAZZA', 'CLASSE_ABILITA', 'CLASSE_INCANTESIMI', 'CLASSE_TABELLA_LIVELLI', 'CLASSE_PRIVILEGI']
+// NOME_EN/MANUALE/ITEM_COLLEGATI/SCELTE sono card "base" ma disponibili anche qui: non c'è motivo
+// per cui CLASSE/RAZZA non possano avere un nome originale disattivabile, un manuale, item
+// collegati o sezioni di scelta come qualunque altro tipo — CLASSE/RAZZA usano ClasseEditor.vue
+// (famiglia a parte) invece di BaseItemEditor.vue, ma queste 4 sono renderizzate lì comunque.
+const CLASSE_CARDS = [
+    'NOME_EN', 'MANUALE', 'CLASSE_INFO_RAZZA', 'CLASSE_ABILITA', 'CLASSE_INCANTESIMI',
+    'CLASSE_TABELLA_LIVELLI', 'CLASSE_PRIVILEGI', 'ITEM_COLLEGATI', 'SCELTE', 'CLASSE_ETA',
+]
 const SPELL_CARDS = ['SPELL_SCUOLE', 'SPELL_SOTTOSCUOLE', 'SPELL_DESCRITTORI', 'SPELL_CLASSI_DOMINI', 'SPELL_COMPONENTI']
 const LIVELLO_CARDS = [
     'LIVELLO_CLASSE_MALEDIZIONE', 'LIVELLO_DV_PF_GRADI', 'LIVELLO_CONTENUTI', 'LIVELLO_ITEM_EXTRA',
-    'LIVELLO_MODIFICATORI', 'LIVELLO_ABILITA_RANGHI',
+    'LIVELLO_MODIFICATORI', 'LIVELLO_ABILITA_RANGHI', 'LIVELLO_MALEDIZIONE', 'LIVELLO_GRADI',
+    'LIVELLO_SCELTE_CLASSE',
 ]
 
 // Card proponibili per un dato tipo item, in base alla famiglia di editor che lo gestisce

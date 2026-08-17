@@ -2,6 +2,7 @@
 import {computed, onMounted, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {useAuthStore} from '../stores/auth'
+import {useMondoStore} from '../stores/mondo'
 import SearchSelect from '../components/SearchSelect.vue'
 import {TIPO_STAT} from '../models/entity/Stat'
 import {
@@ -18,9 +19,16 @@ import {
 
 const router = useRouter()
 const auth = useAuthStore()
-const isMasterOrAdmin = computed(() => {
+const mondoStore = useMondoStore()
+// Admin "vero" (ruolo globale): serve solo per le azioni sul catalogo GLOBALE delle stat (Nuova
+// statistica, Rankable) — riservate lato backend (StatController.assertAdmin). Il resto della
+// pagina (statistiche abilitate per un mondo, valore/mod/addestramento) è invece già gestibile dal
+// master di QUEL mondo (StatController.assertMasterMondo) — la vecchia condizione qui controllava
+// un ruolo globale "MASTER" che il backend non consulta più da tempo (vedi il commento in
+// AuthzService.java), lasciando fuori chiunque fosse master di un mondo solo tramite permessi_mondo.
+const isRealAdmin = computed(() => {
   const r = (auth.utente?.ruolo ?? '').toUpperCase()
-  return r === 'MASTER' || r === 'ADMIN' || r === 'SUPERUSER'
+  return r === 'ADMIN' || r === 'SUPERUSER'
 })
 
 const TIPO_OPTS = Object.entries(TIPO_STAT).map(([k, v]) => ({value: v, label: `${v} — ${k.toLowerCase()}`}))
@@ -176,9 +184,19 @@ async function loadDefaults() {
 }
 
 onMounted(async () => {
-  if (!isMasterOrAdmin.value) { router.replace('/'); return }
   try {
     await Promise.all([loadStats(), loadMondi()])
+    // getMondiAdmin() (→ GET /stats/mondi) è già scoped lato backend: tutti i mondi per un admin,
+    // solo quelli di cui si è master altrimenti — se per un non-admin risulta vuoto, non ha
+    // nessun mondo da gestire qui, a differenza dell'admin che la vede comunque anche vuota.
+    if (!isRealAdmin.value && mondi.value.length === 0) { router.replace('/'); return }
+    // di default il mondo "corrente" scelto nel menu (se è tra quelli gestibili qui): questa
+    // pagina riguarda "il mio mondo", non un elenco qualsiasi da scegliere ogni volta.
+    if (mondoSel.value === null && mondi.value.length) {
+      const corrente = mondoStore.corrente
+      mondoSel.value = corrente !== null && mondi.value.some(m => m.id === corrente)
+          ? corrente : mondi.value[0].id
+    }
     nuovaStat.value.id = idSuggerito.value
   } catch (e: any) {
     errorMsg.value = e?.message ?? 'Errore di caricamento'
@@ -317,7 +335,7 @@ async function salvaStat() {
               <span class="stat-name">{{ r.stat.label }}</span>
               <span class="stat-id">{{ r.stat.id }}</span>
             </label>
-            <label class="field chk rankable-chk" :title="'Se disattivato, non compare in Gestisci Gradi né in Livelli'">
+            <label v-if="isRealAdmin" class="field chk rankable-chk" :title="'Se disattivato, non compare in Gestisci Gradi né in Livelli'">
               <input type="checkbox" :checked="r.stat.rankable !== false" :disabled="busy"
                      @change="toggleRankable(r.stat)"/>
               <span>Rankable</span>
@@ -344,8 +362,9 @@ async function salvaStat() {
       </div>
     </template>
 
-    <!-- Nuova stat globale (assegnata subito al mondo selezionato) — apribile -->
-    <div class="card">
+    <!-- Nuova stat globale (assegnata subito al mondo selezionato) — apribile. Catalogo globale
+         condiviso da tutti i mondi: riservato a un vero admin (StatController.createStat). -->
+    <div v-if="isRealAdmin" class="card">
       <button type="button" class="card-head" @click="toggleCard('__nuova')" :aria-expanded="isAperta('__nuova')">
         <span class="chev" :class="{ open: isAperta('__nuova') }">▸</span>
         <span class="card-title">Nuova statistica</span>

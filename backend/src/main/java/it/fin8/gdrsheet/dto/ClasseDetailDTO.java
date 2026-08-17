@@ -36,6 +36,7 @@ public class ClasseDetailDTO {
     private String razzaLap;          // LAP = Level Adjustment
     private String razzaSpazio;
     private String razzaPortata;
+    private String razzaEta;          // età media/tipica della razza — sottocampo attivabile/disattivabile (CardEditorItem.CLASSE_ETA)
 
     /**
      * Stat id delle abilità di classe (label ABCLASSE, comma-separated).
@@ -82,6 +83,35 @@ public class ClasseDetailDTO {
      * e una formula slot bonus. Se valorizzata, sostituisce il vecchio spellList singolo.
      */
     private List<SezioneSpellDTO> sezioniIncantesimi;
+
+    /**
+     * Item collegati (card "Item collegati", come sugli item della famiglia base): stato completo
+     * desiderato in scrittura (null = non toccare), con nome/tipo di sola lettura in lettura.
+     */
+    private List<ChildRefViewDTO> children;
+
+    /**
+     * Righe SCELTA_&lt;n&gt;_TITOLO/SCELTA_&lt;n&gt;_CANDIDATI (card "Scelte"), passate come label
+     * grezze — stesso schema della famiglia base (BaseItemEditor.vue), il parsing/la costruzione
+     * del JSON dei candidati resta lato frontend, qui sono solo persistite/restituite tali e quali.
+     */
+    private List<UpdateItemRequest.LabelRowDTO> scelteLabels;
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ChildRefViewDTO {
+        private Integer id;
+        private String nome;        // solo lettura
+        private String tipo;        // solo lettura
+        private Integer qty;
+        private String formulaQty;
+        private String scelta;
+        private Boolean nascosto;
+        private String condizione;
+    }
 
     @Getter
     @Setter

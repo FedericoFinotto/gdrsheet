@@ -5,7 +5,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Un utente con permesso MASTER su un mondo (tabella permessi_mondo). */
+/**
+ * Un utente con un permesso (MASTER, STATS o PAGINE — vedi TipoPermessoMondo) su un mondo
+ * (tabella permessi_mondo). Nome della classe invariato per compatibilità, anche se non riguarda
+ * più solo MASTER.
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -14,4 +18,5 @@ public class MasterMondoDTO {
     private Integer utenteId;
     private String username;
     private String name;
+    private String permesso;
 }

@@ -219,6 +219,7 @@ public final class Constants {
     public static final String ITEM_LABEL_RAZZA_LAP = "RAZZA_LAP";
     public static final String ITEM_LABEL_RAZZA_SPAZIO = "RAZZA_SPAZIO";
     public static final String ITEM_LABEL_RAZZA_PORTATA = "RAZZA_PORTATA";
+    public static final String ITEM_LABEL_RAZZA_ETA = "RAZZA_ETA";
     // Razza (import bulk da dndtools.org, vedi scripts/dndtools-scraper/scrape_races.py)
     public static final String ITEM_LABEL_RAZZA_LINGUE_AUTOMATICHE = "RAZZA_LINGUE_AUTOMATICHE";
     public static final String ITEM_LABEL_RAZZA_CLASSE_PREFERITA = "RAZZA_CLASSE_PREFERITA";

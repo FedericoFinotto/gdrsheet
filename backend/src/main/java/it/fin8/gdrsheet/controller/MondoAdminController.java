@@ -46,6 +46,7 @@ import it.fin8.gdrsheet.repository.SistemaRepository;
 import it.fin8.gdrsheet.repository.UtenteRepository;
 import it.fin8.gdrsheet.service.AuthzService;
 import it.fin8.gdrsheet.service.PartyService;
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -58,13 +59,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Gestione del permesso Master-per-mondo (tabella permessi_mondo): chi ADMIN concede/revoca a
- * un utente la gestione del compendio di un mondo specifico. Riservato agli admin — assegnare
- * questo permesso è una decisione "chi comanda dove", non qualcosa che un master delega da solo
- * (a differenza del master di un party, che può aggiungere altri membri al proprio party).
+ * Gestione dei permessi per-mondo (tabella permessi_mondo, vedi {@link TipoPermessoMondo}): chi
+ * ADMIN concede/revoca a un utente MASTER (potere pieno), STATS (solo stat_default) o PAGINE
+ * (solo configurazione: tipi item, card/campi editor, cataloghi) su un mondo specifico. Riservato
+ * agli admin — assegnare un permesso è una decisione "chi comanda dove", non qualcosa che un
+ * master delega da solo (a differenza del master di un party, che può aggiungere altri membri al
+ * proprio party).
  * <p>
  * Espone anche la configurazione per-mondo di cosa è abilitato (tipi item, liste/domini
- * incantesimi): vedi {@link MondoConfigDTO}.
+ * incantesimi), gestibile da chi ha il permesso PAGINE: vedi {@link MondoConfigDTO}.
  */
 @RestController
 @RequestMapping("/api/mondo")
@@ -128,6 +131,76 @@ public class MondoAdminController {
     }
 
     /**
+     * Configurazione di UN mondo (tipi item abilitati, card/campi dell'editor, catalogo
+     * scuole/sottoscuole/descrittori/componenti — le "pagine" del mondo): chi ha il permesso
+     * PAGINE su QUEL mondo, o un admin. Permesso indipendente da MASTER (vedi TipoPermessoMondo):
+     * un master non lo ottiene automaticamente. Creare mondi/sistemi e assegnare/revocare
+     * permessi restano invece riservati agli admin (vedi assertAdmin sopra): "chi comanda dove"
+     * non è qualcosa che si delega da soli.
+     */
+    private void assertPagineMondo(Utente utente, Integer mondoId) {
+        if (!authzService.isPagineMondo(utente, mondoId))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Riservato a chi ha il permesso Pagine su questo mondo");
+    }
+
+    /**
+     * Lettura di un catalogo GLOBALE (liste/domini incantesimi, scuole/sottoscuole/...): chiunque
+     * abbia un permesso su almeno un mondo (MASTER, STATS o PAGINE indifferentemente) deve poterlo
+     * leggere per scegliere cosa abilitare nel proprio mondo, anche se non coinvolto in questa
+     * chiamata (il catalogo non è legato a un mondoId). CREARE nuovi valori nel catalogo condiviso
+     * resta invece riservato agli admin.
+     */
+    private void assertAdminOrAnyPermesso(Utente utente) {
+        if (!authzService.hasAnyPermessoMondo(utente))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Riservato agli admin o a chi ha un permesso su un mondo");
+    }
+
+    /**
+     * Riepilogo permessi (mondo), SENZA alcun bypass admin: usato dal menu per decidere quali voci
+     * mostrare a un utente che non è (o non è in modalità) admin — vedi UpperBar.vue, che combina
+     * questo con isRealAdmin && adminMode per l'OR finale. Nessun permesso -> tutti false, anche
+     * per un vero admin che qui non ha bypass (l'admin le vede comunque, ma per via del proprio
+     * ruolo, non di questa chiamata).
+     * <p>
+     * "master" resta SEMPRE "almeno un mondo qualsiasi" (Gestione Utenti non è un'azione legata a
+     * un mondo specifico). "stats"/"pagine"/"masterMondo" invece, se {@code mondoId} è passato (il
+     * mondo "corrente" scelto nel menu), riguardano SOLO quel mondo: un master di Costa che sta
+     * guardando Cico non deve vedere Gestione Statistiche/Permessi per mondo/Crea party se non ha
+     * quel permesso specifico su Cico, anche se lo ha su Costa. Senza mondoId (mondo corrente non
+     * ancora risolto), fallback su "almeno un mondo qualsiasi" anche per questi tre.
+     */
+    @Operation(
+            summary = "I miei permessi (mondo), indipendentemente dall'admin mode",
+            description = "master: ho MASTER su almeno un mondo (sempre, non scoped, per Gestione Utenti). " +
+                    "stats/pagine/masterMondo: sul mondo indicato in mondoId se presente (per Gestione " +
+                    "Statistiche/Permessi per mondo/Crea party), altrimenti su almeno un mondo qualsiasi."
+    )
+    @GetMapping("/miei-permessi")
+    public ResponseEntity<Map<String, Boolean>> getMieiPermessi(
+            @RequestParam(required = false) Integer mondoId,
+            @AuthenticationPrincipal Utente utente) {
+        if (utente == null)
+            return ResponseEntity.ok(Map.of("master", false, "stats", false, "pagine", false, "masterMondo", false));
+        List<PermessiMondo> mie = permessiMondoRepository.findAllByIdUtente_Id(utente.getId());
+        boolean masterOvunque = mie.stream().anyMatch(p -> TipoPermessoMondo.MASTER.equals(p.getPermesso()));
+        Map<String, Boolean> result = new LinkedHashMap<>();
+        result.put("master", masterOvunque);
+        if (mondoId != null) {
+            result.put("stats", permessiMondoRepository.existsByIdUtente_IdAndIdMondo_IdAndPermesso(
+                    utente.getId(), mondoId, TipoPermessoMondo.STATS));
+            result.put("pagine", permessiMondoRepository.existsByIdUtente_IdAndIdMondo_IdAndPermesso(
+                    utente.getId(), mondoId, TipoPermessoMondo.PAGINE));
+            result.put("masterMondo", permessiMondoRepository.existsByIdUtente_IdAndIdMondo_IdAndPermesso(
+                    utente.getId(), mondoId, TipoPermessoMondo.MASTER));
+        } else {
+            result.put("stats", mie.stream().anyMatch(p -> TipoPermessoMondo.STATS.equals(p.getPermesso())));
+            result.put("pagine", mie.stream().anyMatch(p -> TipoPermessoMondo.PAGINE.equals(p.getPermesso())));
+            result.put("masterMondo", masterOvunque);
+        }
+        return ResponseEntity.ok(result);
+    }
+
+    /**
      * Mondi tra cui l'utente loggato può switchare: per un admin (in modalità admin) tutti i
      * mondi esistenti; per chiunque altro, l'unione di quelli di cui è master (permessi_mondo) e
      * di quelli a cui accede semplicemente come membro di un party (getMieiMondi) — altrimenti un
@@ -154,6 +227,25 @@ public class MondoAdminController {
             perId.putIfAbsent(m.id(), m);
         }
         List<MondoDTO> result = perId.values().stream()
+                .sorted((a, b) -> a.descrizione().compareToIgnoreCase(b.descrizione()))
+                .toList();
+        return ResponseEntity.ok(result);
+    }
+
+    @Operation(
+            summary = "Mondi che l'utente può configurare",
+            description = "Tutti i mondi per un admin; solo quelli su cui si ha il permesso PAGINE altrimenti " +
+                    "(permessi_mondo) — per il selettore mondo della pagina \"Permessi per mondo\"/Editor per " +
+                    "tipo, a differenza di getAll (strettamente admin, usato dalle azioni riservate: crea " +
+                    "mondo/sistema, gestione permessi)."
+    )
+    @GetMapping("/gestibili")
+    public ResponseEntity<List<MondoDTO>> getGestibili(@AuthenticationPrincipal Utente utente) {
+        List<Mondo> mondi = authzService.isAdmin(utente)
+                ? mondoRepository.findAll()
+                : permessiMondoRepository.findAllByIdUtente_IdAndPermesso(utente.getId(), TipoPermessoMondo.PAGINE).stream()
+                        .map(PermessiMondo::getIdMondo).toList();
+        List<MondoDTO> result = mondi.stream().map(this::toDTO)
                 .sorted((a, b) -> a.descrizione().compareToIgnoreCase(b.descrizione()))
                 .toList();
         return ResponseEntity.ok(result);
@@ -222,20 +314,23 @@ public class MondoAdminController {
         return ResponseEntity.ok(toDTO(m));
     }
 
-    @Operation(summary = "Master di un mondo", description = "Utenti con permesso MASTER su questo mondo (admin).")
+    @Operation(summary = "Permessi su un mondo", description = "Utenti con un permesso (MASTER, STATS o PAGINE) su questo mondo (admin).")
     @GetMapping("/{mondoId}/master")
     public ResponseEntity<List<MasterMondoDTO>> getMaster(@PathVariable Integer mondoId,
                                                           @AuthenticationPrincipal Utente utente) {
         assertAdmin(utente);
         List<MasterMondoDTO> result = permessiMondoRepository.findAllByIdMondo_Id(mondoId).stream()
-                .filter(pm -> TipoPermessoMondo.MASTER.equals(pm.getPermesso()))
-                .map(pm -> new MasterMondoDTO(pm.getIdUtente().getId(), pm.getIdUtente().getUsername(), pm.getIdUtente().getName()))
-                .sorted((a, b) -> a.getUsername().compareToIgnoreCase(b.getUsername()))
+                .map(pm -> new MasterMondoDTO(pm.getIdUtente().getId(), pm.getIdUtente().getUsername(),
+                        pm.getIdUtente().getName(), pm.getPermesso().name()))
+                .sorted((a, b) -> {
+                    int c = a.getUsername().compareToIgnoreCase(b.getUsername());
+                    return c != 0 ? c : a.getPermesso().compareTo(b.getPermesso());
+                })
                 .toList();
         return ResponseEntity.ok(result);
     }
 
-    @Operation(summary = "Rende un utente master di un mondo", description = "Admin.")
+    @Operation(summary = "Assegna un permesso (MASTER, STATS o PAGINE) su un mondo a un utente", description = "Admin.")
     @PostMapping("/{mondoId}/master")
     public ResponseEntity<MasterMondoDTO> addMaster(@PathVariable Integer mondoId,
                                                     @Valid @RequestBody AddMasterMondoRequest req,
@@ -246,24 +341,26 @@ public class MondoAdminController {
         Utente target = utenteRepository.findByUsernameIgnoreCase(req.getUsername().trim())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utente non trovato"));
 
-        if (permessiMondoRepository.existsByIdUtente_IdAndIdMondo_IdAndPermesso(target.getId(), mondoId, TipoPermessoMondo.MASTER))
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "L'utente è già master di questo mondo");
+        if (permessiMondoRepository.existsByIdUtente_IdAndIdMondo_IdAndPermesso(target.getId(), mondoId, req.getPermesso()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "L'utente ha già questo permesso su questo mondo");
 
         PermessiMondo pm = new PermessiMondo();
         pm.setIdUtente(target);
         pm.setIdMondo(mondo);
-        pm.setPermesso(TipoPermessoMondo.MASTER);
+        pm.setPermesso(req.getPermesso());
         permessiMondoRepository.save(pm);
 
-        return ResponseEntity.ok(new MasterMondoDTO(target.getId(), target.getUsername(), target.getName()));
+        return ResponseEntity.ok(new MasterMondoDTO(target.getId(), target.getUsername(), target.getName(), req.getPermesso().name()));
     }
 
-    @Operation(summary = "Revoca il permesso master di un mondo a un utente", description = "Admin.")
+    @Operation(summary = "Revoca un permesso (MASTER, STATS o PAGINE) su un mondo a un utente", description = "Admin.")
     @DeleteMapping("/{mondoId}/master/{utenteId}")
+    @Transactional
     public ResponseEntity<Void> removeMaster(@PathVariable Integer mondoId, @PathVariable Integer utenteId,
+                                             @RequestParam TipoPermessoMondo permesso,
                                              @AuthenticationPrincipal Utente utente) {
         assertAdmin(utente);
-        permessiMondoRepository.deleteByIdUtente_IdAndIdMondo_IdAndPermesso(utenteId, mondoId, TipoPermessoMondo.MASTER);
+        permessiMondoRepository.deleteByIdUtente_IdAndIdMondo_IdAndPermesso(utenteId, mondoId, permesso);
         return ResponseEntity.noContent().build();
     }
 
@@ -298,7 +395,7 @@ public class MondoAdminController {
     )
     @GetMapping("/liste-incantesimi")
     public ResponseEntity<List<MondoConfigDTO.ListaIncantesimiDTO>> getCatalogoListeIncantesimi(@AuthenticationPrincipal Utente utente) {
-        assertAdmin(utente);
+        assertAdminOrAnyPermesso(utente);
         List<MondoConfigDTO.ListaIncantesimiDTO> result = listaIncantesimiRepository.findAll().stream()
                 .map(l -> new MondoConfigDTO.ListaIncantesimiDTO(l.getCodice(), l.getEtichetta()))
                 .sorted((a, b) -> a.etichetta().compareToIgnoreCase(b.etichetta()))
@@ -329,14 +426,14 @@ public class MondoAdminController {
 
     @Operation(
             summary = "Aggiorna la configurazione abilitata di un mondo",
-            description = "Admin. Sostituzione integrale (non incrementale) delle liste passate: un campo " +
-                    "null lascia invariata quella parte, una lista vuota disabilita tutto."
+            description = "Master di quel mondo, o admin. Sostituzione integrale (non incrementale) delle " +
+                    "liste passate: un campo null lascia invariata quella parte, una lista vuota disabilita tutto."
     )
     @PutMapping("/{mondoId}/config")
     public ResponseEntity<MondoConfigDTO> aggiornaConfig(@PathVariable Integer mondoId,
                                                          @RequestBody UpdateMondoConfigRequest req,
                                                          @AuthenticationPrincipal Utente utente) {
-        assertAdmin(utente);
+        assertPagineMondo(utente, mondoId);
         Mondo mondo = mondoRepository.findById(mondoId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mondo non trovato"));
 
@@ -442,14 +539,14 @@ public class MondoAdminController {
 
     @Operation(
             summary = "Aggiorna la configurazione di un tipo item per un mondo",
-            description = "Admin. Sostituzione integrale: un campo null nella request lascia invariata quella " +
-                    "parte, una lista vuota disabilita/svuota tutto quel pezzo."
+            description = "Master di quel mondo, o admin. Sostituzione integrale: un campo null nella request " +
+                    "lascia invariata quella parte, una lista vuota disabilita/svuota tutto quel pezzo."
     )
     @PutMapping("/{mondoId}/tipo-item/{tipo}/config")
     public ResponseEntity<TipoItemConfigDTO> aggiornaTipoItemConfig(@PathVariable Integer mondoId, @PathVariable TipoItem tipo,
                                                                     @RequestBody UpdateTipoItemConfigRequest req,
                                                                     @AuthenticationPrincipal Utente utente) {
-        assertAdmin(utente);
+        assertPagineMondo(utente, mondoId);
         Mondo mondo = mondoRepository.findById(mondoId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mondo non trovato"));
 
@@ -517,7 +614,7 @@ public class MondoAdminController {
     @GetMapping("/catalogo-incantesimo/{tipo}")
     public ResponseEntity<List<String>> getCatalogoIncantesimo(@PathVariable TipoCatalogoIncantesimo tipo,
                                                                @AuthenticationPrincipal Utente utente) {
-        assertAdmin(utente);
+        assertAdminOrAnyPermesso(utente);
         List<String> result = catalogoIncantesimoRepository.findAllByTipoOrderByValoreAsc(tipo).stream()
                 .map(CatalogoIncantesimo::getValore)
                 .toList();

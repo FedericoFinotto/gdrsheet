@@ -2,33 +2,69 @@ import api from './api';
 import {AxiosResponse} from 'axios';
 import {MondoOpt} from '../function/useMondoSistema';
 
+// Permesso su un mondo: tre valori completamente indipendenti (uno non implica gli altri).
+// MASTER = potere pieno (party, utenti, item senza restrizioni). STATS = solo stat_default
+// (StatsAdmin.vue). PAGINE = solo configurazione (tipi item/card/campi/cataloghi, MondiAdmin.vue
+// "Editor per tipo"). Vedi backend TipoPermessoMondo.
+export type PermessoMondo = 'MASTER' | 'STATS' | 'PAGINE';
+
+export const PERMESSO_MONDO_LABELS: Record<PermessoMondo, string> = {
+    MASTER: 'Master',
+    STATS: 'Statistiche',
+    PAGINE: 'Pagine',
+};
+
 export interface MasterMondo {
     utenteId: number;
     username: string;
     name: string;
+    permesso: PermessoMondo;
 }
 
-// Tutti i mondi (admin): per la UI di gestione dei permessi per mondo.
+// Tutti i mondi (admin): per la UI di gestione dei permessi per mondo — SOLO per le azioni
+// riservate agli admin (crea mondo/sistema, gestione permessi). Per il selettore mondo della
+// pagina, usare getMondiGestibili sotto (scoped a chi ha il permesso PAGINE su un mondo).
 export function getMondiAdmin(): Promise<AxiosResponse<MondoOpt[]>> {
     return api.get<MondoOpt[]>('/mondo');
 }
 
-// Mondi tra cui l'utente loggato può switchare: tutti per un admin, solo quelli di cui è master
+// Mondi che l'utente loggato può configurare (tipi item abilitati, editor per tipo, catalogo
+// scuole/liste incantesimi): tutti per un admin, solo quelli su cui si ha il permesso PAGINE altrimenti.
+export function getMondiGestibili(): Promise<AxiosResponse<MondoOpt[]>> {
+    return api.get<MondoOpt[]>('/mondo/gestibili');
+}
+
+// Mondi tra cui l'utente loggato può switchare: tutti per un admin, solo quelli di cui è MASTER
 // altrimenti. Usato dallo switcher mondo nel menu (mostrato solo se ce ne sono 2+).
 export function getMondiDisponibili(): Promise<AxiosResponse<MondoOpt[]>> {
     return api.get<MondoOpt[]>('/mondo/disponibili');
+}
+
+// I miei permessi (mondo), indipendentemente dall'admin mode: ho almeno un mondo con MASTER/
+// STATS/PAGINE? Usato dal menu (UpperBar.vue) per decidere quali voci mostrare a chi non è (o
+// non è in modalità) admin.
+export interface MieiPermessiMondo {
+    master: boolean;      // MASTER su almeno un mondo qualsiasi (non scoped) — Gestione Utenti
+    stats: boolean;       // STATS sul mondo passato (o su almeno un mondo se nessuno passato)
+    pagine: boolean;      // PAGINE sul mondo passato (o su almeno un mondo se nessuno passato)
+    masterMondo: boolean; // MASTER sul mondo passato (o su almeno un mondo se nessuno passato) — Crea party
+}
+// mondoId = mondo "corrente" (switcher): master resta sempre "almeno un mondo qualsiasi", stats/
+// pagine invece diventano scoped a QUEL mondo se passato — vedi commento lato backend.
+export function getMieiPermessiMondo(mondoId?: number | null): Promise<AxiosResponse<MieiPermessiMondo>> {
+    return api.get<MieiPermessiMondo>('/mondo/miei-permessi', {params: mondoId != null ? {mondoId} : {}});
 }
 
 export function getMasterMondo(mondoId: number): Promise<AxiosResponse<MasterMondo[]>> {
     return api.get<MasterMondo[]>(`/mondo/${mondoId}/master`);
 }
 
-export function addMasterMondo(mondoId: number, username: string): Promise<AxiosResponse<MasterMondo>> {
-    return api.post<MasterMondo>(`/mondo/${mondoId}/master`, {username});
+export function addMasterMondo(mondoId: number, username: string, permesso: PermessoMondo): Promise<AxiosResponse<MasterMondo>> {
+    return api.post<MasterMondo>(`/mondo/${mondoId}/master`, {username, permesso});
 }
 
-export function removeMasterMondo(mondoId: number, utenteId: number): Promise<AxiosResponse<void>> {
-    return api.delete<void>(`/mondo/${mondoId}/master/${utenteId}`);
+export function removeMasterMondo(mondoId: number, utenteId: number, permesso: PermessoMondo): Promise<AxiosResponse<void>> {
+    return api.delete<void>(`/mondo/${mondoId}/master/${utenteId}`, {params: {permesso}});
 }
 
 // Sistemi (admin): lista + creazione.

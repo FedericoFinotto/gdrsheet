@@ -15,6 +15,9 @@ import CardAbilitaClasse from '../Classe/CardAbilitaClasse.vue'
 import CardIncantesimiClasse from '../Classe/CardIncantesimiClasse.vue'
 import CardTabellaLivelli from '../Classe/CardTabellaLivelli.vue'
 import CardPrivilegiClasse from '../Classe/CardPrivilegiClasse.vue'
+import ChildrenEditor from '../Sections/ChildrenEditor.vue'
+import CardScelte, {SezioneScelta} from '../Sections/CardScelte.vue'
+import {ChildRef} from '../../../../../../../models/dto/UpdateItemRequest'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean; mode?: 'edit' | 'create' }>()
 const emit = defineEmits<{
@@ -79,12 +82,15 @@ const form = reactive({
   razzaLap: '',
   razzaSpazio: '',
   razzaPortata: '',
+  razzaEta: '',
   numLivelli: 20,
   dv: '',
   livelli: Array.from({length: 20}, (_, i) => ({
     livello: i + 1, bab: '', tmp: '', rfl: '', vlt: '', spSlot: '',
   })) as LivelloClasse[],
   abilitaConcesse: [] as AbilitaConcessa[],
+  children: [] as ChildRef[],
+  scelte: [] as SezioneScelta[],
 })
 
 watch([autoMondo, autoSistema], ([m, s]) => {
@@ -155,6 +161,7 @@ onMounted(async () => {
     form.razzaLap = d.razzaLap ?? ''
     form.razzaSpazio = d.razzaSpazio ?? ''
     form.razzaPortata = d.razzaPortata ?? ''
+    form.razzaEta = d.razzaEta ?? ''
     form.idMondo = d.idMondo ?? null
     form.idSistema = d.idSistema ?? null
     form.descrizione = d.descrizione ?? ''
@@ -198,6 +205,27 @@ onMounted(async () => {
     form.abilitaConcesse = (d.abilitaConcesse ?? []).map((a: any) => ({
       livello: a.livello, itemId: a.itemId, nome: a.nome, tipo: a.tipo, qty: a.qty ?? null,
     }))
+    form.children = (d.children ?? []).map((c: any) => ({
+      id: c.id, nome: c.nome, tipo: c.tipo, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null,
+      scelta: c.scelta ?? null, nascosto: c.nascosto ?? false, condizione: c.condizione ?? null,
+    }))
+    // card SCELTE: stesso schema di parsing di BaseItemEditor.vue (righe SCELTA_<n>_TITOLO/
+    // _CANDIDATI grezze qui, i candidati sono già {id,nome,tipo} nel JSON salvato).
+    const scelteRaw: Record<number, { titolo?: string; candidatiJson?: string }> = {}
+    for (const l of (d.scelteLabels ?? [])) {
+      const m = String(l.label ?? '').match(/^SCELTA_(\d+)_(TITOLO|CANDIDATI)$/)
+      if (!m) continue
+      const n = Number(m[1])
+      const row = (scelteRaw[n] ??= {})
+      if (m[2] === 'TITOLO') row.titolo = l.valore
+      else row.candidatiJson = l.valore
+    }
+    form.scelte = Object.keys(scelteRaw).map(Number).sort((a, b) => a - b).map(n => {
+      const r = scelteRaw[n]
+      let candidati: ChildRef[] = []
+      try { candidati = JSON.parse(r.candidatiJson ?? '[]') } catch { candidati = [] }
+      return {titolo: r.titolo ?? '', candidati}
+    })
   } catch (e) {
     errorMsg.value = 'Errore nel caricamento della classe'
     console.error('Errore caricamento classe:', e)
@@ -239,6 +267,7 @@ function buildClassePayload() {
     razzaLap: form.razzaLap.trim() || null,
     razzaSpazio: form.razzaSpazio.trim() || null,
     razzaPortata: form.razzaPortata.trim() || null,
+    razzaEta: form.razzaEta.trim() || null,
     idMondo: form.idMondo ?? null,
     idSistema: form.idSistema ?? null,
     descrizione: form.descrizione || null,
@@ -275,6 +304,26 @@ function buildClassePayload() {
     numLivelli: form.numLivelli,
     livelli: form.livelli.slice(0, form.numLivelli),
     abilitaConcesse: form.abilitaConcesse.map(a => ({livello: a.livello, itemId: a.itemId, nome: a.nome, qty: a.qty ?? null})),
+    children: form.children.map(c => ({
+      id: c.id, qty: c.qty ?? null, formulaQty: c.formulaQty ?? null, scelta: c.scelta ?? null,
+      nascosto: c.nascosto ?? false, condizione: c.condizione ?? null,
+    })),
+    // Card SCELTE: stesso schema di scrittura di BaseItemEditor.vue — una sezione senza candidati
+    // non viene salvata, gli indici "n" restano sempre contigui e senza buchi.
+    scelteLabels: (() => {
+      const labels: { label: string; valore: string }[] = []
+      let n = 0
+      for (const s of form.scelte) {
+        if (!s.candidati.length) continue
+        if (s.titolo.trim()) labels.push({label: `SCELTA_${n}_TITOLO`, valore: s.titolo.trim()})
+        labels.push({
+          label: `SCELTA_${n}_CANDIDATI`,
+          valore: JSON.stringify(s.candidati.map(c => ({id: c.id, nome: c.nome, tipo: c.tipo}))),
+        })
+        n++
+      }
+      return labels
+    })(),
   }
 }
 
@@ -332,11 +381,12 @@ async function persistiClasseInline(): Promise<void> {
 const incantatore = computed(() => form.sezioni.some(s => s.liste.length > 0))
 
 /* sezioni richiudibili */
-const open = reactive({abilita: false, incantesimi: false, tabella: false, concesse: false, infoRazza: false})
+const open = reactive({abilita: false, incantesimi: false, tabella: false, concesse: false, infoRazza: false, children: false, scelte: false})
 const sumInfoRazza = computed(() => {
   const flags = []
   if (form.razzaTaglia.trim()) flags.push(`Taglia: ${form.razzaTaglia.trim()}`)
   if (form.razzaVelocita.trim()) flags.push(`Velocità: ${form.razzaVelocita.trim()}`)
+  if (cards.value.has('CLASSE_ETA') && form.razzaEta.trim()) flags.push(`Età: ${form.razzaEta.trim()}`)
   if (form.razzaLap.trim()) flags.push(`LAP: ${form.razzaLap.trim()}`)
   return flags.join(', ') || '—'
 })
@@ -357,12 +407,12 @@ const sumInfoRazza = computed(() => {
         <input v-model.trim="form.nome" type="text" :disabled="disabledAll" required/>
       </label>
 
-      <div class="rank-grid">
-        <label class="field">
+      <div v-if="cards.has('NOME_EN') || cards.has('MANUALE')" class="rank-grid">
+        <label v-if="cards.has('NOME_EN')" class="field">
           <span class="lbl">Nome originale (EN)</span>
           <input v-model.trim="form.enName" type="text" :disabled="disabledAll" placeholder="Nome originale in inglese"/>
         </label>
-        <label class="field">
+        <label v-if="cards.has('MANUALE')" class="field">
           <span class="lbl">Manuale</span>
           <input v-model.trim="form.manuale" type="text" :disabled="disabledAll" placeholder="Manuale di provenienza"/>
         </label>
@@ -396,6 +446,7 @@ const sumInfoRazza = computed(() => {
               v-model:taglia="form.razzaTaglia" v-model:velocita="form.razzaVelocita"
               v-model:caratteristiche="form.razzaCaratteristiche" v-model:lap="form.razzaLap"
               v-model:spazio="form.razzaSpazio" v-model:portata="form.razzaPortata"
+              v-model:eta="form.razzaEta" :show-eta="cards.has('CLASSE_ETA')"
               :disabled="disabledAll"/>
         </div>
       </section>
@@ -454,6 +505,30 @@ const sumInfoRazza = computed(() => {
           <CardPrivilegiClasse
               :abilita-concesse="form.abilitaConcesse" :num-livelli="form.numLivelli"
               :disabled="disabledAll" :salva-classe="persistiClasseInline"/>
+        </div>
+      </section>
+
+      <!-- Item collegati: card generica, disponibile anche per CLASSE/RAZZA come per qualunque altro tipo -->
+      <section v-if="cards.has('ITEM_COLLEGATI')" class="fold">
+        <button type="button" class="fold-head" @click="open.children = !open.children">
+          <span class="fold-title">Item collegati</span>
+          <span class="fold-summary">{{ form.children.length }}</span>
+          <span class="chev" :class="{ open: open.children }">▸</span>
+        </button>
+        <div v-show="open.children" class="fold-body">
+          <ChildrenEditor v-model="form.children" :disabled="disabledAll" :exclude-id="props.item.id"/>
+        </div>
+      </section>
+
+      <!-- Scelte: card generica, disponibile anche per CLASSE/RAZZA come per qualunque altro tipo -->
+      <section v-if="cards.has('SCELTE')" class="fold">
+        <button type="button" class="fold-head" @click="open.scelte = !open.scelte">
+          <span class="fold-title">Scelte</span>
+          <span class="fold-summary">{{ form.scelte.length }}</span>
+          <span class="chev" :class="{ open: open.scelte }">▸</span>
+        </button>
+        <div v-show="open.scelte" class="fold-body">
+          <CardScelte :sezioni="form.scelte" :exclude-id="props.item.id" :disabled="disabledAll"/>
         </div>
       </section>
 

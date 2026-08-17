@@ -12,6 +12,7 @@ const props = defineProps<{
   classeId: number | null
   maledizioneNome: string | null
   livelliClasse: Record<number, boolean>
+  showMaledizione?: boolean // card LIVELLO_MALEDIZIONE: mostra/nasconde SOLO questo campo, non l'intera card (Classe resta sempre visibile qui)
 }>()
 
 const emit = defineEmits<{
@@ -73,8 +74,8 @@ const classeDetailLabel = computed(() => props.classeDetail?.nome ?? '')
         </label>
       </div>
 
-      <!-- Maledizione -->
-      <div class="row">
+      <!-- Maledizione: campo indipendentemente disattivabile (LIVELLO_MALEDIZIONE) -->
+      <div v-if="showMaledizione" class="row">
         <label class="field full-width">
           <span class="lbl">Maledizione (opzionale)</span>
           <input type="text"

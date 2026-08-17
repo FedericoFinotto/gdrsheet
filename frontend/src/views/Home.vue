@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import {computed, onMounted, ref} from 'vue'
+import {computed, onMounted, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import {useAuthStore} from '../stores/auth'
 import {useMondoStore} from '../stores/mondo'
 import {getHome} from '../service/AuthService'
 import {Home} from '../models/dto/Auth'
 import {createParty} from '../service/PartyService'
+import {getMieiPermessiMondo} from '../service/MondoAdminService'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -42,10 +43,14 @@ async function onCreaParty() {
   }
 }
 
-const canCreateParty = computed(() => {
-  const r = (auth.utente?.ruolo ?? '').toUpperCase()
-  return r === 'MASTER' || r === 'ADMIN'
-})
+// Un vero admin CON la modalità admin attiva, o chi è MASTER del mondo CORRENTE (permessi_mondo,
+// GET /mondo/miei-permessi con mondoId — masterMondo, non "master" che è "un mondo qualsiasi") —
+// la party verrà creata lì (vedi onCreaParty), quindi il permesso deve riguardare proprio quello,
+// non un mondo qualsiasi di cui si è master (es. master di Costa che guarda Cico). Il vecchio
+// ruolo globale "MASTER" sull'account non è più consultato dal backend per questo.
+const mieiPermessi = ref({master: false, stats: false, pagine: false, masterMondo: false})
+const isMasterMondoCorrente = computed(() => (auth.isRealAdmin && auth.adminMode) || mieiPermessi.value.masterMondo)
+const canCreateParty = isMasterMondoCorrente
 
 // Filtro per il mondo selezionato nello switcher (UpperBar.vue): un utente associato a party di
 // mondi diversi vede in home solo quelli del mondo corrente — coerente con "master di un mondo
@@ -69,8 +74,17 @@ const personaggiVisualizzatore = computed(() =>
         .filter(p => p.permesso === 'VISUALIZZATORE' && !p.preferito)
         .filter(p => delMondoCorrente(p.mondoId)))
 
+function caricaMieiPermessi() {
+  getMieiPermessiMondo(mondoStore.corrente).then(r => mieiPermessi.value = r.data)
+      .catch(e => console.error('Errore caricamento permessi mondo:', e))
+}
+// mondoStore.corrente si risolve in modo asincrono (mondoStore.carica() sotto): quando cambia
+// (risoluzione iniziale, o lo switcher nel menu) va ricaricato il permesso scoped su QUEL mondo.
+watch(() => mondoStore.corrente, caricaMieiPermessi)
+
 onMounted(async () => {
   mondoStore.carica() // idempotente; non blocca il caricamento della home, il filtro si applica reattivamente
+  caricaMieiPermessi()
   try {
     const res = await getHome()
     home.value = res.data
@@ -95,8 +109,16 @@ function apriScheda(p: {id: number; tipoPersonaggio?: string | null}) {
 <template>
   <div class="home">
     <div class="user">
-      <h1>{{ home?.utente?.name ?? auth.utente?.name ?? '' }}</h1>
-      <span class="muted">@{{ home?.utente?.username ?? auth.utente?.username ?? '' }}</span>
+      <h1>{{ mondoCorrenteNome || '—' }}</h1>
+      <div class="permessi-riga">
+        <!-- Master e Giocatore sono mutualmente esclusivi: essere master del mondo include già
+             ogni potere di un giocatore su di esso, mostrarli insieme è ridondante — al più uno
+             dei due. Stat/Config restano invece permessi indipendenti, sommabili a entrambi. -->
+        <span v-if="isMasterMondoCorrente" class="chip-permesso">Master</span>
+        <span v-else class="chip-permesso giocatore">Giocatore</span>
+        <span v-if="(auth.isRealAdmin && auth.adminMode) || mieiPermessi.stats" class="chip-permesso">Stat</span>
+        <span v-if="(auth.isRealAdmin && auth.adminMode) || mieiPermessi.pagine" class="chip-permesso">Config</span>
+      </div>
     </div>
 
     <div v-if="loading" class="state">Caricamento…</div>
@@ -182,8 +204,14 @@ function apriScheda(p: {id: number; tipoPersonaggio?: string | null}) {
   overscroll-behavior-y: contain;
 }
 
-.user { display: grid; }
+.user { display: grid; gap: .35rem; }
 .user h1 { margin: 0; font-size: 1.25rem; }
+.permessi-riga { display: flex; flex-wrap: wrap; gap: .35rem; }
+.chip-permesso {
+  font-size: .7rem; font-weight: 600; padding: .1rem .5rem; border-radius: 1rem;
+  border: 1px solid #4338ca; background: #eef2ff; color: #4338ca; line-height: 1.4;
+}
+.chip-permesso.giocatore { border-color: var(--hairline); background: var(--btn-bg); color: var(--text-muted); }
 .muted { opacity: .65; font-size: .85rem; }
 
 .block { display: grid; gap: .5rem; }

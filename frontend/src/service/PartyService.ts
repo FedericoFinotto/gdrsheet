@@ -191,6 +191,8 @@ export function getMembri(partyId: number): Promise<AxiosResponse<MembroParty[]>
     return api.get<MembroParty[]>(`/party/${partyId}/membri`)
 }
 
-export function addMembro(partyId: number, username: string, ruolo: string): Promise<AxiosResponse<MembroParty>> {
-    return api.post<MembroParty>(`/party/${partyId}/membro`, {username, ruolo})
+// Chi viene associato è sempre un semplice membro: non esiste più un ruolo "master" a livello di
+// party (vedi backend PartyService.addMembro/AuthzService.isMasterParty).
+export function addMembro(partyId: number, username: string): Promise<AxiosResponse<MembroParty>> {
+    return api.post<MembroParty>(`/party/${partyId}/membro`, {username})
 }

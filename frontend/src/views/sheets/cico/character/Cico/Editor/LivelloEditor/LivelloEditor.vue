@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, reactive, ref, toRaw, watch} from 'vue'
+import {computed, markRaw, onMounted, reactive, ref, toRaw, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import useChildCreate from '../../../../../../../function/useChildCreate'
 
@@ -19,6 +19,7 @@ import {
   getListaAbilitaPerPersonaggio,
   getListaClassiPerPersonaggio,
   saveLivello,
+  setScelta,
 } from '../../../../../../../service/PersonaggioService'
 
 import TabLivelloBase from './TabLivelloBase.vue'
@@ -32,6 +33,8 @@ import ModificatoriEditor from '../Sections/ModificatoriEditor.vue'
 import {ModificatoreRow} from '../../../../../../../models/dto/UpdateItemRequest'
 import {GrantRow} from "../../../../../../../models/dto/GrantRow";
 import {getTipoItemConfig} from '../../../../../../../service/MondoAdminService'
+import usePopup from '../../../../../../../function/usePopup'
+import Mobile_DettaglioItem from '../../../Dettaglio/Mobile_DettaglioItem.vue'
 
 type Id = number
 interface Caratteristiche {
@@ -498,7 +501,10 @@ async function loadClasseDetail(id: Id | null, propagaDv = false) {
     return
   }
   try {
-    const res = await getItem(id)
+    // idPersonaggio: stampa anche le eventuali SCELTA_<n>_FATTA di questo personaggio su questo
+    // item Classe/Razza (vedi sezioniScelteClasse sotto) — senza, l'item tornerebbe con la sola
+    // definizione globale delle Scelte, mai la scelta già fatta.
+    const res = await getItem(id, personaggioId.value)
     classeDetail.value = unwrap<any>(res)
 
     // dadi vita dalla classe (può anche non averne -> stringa vuota).
@@ -522,6 +528,9 @@ async function loadClasseDetail(id: Id | null, propagaDv = false) {
     levels.forEach(lv => {
       next[lv] = form.livelliClasse[lv] ?? false
     })
+    // Un solo livello possibile (tipico delle RAZZA, che concedono tutto al livello 1): non ha
+    // senso lasciarlo da selezionare a mano, non essendoci alternative tra cui scegliere.
+    if (levels.length === 1) next[levels[0]] = true
     form.livelliClasse = next
 
     if (gradiKey.value) debouncedRefresh()
@@ -598,7 +607,17 @@ async function salva(): Promise<boolean> {
         ...Array.from(selectedGrants.value)
             .map(g => ({id: g.id, tipo: g.tipo, livello: g.livello, descrizione: g.descrizione, qty: g.qty ?? null})),
         ...extraItems.value
-            .map(i => ({id: `item-${i.id}`, tipo: 'ITEM' as const, livello: 0, descrizione: i.nome}))
+            .map(i => ({id: `item-${i.id}`, tipo: 'ITEM' as const, livello: 0, descrizione: i.nome})),
+        // Scelte della Classe/Razza: il candidato scelto in una sezione va DAVVERO assegnato al
+        // personaggio, non solo registrato come "scelta fatta" (SCELTA_<n>_FATTA, che resta solo
+        // un marcatore su quale candidato è stato scelto) — stesso identico canale di
+        // extraItems/selectedGrants sopra ("item-<id>", già gestito da ItemService.applyGrants),
+        // niente da aggiungere lato backend.
+        ...sezioniScelteClasse.value
+            .filter(s => s.scelto != null)
+            .map(s => s.candidati.find(c => c.id === s.scelto))
+            .filter((c): c is { id: number; nome: string; tipo: string } => !!c)
+            .map(c => ({id: `item-${c.id}`, tipo: 'ITEM' as const, livello: form.livello ?? 0, descrizione: c.nome})),
       ],
       modificatoriLiberi: [
         ...modificatoriLiberi.value
@@ -671,6 +690,78 @@ const classeSelezionata = computed(() => classeDetail.value?.nome || '—')
 const sumClasseMaledizione = computed(() =>
     `Classe: ${classeSelezionata.value}${form.maledizioneNome ? ` | Maledizione: ${form.maledizioneNome}` : ''}`
 )
+
+// --- card "Scelte della Classe/Razza": stesso schema di Mobile_DettaglioItem.vue, qui applicato
+// all'item Classe/Razza selezionato per questo livello invece che all'item aperto in inventario.
+// Le sezioni (SCELTA_<n>_TITOLO/_CANDIDATI) sono globali sull'item, la scelta (SCELTA_<n>_FATTA)
+// è scoped per questo personaggio — già "stampata" tra le label da loadClasseDetail sopra.
+const sezioniScelteClasse = computed(() => {
+  const labels = classeDetail.value?.labels ?? []
+  const sezioni: { indice: number; titolo: string; candidati: { id: number; nome: string; tipo: string }[]; scelto: number | null }[] = []
+  for (const l of labels) {
+    const m = l.label?.match(/^SCELTA_(\d+)_CANDIDATI$/)
+    if (!m) continue
+    const n = Number(m[1])
+    let candidati: { id: number; nome: string; tipo: string }[] = []
+    try { candidati = JSON.parse(l.valore ?? '[]') } catch { candidati = [] }
+    const titolo = labels.find((x: any) => x.label === `SCELTA_${n}_TITOLO`)?.valore ?? ''
+    const fatta = labels.find((x: any) => x.label === `SCELTA_${n}_FATTA`)?.valore
+    sezioni.push({indice: n, titolo, candidati, scelto: fatta ? Number(fatta) : null})
+  }
+  return sezioni.sort((a, b) => a.indice - b.indice)
+})
+
+// riga selezionabile (come le trasformazioni in Mobile_Cico_1_Info.vue): un tap sul già scelto lo
+// deseleziona, su un altro candidato sposta la scelta lì (un solo scelto per sezione).
+function toggleSceltaClasse(s: { indice: number; scelto: number | null }, candidatoId: number) {
+  salvaSceltaClasse(s.indice, s.scelto === candidatoId ? null : candidatoId)
+}
+
+// popup "i" con il dettaglio del candidato — stesso componente/pattern di openInfoTrasf in
+// Mobile_Cico_1_Info.vue, qui senza personaggio reale (il candidato è un item di compendio,
+// non ancora posseduto: sola consultazione, come nel picker dell'albero grafico dei NODO).
+const {openPopup} = usePopup()
+function apriInfoCandidatoScelta(c: { id: number; nome: string; tipo: string }) {
+  openPopup(
+      markRaw(Mobile_DettaglioItem),
+      {
+        data: {
+          item: {id: c.id, nome: c.nome, tipo: c.tipo},
+          personaggio: {modificatori: {id: 0}, items: {trasformazioni: [], idoli: []}},
+        },
+        hideToggle: true,
+      },
+      {closable: true, autoClose: 0, title: c.nome},
+  )
+}
+
+const savingScelteClasse = ref<Record<number, boolean>>({})
+
+async function salvaSceltaClasse(sezioneIndice: number, sceltoId: number | null) {
+  const idClasse = classeDetail.value?.id
+  if (!idClasse || personaggioId.value == null || savingScelteClasse.value[sezioneIndice]) return
+  savingScelteClasse.value = {...savingScelteClasse.value, [sezioneIndice]: true}
+  try {
+    await setScelta(idClasse, personaggioId.value, sezioneIndice, sceltoId)
+    // aggiornamento ottimistico locale, stesso pattern di Mobile_DettaglioItem.vue
+    const labels = classeDetail.value?.labels
+    if (labels) {
+      const key = `SCELTA_${sezioneIndice}_FATTA`
+      const existing = labels.find((l: any) => l.label === key)
+      if (sceltoId == null) {
+        if (existing) classeDetail.value.labels = labels.filter((l: any) => l !== existing)
+      } else if (existing) {
+        existing.valore = String(sceltoId)
+      } else {
+        labels.push({id: -Date.now(), label: key, valore: String(sceltoId)})
+      }
+    }
+  } catch (e) {
+    console.error('Errore salvataggio scelta classe/razza:', e)
+  } finally {
+    savingScelteClasse.value = {...savingScelteClasse.value, [sezioneIndice]: false}
+  }
+}
 </script>
 
 <template>
@@ -694,6 +785,7 @@ const sumClasseMaledizione = computed(() =>
         v-model:maledizione-nome="form.maledizioneNome"
         v-model:livelli-classe="form.livelliClasse"
         :summary="sumClasseMaledizione"
+        :show-maledizione="cards.has('LIVELLO_MALEDIZIONE')"
     />
 
     <div v-if="form.classeId && cards.has('LIVELLO_DV_PF_GRADI')" class="dv-row">
@@ -705,11 +797,34 @@ const sumClasseMaledizione = computed(() =>
         <span class="dv-lbl">Punti ferita</span>
         <input v-model.number="pfInput" type="number" placeholder="—" :disabled="disabledAll"/>
       </label>
-      <label class="dv-field">
+      <!-- Il valore continua a calcolarsi/congelarsi normalmente anche a campo nascosto
+           (LIVELLO_GRADI gate solo la visibilità, non il calcolo — vedi gradiInput/budgetGradi). -->
+      <label v-if="cards.has('LIVELLO_GRADI')" class="dv-field">
         <span class="dv-lbl">Gradi (punti abilità)</span>
         <input v-model.number="gradiInput" type="number" min="0" :disabled="disabledAll"/>
       </label>
     </div>
+
+    <!-- Scelte definite sull'item Classe/Razza selezionato per questo livello: il personaggio le
+         seleziona subito qui, invece di doverlo fare separatamente dal dettaglio dell'item. -->
+    <TabExpandable v-if="cards.has('LIVELLO_SCELTE_CLASSE') && sezioniScelteClasse.length" title="Scelte della Classe/Razza" :defaultOpen="true">
+      <template #summary>{{ sezioniScelteClasse.length }}</template>
+      <template #content>
+        <div v-for="s in sezioniScelteClasse" :key="s.indice" class="scelta-box">
+          <span class="scelta-titolo">{{ s.titolo || `Scelta ${s.indice + 1}` }}</span>
+          <div class="scelta-list">
+            <div v-for="c in s.candidati" :key="c.id" class="scelta-riga" :class="{attiva: s.scelto === c.id}">
+              <button type="button" class="scelta-toggle" :disabled="disabledAll || savingScelteClasse[s.indice]"
+                      @click="toggleSceltaClasse(s, c.id)">
+                <span class="dot">{{ s.scelto === c.id ? '●' : '○' }}</span>
+                <span class="scelta-nome">{{ c.nome }}</span>
+              </button>
+              <button type="button" class="btn-info" :title="`Info: ${c.nome}`" @click.stop="apriInfoCandidatoScelta(c)">ⓘ</button>
+            </div>
+          </div>
+        </div>
+      </template>
+    </TabExpandable>
 
     <TabContenutiLivello
         v-if="cards.has('LIVELLO_CONTENUTI')"
@@ -780,6 +895,37 @@ const sumClasseMaledizione = computed(() =>
   width: 100%; padding: .5rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0);
   color: var(--text-strong);
 }
+.scelta-box { display: grid; gap: .35rem; margin-bottom: .75rem; }
+.scelta-titolo { font-size: .85rem; font-weight: 600; }
+
+/* Righe selezionabili, stesso stile delle trasformazioni in Mobile_Cico_1_Info.vue: pallino +
+   nome cliccabili per scegliere, "i" a parte per il dettaglio — non un <select> generico. */
+.scelta-list {
+  border: 1px solid var(--hairline); border-radius: .5rem; overflow: hidden; background: var(--surface-0);
+}
+.scelta-riga { display: flex; align-items: center; border-bottom: 1px solid var(--hairline); }
+.scelta-riga:last-child { border-bottom: 0; }
+.scelta-riga.attiva { background: var(--info-bg); }
+
+.scelta-toggle {
+  flex: 1; display: flex; align-items: center; gap: .5rem;
+  padding: .55rem .75rem; border: 0; background: transparent; cursor: pointer; text-align: left; min-width: 0;
+}
+.scelta-toggle:disabled { opacity: .55; cursor: default; }
+
+.scelta-riga .dot { font-size: 1rem; color: var(--text-muted); flex-shrink: 0; width: 1rem; text-align: center; }
+.scelta-riga.attiva .dot { color: var(--info-text); }
+
+.scelta-nome { font-size: .9rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scelta-riga.attiva .scelta-nome { font-weight: 700; color: var(--info-text); }
+
+.scelta-riga .btn-info {
+  flex-shrink: 0; padding: .55rem .75rem; border: 0; border-left: 1px solid var(--hairline);
+  background: transparent; color: var(--text-muted); font-size: .9rem; cursor: pointer;
+}
+.scelta-riga .btn-info:hover { background: var(--info-bg); color: var(--info-text); }
+.scelta-riga.attiva .btn-info { border-left-color: var(--info-border); }
+.scelta-riga.attiva .btn-info:hover { background: var(--info-border); color: var(--info-text); }
 .sp-head {
   display: flex;
   align-items: baseline;

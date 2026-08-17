@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, defineAsyncComponent, onMounted, onUnmounted, ref} from 'vue'
+import {computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import Icona from "./Icona/Icona.vue";
 import DiceD20Overlay from "./DiceD20Overlay.vue";
@@ -15,6 +15,7 @@ import {listaSegnalazioni} from '../service/SegnalazioniService'
 import {contaNonLette} from '../function/segnalazioniNotifiche'
 import {getTheme, toggleTheme} from '../function/useTheme'
 import {resetCachePersonaggio} from '../service/PersonaggioService'
+import {getMieiPermessiMondo, type MieiPermessiMondo} from '../service/MondoAdminService'
 
 const DiceRollerPopup = defineAsyncComponent(() => import('./DiceRollerPopup.vue'))
 const DiceForcePopup = defineAsyncComponent(() => import('./DiceForcePopup.vue'))
@@ -63,6 +64,32 @@ const canManageUsers = computed(() => {
   return r === 'MASTER' || r === 'ADMIN' || r === 'SUPERUSER'
 })
 
+// Voci di menu "Gestione Utenti"/"Gestione Statistiche"/"Permessi per mondo": visibili solo a
+// chi può davvero usarle — un vero admin, ma SOLO con la modalità admin attiva (coerente con
+// AuthzService.isAdmin lato backend, che altrimenti risponderebbe 403), oppure chi possiede il
+// permesso specifico (MASTER/STATS/PAGINE) su almeno un mondo, indipendentemente dall'admin mode
+// (GET /mondo/miei-permessi, senza bypass admin — vedi commento lato backend).
+const isAdminAttivo = computed(() => auth.isRealAdmin && auth.adminMode)
+const mieiPermessi = ref<MieiPermessiMondo>({master: false, stats: false, pagine: false, masterMondo: false})
+// stats/pagine sono scoped al mondo "corrente" (switcher): un master di Costa che guarda Cico
+// non deve vedere Gestione Statistiche/Permessi per mondo se non ha quel permesso su Cico —
+// master (Gestione Utenti) invece resta sempre "almeno un mondo qualsiasi" (vedi backend).
+async function caricaMieiPermessi() {
+  if (!auth.utente) { mieiPermessi.value = {master: false, stats: false, pagine: false, masterMondo: false}; return }
+  try {
+    mieiPermessi.value = (await getMieiPermessiMondo(mondoStore.corrente)).data
+  } catch (e) {
+    console.error('Errore caricamento permessi mondo:', e)
+  }
+}
+onMounted(caricaMieiPermessi)
+watch(() => auth.utente?.id, caricaMieiPermessi)
+watch(() => mondoStore.corrente, caricaMieiPermessi)
+
+const vedeGestioneUtenti = computed(() => isAdminAttivo.value || mieiPermessi.value.master)
+const vedeGestioneStatistiche = computed(() => isAdminAttivo.value || mieiPermessi.value.stats)
+const vedePermessiPerMondo = computed(() => isAdminAttivo.value || mieiPermessi.value.pagine)
+
 // Personaggio aperto in questo momento (solo sulla scheda, route "Scheda" — vedi router/index.js):
 // serve per il tasto "Reset cache", che agisce su QUEL personaggio.
 const idPersonaggioAperto = computed<number | null>(() => {
@@ -91,9 +118,14 @@ async function handleResetCache() {
 // il reload va rimandato al prossimo tick: chiamarlo subito nello stesso handler del click
 // fa gareggiare la navigazione col teardown di Vue Router, generando un errore in console
 // (innocuo: il reload comunque avviene) ma inutile da vedere ogni volta.
+// Niente più window.location.reload(): ogni richiesta successiva porta già l'header X-Admin-Mode
+// aggiornato (letto da localStorage a ogni chiamata, vedi service/api.ts), e tutto ciò che dipende
+// reattivamente da auth.adminMode (isAdminAttivo qui, isAdmin nelle pagine admin) si aggiorna da
+// solo. L'unica cosa che va ri-scaricata esplicitamente è la lista mondi disponibili (cambia con
+// l'admin mode) — "sottobanco", senza far sparire/flashare l'interfaccia nel frattempo.
 function toggleAdminMode() {
   auth.setAdminMode(!auth.adminMode)
-  setTimeout(() => window.location.reload(), 0)
+  mondoStore.carica(true)
 }
 
 // Tema chiaro/scuro
@@ -375,24 +407,32 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydownGlobale))
             </div>
           </div>
 
-          <button v-if="canManageUsers" class="menu-item" @click="naviga('/users')">
+          <!-- Visibile solo a un vero admin CON la modalità admin attiva, o a chi è MASTER di
+               almeno un mondo (permessi_mondo, GET /mondo/miei-permessi) — Users.vue mostra a un
+               master solo il form di creazione, mai l'elenco/impersona (riservati all'admin vero). -->
+          <button v-if="vedeGestioneUtenti" class="menu-item" @click="naviga('/users')">
             <i class="fa-solid fa-users menu-icon"></i> Gestione Utenti
           </button>
-          <button v-if="canManageUsers" class="menu-item" @click="naviga('/stats-admin')">
+          <!-- Visibile solo a un vero admin CON la modalità admin attiva, o a chi ha il permesso
+               STATS su almeno un mondo (permessi_mondo, GET /mondo/miei-permessi). -->
+          <button v-if="vedeGestioneStatistiche" class="menu-item" @click="naviga('/stats-admin')">
             <i class="fa-solid fa-chart-bar menu-icon"></i> Gestione Statistiche
           </button>
-          <!-- Assegnare il permesso Master di un mondo è una decisione riservata agli admin, non
-               delegabile: a differenza delle altre voci qui sopra non basta il ruolo MASTER, e non
-               basta nemmeno essere admin — serve la modalità admin attiva (coerente con
-               AuthzService.isAdmin lato backend, che sarebbe l'unico a bloccarla comunque). -->
-          <button v-if="auth.isRealAdmin && auth.adminMode" class="menu-item" @click="naviga('/mondi-admin')">
+          <!-- Visibile solo a un vero admin CON la modalità admin attiva, o a chi ha il permesso
+               PAGINE su almeno un mondo (permessi_mondo, GET /mondo/miei-permessi). Creare
+               mondi/sistemi e assegnare permessi restano invece azioni riservate agli admin
+               DENTRO quella pagina (v-if="isAdmin" lì) — "chi comanda dove" non è delegabile, ma
+               configurare il proprio mondo (tipi item, editor per tipo) sì. -->
+          <button v-if="vedePermessiPerMondo" class="menu-item" @click="naviga('/mondi-admin')">
             <i class="fa-solid fa-globe menu-icon"></i> Permessi per mondo
           </button>
           <!-- Solo sulla scheda di un personaggio (idPersonaggioAperto): invalida la cache
                (personaggioItems/personaggioModificatori) di QUEL personaggio — utile quando la
-               scheda non riflette una modifica appena fatta a una classe/razza condivisa. -->
-          <button v-if="auth.isRealAdmin && auth.adminMode && idPersonaggioAperto" class="menu-item"
-                  :disabled="resettingCache" @click="handleResetCache">
+               scheda non riflette una modifica appena fatta a una classe/razza condivisa. Master
+               del mondo corrente (masterMondo, coerente col resto del menu), non solo un vero
+               admin — il backend accetta ora entrambi (PersonaggioController.resetCache). -->
+          <button v-if="idPersonaggioAperto && (isAdminAttivo || mieiPermessi.masterMondo)"
+                  class="menu-item" :disabled="resettingCache" @click="handleResetCache">
             <i class="fa-solid fa-arrows-rotate menu-icon"></i> {{ resettingCache ? 'Reset cache…' : 'Reset cache' }}
           </button>
           <button class="menu-item" @click="naviga('/compendio')">

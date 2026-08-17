@@ -4,6 +4,7 @@ import it.fin8.gdrsheet.config.Constants;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoModificatore;
 import it.fin8.gdrsheet.dto.ClasseDetailDTO;
+import it.fin8.gdrsheet.dto.UpdateItemRequest;
 import it.fin8.gdrsheet.entity.*;
 import it.fin8.gdrsheet.repository.AvanzamentoRepository;
 import it.fin8.gdrsheet.repository.ItemRepository;
@@ -35,17 +36,20 @@ public class ClasseService {
     private final EntityManager em;
 
     private final PersonaggioCacheService personaggioCacheService;
+    private final ItemService itemService;
 
     public ClasseService(ItemRepository itemRepository,
                          AvanzamentoRepository avanzamentoRepository,
                          ModificatoreRepository modificatoreRepository,
                          EntityManager em,
-                         PersonaggioCacheService personaggioCacheService) {
+                         PersonaggioCacheService personaggioCacheService,
+                         ItemService itemService) {
         this.itemRepository = itemRepository;
         this.avanzamentoRepository = avanzamentoRepository;
         this.modificatoreRepository = modificatoreRepository;
         this.em = em;
         this.personaggioCacheService = personaggioCacheService;
+        this.itemService = itemService;
     }
 
     public ClasseDetailDTO getClasse(Integer id) {
@@ -67,6 +71,7 @@ public class ClasseService {
         dto.setRazzaLap(classe.getLabel(Constants.ITEM_LABEL_RAZZA_LAP));
         dto.setRazzaSpazio(classe.getLabel(Constants.ITEM_LABEL_RAZZA_SPAZIO));
         dto.setRazzaPortata(classe.getLabel(Constants.ITEM_LABEL_RAZZA_PORTATA));
+        dto.setRazzaEta(classe.getLabel(Constants.ITEM_LABEL_RAZZA_ETA));
 
         String abClasse = classe.getLabel(Constants.ITEM_LABEL_ABILITA_CLASSE);
         dto.setAbilitaClasse(abClasse == null || abClasse.isBlank()
@@ -82,6 +87,8 @@ public class ClasseService {
         dto.setDv(classe.getLabel(Constants.ITEM_LABEL_DADI_VITA));
         dto.setIdMondo(classe.getMondo() != null ? classe.getMondo().getId() : null);
         dto.setIdSistema(classe.getSistema() != null ? classe.getSistema().getId() : null);
+        dto.setChildren(buildChildren(classe));
+        dto.setScelteLabels(buildScelteLabels(classe));
 
         List<Avanzamento> avanzamenti = avanzamentoRepository.findAllByItemSource_Id(id);
 
@@ -118,6 +125,41 @@ public class ClasseService {
         dto.setLivelli(livelli);
 
         return dto;
+    }
+
+    /**
+     * Item collegati (card "Item collegati"): stesso identico filtro di ItemService per gli item
+     * base — esclusi ATTACCO (concetto estraneo a classi/razze) e i target NODO (struttura ad
+     * albero, gestita solo dalla card dedicata dei NODO).
+     */
+    private List<ClasseDetailDTO.ChildRefViewDTO> buildChildren(Item classe) {
+        if (classe.getChild() == null) return List.of();
+        return classe.getChild().stream()
+                .filter(c -> !TipoItem.ATTACCO.equals(c.getItemTarget().getTipo()))
+                .filter(c -> !TipoItem.NODO.equals(c.getItemTarget().getTipo()))
+                .map(c -> new ClasseDetailDTO.ChildRefViewDTO(
+                        c.getItemTarget().getId(),
+                        c.getItemTarget().getNome(),
+                        c.getItemTarget().getTipo() != null ? c.getItemTarget().getTipo().name() : null,
+                        c.getQty(),
+                        c.getFormulaQty(),
+                        c.getScelta(),
+                        Constants.ITEM_LABEL_DISABILITATO_VALORE_TRUE.equals(c.getLabel(Constants.ITEM_LABEL_NASCOSTO)),
+                        c.getLabel(Constants.COLLEGAMENTO_LABEL_CONDIZIONE)
+                ))
+                .toList();
+    }
+
+    /**
+     * Righe SCELTA_&lt;n&gt;_TITOLO/_CANDIDATI grezze (card "Scelte") — MAI la _FATTA, che è
+     * personaggio-scoped e non ha senso nell'editor del compendio.
+     */
+    private List<UpdateItemRequest.LabelRowDTO> buildScelteLabels(Item classe) {
+        if (classe.getLabels() == null) return List.of();
+        return classe.getLabels().stream()
+                .filter(l -> l.getLabel() != null && l.getLabel().matches("SCELTA_\\d+_(TITOLO|CANDIDATI)"))
+                .map(l -> new UpdateItemRequest.LabelRowDTO(l.getLabel(), l.getValore()))
+                .toList();
     }
 
     /** Costruisce le sezioni incantatore dalle label SPELL_&lt;n&gt; o, in fallback, dalla SPELL singola. */
@@ -205,6 +247,7 @@ public class ClasseService {
         putSingleLabel(classe, Constants.ITEM_LABEL_RAZZA_LAP, dto.getRazzaLap());
         putSingleLabel(classe, Constants.ITEM_LABEL_RAZZA_SPAZIO, dto.getRazzaSpazio());
         putSingleLabel(classe, Constants.ITEM_LABEL_RAZZA_PORTATA, dto.getRazzaPortata());
+        putSingleLabel(classe, Constants.ITEM_LABEL_RAZZA_ETA, dto.getRazzaEta());
 
         String abClasse = dto.getAbilitaClasse() == null || dto.getAbilitaClasse().isEmpty()
                 ? null
@@ -283,7 +326,22 @@ public class ClasseService {
         putSingleLabel(classe, Constants.ITEM_LABEL_NUM_LIVELLI_CLASSE, String.valueOf(numLivelli));
         putSingleLabel(classe, Constants.ITEM_LABEL_DADI_VITA, dto.getDv());
 
+        // --- Scelte (card "Scelte"): stato completo desiderato -> pulizia label vecchie e riscrittura,
+        // stesso schema di pulizia usato sopra per le sezioni incantatore. Null = non toccare.
+        if (dto.getScelteLabels() != null) {
+            if (classe.getLabels() != null) {
+                classe.getLabels().removeIf(l -> l.getLabel() != null && l.getLabel().matches("SCELTA_\\d+_(TITOLO|CANDIDATI)"));
+            }
+            for (UpdateItemRequest.LabelRowDTO l : dto.getScelteLabels()) {
+                putSingleLabel(classe, l.getLabel(), l.getValore());
+            }
+        }
+
         classe = itemRepository.save(classe);
+        // Item collegati (card "Item collegati"): serve l'id, quindi dopo il primo save (creazione).
+        itemService.applyChildren(classe, dto.getChildren() == null ? null : dto.getChildren().stream()
+                .map(c -> new UpdateItemRequest.ChildRefDTO(c.getId(), c.getQty(), c.getFormulaQty(), c.getScelta(), c.getNascosto(), c.getCondizione()))
+                .toList());
 
         // --- avanzamenti di livello (item AVANZAMENTO "NOME N") ---
         List<Avanzamento> esistenti = avanzamentoRepository.findAllByItemSource_Id(classe.getId());

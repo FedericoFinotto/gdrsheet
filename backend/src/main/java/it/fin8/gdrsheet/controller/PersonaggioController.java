@@ -341,7 +341,7 @@ public class PersonaggioController {
 
     @Operation(
             summary = "Invalida la cache (personaggioItems/personaggioModificatori) del personaggio",
-            description = "Riservato agli admin. Da usare quando i dati calcolati in scheda sembrano non riflettere una modifica appena fatta (es. a una classe/razza condivisa)."
+            description = "Riservato all'admin o al master del mondo del personaggio. Da usare quando i dati calcolati in scheda sembrano non riflettere una modifica appena fatta (es. a una classe/razza condivisa)."
     )
     @PostMapping("/{id}/reset-cache")
     public ResponseEntity<Void> resetCache(
@@ -349,8 +349,11 @@ public class PersonaggioController {
             @PathVariable Integer id,
             @AuthenticationPrincipal Utente utente
     ) {
-        if (!authzService.isAdmin(utente)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Riservato agli admin");
+        Personaggio pg = repo.findPersonaggioById(id);
+        Integer mondoId = pg != null && pg.getParty() != null && pg.getParty().getMondo() != null
+                ? pg.getParty().getMondo().getId() : null;
+        if (!authzService.isMasterMondo(utente, mondoId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Riservato al master di questo mondo");
         }
         personaggioCacheService.invalidaPersonaggio(id);
         return ResponseEntity.noContent().build();

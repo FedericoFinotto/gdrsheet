@@ -623,6 +623,17 @@ const descrizioneMostrata = computed(() => {
   return itemDetail.value?.descrizione ?? ''
 })
 
+// Utilizzi massimi (card UTILIZZI_MAX) + cadenza di reset (card RESET, BREVE/LUNGO): mostrati
+// insieme dopo la descrizione, stesso principio delle altre "*Info" sopra (solo se valorizzati).
+const RESET_LABELS: Record<string, string> = {BREVE: 'Riposo Breve', LUNGO: 'Riposo Lungo'}
+const resetInfo = computed(() => {
+  if (!itemDetail.value) return null
+  const utilizzi = getItemLabel(itemDetail.value, LABELS.UTILIZZI)
+  const reset = getItemLabel(itemDetail.value, LABELS.RESET)
+  if (!utilizzi && !reset) return null
+  return {utilizzi, reset: reset ? (RESET_LABELS[reset] ?? reset) : null}
+})
+
 function showInfoItemPopup(itm) {
   openPopup(
       Mobile_DettaglioItem,
@@ -948,6 +959,12 @@ function toggleExpand(key: string) {
       <div class="descrizione-html" v-safe-html="descrizioneMostrata"></div>
       <div style="height: 20px"></div>
       <div class="spazietto"/>
+    </div>
+
+    <!-- Utilizzi massimi + cadenza di reset (card UTILIZZI_MAX/RESET) -->
+    <div v-if="resetInfo" class="costo-materiale">
+      <span v-if="resetInfo.utilizzi"><strong>Utilizzi:</strong> {{ resetInfo.utilizzi }}</span>
+      <span v-if="resetInfo.reset"><strong>Reset:</strong> {{ resetInfo.reset }}</span>
     </div>
 
     <!-- Note: già filtrate lato server in base a chi guarda (stessa visibilità delle quest) -->

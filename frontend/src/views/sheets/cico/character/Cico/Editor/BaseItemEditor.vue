@@ -102,9 +102,15 @@ async function caricaConfigTipoItem(idMondo: number | null) {
 // "Layout compatto": nessuna delle card "pesanti" è abilitata per questo (mondo, tipo) — stesso
 // indicatore che prima era il prop `minimal` impostato a mano per Quest/Info/Notizia/Immagine,
 // ora emerge dalla config invece di essere hardcoded per tipo.
-const CARD_PESANTI = ['UTILIZZI_MAX', 'NOME_EN', 'MANUALE', 'DESCRITTORI_OGGETTO', 'INFO_OGGETTO',
+const CARD_PESANTI = ['UTILIZZI_MAX', 'RESET', 'NOME_EN', 'MANUALE', 'DESCRITTORI_OGGETTO', 'INFO_OGGETTO',
   'DESCRITTORI_ABILITA', 'ATTACCHI', 'EFFETTI', 'INCANTESIMI', 'AGGIUNTA_CLASSE', 'LABELS', 'TAG',
   'RANDOMIZZATORI_INNESCATI', 'MODIFICATORI']
+
+// Opzioni per la card RESET: quando si ripristinano gli utilizzi consumati dell'item.
+const RESET_OPTIONS = [
+  {value: 'BREVE', label: 'Riposo Breve'},
+  {value: 'LUNGO', label: 'Riposo Lungo'},
+]
 const isCompact = computed(() => !CARD_PESANTI.some(c => cards.value.has(c)))
 
 const emit = defineEmits<{
@@ -202,6 +208,9 @@ const form = reactive<{
   // disabilitata di default — la scelta del personaggio vive altrove (Mobile_DettaglioItem.vue),
   // qui c'è solo la struttura (globale, non personaggio-scoped).
   scelte: SezioneScelta[]
+  // card RESET (label RESET, valore BREVE/LUNGO): quando si ripristinano gli utilizzi consumati.
+  // Puramente informativo, nessun ripristino automatico.
+  reset: string
   qta: number
   compendio: boolean
   visibilita: string
@@ -240,6 +249,7 @@ const form = reactive<{
   inCarico: [],
   nodo: {tipoLink: [], albero: '', a: [], da: []},
   scelte: [] as SezioneScelta[],
+  reset: '',
   qta: 1,
   utilizzi: null as number | null,
   compendio: false,
@@ -318,6 +328,7 @@ async function preload() {
   // QTA: preferisce quantita già calcolata (da inventario personaggio), poi labels globali (compendio)
   form.qta = (showQta.value && props.item.quantita != null) ? props.item.quantita : 1
   form.utilizzi = null
+  form.reset = ''
   form.enName = ''
   form.manuale = ''
   form.descrizioneEn = ''
@@ -365,6 +376,8 @@ async function preload() {
       }
     } else if (key === 'UTILIZZI') {
       form.utilizzi = Number.isFinite(Number(val)) ? Number(val) : null
+    } else if (key === 'RESET') {
+      form.reset = ['BREVE', 'LUNGO'].includes(String(val).toUpperCase()) ? String(val).toUpperCase() : ''
     } else if (key === 'COMPENDIO') {
       form.compendio = ['true', '1'].includes(String(val).toLowerCase())
     } else if (key === 'VISIBILITA') {
@@ -741,6 +754,7 @@ function restoreSnapshot(snap: any) {
   form.scelte = snap.scelte ?? []
   form.qta = snap.qta ?? 1
   form.utilizzi = snap.utilizzi ?? null
+  form.reset = snap.reset ?? ''
   form.compendio = !!snap.compendio
   form.visibilita = snap.visibilita ?? ''
   form.idMondo = snap.idMondo ?? null
@@ -932,6 +946,8 @@ function buildPayload(): UpdateItemRequest {
   // utilizzi massimi (globale sull'item)
   if (form.utilizzi != null && Number.isInteger(form.utilizzi) && form.utilizzi > 0)
     labels.push({label: 'UTILIZZI', valore: String(form.utilizzi)})
+  // quando si ripristinano gli utilizzi consumati (Riposo Breve/Lungo): puramente informativo
+  if (form.reset) labels.push({label: 'RESET', valore: form.reset})
   // flag compendio
   if (form.compendio) labels.push({label: 'COMPENDIO', valore: 'true'})
   // visibilità item (vuoto = visibile a tutti)
@@ -1142,6 +1158,11 @@ function onCancel() {
         <span class="lbl">Utilizzi max</span>
         <input v-model.number="form.utilizzi" type="number" min="1" step="1" inputmode="numeric"
                :disabled="disabledAll"/>
+      </label>
+      <label v-if="cards.has('RESET')" class="field reset-field">
+        <span class="lbl">Reset</span>
+        <SearchSelect v-model="form.reset" :options="RESET_OPTIONS" placeholder="— nessuno —"
+                      :disabled="disabledAll" :sort="false"/>
       </label>
     </div>
 
@@ -1942,6 +1963,7 @@ textarea { resize: vertical; }
 .field.grow { min-width: 0; }
 .qta-field { width: 9rem; }
 .utilizzi-field { width: 8rem; }
+.reset-field { width: 12rem; }
 .qta-stepper { display: grid; grid-template-columns: auto 1fr auto; gap: .25rem; align-items: stretch; }
 .qta-stepper input {
   width: 100%; text-align: center; padding: .5rem .25rem;
