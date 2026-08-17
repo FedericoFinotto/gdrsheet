@@ -466,7 +466,19 @@ const pointers = new Map<number, { x: number; y: number }>()
 let panStart: { x: number; y: number } | null = null
 let pinchStartDist = 0
 let pinchStartScale = 1
+// punto (in coordinate del CONTENUTO, non dello schermo) che deve restare fermo sotto le dita
+// mentre il pinch cambia la scala: calcolato una volta all'inizio del pinch dal punto medio tra le
+// due dita, poi ad ogni movimento si ricalcolano tx/ty per farlo tornare esattamente lì — è quello
+// che dà la sensazione di "zoomare dal punto in cui si preme" invece che dall'angolo del disegno.
+let pinchAnchor: { x: number; y: number } | null = null
+// punto di schermo del primo dito appoggiato: la distanza CUMULATIVA da qui (non il delta tra un
+// evento e il successivo) decide se il gesto è un tap o un trascinamento — confrontare solo il
+// delta tra due eventi consecutivi con una soglia piccola (3px) faceva scambiare per drag anche un
+// tocco fermo quando il touchscreen restituiva un campione con un po' di tremolio, causando
+// l'apertura del popup solo a intermittenza.
+let downPoint: { x: number; y: number } | null = null
 let trascinato = false // true se il gesto in corso si è mosso abbastanza da contare come pan, non tap
+const SOGLIA_TAP = 10 // px di movimento totale tollerati prima di considerarlo un drag
 // id del nodo su cui è iniziato il gesto (letto al pointerdown, PRIMA di setPointerCapture): serve
 // per riconoscere un tap al pointerup invece di affidarsi all'evento "click" nativo, che
 // setPointerCapture ri-targettizza sul contenitore che ha catturato il puntatore — sul dispositivo
@@ -480,31 +492,40 @@ function onPointerDown(e: PointerEvent) {
   const nodoEl = (e.target as HTMLElement)?.closest?.('.nodo-box') as HTMLElement | null
   viewportEl.value?.setPointerCapture(e.pointerId)
   pointers.set(e.pointerId, {x: e.clientX, y: e.clientY})
-  trascinato = false
   if (pointers.size === 1) {
+    trascinato = false
+    downPoint = {x: e.clientX, y: e.clientY}
     panStart = {x: e.clientX - tx.value, y: e.clientY - ty.value}
     downNodeId = nodoEl ? Number(nodoEl.dataset.nodeId) : null
   } else if (pointers.size === 2) {
-    downNodeId = null // un secondo dito annulla qualunque intenzione di tap
+    trascinato = true // un secondo dito è sempre un pinch/pan, mai un tap
+    downNodeId = null
     const pts = [...pointers.values()]
     pinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
     pinchStartScale = scale.value
+    const midX = (pts[0].x + pts[1].x) / 2
+    const midY = (pts[0].y + pts[1].y) / 2
+    pinchAnchor = {x: (midX - tx.value) / scale.value, y: (midY - ty.value) / scale.value}
   }
 }
 function onPointerMove(e: PointerEvent) {
   if (!pointers.has(e.pointerId)) return
   pointers.set(e.pointerId, {x: e.clientX, y: e.clientY})
   if (pointers.size === 1 && panStart) {
-    const nx = e.clientX - panStart.x
-    const ny = e.clientY - panStart.y
-    if (Math.abs(nx - tx.value) > 3 || Math.abs(ny - ty.value) > 3) trascinato = true
-    tx.value = nx
-    ty.value = ny
-  } else if (pointers.size === 2 && pinchStartDist > 0) {
-    trascinato = true
+    if (downPoint && Math.hypot(e.clientX - downPoint.x, e.clientY - downPoint.y) > SOGLIA_TAP) trascinato = true
+    tx.value = e.clientX - panStart.x
+    ty.value = e.clientY - panStart.y
+  } else if (pointers.size === 2 && pinchStartDist > 0 && pinchAnchor) {
     const pts = [...pointers.values()]
     const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
-    scale.value = clampScale(pinchStartScale * (dist / pinchStartDist))
+    const nuovaScale = clampScale(pinchStartScale * (dist / pinchStartDist))
+    const midX = (pts[0].x + pts[1].x) / 2
+    const midY = (pts[0].y + pts[1].y) / 2
+    // riporta il punto-ancora (fisso nel contenuto) esattamente sotto il punto medio attuale delle
+    // due dita, alla nuova scala: è questo che fa "zoomare da dove si preme" invece che dall'angolo.
+    tx.value = midX - pinchAnchor.x * nuovaScale
+    ty.value = midY - pinchAnchor.y * nuovaScale
+    scale.value = nuovaScale
   }
 }
 function onPointerUp(e: PointerEvent) {
@@ -512,8 +533,10 @@ function onPointerUp(e: PointerEvent) {
   if (pointers.size === 1) {
     const [p] = [...pointers.values()]
     panStart = {x: p.x - tx.value, y: p.y - ty.value}
+    pinchAnchor = null
   } else {
     panStart = null
+    pinchAnchor = null
     if (!trascinato && downNodeId != null) {
       const n = nodi.value.find(x => x.id === downNodeId)
       if (n) vediDettaglio(n)
@@ -523,7 +546,16 @@ function onPointerUp(e: PointerEvent) {
 }
 function onWheel(e: WheelEvent) {
   e.preventDefault()
-  scale.value = clampScale(scale.value * (1 - e.deltaY * 0.001))
+  // stesso principio del pinch: il punto sotto il cursore resta fermo, si "entra"/"esce" da lì.
+  const rect = viewportEl.value?.getBoundingClientRect()
+  const mx = rect ? e.clientX - rect.left : 0
+  const my = rect ? e.clientY - rect.top : 0
+  const ancoraX = (mx - tx.value) / scale.value
+  const ancoraY = (my - ty.value) / scale.value
+  const nuovaScale = clampScale(scale.value * (1 - e.deltaY * 0.001))
+  tx.value = mx - ancoraX * nuovaScale
+  ty.value = my - ancoraY * nuovaScale
+  scale.value = nuovaScale
 }
 function zoomBtn(delta: number) { scale.value = clampScale(scale.value + delta) }
 
