@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import it.fin8.gdrsheet.def.CardEditorItem;
 import it.fin8.gdrsheet.def.TipoCampoEditor;
+import it.fin8.gdrsheet.def.TipoCatalogoIncantesimo;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoPermessoMondo;
 import it.fin8.gdrsheet.dto.AddMasterMondoRequest;
+import it.fin8.gdrsheet.dto.CreaValoreCatalogoIncantesimoRequest;
 import it.fin8.gdrsheet.dto.CreateListaIncantesimiRequest;
 import it.fin8.gdrsheet.dto.CreateMondoRequest;
 import it.fin8.gdrsheet.dto.CreateSistemaRequest;
@@ -18,8 +20,10 @@ import it.fin8.gdrsheet.dto.TipoItemConfigDTO;
 import it.fin8.gdrsheet.dto.UpdateMondoConfigRequest;
 import it.fin8.gdrsheet.dto.UpdateMondoRequest;
 import it.fin8.gdrsheet.dto.UpdateTipoItemConfigRequest;
+import it.fin8.gdrsheet.entity.CatalogoIncantesimo;
 import it.fin8.gdrsheet.entity.ListaIncantesimi;
 import it.fin8.gdrsheet.entity.Mondo;
+import it.fin8.gdrsheet.entity.MondoCatalogoIncantesimoAbilitato;
 import it.fin8.gdrsheet.entity.MondoListaIncantesimiAbilitata;
 import it.fin8.gdrsheet.entity.MondoTipoItemAbilitato;
 import it.fin8.gdrsheet.entity.MondoTipoItemCampo;
@@ -28,7 +32,9 @@ import it.fin8.gdrsheet.entity.MondoTipoItemMeta;
 import it.fin8.gdrsheet.entity.PermessiMondo;
 import it.fin8.gdrsheet.entity.Sistema;
 import it.fin8.gdrsheet.entity.Utente;
+import it.fin8.gdrsheet.repository.CatalogoIncantesimoRepository;
 import it.fin8.gdrsheet.repository.ListaIncantesimiRepository;
+import it.fin8.gdrsheet.repository.MondoCatalogoIncantesimoAbilitatoRepository;
 import it.fin8.gdrsheet.repository.MondoListaIncantesimiAbilitataRepository;
 import it.fin8.gdrsheet.repository.MondoRepository;
 import it.fin8.gdrsheet.repository.MondoTipoItemAbilitatoRepository;
@@ -76,6 +82,8 @@ public class MondoAdminController {
     private final MondoTipoItemCardAbilitataRepository mondoTipoItemCardAbilitataRepository;
     private final MondoTipoItemCampoRepository mondoTipoItemCampoRepository;
     private final MondoTipoItemMetaRepository mondoTipoItemMetaRepository;
+    private final CatalogoIncantesimoRepository catalogoIncantesimoRepository;
+    private final MondoCatalogoIncantesimoAbilitatoRepository mondoCatalogoIncantesimoAbilitatoRepository;
     private final ObjectMapper objectMapper;
 
     public MondoAdminController(MondoRepository mondoRepository, SistemaRepository sistemaRepository,
@@ -88,6 +96,8 @@ public class MondoAdminController {
                                 MondoTipoItemCardAbilitataRepository mondoTipoItemCardAbilitataRepository,
                                 MondoTipoItemCampoRepository mondoTipoItemCampoRepository,
                                 MondoTipoItemMetaRepository mondoTipoItemMetaRepository,
+                                CatalogoIncantesimoRepository catalogoIncantesimoRepository,
+                                MondoCatalogoIncantesimoAbilitatoRepository mondoCatalogoIncantesimoAbilitatoRepository,
                                 ObjectMapper objectMapper) {
         this.mondoRepository = mondoRepository;
         this.sistemaRepository = sistemaRepository;
@@ -101,6 +111,8 @@ public class MondoAdminController {
         this.mondoTipoItemCardAbilitataRepository = mondoTipoItemCardAbilitataRepository;
         this.mondoTipoItemCampoRepository = mondoTipoItemCampoRepository;
         this.mondoTipoItemMetaRepository = mondoTipoItemMetaRepository;
+        this.catalogoIncantesimoRepository = catalogoIncantesimoRepository;
+        this.mondoCatalogoIncantesimoAbilitatoRepository = mondoCatalogoIncantesimoAbilitatoRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -398,7 +410,34 @@ public class MondoAdminController {
                 ))
                 .toList();
 
-        return ResponseEntity.ok(new TipoItemConfigDTO(card, titolo, campi));
+        // Scuole/Sottoscuole/Descrittori/Componenti: solo per INCANTESIMO (SpellEditor.vue), liste
+        // vuote per ogni altro tipo — non hanno senso altrove.
+        boolean isIncantesimo = TipoItem.INCANTESIMO.equals(tipo);
+        List<String> scuole = isIncantesimo ? abilitatiCatalogo(mondoId, TipoCatalogoIncantesimo.SCUOLA) : List.of();
+        List<String> sottoscuole = isIncantesimo ? abilitatiCatalogo(mondoId, TipoCatalogoIncantesimo.SOTTOSCUOLA) : List.of();
+        List<String> descrittori = isIncantesimo ? abilitatiCatalogo(mondoId, TipoCatalogoIncantesimo.DESCRITTORE) : List.of();
+        List<String> componenti = isIncantesimo ? abilitatiCatalogo(mondoId, TipoCatalogoIncantesimo.COMPONENTE) : List.of();
+
+        return ResponseEntity.ok(new TipoItemConfigDTO(card, titolo, campi, scuole, sottoscuole, descrittori, componenti));
+    }
+
+    private List<String> abilitatiCatalogo(Integer mondoId, TipoCatalogoIncantesimo tipoCatalogo) {
+        return mondoCatalogoIncantesimoAbilitatoRepository.findAllByMondo_IdAndTipo(mondoId, tipoCatalogo).stream()
+                .map(MondoCatalogoIncantesimoAbilitato::getValore)
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
+
+    private void salvaAbilitatiCatalogo(Mondo mondo, TipoCatalogoIncantesimo tipoCatalogo, List<String> valori) {
+        mondoCatalogoIncantesimoAbilitatoRepository.deleteAll(
+                mondoCatalogoIncantesimoAbilitatoRepository.findAllByMondo_IdAndTipo(mondo.getId(), tipoCatalogo));
+        for (String v : valori) {
+            MondoCatalogoIncantesimoAbilitato riga = new MondoCatalogoIncantesimoAbilitato();
+            riga.setMondo(mondo);
+            riga.setTipo(tipoCatalogo);
+            riga.setValore(v);
+            mondoCatalogoIncantesimoAbilitatoRepository.save(riga);
+        }
     }
 
     @Operation(
@@ -458,6 +497,52 @@ public class MondoAdminController {
             }
         }
 
+        // Scuole/Sottoscuole/Descrittori/Componenti: solo per INCANTESIMO, ignorati altrimenti
+        // anche se valorizzati nella request (nessun senso applicarli ad altri tipi).
+        if (TipoItem.INCANTESIMO.equals(tipo)) {
+            if (req.scuoleAbilitate() != null) salvaAbilitatiCatalogo(mondo, TipoCatalogoIncantesimo.SCUOLA, req.scuoleAbilitate());
+            if (req.sottoscuoleAbilitate() != null) salvaAbilitatiCatalogo(mondo, TipoCatalogoIncantesimo.SOTTOSCUOLA, req.sottoscuoleAbilitate());
+            if (req.descrittoriAbilitati() != null) salvaAbilitatiCatalogo(mondo, TipoCatalogoIncantesimo.DESCRITTORE, req.descrittoriAbilitati());
+            if (req.componentiAbilitati() != null) salvaAbilitatiCatalogo(mondo, TipoCatalogoIncantesimo.COMPONENTE, req.componentiAbilitati());
+        }
+
         return getTipoItemConfig(mondoId, tipo);
+    }
+
+    @Operation(
+            summary = "Catalogo globale di una lista di corredo incantesimo (Scuola/Sottoscuola/Descrittore/Componente)",
+            description = "Admin. Tutti i valori esistenti (indipendentemente da cosa è abilitato per un mondo), " +
+                    "usato dalla UI di amministrazione per scegliere cosa abilitare in un mondo."
+    )
+    @GetMapping("/catalogo-incantesimo/{tipo}")
+    public ResponseEntity<List<String>> getCatalogoIncantesimo(@PathVariable TipoCatalogoIncantesimo tipo,
+                                                               @AuthenticationPrincipal Utente utente) {
+        assertAdmin(utente);
+        List<String> result = catalogoIncantesimoRepository.findAllByTipoOrderByValoreAsc(tipo).stream()
+                .map(CatalogoIncantesimo::getValore)
+                .toList();
+        return ResponseEntity.ok(result);
+    }
+
+    @Operation(
+            summary = "Crea un nuovo valore nel catalogo globale di una lista di corredo incantesimo",
+            description = "Admin. Il valore è univoco nel catalogo condiviso tra tutti i mondi (per quel tipo di " +
+                    "lista); non viene abilitato automaticamente da nessuna parte."
+    )
+    @PostMapping("/catalogo-incantesimo/{tipo}")
+    public ResponseEntity<String> creaValoreCatalogoIncantesimo(@PathVariable TipoCatalogoIncantesimo tipo,
+                                                                @Valid @RequestBody CreaValoreCatalogoIncantesimoRequest req,
+                                                                @AuthenticationPrincipal Utente utente) {
+        assertAdmin(utente);
+        String valore = req.valore().trim();
+        if (valore.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Valore obbligatorio");
+        if (catalogoIncantesimoRepository.existsByTipoAndValore(tipo, valore)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Valore già esistente nel catalogo");
+        }
+        CatalogoIncantesimo c = new CatalogoIncantesimo();
+        c.setTipo(tipo);
+        c.setValore(valore);
+        catalogoIncantesimoRepository.save(c);
+        return ResponseEntity.ok(valore);
     }
 }

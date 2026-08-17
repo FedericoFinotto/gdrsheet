@@ -4,8 +4,9 @@ import {useRouter} from 'vue-router'
 import {useAuthStore} from '../stores/auth'
 import {
   addMasterMondo, aggiornaConfigMondo, aggiornaMondo, aggiornaTipoItemConfig, creaListaIncantesimi,
-  creaMondo, creaSistema, getCatalogoListeIncantesimi, getConfigMondo, getMasterMondo, getMondiAdmin,
-  getSistemiAdmin, getTipoItemConfig, ListaIncantesimiOpt, MasterMondo, removeMasterMondo,
+  creaMondo, creaSistema, creaValoreCatalogoIncantesimo, getCatalogoIncantesimo, getCatalogoListeIncantesimi,
+  getConfigMondo, getMasterMondo, getMondiAdmin, getSistemiAdmin, getTipoItemConfig,
+  ListaIncantesimiOpt, MasterMondo, removeMasterMondo,
 } from '../service/MondoAdminService'
 import {MondoOpt} from '../function/useMondoSistema'
 import SearchSelect from '../components/SearchSelect.vue'
@@ -249,6 +250,68 @@ interface CampoLiberoRow {
 interface TipoConfigState {
   loaded: boolean; loading: boolean; busy: boolean
   cardAbilitate: Set<string>; campiTitolo: string; campiLiberi: CampoLiberoRow[]
+  // valide solo per tipo INCANTESIMO (vedi CategoriaCatalogoIncantesimo sotto)
+  scuoleAbilitate: Set<string>; sottoscuoleAbilitate: Set<string>
+  descrittoriAbilitati: Set<string>; componentiAbilitati: Set<string>
+}
+
+// Le 4 liste "di corredo" di un incantesimo (Scuola/Sottoscuola/Descrittore/Componente), mostrate
+// solo dentro la card INCANTESIMO di "Editor per tipo" qui sotto: stesso meccanismo di "Liste
+// incantesimi abilitate" (catalogo globale + abilitazione per mondo), ma specifiche per gli
+// incantesimi, quindi annidate nella card del loro tipo invece che come sezione a parte.
+type CategoriaCatalogoIncantesimo = 'SCUOLA' | 'SOTTOSCUOLA' | 'DESCRITTORE' | 'COMPONENTE'
+const CATEGORIE_CATALOGO_INCANTESIMO: {categoria: CategoriaCatalogoIncantesimo; titolo: string; campo: keyof TipoConfigState}[] = [
+  {categoria: 'SCUOLA', titolo: 'Scuole', campo: 'scuoleAbilitate'},
+  {categoria: 'SOTTOSCUOLA', titolo: 'Sottoscuole', campo: 'sottoscuoleAbilitate'},
+  {categoria: 'DESCRITTORE', titolo: 'Descrittori', campo: 'descrittoriAbilitati'},
+  {categoria: 'COMPONENTE', titolo: 'Componenti', campo: 'componentiAbilitati'},
+]
+const catalogoIncantesimo = reactive<Record<CategoriaCatalogoIncantesimo, string[]>>(
+    {SCUOLA: [], SOTTOSCUOLA: [], DESCRITTORE: [], COMPONENTE: []})
+const nuovoValoreCatalogo = reactive<Record<CategoriaCatalogoIncantesimo, string>>(
+    {SCUOLA: '', SOTTOSCUOLA: '', DESCRITTORE: '', COMPONENTE: ''})
+const busyCreaValoreCatalogo = reactive<Record<CategoriaCatalogoIncantesimo, boolean>>(
+    {SCUOLA: false, SOTTOSCUOLA: false, DESCRITTORE: false, COMPONENTE: false})
+// apri/chiudi dei sotto-accordion Scuole/Sottoscuole/Descrittori/Componenti dentro la card Incantesimo
+const openCatalogoIncantesimo = reactive<Record<CategoriaCatalogoIncantesimo, boolean>>(
+    {SCUOLA: false, SOTTOSCUOLA: false, DESCRITTORE: false, COMPONENTE: false})
+
+async function caricaCatalogoIncantesimo() {
+  for (const {categoria} of CATEGORIE_CATALOGO_INCANTESIMO) {
+    try {
+      catalogoIncantesimo[categoria] = (await getCatalogoIncantesimo(categoria)).data ?? []
+    } catch (e) {
+      console.error('Errore caricamento catalogo incantesimo:', categoria, e)
+    }
+  }
+}
+
+function toggleValoreCatalogo(t: string, campo: keyof TipoConfigState, valore: string) {
+  const s = statoTipi[t]
+  if (!s) return
+  const set = new Set(s[campo] as Set<string>)
+  if (set.has(valore)) set.delete(valore); else set.add(valore)
+  ;(s[campo] as Set<string>) = set
+}
+
+async function onCreaValoreCatalogo(t: string, categoria: CategoriaCatalogoIncantesimo, campo: keyof TipoConfigState) {
+  const valore = nuovoValoreCatalogo[categoria].trim()
+  if (!valore || busyCreaValoreCatalogo[categoria]) return
+  busyCreaValoreCatalogo[categoria] = true
+  errorMsg.value = null
+  try {
+    const res = await creaValoreCatalogoIncantesimo(categoria, valore)
+    catalogoIncantesimo[categoria] = [...catalogoIncantesimo[categoria], res.data].sort((a, b) => a.localeCompare(b))
+    // pre-seleziona per la card di questo tipo (di norma INCANTESIMO), se già caricata
+    const s = statoTipi[t]
+    if (s) (s[campo] as Set<string>) = new Set([...(s[campo] as Set<string>), res.data])
+    nuovoValoreCatalogo[categoria] = ''
+  } catch (e: any) {
+    errorMsg.value = e?.response?.status === 409 ? 'Valore già esistente nel catalogo' : 'Errore nella creazione del valore'
+    console.error('Errore creazione valore catalogo incantesimo:', e)
+  } finally {
+    busyCreaValoreCatalogo[categoria] = false
+  }
 }
 
 // stato per tipo (una entry per ogni tipo abilitato, popolata da caricaConfigMondo) + apri/chiudi
@@ -261,7 +324,11 @@ const tipiAbilitatiOrdinati = computed(() =>
         .sort((a, b) => a.label.localeCompare(b.label)))
 
 function nuovoStatoTipo(): TipoConfigState {
-  return {loaded: false, loading: false, busy: false, cardAbilitate: new Set(), campiTitolo: '', campiLiberi: []}
+  return {
+    loaded: false, loading: false, busy: false, cardAbilitate: new Set(), campiTitolo: '', campiLiberi: [],
+    scuoleAbilitate: new Set(), sottoscuoleAbilitate: new Set(),
+    descrittoriAbilitati: new Set(), componentiAbilitati: new Set(),
+  }
 }
 
 async function caricaConfigMondo() {
@@ -302,6 +369,11 @@ async function caricaTipoItemConfig(t: string) {
       placeholder: c.placeholder ?? '', textarea: c.textarea, multiValore: c.multiValore, html: c.html,
       opzioni: (c.opzioni ?? []).map(o => ({value: o.value, label: o.label})),
     }))
+    // valide solo per tipo INCANTESIMO: liste vuote (dal backend) per ogni altro tipo
+    s.scuoleAbilitate = new Set(data.scuoleAbilitate ?? [])
+    s.sottoscuoleAbilitate = new Set(data.sottoscuoleAbilitate ?? [])
+    s.descrittoriAbilitati = new Set(data.descrittoriAbilitati ?? [])
+    s.componentiAbilitati = new Set(data.componentiAbilitati ?? [])
     s.loaded = true
   } catch (e) {
     console.error('Errore caricamento configurazione tipo item:', e)
@@ -311,10 +383,17 @@ async function caricaTipoItemConfig(t: string) {
   }
 }
 
-// apre/chiude la card di un tipo; al primo apertura carica la configurazione (lazy)
+// apre/chiude la card di un tipo; al primo apertura carica la configurazione (lazy) e, per
+// INCANTESIMO, anche il catalogo globale delle 4 liste di corredo (una volta sola, condiviso).
+let catalogoIncantesimoCaricato = false
 function toggleApriTipo(t: string) {
   openTipi[t] = !openTipi[t]
-  if (openTipi[t] && statoTipi[t] && !statoTipi[t].loaded) caricaTipoItemConfig(t)
+  if (!openTipi[t]) return
+  if (statoTipi[t] && !statoTipi[t].loaded) caricaTipoItemConfig(t)
+  if (t === TIPO_ITEM.INCANTESIMO && !catalogoIncantesimoCaricato) {
+    catalogoIncantesimoCaricato = true
+    caricaCatalogoIncantesimo()
+  }
 }
 
 function toggleCard(t: string, c: string) {
@@ -367,6 +446,11 @@ async function onSalvaTipoConfig(t: string) {
                 ? c.opzioni.filter(o => o.value.trim()).map(o => ({value: o.value.trim(), label: o.label.trim() || o.value.trim()}))
                 : [],
           })),
+      // ignorati dal backend per tipi diversi da INCANTESIMO: innocuo includerli sempre
+      scuoleAbilitate: Array.from(s.scuoleAbilitate),
+      sottoscuoleAbilitate: Array.from(s.sottoscuoleAbilitate),
+      descrittoriAbilitati: Array.from(s.descrittoriAbilitati),
+      componentiAbilitati: Array.from(s.componentiAbilitati),
     })
   } catch (e) {
     console.error('Errore salvataggio configurazione tipo item:', e)
@@ -492,37 +576,6 @@ onMounted(async () => {
         </div>
       </section>
 
-      <!-- Liste/domìni incantesimi abilitati per questo mondo -->
-      <section v-if="mondoSelezionato !== null" class="fold">
-        <button type="button" class="fold-head" @click="open.liste = !open.liste">
-          <span class="fold-title">Liste / domìni incantesimi abilitati</span>
-          <span class="fold-summary">{{ listeAbilitate.size }}/{{ catalogoListe.length }}</span>
-          <span class="chev" :class="{open: open.liste}">▸</span>
-        </button>
-        <div v-show="open.liste" class="fold-body">
-          <div v-if="!catalogoListe.length" class="state">Nessuna lista/dominio nel catalogo.</div>
-          <div v-else class="chip-grid">
-            <label v-for="l in catalogoListe" :key="l.codice" class="chip-toggle" :class="{on: listeAbilitate.has(l.codice)}">
-              <input type="checkbox" :checked="listeAbilitate.has(l.codice)" @change="toggleLista(l.codice)"/>
-              {{ l.etichetta }} ({{ l.codice }})
-            </label>
-          </div>
-          <button class="btn primary" :disabled="busyListe" @click="onSalvaListe">
-            {{ busyListe ? 'Salvataggio…' : 'Salva liste abilitate' }}
-          </button>
-
-          <div class="add-form add-form-lista">
-            <input v-model="nuovaListaCodice" type="text" placeholder="Codice (es. SP_MIA_LISTA)" @keyup.enter="onCreaLista"/>
-            <input v-model="nuovaListaEtichetta" type="text" placeholder="Etichetta (es. Mia Lista)" @keyup.enter="onCreaLista"/>
-            <button class="btn outline"
-                    :disabled="busyCreaLista || !nuovaListaCodice.trim() || !nuovaListaEtichetta.trim()"
-                    @click="onCreaLista">
-              {{ busyCreaLista ? 'Creazione…' : '+ Aggiungi al catalogo' }}
-            </button>
-          </div>
-        </div>
-      </section>
-
       <!-- Editor per tipo: una card apribile per ciascun tipo abilitato, con le sue card
            strutturali e i suoi campi liberi -->
       <section v-if="mondoSelezionato !== null" class="block">
@@ -586,6 +639,68 @@ onMounted(async () => {
                 </div>
               </div>
               <button type="button" class="btn outline" @click="addCampo(t.value)">+ Aggiungi campo</button>
+
+              <!-- Liste/domìni + Scuole/Sottoscuole/Descrittori/Componenti: solo per INCANTESIMO,
+                   annidate qui come sotto-accordion perché fanno parte esclusivamente dell'editor
+                   degli incantesimi -->
+              <template v-if="t.value === 'INCANTESIMO'">
+                <section class="fold sub-fold">
+                  <button type="button" class="fold-head" @click="open.liste = !open.liste">
+                    <span class="fold-title">Liste / domìni incantesimi abilitati</span>
+                    <span class="fold-summary">{{ listeAbilitate.size }}/{{ catalogoListe.length }}</span>
+                    <span class="chev" :class="{open: open.liste}">▸</span>
+                  </button>
+                  <div v-show="open.liste" class="fold-body">
+                    <div v-if="!catalogoListe.length" class="state">Nessuna lista/dominio nel catalogo.</div>
+                    <div v-else class="chip-grid">
+                      <label v-for="l in catalogoListe" :key="l.codice" class="chip-toggle" :class="{on: listeAbilitate.has(l.codice)}">
+                        <input type="checkbox" :checked="listeAbilitate.has(l.codice)" @change="toggleLista(l.codice)"/>
+                        {{ l.etichetta }} ({{ l.codice }})
+                      </label>
+                    </div>
+                    <button class="btn primary" :disabled="busyListe" @click="onSalvaListe">
+                      {{ busyListe ? 'Salvataggio…' : 'Salva liste abilitate' }}
+                    </button>
+                    <div class="add-form add-form-lista">
+                      <input v-model="nuovaListaCodice" type="text" placeholder="Codice (es. SP_MIA_LISTA)" @keyup.enter="onCreaLista"/>
+                      <input v-model="nuovaListaEtichetta" type="text" placeholder="Etichetta (es. Mia Lista)" @keyup.enter="onCreaLista"/>
+                      <button class="btn outline"
+                              :disabled="busyCreaLista || !nuovaListaCodice.trim() || !nuovaListaEtichetta.trim()"
+                              @click="onCreaLista">
+                        {{ busyCreaLista ? 'Creazione…' : '+ Aggiungi al catalogo' }}
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
+                <section v-for="cat in CATEGORIE_CATALOGO_INCANTESIMO" :key="cat.categoria" class="fold sub-fold">
+                  <button type="button" class="fold-head" @click="openCatalogoIncantesimo[cat.categoria] = !openCatalogoIncantesimo[cat.categoria]">
+                    <span class="fold-title">{{ cat.titolo }}</span>
+                    <span class="fold-summary">{{ (statoTipi[t.value][cat.campo] as Set<string>).size }}/{{ catalogoIncantesimo[cat.categoria].length }}</span>
+                    <span class="chev" :class="{open: openCatalogoIncantesimo[cat.categoria]}">▸</span>
+                  </button>
+                  <div v-show="openCatalogoIncantesimo[cat.categoria]" class="fold-body">
+                    <div v-if="!catalogoIncantesimo[cat.categoria].length" class="state">Nessun valore nel catalogo.</div>
+                    <div v-else class="chip-grid">
+                      <label v-for="v in catalogoIncantesimo[cat.categoria]" :key="v" class="chip-toggle"
+                             :class="{on: (statoTipi[t.value][cat.campo] as Set<string>).has(v)}">
+                        <input type="checkbox" :checked="(statoTipi[t.value][cat.campo] as Set<string>).has(v)"
+                               @change="toggleValoreCatalogo(t.value, cat.campo, v)"/>
+                        {{ v }}
+                      </label>
+                    </div>
+                    <div class="add-form add-form-lista">
+                      <input v-model="nuovoValoreCatalogo[cat.categoria]" type="text" :placeholder="`Nuovo valore (${cat.titolo.toLowerCase()})…`"
+                             @keyup.enter="onCreaValoreCatalogo(t.value, cat.categoria, cat.campo)"/>
+                      <button class="btn outline"
+                              :disabled="busyCreaValoreCatalogo[cat.categoria] || !nuovoValoreCatalogo[cat.categoria].trim()"
+                              @click="onCreaValoreCatalogo(t.value, cat.categoria, cat.campo)">
+                        {{ busyCreaValoreCatalogo[cat.categoria] ? 'Creazione…' : '+ Aggiungi al catalogo' }}
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              </template>
 
               <button class="btn primary" :disabled="statoTipi[t.value].busy" @click="onSalvaTipoConfig(t.value)">
                 {{ statoTipi[t.value].busy ? 'Salvataggio…' : 'Salva configurazione editor' }}
@@ -654,6 +769,8 @@ onMounted(async () => {
 
 .fold { border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0); }
 .fold + .fold { margin-top: .5rem; }
+.sub-fold { background: var(--btn-bg); }
+.sub-fold .fold-head { background: var(--surface-0); }
 .fold-head {
   width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .5rem;
   padding: .5rem .75rem; background: var(--btn-bg); border: 0; border-bottom: 1px solid var(--hairline);

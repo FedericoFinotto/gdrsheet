@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        Le 4 liste "di corredo" di un incantesimo (Scuola/Sottoscuola/Descrittore/Componente, oggi
+        hardcoded in SpellEditor.vue) diventano un catalogo globale condiviso con abilitazione
+        opt-in per mondo, stessa logica di lista_incantesimi (db.changelog-13.0.xml) ma qui il
+        valore stesso è già l'etichetta mostrata (nessuna etichetta separata). Seed del catalogo a
+        partire dagli attuali dizionari hardcoded (MAP_SCHOOL/MAP_SUB/MAP_DESC e le 11 chiavi
+        componente), e abilitazione di TUTTO il catalogo per i mondi già esistenti — comportamento
+        invariato, coerente con la stessa scelta fatta per liste_incantesimi/tipi item.
+    -->
+
+    <changeSet id="1700" author="developer">
+        <comment>Catalogo globale dei valori per le 4 liste di corredo di un incantesimo.</comment>
+        <createTable tableName="catalogo_incantesimo">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="tipo" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="valore" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="catalogo_incantesimo"
+                              columnNames="tipo, valore"
+                              constraintName="uq_catalogo_incantesimo"/>
+    </changeSet>
+
+    <changeSet id="1701" author="developer">
+        <comment>Abilitazione opt-in di un valore catalogo_incantesimo per un mondo.</comment>
+        <createTable tableName="mondo_catalogo_incantesimo_abilitato">
+            <column name="id" type="serial">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="id_mondo" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="valore" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="mondo_catalogo_incantesimo_abilitato"
+                              columnNames="id_mondo, tipo, valore"
+                              constraintName="uq_mondo_catalogo_incantesimo_abilitato"/>
+        <addForeignKeyConstraint
+                baseTableName="mondo_catalogo_incantesimo_abilitato"
+                baseColumnNames="id_mondo"
+                referencedTableName="mondo"
+                referencedColumnNames="id"
+                constraintName="fk_mondo_catalogo_incantesimo_abilitato_mondo"/>
+    </changeSet>
+
+    <changeSet id="1702" author="developer">
+        <comment>Seed catalogo_incantesimo dai dizionari hardcoded di SpellEditor.vue (MAP_SCHOOL/MAP_SUB/MAP_DESC, valori IT unici) e dalle 11 chiavi componente.</comment>
+        <sql>
+            INSERT INTO catalogo_incantesimo (tipo, valore) VALUES
+            ('SCUOLA', 'Abiurazione'), ('SCUOLA', 'Evocazione'), ('SCUOLA', 'Divinazione'),
+            ('SCUOLA', 'Ammaliamento'), ('SCUOLA', 'Invocazione'), ('SCUOLA', 'Illusione'),
+            ('SCUOLA', 'Necromanzia'), ('SCUOLA', 'Trasmutazione'), ('SCUOLA', 'Universale'),
+
+            ('SOTTOSCUOLA', 'Richiamo'), ('SOTTOSCUOLA', 'Creazione'), ('SOTTOSCUOLA', 'Evocazione'),
+            ('SOTTOSCUOLA', 'Teletrasporto'), ('SOTTOSCUOLA', 'Guarigione'), ('SOTTOSCUOLA', 'Scrutamento'),
+            ('SOTTOSCUOLA', 'Metamorfosi'), ('SOTTOSCUOLA', 'Charme'), ('SOTTOSCUOLA', 'Compulsione'),
+            ('SOTTOSCUOLA', 'Immagine'), ('SOTTOSCUOLA', 'Camuffamento'), ('SOTTOSCUOLA', 'Trama'),
+            ('SOTTOSCUOLA', 'Fantasma'), ('SOTTOSCUOLA', 'Ombra'),
+
+            ('DESCRITTORE', 'Acido'), ('DESCRITTORE', 'Aria'), ('DESCRITTORE', 'Caotico'),
+            ('DESCRITTORE', 'Freddo'), ('DESCRITTORE', 'Oscurità'), ('DESCRITTORE', 'Morte'),
+            ('DESCRITTORE', 'Terra'), ('DESCRITTORE', 'Elettricità'), ('DESCRITTORE', 'Malvagio'),
+            ('DESCRITTORE', 'Paura'), ('DESCRITTORE', 'Fuoco'), ('DESCRITTORE', 'Forza'),
+            ('DESCRITTORE', 'Bene'), ('DESCRITTORE', 'Dipendente dal linguaggio'), ('DESCRITTORE', 'Legale'),
+            ('DESCRITTORE', 'Luce'), ('DESCRITTORE', 'Influenza mentale'), ('DESCRITTORE', 'Sonoro'),
+            ('DESCRITTORE', 'Acqua'),
+
+            ('COMPONENTE', 'V'), ('COMPONENTE', 'S'), ('COMPONENTE', 'M'), ('COMPONENTE', 'F'),
+            ('COMPONENTE', 'DF'), ('COMPONENTE', 'XP'), ('COMPONENTE', 'X'), ('COMPONENTE', 'CORRUPT'),
+            ('COMPONENTE', 'COLDFIRE'), ('COMPONENTE', 'FROSTFELL'), ('COMPONENTE', 'B');
+        </sql>
+        <rollback>
+            <sql>DELETE FROM catalogo_incantesimo;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1703" author="developer">
+        <comment>Abilita tutto il catalogo appena seedato per ogni mondo già esistente (comportamento invariato).</comment>
+        <sql>
+            INSERT INTO mondo_catalogo_incantesimo_abilitato (id_mondo, tipo, valore)
+            SELECT m.id, c.tipo, c.valore
+            FROM mondo m
+            CROSS JOIN catalogo_incantesimo c;
+        </sql>
+        <rollback>
+            <sql>DELETE FROM mondo_catalogo_incantesimo_abilitato;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

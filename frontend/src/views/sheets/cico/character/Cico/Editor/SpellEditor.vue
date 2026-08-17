@@ -95,7 +95,9 @@ const CLASS_LABELS: Record<string, string> = {
 const CLASS_CODES = Object.keys(CLASS_LABELS).sort()
 
 /* ========= Modello locale ========= */
-type ComponentKey = 'V' | 'S' | 'M' | 'F' | 'DF' | 'XP' | 'X' | 'CORRUPT' | 'COLDFIRE' | 'FROSTFELL' | 'B'
+// dizionario statico dei componenti "noti": un mondo può abilitarne solo un sottoconto o
+// aggiungerne di nuovi via CatalogoIncantesimo (vedi COMPONENTE in TipoCatalogoIncantesimo)
+const COMPONENT_KEYS = ['V', 'S', 'M', 'F', 'DF', 'XP', 'X', 'CORRUPT', 'COLDFIRE', 'FROSTFELL', 'B']
 type BoolMap = Record<string, boolean>
 type SpellDraft = {
   nome: string
@@ -112,7 +114,7 @@ type SpellDraft = {
   range: string
   durata: string
   ts: string
-  comp: Record<ComponentKey, boolean>
+  comp: BoolMap
   classi: Record<string, string>
   classiCustom: Array<{ codice: string; livello: string }>  // liste/classi non nel catalogo preimpostato
 }
@@ -133,37 +135,64 @@ function emptyDraft(): SpellDraft {
     descrittori: emptyBoolMap(IT_DESCS),
     tempo: '', range: '', durata: '',
     ts: 'Nessuno',
-    comp: {
-      V: false,
-      S: false,
-      M: false,
-      F: false,
-      DF: false,
-      XP: false,
-      X: false,
-      CORRUPT: false,
-      COLDFIRE: false,
-      FROSTFELL: false,
-      B: false
-    },
+    comp: emptyBoolMap(COMPONENT_KEYS),
     classi: emptyClassLevels(),
     classiCustom: []
   }
 }
 const form = reactive<SpellDraft>(emptyDraft())
 
-// Card strutturali abilitate per (mondo, INCANTESIMO): vedi MondoTipoItemCardAbilitata lato backend.
+// Card strutturali abilitate per (mondo, INCANTESIMO): vedi MondoTipoItemCardAbilitata lato
+// backend. Stessa risposta porta anche le 4 liste di corredo abilitate per il mondo (Scuole/
+// Sottoscuole/Descrittori/Componenti, vedi CatalogoIncantesimo) — null finché non risolto/in
+// errore = nessuna restrizione, per non far sparire di colpo le griglie.
 const cards = ref<Set<string>>(new Set())
+const scuoleAbilitateMondo = ref<Set<string> | null>(null)
+const sottoscuoleAbilitateMondo = ref<Set<string> | null>(null)
+const descrittoriAbilitatiMondo = ref<Set<string> | null>(null)
+const componentiAbilitatiMondo = ref<Set<string> | null>(null)
 watch(() => form.idMondo, async (idMondo) => {
-  if (!idMondo) { cards.value = new Set(); return }
+  if (!idMondo) {
+    cards.value = new Set()
+    scuoleAbilitateMondo.value = null
+    sottoscuoleAbilitateMondo.value = null
+    descrittoriAbilitatiMondo.value = null
+    componentiAbilitatiMondo.value = null
+    return
+  }
   try {
     const {data} = await getTipoItemConfig(idMondo, 'INCANTESIMO')
     cards.value = new Set(data.cardAbilitate)
+    // data.scuoleAbilitate ecc. assenti (backend non ancora aggiornato) -> null = nessuna
+    // restrizione, distinto da un array vuoto (mondo che ha esplicitamente disabilitato tutto).
+    scuoleAbilitateMondo.value = data.scuoleAbilitate ? new Set(data.scuoleAbilitate) : null
+    sottoscuoleAbilitateMondo.value = data.sottoscuoleAbilitate ? new Set(data.sottoscuoleAbilitate) : null
+    descrittoriAbilitatiMondo.value = data.descrittoriAbilitati ? new Set(data.descrittoriAbilitati) : null
+    componentiAbilitatiMondo.value = data.componentiAbilitati ? new Set(data.componentiAbilitati) : null
+    // valori abilitati dal mondo ma assenti dal dizionario statico (es. creati ad hoc per questo
+    // mondo) devono avere comunque una entry nel BoolMap, altrimenti la checkbox della griglia
+    // non avrebbe nulla a cui legarsi (v-model su una chiave mai inizializzata)
+    for (const v of data.scuoleAbilitate ?? []) if (form.scuole[v] === undefined) form.scuole[v] = false
+    for (const v of data.sottoscuoleAbilitate ?? []) if (form.subscuole[v] === undefined) form.subscuole[v] = false
+    for (const v of data.descrittoriAbilitati ?? []) if (form.descrittori[v] === undefined) form.descrittori[v] = false
   } catch (e) {
     console.error('Errore caricamento configurazione card:', e)
     cards.value = new Set()
+    scuoleAbilitateMondo.value = null
+    sottoscuoleAbilitateMondo.value = null
+    descrittoriAbilitatiMondo.value = null
+    componentiAbilitatiMondo.value = null
   }
 }, {immediate: true})
+
+// Valori mostrati nelle griglie Scuole/Sottoscuole/Descrittori: quelli abilitati per il mondo PIÙ
+// qualunque valore già selezionato (true) sull'incantesimo anche se non (più) abilitato — stessa
+// logica di classCodesVisibili sopra. Nessuna restrizione nota = tutto il dizionario statico.
+function valoriVisibili(statici: string[], abilitati: Set<string> | null, mappa: BoolMap): string[] {
+  if (!abilitati) return statici
+  const staticiValorizzatiNonAbilitati = statici.filter(s => !abilitati.has(s) && !!mappa[s])
+  return [...abilitati, ...staticiValorizzatiNonAbilitati]
+}
 
 // Liste/domini incantesimi abilitati per il mondo scelto (vedi MondoListaIncantesimiAbilitata
 // lato backend): codice -> etichetta (l'etichetta serve per i codici abilitati dall'admin che NON
@@ -200,6 +229,11 @@ const classCodesVisibili = computed(() => {
   const staticiValorizzatiNonAbilitati = CLASS_CODES.filter(c => !abilitati.has(c) && !!form.classi[c])
   return [...abilitati.keys(), ...staticiValorizzatiNonAbilitati]
 })
+
+const scuoleVisibili = computed(() => valoriVisibili(IT_SCHOOLS, scuoleAbilitateMondo.value, form.scuole))
+const sottoscuoleVisibili = computed(() => valoriVisibili(IT_SUBS, sottoscuoleAbilitateMondo.value, form.subscuole))
+const descrittoriVisibili = computed(() => valoriVisibili(IT_DESCS, descrittoriAbilitatiMondo.value, form.descrittori))
+const componentiVisibili = computed(() => valoriVisibili(COMPONENT_KEYS, componentiAbilitatiMondo.value, form.comp))
 
 /* ========= Stato di espansione ========= */
 const open = reactive({scuole: false, sub: false, desc: false, classi: false, comp: false})
@@ -575,7 +609,7 @@ onMounted(() => {
 
   // Componenti
   const compTokens = parseComponenti(props.item.labels, undefined)
-  ;(Object.keys(form.comp) as ComponentKey[]).forEach(k => { form.comp[k] = compTokens.has(k) })
+  Object.keys(form.comp).forEach(k => { form.comp[k] = compTokens.has(k) })
 
   // Scuole/Sub/Descrittori
   const scuolaLine = getLabel(props.item.labels, L.SCUOLA)
@@ -607,11 +641,7 @@ function arrFromBoolMap(m: BoolMap) { return Object.keys(m).filter(k => m[k]) }
 const sumScuole = computed(() => arrFromBoolMap(form.scuole).join(' / ') || '—')
 const sumSub = computed(() => arrFromBoolMap(form.subscuole).join(', ') || '—')
 const sumDesc = computed(() => arrFromBoolMap(form.descrittori).join(', ') || '—')
-const sumComp = computed(() => {
-  const picked: string[] = []
-  ;(Object.keys(form.comp) as ComponentKey[]).forEach(k => { if (form.comp[k]) picked.push(k) })
-  return picked.join(', ') || '—'
-})
+const sumComp = computed(() => arrFromBoolMap(form.comp).join(', ') || '—')
 function friendlyNameFromCode(code: string): string {
   const dinamica = listeAbilitateMondo.value?.get(code)
   if (dinamica) return dinamica
@@ -678,8 +708,7 @@ async function salva(): Promise<ItemDB | null> {
       range: form.range,
       durata: form.durata,
       ts: form.ts, // <-- salva esattamente il valore visibile (già italiano o raw)
-      componenti: (Object.entries(form.comp) as [ComponentKey, boolean][])
-          .filter(([, v]) => v).map(([k]) => k),
+      componenti: arrFromBoolMap(form.comp),
       scuole: scuoleArr,
       subscuole: subsArr,
       descrittori: descArr,
@@ -791,7 +820,7 @@ function onCancel() { emit('cancel') }
         <span class="chev" :class="{ open: open.scuole }">▸</span>
       </button>
       <div v-show="open.scuole" class="fold-body">
-        <CardScuole :scuole="form.scuole" :schools="IT_SCHOOLS" :disabled="disabledAll"/>
+        <CardScuole :scuole="form.scuole" :schools="scuoleVisibili" :disabled="disabledAll"/>
       </div>
     </section>
 
@@ -804,7 +833,7 @@ function onCancel() { emit('cancel') }
         <span class="chev" :class="{ open: open.sub }">▸</span>
       </button>
       <div v-show="open.sub" class="fold-body">
-        <CardSottoscuole :subscuole="form.subscuole" :subs="IT_SUBS" :disabled="disabledAll"/>
+        <CardSottoscuole :subscuole="form.subscuole" :subs="sottoscuoleVisibili" :disabled="disabledAll"/>
       </div>
     </section>
 
@@ -817,7 +846,7 @@ function onCancel() { emit('cancel') }
         <span class="chev" :class="{ open: open.desc }">▸</span>
       </button>
       <div v-show="open.desc" class="fold-body">
-        <CardDescrittori :descrittori="form.descrittori" :descs="IT_DESCS" :disabled="disabledAll"/>
+        <CardDescrittori :descrittori="form.descrittori" :descs="descrittoriVisibili" :disabled="disabledAll"/>
       </div>
     </section>
 
@@ -845,9 +874,7 @@ function onCancel() { emit('cancel') }
         <span class="chev" :class="{ open: open.comp }">▸</span>
       </button>
       <div v-show="open.comp" class="fold-body">
-        <CardComponenti
-            :comp="form.comp" :keys="['V','S','M','F','DF','XP','X','CORRUPT','COLDFIRE','FROSTFELL','B']"
-            :disabled="disabledAll"/>
+        <CardComponenti :comp="form.comp" :keys="componentiVisibili" :disabled="disabledAll"/>
       </div>
     </section>
 

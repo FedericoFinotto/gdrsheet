@@ -107,6 +107,11 @@ export interface TipoItemConfig {
     cardAbilitate: string[];
     campiTitolo: string | null;
     campiLiberi: CampoLiberoDTO[];
+    // valide solo per tipo INCANTESIMO (liste vuote per gli altri tipi): vedi CatalogoIncantesimo
+    scuoleAbilitate: string[];
+    sottoscuoleAbilitate: string[];
+    descrittoriAbilitati: string[];
+    componentiAbilitati: string[];
 }
 
 // Cosa mostra l'editor per (mondo, tipo item): card strutturali abilitate + campi liberi. Usata
@@ -116,10 +121,26 @@ export function getTipoItemConfig(mondoId: number, tipo: string): Promise<AxiosR
     return api.get<TipoItemConfig>(`/mondo/${mondoId}/tipo-item/${tipo}/config`);
 }
 
-// Sostituisce integralmente la configurazione di un (mondo, tipo item) (admin).
+// Sostituisce integralmente la configurazione di un (mondo, tipo item) (admin). I 4 campi
+// *Abilitate/i sono applicati dal backend solo se tipo === 'INCANTESIMO' (ignorati altrimenti).
 export function aggiornaTipoItemConfig(
     mondoId: number, tipo: string,
-    patch: { cardAbilitate?: string[] | null; campiTitolo?: string | null; campiLiberi?: CampoLiberoDTO[] | null }
+    patch: {
+        cardAbilitate?: string[] | null; campiTitolo?: string | null; campiLiberi?: CampoLiberoDTO[] | null
+        scuoleAbilitate?: string[] | null; sottoscuoleAbilitate?: string[] | null
+        descrittoriAbilitati?: string[] | null; componentiAbilitati?: string[] | null
+    }
 ): Promise<AxiosResponse<TipoItemConfig>> {
     return api.put<TipoItemConfig>(`/mondo/${mondoId}/tipo-item/${tipo}/config`, patch);
+}
+
+// Catalogo globale (admin) di una delle 4 liste di corredo incantesimo: 'SCUOLA' | 'SOTTOSCUOLA' |
+// 'DESCRITTORE' | 'COMPONENTE'. Il valore stesso è già l'etichetta mostrata (nessuna etichetta
+// separata, a differenza delle liste/domìni SP_*).
+export function getCatalogoIncantesimo(tipo: string): Promise<AxiosResponse<string[]>> {
+    return api.get<string[]>(`/mondo/catalogo-incantesimo/${tipo}`);
+}
+
+export function creaValoreCatalogoIncantesimo(tipo: string, valore: string): Promise<AxiosResponse<string>> {
+    return api.post<string>(`/mondo/catalogo-incantesimo/${tipo}`, {valore});
 }
