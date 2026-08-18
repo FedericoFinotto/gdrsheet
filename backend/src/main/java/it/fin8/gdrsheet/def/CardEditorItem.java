@@ -68,6 +68,11 @@ public enum CardEditorItem {
     SPELL_DESCRITTORI,
     SPELL_CLASSI_DOMINI,
     SPELL_COMPONENTI,
+    // Flag "Lista Combattenti" (label COMBATTENTI_SP, valore "1"/assente): incantesimi da
+    // valutare per le classi marziali (Ranger/Assassino/Warblade/Paladino/Swordsage). Puramente
+    // informativo/di lavoro, non incide sui codici SP_* di Classi/Domìni. Nuova funzionalità: NON
+    // seedata come abilitata per i mondi esistenti (opt-in, come SCELTE).
+    SPELL_COMBATTENTI,
 
     // --- LivelloEditor.vue (LIVELLO) --- numero livello + caratteristiche base restano sempre
     // presenti, non toggle-abili.

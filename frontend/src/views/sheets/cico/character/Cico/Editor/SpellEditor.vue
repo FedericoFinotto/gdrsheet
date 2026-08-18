@@ -27,6 +27,8 @@ const L = {
   TS: 'TS_SP',
   RANGE: 'RANGE_SP',
   DURATA: 'DURATA_SP',
+  RES: 'RES_SP',
+  COMBATTENTI: 'COMBATTENTI_SP',
   COMP: 'COMP_SP',
   MANUALE: 'MANUALE_SP',
   EN_NAME: 'EN_NAME',
@@ -114,6 +116,8 @@ type SpellDraft = {
   range: string
   durata: string
   ts: string
+  resistenza: string
+  combattenti: boolean
   comp: BoolMap
   classi: Record<string, string>
   classiCustom: Array<{ codice: string; livello: string }>  // liste/classi non nel catalogo preimpostato
@@ -135,6 +139,8 @@ function emptyDraft(): SpellDraft {
     descrittori: emptyBoolMap(IT_DESCS),
     tempo: '', range: '', durata: '',
     ts: 'Nessuno',
+    resistenza: '',
+    combattenti: false,
     comp: emptyBoolMap(COMPONENT_KEYS),
     classi: emptyClassLevels(),
     classiCustom: []
@@ -212,6 +218,18 @@ watch(() => form.idMondo, async (idMondo) => {
     for (const codice of mappa.keys()) {
       if (form.classi[codice] === undefined) form.classi[codice] = ''
     }
+    // Riclassifica le voci di classiCustom che in realtà sono liste dinamiche del mondo (es.
+    // SP_SAG creata ad hoc per Costa, non nel dizionario statico CLASS_LABELS): il parsing delle
+    // label in onMounted() decide dove mettere un codice SP_* SOLO in base a CLASS_LABELS (perché
+    // gira in modo sincrono, prima che questa chiamata async sia tornata), quindi un codice
+    // dinamico ci arriva sempre come "personalizzato" anche se esiste già la casella giusta —
+    // qui, appena le liste del mondo sono note, lo spostiamo dove deve stare.
+    const rimasti: typeof form.classiCustom = []
+    for (const c of form.classiCustom) {
+      if (mappa.has(c.codice)) form.classi[c.codice] = c.livello
+      else rimasti.push(c)
+    }
+    form.classiCustom = rimasti
   } catch (e) {
     console.error('Errore caricamento configurazione mondo:', e)
     listeAbilitateMondo.value = null
@@ -607,6 +625,12 @@ onMounted(() => {
   const tsRaw = getLabel(props.item.labels, L.TS) ?? '';
   form.ts = normalizeOrRawTS(tsRaw)
 
+  // Resistenza: testo libero, nessuna normalizzazione (stesso trattamento di TS quando già IT)
+  form.resistenza = getLabel(props.item.labels, L.RES) ?? ''
+
+  // Lista Combattenti: flag semplice, "1" = attivo
+  form.combattenti = getLabel(props.item.labels, L.COMBATTENTI) === '1'
+
   // Componenti
   const compTokens = parseComponenti(props.item.labels, undefined)
   Object.keys(form.comp).forEach(k => { form.comp[k] = compTokens.has(k) })
@@ -708,6 +732,8 @@ async function salva(): Promise<ItemDB | null> {
       range: form.range,
       durata: form.durata,
       ts: form.ts, // <-- salva esattamente il valore visibile (già italiano o raw)
+      resistenza: form.resistenza,
+      combattenti: form.combattenti,
       componenti: arrFromBoolMap(form.comp),
       scuole: scuoleArr,
       subscuole: subsArr,
@@ -808,7 +834,11 @@ function onCancel() { emit('cancel') }
         <input v-model.trim="form.durata" type="text" :disabled="disabledAll"
                placeholder="Istantanea / 1 round/livello …"/>
       </label>
-      <div class="field"></div>
+      <label class="field">
+        <span class="lbl">Resistenza</span>
+        <input v-model.trim="form.resistenza" type="text" :disabled="disabledAll"
+               placeholder="Sì / Sì (Innocuo) / No …"/>
+      </label>
     </div>
 
     <!-- Scuole -->
@@ -877,6 +907,14 @@ function onCancel() { emit('cancel') }
         <CardComponenti :comp="form.comp" :keys="componentiVisibili" :disabled="disabledAll"/>
       </div>
     </section>
+
+    <!-- Lista Combattenti: flag di lavoro, incantesimi da valutare per le classi marziali -->
+    <label v-if="cards.has('SPELL_COMBATTENTI')" class="field combattenti-field">
+      <span class="chk">
+        <input type="checkbox" v-model="form.combattenti" :disabled="disabledAll"/>
+        <span>Lista Combattenti (da valutare per Ranger/Assassino/Warblade/Paladino/Swordsage)</span>
+      </span>
+    </label>
 
     <label class="field">
       <span class="lbl">Descrizione{{ mostraDescrizioneEn ? ' (EN)' : '' }}</span>

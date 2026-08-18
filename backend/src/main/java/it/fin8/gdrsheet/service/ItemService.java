@@ -194,6 +194,9 @@ public class ItemService {
         if (ts != null && ts.trim().equalsIgnoreCase("None")) ts = "Nessuno";
         putSingleLabel(itm, "TS_SP", ts);
 
+        putSingleLabel(itm, "RES_SP", request.getResistenza());
+        putSingleLabel(itm, "COMBATTENTI_SP", Boolean.TRUE.equals(request.getCombattenti()) ? "1" : null);
+
         // --- COMPONENTI (multi-riga: una label per valore) ---
         if (request.getComponenti() != null) {
             for (String comp : request.getComponenti()) {

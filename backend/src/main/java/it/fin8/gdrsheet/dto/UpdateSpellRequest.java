@@ -62,6 +62,18 @@ public class UpdateSpellRequest {
     private List<String> componenti;
 
     /**
+     * Resistenza agli incantesimi normalizzata in IT (es. "Sì", "Sì (Innocuo)", "No").
+     */
+    private String resistenza;
+
+    /**
+     * Flag "Lista Combattenti" (card SPELL_COMBATTENTI): incantesimi da valutare per le classi
+     * marziali (Ranger/Assassino/Warblade/Paladino/Swordsage) — puramente informativo, non
+     * incide sui codici SP_* in {@link #classi}.
+     */
+    private Boolean combattenti;
+
+    /**
      * Scuole (IT) es. ["Invocazione"]
      */
     private List<String> scuole;

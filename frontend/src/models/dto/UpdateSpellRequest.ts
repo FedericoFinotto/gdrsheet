@@ -10,6 +10,8 @@ export interface UpdateSpellRequest {
     durata?: string;
     ts?: string;
     componenti?: string[];
+    resistenza?: string;
+    combattenti?: boolean;
     scuole?: string[];
     subscuole?: string[];
     descrittori?: string[];
