@@ -10,6 +10,8 @@ import it.fin8.gdrsheet.entity.*;
 import it.fin8.gdrsheet.mapper.ItemMapper;
 import it.fin8.gdrsheet.mapper.ModificatoreMapper;
 import it.fin8.gdrsheet.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -24,6 +26,8 @@ import java.util.stream.Stream;
 
 @Component
 public class PersonaggioService {
+
+    private static final Logger log = LoggerFactory.getLogger(PersonaggioService.class);
 
     @Autowired
     private PersonaggioRepository personaggioRepository;
@@ -2177,6 +2181,18 @@ public class PersonaggioService {
     private SpellBookDTO generateSpellBookSezione(Item classe, int livelloSlot, int casterLevelClasse,
                                                   Integer idPersonaggio, SezioneIncantesimi sez, boolean fisso,
                                                   Map<String, Integer> variabili) {
+        // CasterLevel (mostrato in scheda come "CL"): sugli oggetti (fisso=true) è un valore
+        // impostato a mano (l'oggetto non ha "livelli"), sulle classi è già stato aggregato dal
+        // chiamante secondo la variante scelta sulla sezione (SPELL_<n>_CL_SRC: NM/TOT).
+        // Un oggetto con sezione incantesimi ma senza SPELL_<n>_CASTER_LEVEL impostato (dati creati
+        // prima che il campo esistesse in editor, o mai compilato) non ha modo di calcolare slot/CD:
+        // salta la sezione invece di far esplodere l'intera generazione dello spellbook del personaggio.
+        if (fisso && sez.casterLevelFisso() == null) {
+            log.warn("Sezione incantesimi #{} dell'item {} ({}) senza caster level fisso: sezione ignorata",
+                    sez.indice(), classe.getId(), classe.getNome());
+            return null;
+        }
+        Integer casterLevel = fisso ? sez.casterLevelFisso() : casterLevelClasse;
         SpellBookDTO spellBook = new SpellBookDTO();
         spellBook.setIdClasse(classe.getId());
         spellBook.setNomeClasse(classe.getNome());
@@ -2184,10 +2200,6 @@ public class PersonaggioService {
         spellBook.setSpellList(String.join(",", sez.liste()));
         spellBook.setSezioneIndice(sez.indice());
         spellBook.setSpurii(generateSpurii(classe, idPersonaggio));
-        // CasterLevel (mostrato in scheda come "CL"): sugli oggetti (fisso=true) è un valore
-        // impostato a mano (l'oggetto non ha "livelli"), sulle classi è già stato aggregato dal
-        // chiamante secondo la variante scelta sulla sezione (SPELL_<n>_CL_SRC: NM/TOT).
-        Integer casterLevel = fisso ? sez.casterLevelFisso() : casterLevelClasse;
         spellBook.setCasterLevel(casterLevel);
         spellBook.setCaratteristica(sez.caratteristica());
         impostaCd(spellBook, casterLevel, sez.caratteristica(), variabili);

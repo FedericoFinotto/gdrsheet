@@ -61,6 +61,14 @@ const idSistemaQuery = computed<number | undefined>(() => {
 // dallo UpperBar, non rifà la chiamata).
 const idMondoEffettivo = computed<number | undefined>(() => idMondoQuery.value ?? mondoStore.corrente ?? undefined)
 
+// sistema effettivo: quello in query se presente, altrimenti il sistema del mondo corrente dello
+// switcher globale (se noto tra i mondi disponibili)
+const idSistemaEffettivo = computed<number | undefined>(() => {
+  if (idSistemaQuery.value) return idSistemaQuery.value
+  const mondoCorrente = mondoStore.disponibili.find(m => m.id === mondoStore.corrente)
+  return mondoCorrente?.sistemaId ?? undefined
+})
+
 mondoStore.carica()
 watch(idMondoEffettivo, async (idMondo) => {
   if (!idMondo) { tipiAbilitatiMondo.value = null; return }
@@ -96,8 +104,8 @@ const blankItem = computed<ItemDB | null>(() => {
     modificatori: [],
     labels: [],
     avanzamento: [],
-    mondo: idMondoQuery.value ? ({id: idMondoQuery.value} as ItemDB['mondo']) : undefined,
-    sistema: idSistemaQuery.value ? ({id: idSistemaQuery.value} as ItemDB['sistema']) : undefined,
+    mondo: idMondoEffettivo.value ? ({id: idMondoEffettivo.value} as ItemDB['mondo']) : undefined,
+    sistema: idSistemaEffettivo.value ? ({id: idSistemaEffettivo.value} as ItemDB['sistema']) : undefined,
   }
 })
 

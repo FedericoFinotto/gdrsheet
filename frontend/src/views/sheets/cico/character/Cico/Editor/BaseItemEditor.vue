@@ -10,7 +10,8 @@ import {
   ModificatoreRow,
   UpdateItemRequest
 } from '../../../../../../models/dto/UpdateItemRequest'
-import {createItem, getItem, searchItems, updateItem} from '../../../../../../service/PersonaggioService'
+import {createItem, getItem, getStats, searchItems, updateItem} from '../../../../../../service/PersonaggioService'
+import {Stat} from '../../../../../../models/entity/Stat'
 import {Item} from '../../../../../../models/dto/Item'
 import {getItemLabel, getItemLabels} from '../../../../../../models/entity/ItemLabel'
 import useChildCreate from '../../../../../../function/useChildCreate'
@@ -35,7 +36,7 @@ import NotesEditor, {NotaRow} from './Sections/NotesEditor.vue'
 import {SPELL_LIST_CODES, spellListLabel} from '../../../../../../function/spellLists'
 import {TAGLIE_OPTIONS_NOME} from '../../../../../../function/Utils'
 import {TIPO_ITEM, TIPO_ITEM_LABELS} from '../../../../../../models/entity/ItemDB'
-import {getTipoItemConfig} from '../../../../../../service/MondoAdminService'
+import {getConfigMondo, getTipoItemConfig} from '../../../../../../service/MondoAdminService'
 import {getItemParents} from '../../../../../../service/PersonaggioService'
 import CardNodoStruttura from './Sections/CardNodoStruttura.vue'
 import CardScelte, {SezioneScelta} from './Sections/CardScelte.vue'
@@ -193,6 +194,7 @@ const form = reactive<{
     liste: string[]; bonus: string; slot: string; conosciutiSeparati: boolean; conosciuti: string
     slotConContatore: boolean
     personalizzata: boolean; incantesimiCustom: Array<{ id: number; nome: string; livello: number }>
+    caratteristica: string; casterLevelFisso: string
   }>
   aggiunteClasse: Array<{
     idClasse: number | null; nomeClasse: string; valore: string
@@ -357,7 +359,7 @@ async function preload() {
   // (l'ordine delle label non è garantito, es. _SLOT potrebbe comparire prima di SPELL_<n> stesso)
   const spellRaw: Record<number, {
     liste?: string; bonus?: string; slot?: string; haConosciuti?: string; conosciuti?: string
-    personalizzata?: string; incantesimi?: string
+    personalizzata?: string; incantesimi?: string; caratteristica?: string; casterLevel?: string
   }> = {}
   // righe ADD_CLASSE_<n>* raccolte allo stesso modo (stesso motivo: ordine label non garantito)
   const addClasseRaw: Record<number, {
@@ -441,8 +443,8 @@ async function preload() {
       form.campiMulti[key].push(val)
     } else if (campoKeys.has(key) && !form.campi[key]) {
       form.campi[key] = val
-    } else if (/^SPELL_\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CUSTOM|_INCANTESIMI)?$/.test(key)) {
-      const m = key.match(/^SPELL_(\d+)(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CUSTOM|_INCANTESIMI)?$/)!
+    } else if (/^SPELL_\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CUSTOM|_INCANTESIMI|_CARATTERISTICA|_CASTER_LEVEL)?$/.test(key)) {
+      const m = key.match(/^SPELL_(\d+)(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CUSTOM|_INCANTESIMI|_CARATTERISTICA|_CASTER_LEVEL)?$/)!
       const n = Number(m[1])
       const suffix = m[2] ?? ''
       const row = (spellRaw[n] ??= {})
@@ -454,6 +456,8 @@ async function preload() {
       else if (suffix === '_SLOT_CONTATORE') row.slotConContatore = val
       else if (suffix === '_CUSTOM') row.personalizzata = val
       else if (suffix === '_INCANTESIMI') row.incantesimi = val
+      else if (suffix === '_CARATTERISTICA') row.caratteristica = val
+      else if (suffix === '_CASTER_LEVEL') row.casterLevel = val
       // _PROG: ignorata, gli item non hanno progressione (sempre a slot fisso)
     } else if (/^SCELTA_\d+_FATTA$/.test(key)) {
       // scelta del personaggio: personaggio-scoped, mai editata/salvata da questo editor
@@ -500,6 +504,8 @@ async function preload() {
       slotConContatore: r.slotConContatore === '1',
       personalizzata: r.personalizzata === '1',
       incantesimiCustom,
+      caratteristica: r.caratteristica ?? '',
+      casterLevelFisso: r.casterLevel ?? '',
     }
   })
   // il label salva solo "id:livello": recupera i nomi per mostrarli nell'editor
@@ -612,6 +618,7 @@ function addSezioneIncantesimi() {
     liste: [], bonus: '', slot: '', conosciutiSeparati: false, conosciuti: '',
     slotConContatore: false,
     personalizzata: false, incantesimiCustom: [],
+    caratteristica: '', casterLevelFisso: '',
   })
 }
 function removeSezioneIncantesimi(i: number) {
@@ -624,8 +631,32 @@ function removeListaIncantesimi(s: { liste: string[] }, code: string) {
   const i = s.liste.indexOf(code)
   if (i >= 0) s.liste.splice(i, 1)
 }
+// Liste/domìni incantesimi abilitati per il mondo scelto (vedi MondoListaIncantesimiAbilitata lato
+// backend, stesso meccanismo usato da SpellEditor.vue per la griglia Classi/Domìni): senza questo
+// filtro il picker mostrerebbe SEMPRE l'intero catalogo statico SPELL_LIST_CODES, incluse liste di
+// altri mondi/sistemi che qui non hanno senso. null finché non risolto o in caso di errore =
+// nessuna restrizione nota, per non far sparire di colpo il picker.
+const listeAbilitateMondoSezioni = ref<Map<string, string> | null>(null)
+watch(() => form.idMondo, async (idMondo) => {
+  if (!idMondo) { listeAbilitateMondoSezioni.value = null; return }
+  try {
+    const {data} = await getConfigMondo(idMondo)
+    listeAbilitateMondoSezioni.value = new Map(data.listeIncantesimiAbilitate.map(l => [l.codice, l.etichetta] as const))
+  } catch (e) {
+    console.error('Errore caricamento liste incantesimi del mondo:', e)
+    listeAbilitateMondoSezioni.value = null
+  }
+}, {immediate: true})
+
 function listeIncantesimiDisponibili(s: { liste: string[] }): string[] {
-  return SPELL_LIST_CODES.filter(c => !s.liste.includes(c))
+  const catalogo = listeAbilitateMondoSezioni.value ? [...listeAbilitateMondoSezioni.value.keys()] : SPELL_LIST_CODES
+  return catalogo.filter(c => !s.liste.includes(c))
+}
+// etichetta di un codice lista: quella del mondo se disponibile (necessario per i codici custom
+// creati ad hoc per un mondo, es. SP_CAR/SP_INT/SP_SAG, assenti dal catalogo statico), altrimenti
+// quella statica di spellLists.ts
+function spellListLabelMondo(code: string): string {
+  return listeAbilitateMondoSezioni.value?.get(code) ?? spellListLabel(code)
 }
 // codice libero (non nel catalogo SPELL_LIST_CODES), indicizzato per sezione
 const customListaCode = reactive<string[]>([])
@@ -649,7 +680,9 @@ function onQueryIncCustom(i: number) {
   if (debounceIncTimer) clearTimeout(debounceIncTimer)
   debounceIncTimer = setTimeout(async () => {
     const q = (queryIncCustom[i] ?? '').trim()
-    if (q.length < 2) {
+    // senza un mondo impostato la ricerca restituirebbe incantesimi di TUTTI i mondi mescolati:
+    // meglio non mostrare nulla che un risultato fuorviante (l'utente deve prima scegliere il mondo)
+    if (q.length < 2 || form.idMondo == null) {
       risultatiIncCustom[i] = []
       return
     }
@@ -689,6 +722,8 @@ function removeAggiuntaClasse(i: number) {
   form.aggiunteClasse.splice(i, 1)
 }
 async function searchClasseAggiunta(q: string) {
+  // stesso motivo del guard su onQueryIncCustom: senza mondo la ricerca mescolerebbe tutti i mondi
+  if (form.idMondo == null) return []
   try {
     const res = await searchItems(q, 'CLASSE', form.idMondo)
     return (res.data ?? []).map((c: any) => ({value: c.id, label: c.nome}))
@@ -708,6 +743,10 @@ async function onPickClasseAggiunta(row: { idClasse: number | null; nomeClasse: 
 
 const childCreate = useChildCreate()
 const {mondoOptions, sistemaOptions, autoMondo, autoSistema} = useMondoSistema()
+
+// caratteristiche disponibili per la card Incantesimi (selettore "Caratteristica" per la CD)
+const stats = ref<Stat[]>([])
+getStats().then(s => { stats.value = s }).catch(e => console.error('Errore caricamento stats:', e))
 
 // In creazione, auto-seleziona se l'utente ha accesso a un solo mondo/sistema
 watch([autoMondo, autoSistema], ([m, s]) => {
@@ -969,6 +1008,8 @@ function buildPayload(): UpdateItemRequest {
         if (s.conosciuti.trim()) labels.push({label: `SPELL_${n}_CONOSCIUTI`, valore: s.conosciuti.trim()})
       }
       if (s.slotConContatore) labels.push({label: `SPELL_${n}_SLOT_CONTATORE`, valore: '1'})
+      if (s.caratteristica.trim()) labels.push({label: `SPELL_${n}_CARATTERISTICA`, valore: s.caratteristica.trim()})
+      if (s.casterLevelFisso.trim()) labels.push({label: `SPELL_${n}_CASTER_LEVEL`, valore: s.casterLevelFisso.trim()})
       if (s.personalizzata) {
         labels.push({label: `SPELL_${n}_CUSTOM`, valore: '1'})
         labels.push({label: `SPELL_${n}_INCANTESIMI`, valore: custom.map(c => `${c.id}:${c.livello}`).join(',')})
@@ -1580,12 +1621,12 @@ function onCancel() {
             <span class="lbl">Liste incantesimi (unite in questa sezione)</span>
             <div v-if="s.liste.length" class="chips">
               <span v-for="code in s.liste" :key="code" class="chip">
-                {{ spellListLabel(code) }}
+                {{ spellListLabelMondo(code) }}
                 <button type="button" class="chip-x" :disabled="disabledAll" @click="removeListaIncantesimi(s, code)">✕</button>
               </span>
             </div>
             <SearchSelect :model-value="''" :disabled="disabledAll" placeholder="+ Aggiungi lista…"
-                          :options="listeIncantesimiDisponibili(s).map(c => ({value: c, label: `${spellListLabel(c)} (${c})`}))"
+                          :options="listeIncantesimiDisponibili(s).map(c => ({value: c, label: `${spellListLabelMondo(c)} (${c})`}))"
                           @update:model-value="addListaIncantesimi(s, $event as string)"/>
             <div class="custom-lista-row">
               <input v-model.trim="customListaCode[i]" type="text" placeholder="Codice personalizzato, es. SP_ANELLO_CUSTOM"
@@ -1630,6 +1671,18 @@ function onCancel() {
             <label class="field">
               <span class="lbl">Formula slot bonus</span>
               <input v-model.trim="s.bonus" type="text" placeholder="Es.: 1+(@SAG-#L)/4)" :disabled="disabledAll"/>
+            </label>
+            <label class="field">
+              <span class="lbl">Livello incantatore fisso *</span>
+              <input v-model.trim="s.casterLevelFisso" type="text" inputmode="numeric" placeholder="Es.: 10"
+                     :disabled="disabledAll"/>
+              <span class="muted">Obbligatorio: un oggetto non ha un "livello" da cui derivarlo come una classe.</span>
+            </label>
+            <label class="field">
+              <span class="lbl">Caratteristica (per la CD: 10 + CL + modificatore)</span>
+              <SearchSelect v-model="s.caratteristica" :disabled="disabledAll"
+                            :options="[{value: '', label: '— nessuna —'}, ...stats.filter(x => x.tipo === 'CAR').map(x => ({value: x.id, label: x.label}))]"
+                            :sort="false"/>
             </label>
           </div>
 

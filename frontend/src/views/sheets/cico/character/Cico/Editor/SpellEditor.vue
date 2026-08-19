@@ -18,7 +18,7 @@ import CardComponenti from './Spell/CardComponenti.vue'
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean }>()
 const emit = defineEmits<{ (e: 'saved'): void; (e: 'cancel'): void; (e: 'savedResta', item: ItemDB): void }>()
-const {mondoOptions, sistemaOptions} = useMondoSistema()
+const {mondoOptions, sistemaOptions, autoMondo, autoSistema} = useMondoSistema()
 
 /* ========= Labels chiavi ========= */
 const L = {
@@ -612,6 +612,17 @@ onMounted(() => {
   mostraDescrizioneEn.value = false
   form.idMondo = props.item.mondo?.id ?? null
   form.idSistema = props.item.sistema?.id ?? null
+})
+
+// In creazione, auto-seleziona il mondo/sistema correntemente selezionato nello switcher globale
+// (stesso pattern di BaseItemEditor.vue)
+watch([autoMondo, autoSistema], ([m, s]) => {
+  if (props.item.id) return
+  if (m !== null && form.idMondo === null) form.idMondo = m
+  if (s !== null && form.idSistema === null) form.idSistema = s
+}, {immediate: true})
+
+onMounted(() => {
 
   // Tempo / Durata / Range: normalizza in IT (non distruttivo)
   const tempoRaw = getLabel(props.item.labels, L.TEMPO) ?? '';

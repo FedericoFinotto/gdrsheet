@@ -197,12 +197,23 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
                               WHERE ien.item = i AND ien.label = 'EN_NAME'
                                 AND lower(ien.valore) LIKE lower(concat('%', :nome, '%'))))
               AND (:idMondo IS NULL OR (i.mondo IS NOT NULL AND i.mondo.id = :idMondo))
+              AND (:listaSpell IS NULL OR EXISTS (SELECT 1 FROM ItemLabel ils
+                              WHERE ils.item = i AND ils.label = :listaSpell))
+              AND (:soloCombattenti IS NULL
+                   OR (:soloCombattenti = true AND EXISTS (SELECT 1 FROM ItemLabel ilc
+                              WHERE ilc.item = i AND ilc.label = 'COMBATTENTI_SP'
+                                AND lower(ilc.valore) IN ('true', '1')))
+                   OR (:soloCombattenti = false AND NOT EXISTS (SELECT 1 FROM ItemLabel ilc
+                              WHERE ilc.item = i AND ilc.label = 'COMBATTENTI_SP'
+                                AND lower(ilc.valore) IN ('true', '1'))))
             ORDER BY i.nome
             """)
     org.springframework.data.domain.Page<Item> findCompendioAll(
             @Param("nome") String nome,
             @Param("tipo") TipoItem tipo,
             @Param("idMondo") Integer idMondo,
+            @Param("listaSpell") String listaSpell,
+            @Param("soloCombattenti") Boolean soloCombattenti,
             org.springframework.data.domain.Pageable pageable
     );
 
@@ -216,6 +227,15 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
                               WHERE ien.item = i AND ien.label = 'EN_NAME'
                                 AND lower(ien.valore) LIKE lower(concat('%', :nome, '%'))))
               AND (:idMondo IS NULL OR (i.mondo IS NOT NULL AND i.mondo.id = :idMondo))
+              AND (:listaSpell IS NULL OR EXISTS (SELECT 1 FROM ItemLabel ils
+                              WHERE ils.item = i AND ils.label = :listaSpell))
+              AND (:soloCombattenti IS NULL
+                   OR (:soloCombattenti = true AND EXISTS (SELECT 1 FROM ItemLabel ilc
+                              WHERE ilc.item = i AND ilc.label = 'COMBATTENTI_SP'
+                                AND lower(ilc.valore) IN ('true', '1')))
+                   OR (:soloCombattenti = false AND NOT EXISTS (SELECT 1 FROM ItemLabel ilc
+                              WHERE ilc.item = i AND ilc.label = 'COMBATTENTI_SP'
+                                AND lower(ilc.valore) IN ('true', '1'))))
               AND (
                 i.tipo IN (it.fin8.gdrsheet.def.TipoItem.INCANTESIMO,
                            it.fin8.gdrsheet.def.TipoItem.CLASSE,
@@ -238,6 +258,8 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             @Param("nome") String nome,
             @Param("tipo") TipoItem tipo,
             @Param("idMondo") Integer idMondo,
+            @Param("listaSpell") String listaSpell,
+            @Param("soloCombattenti") Boolean soloCombattenti,
             @Param("mondoIds") List<Integer> mondoIds,
             @Param("sistemaIds") List<Integer> sistemaIds,
             org.springframework.data.domain.Pageable pageable

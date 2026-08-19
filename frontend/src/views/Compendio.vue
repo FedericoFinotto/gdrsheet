@@ -10,7 +10,7 @@ import {TIPO_ITEM_LABELS} from './sheets/cico/character/Cico/Editor/editorRegist
 import Mobile_DettaglioItem from './sheets/cico/character/Dettaglio/Mobile_DettaglioItem.vue'
 import QuestNode from './sheets/cico/character/Cico/Sheet/QuestNode.vue'
 import {useMondoStore} from '../stores/mondo'
-import {getConfigMondo} from '../service/MondoAdminService'
+import {getConfigMondo, getTipoItemConfig} from '../service/MondoAdminService'
 import {highlightMatch} from '../function/textHighlight'
 import {getQuestAlbero} from '../service/QuestService'
 import {Quest} from '../models/dto/Quest'
@@ -99,6 +99,10 @@ const errorMsg = ref<string | null>(null)
 
 const filtroNome = ref(String(route.query.nome ?? ''))
 const filtroTipo = ref(String(route.query.tipo ?? ''))
+// Filtri aggiuntivi, visibili solo quando filtroTipo === 'INCANTESIMO' (vedi filters sotto):
+// lista incantesimi (codice SP_*, es. SP_SAG) e flag Lista Combattenti (tri-stato: tutti/sì/no).
+const filtroListaSpell = ref(String(route.query.lista ?? ''))
+const filtroCombattenti = ref(String(route.query.combattenti ?? ''))
 const page = ref(Math.max(0, Number(route.query.page) || 0))
 const PAGE_SIZE = 10
 
@@ -106,17 +110,38 @@ const PAGE_SIZE = 10
 // catalogo statico, altrimenti restringe il filtro agli stessi tipi che si possono creare/editare
 // in quel mondo (vedi lo stesso pattern in ItemCreate.vue/SpellEditor.vue).
 const tipiAbilitatiMondo = ref<Set<string> | null>(null)
+// Liste incantesimi abilitate per il mondo corrente (codice -> etichetta): stesso dato di
+// getConfigMondo già usato per tipiAbilitatiMondo, vedi listeIncantesimiAbilitate.
+const listeIncantesimiAbilitate = ref<Map<string, string> | null>(null)
 async function caricaTipiAbilitati() {
-  if (filtroMondo.value == null) { tipiAbilitatiMondo.value = null; return }
+  if (filtroMondo.value == null) { tipiAbilitatiMondo.value = null; listeIncantesimiAbilitate.value = null; return }
   try {
     const {data} = await getConfigMondo(filtroMondo.value)
     tipiAbilitatiMondo.value = new Set(data.tipiAbilitati)
+    listeIncantesimiAbilitate.value = new Map(data.listeIncantesimiAbilitate.map(l => [l.codice, l.etichetta] as const))
   } catch (e) {
     console.error('Errore caricamento tipi abilitati mondo:', e)
     tipiAbilitatiMondo.value = null
+    listeIncantesimiAbilitate.value = null
   }
 }
 watch(filtroMondo, caricaTipiAbilitati)
+
+// Card "Lista Combattenti" (SPELL_COMBATTENTI) abilitata per il mondo corrente sul tipo
+// INCANTESIMO: il filtro combattenti/non-combattenti ha senso mostrarlo solo se il mondo la usa
+// (stesso meccanismo di cards.has('SPELL_COMBATTENTI') in SpellEditor.vue/BaseItemEditor.vue).
+const cardCombattentiAbilitata = ref(false)
+async function caricaCardCombattenti() {
+  if (filtroMondo.value == null) { cardCombattentiAbilitata.value = false; return }
+  try {
+    const {data} = await getTipoItemConfig(filtroMondo.value, 'INCANTESIMO')
+    cardCombattentiAbilitata.value = data.cardAbilitate.includes('SPELL_COMBATTENTI')
+  } catch (e) {
+    console.error('Errore caricamento card Lista Combattenti:', e)
+    cardCombattentiAbilitata.value = false
+  }
+}
+watch(filtroMondo, caricaCardCombattenti)
 
 const TIPI_FILTRO = computed(() => [
   {value: '', label: 'Tutti i tipi'},
@@ -125,16 +150,38 @@ const TIPI_FILTRO = computed(() => [
       .map(([value, label]) => ({value, label})),
 ])
 
+const LISTE_SPELL_FILTRO = computed(() => [
+  {value: '', label: 'Tutte le liste'},
+  ...[...(listeIncantesimiAbilitate.value?.entries() ?? [])]
+      .map(([codice, etichetta]) => ({value: codice, label: etichetta})),
+])
+
+const COMBATTENTI_FILTRO = [
+  {value: '', label: 'Tutti'},
+  {value: 'true', label: 'Solo Lista Combattenti'},
+  {value: 'false', label: 'Esclusi Lista Combattenti'},
+]
+
+// uscendo dal tipo INCANTESIMO i due filtri non hanno più senso: azzerali, altrimenti
+// resterebbero applicati "silenziosamente" al riselezionare INCANTESIMO in seguito, oppure — se
+// per errore inviati col tipo sbagliato — filtrerebbero un tipo che non li supporta
+watch(filtroTipo, tipo => {
+  if (tipo !== 'INCANTESIMO') { filtroListaSpell.value = ''; filtroCombattenti.value = '' }
+})
+
 const expandedId = ref<number | null>(null)
 
 async function load() {
   loading.value = true
   errorMsg.value = null
   try {
+    const isSpell = filtroTipo.value === 'INCANTESIMO'
     const res = await getCompendio({
       nome: filtroNome.value.trim() || undefined,
       tipo: filtroTipo.value || undefined,
       idMondo: filtroMondo.value ?? undefined,
+      listaSpell: (isSpell && filtroListaSpell.value) || undefined,
+      soloCombattenti: (isSpell && filtroCombattenti.value) ? filtroCombattenti.value === 'true' : undefined,
       page: page.value,
       size: PAGE_SIZE,
     })
@@ -155,7 +202,7 @@ const mondoPronto = ref(false)
 
 let filtroTimer: any = null
 let ricercaGlobaleTimer: any = null
-watch([filtroNome, filtroTipo, filtroMondo, deepMode], () => {
+watch([filtroNome, filtroTipo, filtroListaSpell, filtroCombattenti, filtroMondo, deepMode], () => {
   if (!mondoPronto.value) return
   if (puoRicercaProfonda.value && deepMode.value) {
     if (ricercaGlobaleTimer) clearTimeout(ricercaGlobaleTimer)
@@ -172,14 +219,16 @@ watch([filtroNome, filtroTipo, filtroMondo, deepMode], () => {
 // Riflette i filtri nella URL. replace e non push: la cronologia non deve riempirsi di una voce
 // per ogni tasto premuto, ma la voce corrente va aggiornata così che il back dall'editor torni
 // alla vista giusta.
-watch([filtroNome, filtroTipo, deepMode, page], () => {
+watch([filtroNome, filtroTipo, filtroListaSpell, filtroCombattenti, deepMode, page], () => {
   const q: Record<string, string> = {}
   if (filtroNome.value.trim()) q.nome = filtroNome.value.trim()
   if (filtroTipo.value) q.tipo = filtroTipo.value
+  if (filtroTipo.value === 'INCANTESIMO' && filtroListaSpell.value) q.lista = filtroListaSpell.value
+  if (filtroTipo.value === 'INCANTESIMO' && filtroCombattenti.value) q.combattenti = filtroCombattenti.value
   if (deepMode.value) q.deep = '1'
   if (page.value > 0) q.page = String(page.value)
   // niente replace se la query è già quella (confronto per chiave: l'ordine nella URL non conta)
-  const uguale = (['nome', 'tipo', 'deep', 'page'] as const)
+  const uguale = (['nome', 'tipo', 'lista', 'combattenti', 'deep', 'page'] as const)
       .every(k => String(route.query[k] ?? '') === (q[k] ?? ''))
   if (!uguale) router.replace({query: q})
 })
@@ -187,13 +236,17 @@ watch([filtroNome, filtroTipo, deepMode, page], () => {
 // …e viceversa: se la URL cambia mentre la pagina è già montata (es. la scorciatoia
 // "Randomizzatori" del menu quando si è già nel compendio) i filtri devono adeguarsi.
 // Il watch qui sopra non riscatta: dopo l'allineamento la query è identica.
-watch(() => [route.query.nome, route.query.tipo, route.query.deep, route.query.page], () => {
+watch(() => [route.query.nome, route.query.tipo, route.query.lista, route.query.combattenti, route.query.deep, route.query.page], () => {
   const nome = String(route.query.nome ?? '')
   const tipo = String(route.query.tipo ?? '')
+  const lista = String(route.query.lista ?? '')
+  const combattenti = String(route.query.combattenti ?? '')
   const deep = route.query.deep === '1'
   const pg = Math.max(0, Number(route.query.page) || 0)
   if (filtroNome.value !== nome) filtroNome.value = nome
   if (filtroTipo.value !== tipo) filtroTipo.value = tipo
+  if (filtroListaSpell.value !== lista) filtroListaSpell.value = lista
+  if (filtroCombattenti.value !== combattenti) filtroCombattenti.value = combattenti
   if (deepMode.value !== deep) deepMode.value = deep
   if (page.value !== pg) page.value = pg
 })
@@ -225,6 +278,7 @@ onMounted(async () => {
   await mondoStore.carica()
   mondoPronto.value = true
   await caricaTipiAbilitati()
+  await caricaCardCombattenti()
   await caricaAlberiNodo()
   if (inRicercaGlobale.value) eseguiRicercaGlobale()
   else load()
@@ -259,6 +313,11 @@ onMounted(async () => {
     <!-- filtri (nascosti durante la ricerca profonda) -->
     <div v-if="!inRicercaGlobale" class="filters">
       <SearchSelect v-model="filtroTipo" class="filter-tipo" :options="TIPI_FILTRO" :sort="false"/>
+      <template v-if="filtroTipo === 'INCANTESIMO'">
+        <SearchSelect v-model="filtroListaSpell" class="filter-tipo" :options="LISTE_SPELL_FILTRO" :sort="false"/>
+        <SearchSelect v-if="cardCombattentiAbilitata" v-model="filtroCombattenti" class="filter-tipo"
+                      :options="COMBATTENTI_FILTRO" :sort="false"/>
+      </template>
     </div>
 
     <!-- risultati ricerca profonda -->
@@ -418,10 +477,11 @@ onMounted(async () => {
 }
 
 .filters {
-  display: grid;
-  grid-template-columns: auto;
+  display: flex;
+  flex-wrap: wrap;
   gap: .4rem;
 }
+.filters > * { flex: 1 1 10rem; }
 
 .filter-tipo {
   padding: .45rem .6rem;

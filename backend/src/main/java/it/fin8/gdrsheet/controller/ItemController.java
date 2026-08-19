@@ -279,6 +279,8 @@ public class ItemController {
             @RequestParam(required = false) String nome,
             @RequestParam(required = false) TipoItem tipo,
             @RequestParam(required = false) Integer idMondo,
+            @RequestParam(required = false) String listaSpell,
+            @RequestParam(required = false) Boolean soloCombattenti,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal Utente utente
@@ -290,12 +292,12 @@ public class ItemController {
         // questo la richiesta deve indicare idMondo, altrimenti non c'è un mondo su cui essere
         // autorizzati (isMasterMondo con mondoId null ritorna false per chiunque non sia admin).
         if (authzService.isAdmin(utente) || (idMondo != null && authzService.isMasterMondo(utente, idMondo))) {
-            p = repo.findCompendioAll(nomeQ, tipo, idMondo, pr);
+            p = repo.findCompendioAll(nomeQ, tipo, idMondo, listaSpell, soloCombattenti, pr);
         } else {
             var mieiMondi = partyService.getMieiMondi(utente);
             var mondoIds = mieiMondi.stream().map(MondoDTO::id).filter(java.util.Objects::nonNull).toList();
             var sistemaIds = mieiMondi.stream().map(MondoDTO::sistemaId).filter(java.util.Objects::nonNull).distinct().toList();
-            p = repo.findCompendioForUser(nomeQ, tipo, idMondo, mondoIds, sistemaIds, pr);
+            p = repo.findCompendioForUser(nomeQ, tipo, idMondo, listaSpell, soloCombattenti, mondoIds, sistemaIds, pr);
         }
         return ResponseEntity.ok(new PageDTO<>(
                 p.getContent().stream().map(itemMapper::toDTO).toList(),
