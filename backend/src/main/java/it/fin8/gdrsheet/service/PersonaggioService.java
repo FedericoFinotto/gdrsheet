@@ -2096,11 +2096,7 @@ public class PersonaggioService {
     public record SezioneIncantesimi(List<String> liste, String progressione, String bonus, List<String> slot,
                                       boolean conosciutiSeparati, List<String> conosciuti,
                                       boolean personalizzata, List<String> incantesimiCustom,
-                                      String caratteristica,
-                                      // Non pre-parsato a Integer: può essere "@LVL" (risolto al volo sul
-                                      // livello totale del personaggio, vedi resolveCasterLevelFisso),
-                                      // oltre a un numero fisso letterale.
-                                      String casterLevelFissoRaw,
+                                      String caratteristica, Integer casterLevelFisso,
                                       String casterLevelSorgente, String slotLivelloSorgente,
                                       // Traccia gli slot USATI per livello con un contatore dedicato
                                       // (label SPELL_<n>_SLOT_USATI_<livello>, scoped per personaggio come
@@ -2109,9 +2105,7 @@ public class PersonaggioService {
                                       // Indice "n" della sezione (da SPELL_<n>...), serve a comporre le
                                       // label SPELL_<n>_SLOT_USATI_<livello> e a esporlo nel SpellBookDTO
                                       // così il frontend sa quale sezione aggiornare.
-                                      int indice,
-                                      // Solo CLASSI: "SLOT" (default) o "LIVELLO", vedi Constants.SPELL_MODO_*.
-                                      String modo) {}
+                                      int indice) {}
 
     /**
      * Legge le sezioni incantatore "nuove" di un item dalle label indicizzate:
@@ -2158,13 +2152,12 @@ public class PersonaggioService {
                     ? List.of()
                     : Arrays.stream(incantesimiRaw.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
             String caratteristica = item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CARATTERISTICA_SUFFIX);
-            String casterLevelFissoRaw = item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CASTER_LEVEL_SUFFIX);
+            Integer casterLevelFisso = parseIntOrNull(item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CASTER_LEVEL_SUFFIX));
             String casterLevelSorgente = item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CL_SORGENTE_SUFFIX);
             String slotLivelloSorgente = item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_SLOT_SORGENTE_SUFFIX);
-            String modo = item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_MODO_SUFFIX);
             out.add(new SezioneIncantesimi(listeArr, prog, bonus, slot, conosciutiSeparati, conosciuti,
-                    personalizzata, incantesimiCustom, caratteristica, casterLevelFissoRaw,
-                    casterLevelSorgente, slotLivelloSorgente, slotConContatore, n, modo));
+                    personalizzata, incantesimiCustom, caratteristica, casterLevelFisso,
+                    casterLevelSorgente, slotLivelloSorgente, slotConContatore, n));
         }
         return out;
     }
@@ -2194,13 +2187,12 @@ public class PersonaggioService {
         // Un oggetto con sezione incantesimi ma senza SPELL_<n>_CASTER_LEVEL impostato (dati creati
         // prima che il campo esistesse in editor, o mai compilato) non ha modo di calcolare slot/CD:
         // salta la sezione invece di far esplodere l'intera generazione dello spellbook del personaggio.
-        Integer casterLevelFissoRisolto = fisso ? resolveCasterLevelFisso(sez.casterLevelFissoRaw(), variabili) : null;
-        if (fisso && casterLevelFissoRisolto == null) {
+        if (fisso && sez.casterLevelFisso() == null) {
             log.warn("Sezione incantesimi #{} dell'item {} ({}) senza caster level fisso: sezione ignorata",
                     sez.indice(), classe.getId(), classe.getNome());
             return null;
         }
-        Integer casterLevel = fisso ? casterLevelFissoRisolto : casterLevelClasse;
+        Integer casterLevel = fisso ? sez.casterLevelFisso() : casterLevelClasse;
         SpellBookDTO spellBook = new SpellBookDTO();
         spellBook.setIdClasse(classe.getId());
         spellBook.setNomeClasse(classe.getNome());
@@ -2230,27 +2222,8 @@ public class PersonaggioService {
         // Il livello di classe usato per pescare gli slot è UNO SOLO (scelto dal chiamante tra
         // Livello Massimo Non Maledetto / Livello Totale Non Maledetto / Livello Totale, vedi
         // SPELL_<n>_SLOT_SRC) — non più una coppia "attuale vs teorico massimo" come in passato.
-        // Modalità "a livello" (spontanei, es. Stregone/Bardo, MA ANCHE oggetti con caster level
-        // @LVL): SPELL_<n>_SLOT non è più una tabella per livello di classe, ma UNA riga sola con
-        // la soglia di sblocco di ciascun livello di incantesimo (a che livello si sblocca il liv.
-        // 0, 1, 2...) — vedi Constants.SPELL_MODO_LIVELLO. SPELL_<n>_CONOSCIUTI diventa la fonte
-        // del numero di incantesimi disponibili una volta sbloccato (ignora il flag
-        // conosciutiSeparati, sempre attiva in questa modalità). Il "livello" di riferimento per
-        // entrambe le tabelle è quello di classe (livelloSlot) sulle classi, o il caster level
-        // risolto (numero fisso o @LVL) sugli oggetti — stessa idea, sorgente diversa.
-        boolean modoLivello = Constants.SPELL_MODO_LIVELLO.equals(sez.modo());
-        int livelloRiferimento = fisso ? (casterLevelFissoRisolto != null ? casterLevelFissoRisolto : 0) : livelloSlot;
         int[] slots;
-        if (modoLivello) {
-            int[] soglie = sez.slot() != null && !sez.slot().isEmpty() ? parseSlotRow(sez.slot().get(0)) : new int[0];
-            int[] conosciutiRow = conosciutiArrayDaSezione(sez, livelloRiferimento);
-            slots = new int[soglie.length];
-            for (int i = 0; i < soglie.length; i++) {
-                boolean sbloccato = soglie[i] != SLOT_DASH && livelloRiferimento >= soglie[i];
-                slots[i] = sbloccato && i < conosciutiRow.length && conosciutiRow[i] != SLOT_DASH
-                        ? conosciutiRow[i] : SLOT_DASH;
-            }
-        } else if (fisso) {
+        if (fisso) {
             // Item (non classe): un numero fisso di slot, nessuna progressione per livello.
             slots = sez.slot() != null && !sez.slot().isEmpty() ? parseSlotRow(sez.slot().get(0)) : new int[0];
         } else if (it.fin8.gdrsheet.def.ProgressioneIncantesimi.isPreset(sez.progressione())) {
@@ -2264,8 +2237,7 @@ public class PersonaggioService {
         }
         if (slots.length == 0) return spellBook;
 
-        int[] conosciuti = modoLivello ? conosciutiArrayDaSezione(sez, livelloRiferimento)
-                : !sez.conosciutiSeparati() ? new int[0]
+        int[] conosciuti = !sez.conosciutiSeparati() ? new int[0]
                 : fisso
                     ? (sez.conosciuti() != null && !sez.conosciuti().isEmpty() ? parseSlotRow(sez.conosciuti().get(0)) : new int[0])
                     : conosciutiArrayDaSezione(sez, livelloSlot);
@@ -2295,19 +2267,6 @@ public class PersonaggioService {
             spellBook.getLivelli().add(liv);
         }
         return spellBook;
-    }
-
-    /**
-     * Risolve SPELL_&lt;n&gt;_CASTER_LEVEL di una sezione OGGETTO: un numero fisso letterale, oppure
-     * "@LVL" per usare il livello totale del personaggio (stessa chiave "@LVL" già disponibile
-     * nelle formule di modificatori/caratteristiche, vedi il "Rende LVL disponibile nelle formule"
-     * più sopra in questo file). null se non impostato o non risolvibile.
-     */
-    private Integer resolveCasterLevelFisso(String raw, Map<String, Integer> variabili) {
-        if (raw == null || raw.isBlank()) return null;
-        String trimmed = raw.trim();
-        if ("@LVL".equalsIgnoreCase(trimmed)) return variabili == null ? null : variabili.get("@LVL");
-        return parseIntOrNull(trimmed);
     }
 
     /**

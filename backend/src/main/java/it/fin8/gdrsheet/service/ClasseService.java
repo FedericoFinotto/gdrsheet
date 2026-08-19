@@ -195,7 +195,6 @@ public class ClasseService {
             s.setCaratteristica(classe.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CARATTERISTICA_SUFFIX));
             s.setCasterLevelSorgente(classe.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CL_SORGENTE_SUFFIX));
             s.setSlotLivelloSorgente(classe.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_SLOT_SORGENTE_SUFFIX));
-            s.setModo(classe.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_MODO_SUFFIX));
             out.add(s);
         }
         if (out.isEmpty()) {
@@ -262,7 +261,7 @@ public class ClasseService {
                 String k = l.getLabel();
                 return k != null && (k.equals(Constants.ITEM_LABEL_LISTA_INCANTESIMI)
                         || k.equals(Constants.ITEM_LABEL_SPELL_SLOT_BONUS)
-                        || k.matches("SPELL_\\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CARATTERISTICA|_CL_SRC|_SLOT_SRC|_MODO)?"));
+                        || k.matches("SPELL_\\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CARATTERISTICA|_CL_SRC|_SLOT_SRC)?"));
             });
         }
         List<ClasseDetailDTO.SezioneSpellDTO> sezioni = dto.getSezioniIncantesimi();
@@ -292,11 +291,7 @@ public class ClasseService {
                 String slotSrc = s.getSlotLivelloSorgente() == null ? null : s.getSlotLivelloSorgente().trim();
                 putSingleLabel(classe, "SPELL_" + n + Constants.ITEM_LABEL_SPELL_SLOT_SORGENTE_SUFFIX,
                         slotSrc == null || slotSrc.isBlank() ? null : slotSrc);
-                boolean modoLivello = Constants.SPELL_MODO_LIVELLO.equals(s.getModo());
-                putSingleLabel(classe, "SPELL_" + n + Constants.ITEM_LABEL_SPELL_MODO_SUFFIX,
-                        modoLivello ? Constants.SPELL_MODO_LIVELLO : null); // null = SLOT (default, niente label)
-                // tabella slot custom della sezione (SLOT: una riga per livello di classe; LIVELLO:
-                // un'unica riga con la soglia di sblocco per livello di incantesimo)
+                // tabella slot custom della sezione (solo se CUSTOM e valorizzata)
                 if (s.getSlot() != null && !s.getSlot().isEmpty()) {
                     String slotJoined = s.getSlot().stream()
                             .map(x -> x == null ? "" : x.trim())
@@ -305,10 +300,8 @@ public class ClasseService {
                         putSingleLabel(classe, "SPELL_" + n + "_SLOT", slotJoined);
                     }
                 }
-                // Incantesimi conosciuti: separati dagli slot (flag per sezione) in modo SLOT;
-                // sempre attiva in modo LIVELLO, dove è lei a dare il numero di incantesimi
-                // disponibili una volta sbloccato il livello (non c'è tabella slot separata).
-                if (s.isConosciutiSeparati() || modoLivello) {
+                // incantesimi conosciuti: separati dagli slot, opzionali (flag per sezione)
+                if (s.isConosciutiSeparati()) {
                     putSingleLabel(classe, "SPELL_" + n + "_HA_CONOSCIUTI", "1");
                     if (s.getConosciuti() != null && !s.getConosciuti().isEmpty()) {
                         String conosciutiJoined = s.getConosciuti().stream()

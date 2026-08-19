@@ -71,7 +71,7 @@ const form = reactive({
   sezioni: [] as Array<{
     liste: string[]; progressione: string; bonus: string; slot: string[]
     conosciutiSeparati: boolean; conosciuti: string[]; slotConContatore: boolean; caratteristica: string
-    casterLevelSorgente: string; slotLivelloSorgente: string; modo: string
+    casterLevelSorgente: string; slotLivelloSorgente: string
   }>,
   rank1: '',
   rank: '',
@@ -187,7 +187,6 @@ onMounted(async () => {
       caratteristica: s.caratteristica ?? '',
       casterLevelSorgente: s.casterLevelSorgente ?? 'NM',
       slotLivelloSorgente: s.slotLivelloSorgente ?? 'NM',
-      modo: s.modo ?? 'SLOT',
     }))
     form.rank1 = d.rank1 ?? ''
     form.rank = d.rank ?? ''
@@ -279,27 +278,18 @@ function buildClassePayload() {
     sezioniIncantesimi: form.sezioni
         .map(s => {
           const prog = (s.progressione || 'CUSTOM').trim()
-          const modo = (s.modo || 'SLOT').trim()
-          const modoLivello = modo === 'LIVELLO'
-          // LIVELLO: s.slot ha un'unica riga (la soglia di sblocco), non va troncata a numLivelli
-          // come le tabelle per-livello-di-classe di SLOT.
-          const slot = modoLivello
-              ? s.slot.slice(0, 1).map(x => (x ?? '').trim())
-              : prog === 'CUSTOM'
-                  ? s.slot.slice(0, form.numLivelli).map(x => (x ?? '').trim())
-                  : []
-          // LIVELLO: conosciuti è sempre attiva (ignora il checkbox conosciutiSeparati, non
-          // mostrato in UI in questa modalità).
-          const conosciuti = (s.conosciutiSeparati || modoLivello)
+          const slot = prog === 'CUSTOM'
+              ? s.slot.slice(0, form.numLivelli).map(x => (x ?? '').trim())
+              : []
+          const conosciuti = s.conosciutiSeparati
               ? s.conosciuti.slice(0, form.numLivelli).map(x => (x ?? '').trim())
               : []
           return {
             liste: (s.liste ?? []).map(x => x.trim()).filter(Boolean),
             progressione: prog,
-            modo,
             bonus: s.bonus.trim() || null,
             slot: slot.some(x => x) ? slot : null,
-            conosciutiSeparati: s.conosciutiSeparati || modoLivello,
+            conosciutiSeparati: s.conosciutiSeparati,
             conosciuti: conosciuti.some(x => x) ? conosciuti : null,
             slotConContatore: s.slotConContatore,
             caratteristica: (s.caratteristica || '').trim() || null,
