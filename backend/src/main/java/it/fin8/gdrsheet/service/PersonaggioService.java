@@ -98,6 +98,12 @@ public class PersonaggioService {
     private static final String CACHE_MODIFICATORI = "personaggioModificatori";
     private static final String CACHE_ITEMS = "personaggioItems";
 
+    // Ordine di visualizzazione fisso delle caratteristiche base in scheda: stats (quindi
+    // stat_value) non garantisce un ordine stabile, dipende da quando/come è stata creata ogni
+    // riga. Altre eventuali caratteristiche (mondi con stat CAR extra) restano dopo, nell'ordine
+    // con cui arrivano.
+    private static final List<String> ORDINE_CARATTERISTICHE_BASE = List.of("FOR", "DES", "COS", "INT", "SAG", "CAR");
+
     /**
      * Chiave della cache items: dipende dalla CLASSE di visibilità dell'utente (ADMIN/MASTER/
      * OWNER/GIOCATORE), non dal singolo utente — sono due utenti GIOCATORE qualsiasi (non
@@ -1695,9 +1701,17 @@ public class PersonaggioService {
             }
         }
 
-        // 9a) Calcolo Caratteristiche (sequenziale)
+        // 9a) Calcolo Caratteristiche (sequenziale). Ordine visualizzato FISSO (FOR/DES/COS/INT/SAG/
+        // CAR quando presenti, eventuali altre caratteristiche dopo, nell'ordine con cui arrivano):
+        // stats arriva nell'ordine di stat_value (di fatto quello di creazione riga, che dipende
+        // dall'ordine — non garantito — della collezione Mondo.defaultStats), non un ordine stabile
+        // da mostrare in scheda.
         List<CaratteristicaDTO> carList = new ArrayList<>(stats.stream()
                 .filter(sv -> TipoStat.CAR.equals(sv.getStat().getTipo()))
+                .sorted(Comparator.comparingInt(sv -> {
+                    int idx = ORDINE_CARATTERISTICHE_BASE.indexOf(sv.getStat().getId());
+                    return idx < 0 ? Integer.MAX_VALUE : idx;
+                }))
                 .map(sv -> modificatoriService.calcolaCaratteristica(
                         sv,
                         modsDtoByStat.getOrDefault(sv.getStat().getId(), Collections.emptyList()),
