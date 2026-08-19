@@ -146,6 +146,14 @@ public class ClasseDetailDTO {
          */
         private String casterLevelSorgente; // "NM" | "TOT"
         private String slotLivelloSorgente; // "MNM" | "NM" | "TOT"
+
+        /**
+         * "SLOT" (default, comportamento storico sopra) o "LIVELLO" (incantatori spontanei): in
+         * questo caso "slot" non è più una tabella per livello di classe ma un'UNICA riga con la
+         * soglia di sblocco di ciascun livello di incantesimo, e "conosciuti" (sempre attiva,
+         * ignora conosciutiSeparati) dà il numero di incantesimi disponibili una volta sbloccato.
+         */
+        private String modo; // "SLOT" | "LIVELLO"
     }
 
     @Getter

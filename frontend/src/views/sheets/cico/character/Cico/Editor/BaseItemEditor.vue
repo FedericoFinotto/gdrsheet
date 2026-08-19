@@ -195,6 +195,12 @@ const form = reactive<{
     slotConContatore: boolean
     personalizzata: boolean; incantesimiCustom: Array<{ id: number; nome: string; livello: number }>
     caratteristica: string; casterLevelFisso: string
+    // "SLOT" (default) o "LIVELLO": in LIVELLO, slot è l'unica riga "soglia di sblocco per livello
+    // di incantesimo" (confrontata col Livello incantatore risolto, anche se @LVL) e
+    // conosciutiPerLivello è la tabella "quanti conosciuti una volta sbloccato", una riga per
+    // possibile valore del Livello incantatore — vedi CardIncantesimiClasse.vue per lo stesso
+    // concetto lato classe.
+    modo: string; conosciutiPerLivello: string[]
   }>
   aggiunteClasse: Array<{
     idClasse: number | null; nomeClasse: string; valore: string
@@ -360,6 +366,7 @@ async function preload() {
   const spellRaw: Record<number, {
     liste?: string; bonus?: string; slot?: string; haConosciuti?: string; conosciuti?: string
     personalizzata?: string; incantesimi?: string; caratteristica?: string; casterLevel?: string
+    modo?: string
   }> = {}
   // righe ADD_CLASSE_<n>* raccolte allo stesso modo (stesso motivo: ordine label non garantito)
   const addClasseRaw: Record<number, {
@@ -443,8 +450,8 @@ async function preload() {
       form.campiMulti[key].push(val)
     } else if (campoKeys.has(key) && !form.campi[key]) {
       form.campi[key] = val
-    } else if (/^SPELL_\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CUSTOM|_INCANTESIMI|_CARATTERISTICA|_CASTER_LEVEL)?$/.test(key)) {
-      const m = key.match(/^SPELL_(\d+)(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CUSTOM|_INCANTESIMI|_CARATTERISTICA|_CASTER_LEVEL)?$/)!
+    } else if (/^SPELL_\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CUSTOM|_INCANTESIMI|_CARATTERISTICA|_CASTER_LEVEL|_MODO)?$/.test(key)) {
+      const m = key.match(/^SPELL_(\d+)(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CUSTOM|_INCANTESIMI|_CARATTERISTICA|_CASTER_LEVEL|_MODO)?$/)!
       const n = Number(m[1])
       const suffix = m[2] ?? ''
       const row = (spellRaw[n] ??= {})
@@ -454,6 +461,7 @@ async function preload() {
       else if (suffix === '_HA_CONOSCIUTI') row.haConosciuti = val
       else if (suffix === '_CONOSCIUTI') row.conosciuti = val
       else if (suffix === '_SLOT_CONTATORE') row.slotConContatore = val
+      else if (suffix === '_MODO') row.modo = val
       else if (suffix === '_CUSTOM') row.personalizzata = val
       else if (suffix === '_INCANTESIMI') row.incantesimi = val
       else if (suffix === '_CARATTERISTICA') row.caratteristica = val
@@ -500,12 +508,18 @@ async function preload() {
       bonus: r.bonus ?? '',
       slot: r.slot ?? '',
       conosciutiSeparati: r.haConosciuti === '1',
-      conosciuti: r.conosciuti ?? '',
+      // LIVELLO: SPELL_<n>_CONOSCIUTI è multi-riga (";"-separato, come le classi) — SLOT: singola
+      // riga, nessun ";" atteso (split la lascia come unico elemento, quindi conosciutiPerLivello
+      // resta vuoto e non viene usato in quel modo).
+      conosciuti: (r.modo ?? 'SLOT') === 'LIVELLO' ? '' : (r.conosciuti ?? ''),
+      conosciutiPerLivello: (r.modo ?? 'SLOT') === 'LIVELLO' && r.conosciuti
+          ? r.conosciuti.split(';').map(x => x.trim()) : [],
       slotConContatore: r.slotConContatore === '1',
       personalizzata: r.personalizzata === '1',
       incantesimiCustom,
       caratteristica: r.caratteristica ?? '',
       casterLevelFisso: r.casterLevel ?? '',
+      modo: r.modo ?? 'SLOT',
     }
   })
   // il label salva solo "id:livello": recupera i nomi per mostrarli nell'editor
@@ -619,7 +633,19 @@ function addSezioneIncantesimi() {
     slotConContatore: false,
     personalizzata: false, incantesimiCustom: [],
     caratteristica: '', casterLevelFisso: '',
+    modo: 'SLOT', conosciutiPerLivello: [],
   })
+}
+// numero di righe della tabella "conosciuti per livello" in modo LIVELLO: il Livello incantatore
+// non ha un range configurato come numLivelli di una classe, quindi ne usiamo uno fisso abbastanza
+// grande da coprire qualunque valore realistico risolto da @LVL.
+const NUM_RIGHE_CONOSCIUTI_OGGETTO = 32
+function conosciutiPerLivelloDi(s: { conosciutiPerLivello: string[] }, livello: number): string {
+  return s.conosciutiPerLivello[livello - 1] ?? ''
+}
+function setConosciutiPerLivello(s: { conosciutiPerLivello: string[] }, livello: number, val: string) {
+  while (s.conosciutiPerLivello.length < livello) s.conosciutiPerLivello.push('')
+  s.conosciutiPerLivello[livello - 1] = val
 }
 function removeSezioneIncantesimi(i: number) {
   form.sezioniIncantesimi.splice(i, 1)
@@ -1000,12 +1026,19 @@ function buildPayload(): UpdateItemRequest {
       const custom = s.personalizzata ? (s.incantesimiCustom ?? []).filter(c => c.id) : []
       if (!s.personalizzata && liste.length === 0) continue
       if (s.personalizzata && custom.length === 0) continue
+      const modoLivello = s.modo === 'LIVELLO'
       if (liste.length > 0) labels.push({label: `SPELL_${n}`, valore: liste.join(',')})
       if (s.bonus.trim()) labels.push({label: `SPELL_${n}_BONUS`, valore: s.bonus.trim()})
       if (s.slot.trim()) labels.push({label: `SPELL_${n}_SLOT`, valore: s.slot.trim()})
-      if (s.conosciutiSeparati) {
+      if (modoLivello) labels.push({label: `SPELL_${n}_MODO`, valore: 'LIVELLO'})
+      // LIVELLO: conosciuti sempre attiva (ignora il checkbox, non mostrato in UI in quel modo),
+      // multi-riga ";"-separata come le classi. SLOT: singola riga, solo se il checkbox è attivo.
+      if (modoLivello || s.conosciutiSeparati) {
         labels.push({label: `SPELL_${n}_HA_CONOSCIUTI`, valore: '1'})
-        if (s.conosciuti.trim()) labels.push({label: `SPELL_${n}_CONOSCIUTI`, valore: s.conosciuti.trim()})
+        const conosciutiValore = modoLivello
+            ? s.conosciutiPerLivello.map(x => (x ?? '').trim()).join(';')
+            : s.conosciuti.trim()
+        if (conosciutiValore.replace(/;/g, '')) labels.push({label: `SPELL_${n}_CONOSCIUTI`, valore: conosciutiValore})
       }
       if (s.slotConContatore) labels.push({label: `SPELL_${n}_SLOT_CONTATORE`, valore: '1'})
       if (s.caratteristica.trim()) labels.push({label: `SPELL_${n}_CARATTERISTICA`, valore: s.caratteristica.trim()})
@@ -1665,18 +1698,30 @@ function onCancel() {
 
           <div class="rank-grid">
             <label class="field">
-              <span class="lbl">Slot per livello — formato "2,1,-,-,-,-,-,-,-,-" dal liv. 0 al 9 ("-" = nessun accesso)</span>
-              <input v-model.trim="s.slot" type="text" placeholder="2,1,-,-,-,-,-,-,-,-" :disabled="disabledAll"/>
+              <span class="lbl">Modo</span>
+              <SearchSelect v-model="s.modo" :disabled="disabledAll"
+                            :options="[{value: 'SLOT', label: 'A Slot'}, {value: 'LIVELLO', label: 'A Livello (spontaneo)'}]"
+                            :sort="false"/>
+            </label>
+            <label class="field">
+              <span class="lbl" v-if="s.modo === 'LIVELLO'">
+                Livello di sblocco per livello di incantesimo — formato "1,3,5,7,9,12,15,17,20,25"
+                dal liv. 0 al 9: il valore è il Livello incantatore a cui si sblocca. "-" = mai.
+              </span>
+              <span class="lbl" v-else>Slot per livello — formato "2,1,-,-,-,-,-,-,-,-" dal liv. 0 al 9 ("-" = nessun accesso)</span>
+              <input v-model.trim="s.slot" type="text"
+                     :placeholder="s.modo === 'LIVELLO' ? '1,3,5,7,9,12,15,17,20,25' : '2,1,-,-,-,-,-,-,-,-'"
+                     :disabled="disabledAll"/>
             </label>
             <label class="field">
               <span class="lbl">Formula slot bonus</span>
               <input v-model.trim="s.bonus" type="text" placeholder="Es.: 1+(@SAG-#L)/4)" :disabled="disabledAll"/>
             </label>
             <label class="field">
-              <span class="lbl">Livello incantatore fisso *</span>
-              <input v-model.trim="s.casterLevelFisso" type="text" inputmode="numeric" placeholder="Es.: 10"
+              <span class="lbl">Livello incantatore *</span>
+              <input v-model.trim="s.casterLevelFisso" type="text" placeholder="Es.: 10, oppure @LVL"
                      :disabled="disabledAll"/>
-              <span class="muted">Obbligatorio: un oggetto non ha un "livello" da cui derivarlo come una classe.</span>
+              <span class="muted">Obbligatorio: un oggetto non ha un "livello" da cui derivarlo come una classe. Scrivi <code>@LVL</code> per usare il livello totale del personaggio invece di un numero fisso.</span>
             </label>
             <label class="field">
               <span class="lbl">Caratteristica (per la CD: 10 + CL + modificatore)</span>
@@ -1686,13 +1731,31 @@ function onCancel() {
             </label>
           </div>
 
-          <label class="field checkbox-field">
+          <label v-if="s.modo !== 'LIVELLO'" class="field checkbox-field">
             <input type="checkbox" v-model="s.conosciutiSeparati" :disabled="disabledAll"/>
             <span class="lbl">Traccia incantesimi conosciuti separatamente dagli slot</span>
           </label>
-          <div v-if="s.conosciutiSeparati" class="field">
+          <div v-if="s.modo !== 'LIVELLO' && s.conosciutiSeparati" class="field">
             <span class="lbl">Incantesimi conosciuti — stesso formato degli slot</span>
             <input v-model.trim="s.conosciuti" type="text" placeholder="2,1,-,-,-,-,-,-,-,-" :disabled="disabledAll"/>
+          </div>
+
+          <!-- Modo LIVELLO: tabella "conosciuti" obbligatoria, una riga per possibile valore del
+               Livello incantatore (es. se è @LVL, uno per livello personaggio 1..32) — è lei a dare
+               il numero di incantesimi disponibili una volta sbloccato, non c'è tabella slot. -->
+          <div v-if="s.modo === 'LIVELLO'" class="field">
+            <span class="lbl">
+              Incantesimi conosciuti per Livello incantatore — stesso formato degli slot
+              ("-" = nessun accesso). È questo il numero di incantesimi disponibili una volta
+              sbloccato il livello (non c'è una tabella di slot separata).
+            </span>
+            <div class="slot-list">
+              <div v-for="l in NUM_RIGHE_CONOSCIUTI_OGGETTO" :key="l" class="slot-row">
+                <span class="slot-liv">{{ l }}</span>
+                <input type="text" :value="conosciutiPerLivelloDi(s, l)" placeholder="4,2,1,-,-,-,-,-,-,-"
+                       :disabled="disabledAll" @input="setConosciutiPerLivello(s, l, ($event.target as HTMLInputElement).value)"/>
+              </div>
+            </div>
           </div>
 
           <label class="field checkbox-field">
@@ -1982,6 +2045,9 @@ textarea { resize: vertical; }
 
 .rank-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
 @media (max-width: 700px) { .rank-grid { grid-template-columns: 1fr; } }
+.slot-list { display: grid; gap: .25rem; max-height: 16rem; overflow-y: auto; }
+.slot-row { display: grid; grid-template-columns: 2rem 1fr; gap: .4rem; align-items: center; }
+.slot-liv { font-weight: 700; font-size: .8rem; color: var(--info-text); text-align: center; }
 
 .sez-card { border: 1px solid var(--hairline); border-radius: .5rem; padding: .5rem; display: grid; gap: .5rem; margin-bottom: .4rem; background: var(--btn-bg); }
 .sez-head { display: flex; align-items: center; justify-content: space-between; }

@@ -8,6 +8,10 @@ interface Sezione {
   liste: string[]; progressione: string; bonus: string; slot: string[]
   conosciutiSeparati: boolean; conosciuti: string[]; slotConContatore: boolean; caratteristica: string
   casterLevelSorgente: string; slotLivelloSorgente: string
+  // "SLOT" (default, comportamento storico) o "LIVELLO" (spontanei: slot[0] è un'unica riga con la
+  // soglia di sblocco di ciascun livello di incantesimo, conosciuti è obbligatoria e dà il numero
+  // di incantesimi disponibili una volta sbloccato — vedi Constants.SPELL_MODO_* nel backend).
+  modo: string
 }
 
 const props = defineProps<{
@@ -20,6 +24,10 @@ const props = defineProps<{
 }>()
 
 const PROGRESSIONI = ['CUSTOM', 'MAGO', 'STREGONE', 'CHIERICO', 'DRUIDO', 'BARDO', 'RANGER', 'PALADINO']
+const OPZIONI_MODO = [
+  {value: 'SLOT', label: 'A Slot'},
+  {value: 'LIVELLO', label: 'A Livello (spontaneo)'},
+]
 const OPZIONI_CASTER_LEVEL = [
   {value: 'NM', label: 'Caster Level Non Maledetto'},
   {value: 'TOT', label: 'Caster Level Totale'},
@@ -34,8 +42,15 @@ function addSezione() {
   props.sezioni.push({
     liste: [], progressione: 'CUSTOM', bonus: '', slot: [], conosciutiSeparati: false, conosciuti: [],
     slotConContatore: false,
-    caratteristica: '', casterLevelSorgente: 'NM', slotLivelloSorgente: 'NM',
+    caratteristica: '', casterLevelSorgente: 'NM', slotLivelloSorgente: 'NM', modo: 'SLOT',
   })
+}
+// riga unica (non per livello di classe) usata in modalità LIVELLO per la soglia di sblocco
+function sbloccoDi(s: { slot: string[] }): string {
+  return s.slot[0] ?? ''
+}
+function setSblocco(s: { slot: string[] }, val: string) {
+  s.slot[0] = val
 }
 function removeSezione(i: number) {
   props.sezioni.splice(i, 1)
@@ -112,6 +127,10 @@ function setConosciuti(s: { conosciuti: string[] }, livello: number, val: string
 
     <div class="rank-grid">
       <label class="field">
+        <span class="lbl">Modo</span>
+        <SearchSelect v-model="s.modo" :disabled="disabled" :options="OPZIONI_MODO" :sort="false"/>
+      </label>
+      <label v-if="(s.modo || 'SLOT') === 'SLOT'" class="field">
         <span class="lbl">Progressione</span>
         <SearchSelect v-model="s.progressione" :disabled="disabled"
                       :options="PROGRESSIONI" :sort="false"/>
@@ -138,7 +157,7 @@ function setConosciuti(s: { conosciuti: string[] }, livello: number, val: string
       </label>
     </div>
 
-    <div v-if="(s.progressione || 'CUSTOM') === 'CUSTOM'" class="field">
+    <div v-if="(s.modo || 'SLOT') === 'SLOT' && (s.progressione || 'CUSTOM') === 'CUSTOM'" class="field">
       <span class="lbl">
         Slot per livello (CUSTOM) — formato "4,2,1,-,…" dal liv. 0 al 9.
         Usa <strong>-</strong> (o lascia vuoto) per "nessun accesso" (—), e <strong>0</strong>
@@ -153,14 +172,31 @@ function setConosciuti(s: { conosciuti: string[] }, livello: number, val: string
       </div>
     </div>
 
-    <label class="field checkbox-field">
+    <!-- Modo LIVELLO: un'unica riga "a che livello di classe si sblocca ciascun livello di
+         incantesimo", niente tabella per livello — quella sotto (conosciuti) è obbligatoria e fa
+         le veci degli slot. -->
+    <div v-if="(s.modo || 'SLOT') === 'LIVELLO'" class="field">
+      <span class="lbl">
+        Livello di sblocco per livello di incantesimo — formato "1,3,5,7,9,12,15,17,20,25" dal
+        liv. 0 al 9: il valore è il livello di classe a cui si sblocca quel livello di incantesimo.
+        Usa <strong>-</strong> per "mai sbloccato".
+      </span>
+      <input type="text" :value="sbloccoDi(s)" placeholder="1,3,5,7,9,12,15,17,20,25"
+             :disabled="disabled" @input="setSblocco(s, ($event.target as HTMLInputElement).value)"/>
+    </div>
+
+    <label v-if="(s.modo || 'SLOT') === 'SLOT'" class="field checkbox-field">
       <input type="checkbox" v-model="s.conosciutiSeparati" :disabled="disabled"/>
       <span class="lbl">Traccia incantesimi conosciuti separatamente dagli slot</span>
     </label>
-    <div v-if="s.conosciutiSeparati" class="field">
+    <div v-if="(s.modo || 'SLOT') === 'LIVELLO' || s.conosciutiSeparati" class="field">
       <span class="lbl">
         Incantesimi conosciuti per livello — stesso formato degli slot ("-" = nessun accesso).
-        Nessun bonus da formula: il bonus da caratteristica si applica solo agli slot.
+        <template v-if="(s.modo || 'SLOT') === 'LIVELLO'">
+          In modo "A Livello" è questo il numero di incantesimi disponibili una volta sbloccato il
+          livello (non c'è una tabella di slot separata).
+        </template>
+        <template v-else>Nessun bonus da formula: il bonus da caratteristica si applica solo agli slot.</template>
       </span>
       <div class="slot-list">
         <div v-for="l in numLivelli" :key="l" class="slot-row">

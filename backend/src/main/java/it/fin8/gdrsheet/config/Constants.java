@@ -118,6 +118,14 @@ public final class Constants {
     // Assente/valore non riconosciuto = default "NM".
     public static final String ITEM_LABEL_SPELL_CL_SORGENTE_SUFFIX = "_CL_SRC";     // "NM" | "TOT"
     public static final String ITEM_LABEL_SPELL_SLOT_SORGENTE_SUFFIX = "_SLOT_SRC"; // "MNM" | "NM" | "TOT"
+    // Modalità di progressione di una sezione, solo CLASSI (ignorata sugli oggetti, sempre a slot
+    // fisso): "SLOT" (default, comportamento storico: tabella slot per livello di classe) oppure
+    // "LIVELLO" (spontanei: SPELL_<n>_SLOT è un'unica riga "a che livello di classe si sblocca
+    // ciascun livello di incantesimo", e SPELL_<n>_CONOSCIUTI diventa obbligatoria — è lei a dare
+    // il numero di incantesimi disponibili una volta sbloccato il livello, non una tabella slot).
+    public static final String ITEM_LABEL_SPELL_MODO_SUFFIX = "_MODO";
+    public static final String SPELL_MODO_SLOT = "SLOT";
+    public static final String SPELL_MODO_LIVELLO = "LIVELLO";
     public static final String COLLEGAMENTO_LABEL_LIVELLO = "LIVELLO";
     public static final String COLLEGAMENTO_LABEL_LISTA_INCANTESIMI = "SP_LIST";
     public static final String COLLEGAMENTO_LABEL_N_USATI = "USED";
