@@ -11,7 +11,8 @@ import java.util.List;
  */
 public record MondoConfigDTO(
         List<TipoItem> tipiAbilitati,
-        List<ListaIncantesimiDTO> listeIncantesimiAbilitate
+        List<ListaIncantesimiDTO> listeIncantesimiAbilitate,
+        boolean mostraSimboliAzioni
 ) {
     public record ListaIncantesimiDTO(String codice, String etichetta) {
     }

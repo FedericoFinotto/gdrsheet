@@ -18,6 +18,7 @@ public class SpellBookDTO {
     Integer casterLevel;   // classi: livello effettivo (+ prestigio); oggetti: SPELL_<n>_CASTER_LEVEL fisso
     String caratteristica; // stat id usata per la CD (SPELL_<n>_CARATTERISTICA / SP_CARATTERISTICA)
     Integer cd;            // 10 + casterLevel + modificatore caratteristica; null se non calcolabile
+    Boolean mostraSimboliAzioni; // Mondo.mostraSimboliAzioni della fonte: icona invece di testo per il costo in azioni
     // Indice "n" della sezione (SPELL_<n>...) sulla fonte (idClasse): serve al frontend per
     // aggiornare il contatore slot usati di un livello (vedi SpellBookLivelloDTO.slotConContatore).
     // Null sulle sezioni legacy (SPELL singola, senza sezioni indicizzate).

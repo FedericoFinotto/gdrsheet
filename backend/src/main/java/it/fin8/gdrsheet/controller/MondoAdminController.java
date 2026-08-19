@@ -372,8 +372,8 @@ public class MondoAdminController {
     )
     @GetMapping("/{mondoId}/config")
     public ResponseEntity<MondoConfigDTO> getConfig(@PathVariable Integer mondoId) {
-        if (!mondoRepository.existsById(mondoId))
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Mondo non trovato");
+        Mondo mondo = mondoRepository.findById(mondoId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mondo non trovato"));
 
         List<TipoItem> tipi = mondoTipoItemAbilitatoRepository.findAllByMondo_Id(mondoId).stream()
                 .map(MondoTipoItemAbilitato::getTipo)
@@ -385,7 +385,7 @@ public class MondoAdminController {
                 .sorted((a, b) -> a.etichetta().compareToIgnoreCase(b.etichetta()))
                 .toList();
 
-        return ResponseEntity.ok(new MondoConfigDTO(tipi, liste));
+        return ResponseEntity.ok(new MondoConfigDTO(tipi, liste, Boolean.TRUE.equals(mondo.getMostraSimboliAzioni())));
     }
 
     @Operation(
@@ -457,6 +457,11 @@ public class MondoAdminController {
                 riga.setListaIncantesimi(lista);
                 mondoListaIncantesimiAbilitataRepository.save(riga);
             }
+        }
+
+        if (req.mostraSimboliAzioni() != null) {
+            mondo.setMostraSimboliAzioni(req.mostraSimboliAzioni());
+            mondoRepository.save(mondo);
         }
 
         return getConfig(mondoId);

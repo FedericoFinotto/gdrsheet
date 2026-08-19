@@ -11,6 +11,7 @@ export interface SpellBookIncantesimo extends Item {
     nUsed: number;         // numero usati
     alwaysPrep: boolean;   // sempre preparato
     componenti: string[]; // componenti richieste
+    tempo?: string;        // TEMPO_SP grezzo: per l'icona azione nella riga (vedi SpellBook.mostraSimboliAzioni)
 }
 
 /** Raggruppa gli incantesimi per livello con slot e bonus */
@@ -35,6 +36,7 @@ export interface SpellBook {
     casterLevel?: number;              // classi: livello effettivo (+prestigio); oggetti: valore fisso da label
     caratteristica?: string;           // stat id usata per la CD (es. "INT")
     cd?: number;                       // 10 + casterLevel + modificatore caratteristica
+    mostraSimboliAzioni?: boolean;     // Mondo.mostraSimboliAzioni della fonte (icona invece di testo)
     // Indice "n" della sezione (SPELL_<n>...) sulla fonte (idClasse): serve per aggiornare il
     // contatore slot usati di un livello (setSlotUsatiPerLivello). Assente sulle sezioni legacy.
     sezioneIndice?: number;

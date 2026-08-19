@@ -1,4 +1,31 @@
 /* =========================
+   FONT ICONE AZIONI (Pathfinder 2e)
+   ========================= */
+/* Rimappa i glifi '1'..'5' (vedi function/azioni.ts) su simboli di costo in azioni: usato solo
+   quando il mondo ha "Visualizza simboli azioni" attivo (MondoConfig.mostraSimboliAzioni). */
+@font-face {
+    font-family: 'Pathfinder2eActions';
+    src: url('../assets/fonts/Pathfinder2eActions.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Condivisa da components/AzioneValue.vue e da chi mostra il glifo azione accanto ad altre
+   icone (es. i simboli componenti V/S/M nel dettaglio incantesimo) invece che dentro una riga
+   di testo — vedi Mobile_DettaglioItem.vue. */
+.pf2e-icon {
+    font-family: 'Pathfinder2eActions', sans-serif;
+    /* 1.5em non è a occhio: i glifi 1-4 di questo font occupano solo ~0.593 della propria em-box
+       (misurato: unitsPerEm 1000, yMax-yMin 593), mentre le lettere V/S/M di Font Awesome Solid
+       (i simboli componenti accanto a cui questa icona compare) ne occupano ~0.875 (unitsPerEm
+       512, yMax-yMin 448) — 0.875/0.593 ≈ 1.5 pareggia l'altezza visiva reale dei due font. */
+    font-size: 1.5em;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+/* =========================
    BASE / RESET
    ========================= */
 html, body, #app {
@@ -1004,6 +1031,14 @@ input, select, textarea {
     gap: 10px;
 }
 
+/* min-width: 0 sui due grid-item di .row-top: senza, il default min-width:auto impedirebbe alla
+   colonna nome di restringersi sotto il suo min-content — che per testo non-wrappabile è la
+   riga INTERA — sforando orizzontalmente con nomi lunghi invece di andare a capo (stesso bug
+   risolto in SpellEditor.vue: vedi il commento su .spell-editor > * lì). */
+.spell-toggle, .row-icons {
+    min-width: 0;
+}
+
 .spell-toggle {
     display: flex;
     align-items: center;
@@ -1018,9 +1053,7 @@ input, select, textarea {
 
 .spell-name {
     font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: break-word;
     font-size: var(--fs-sm);
 }
 

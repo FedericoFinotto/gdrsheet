@@ -2202,6 +2202,7 @@ public class PersonaggioService {
         spellBook.setSpurii(generateSpurii(classe, idPersonaggio));
         spellBook.setCasterLevel(casterLevel);
         spellBook.setCaratteristica(sez.caratteristica());
+        spellBook.setMostraSimboliAzioni(classe.getMondo() != null && Boolean.TRUE.equals(classe.getMondo().getMostraSimboliAzioni()));
         impostaCd(spellBook, casterLevel, sez.caratteristica(), variabili);
 
         List<SpellBookIncantesimoDTO> incantesimi;
@@ -2385,6 +2386,7 @@ public class PersonaggioService {
             dto.setId(entity.getId());
             dto.setNome(entity.getNome());
             dto.setTipo(entity.getTipo());
+            dto.setTempo(entity.getLabel(Constants.ITEM_LABEL_TEMPO_SP));
             if (uTotale != null) {
                 dto.setUtilizziTotale(uTotale);
                 dto.setUtilizziUsati(uUsati);
@@ -2418,6 +2420,7 @@ public class PersonaggioService {
                 dto.setAlwaysPrep(true);
                 dto.setComponenti(utilService.getItemLabels(entity, Constants.ITEM_LABEL_COMPONENTE));
                 dto.setScuola(utilService.getItemLabel(entity, Constants.ITEM_LABEL_SCUOLA_SP));
+                dto.setTempo(utilService.getItemLabel(entity, Constants.ITEM_LABEL_TEMPO_SP));
                 out.add(dto);
             } catch (Exception ignored) {}
         }
@@ -2439,6 +2442,7 @@ public class PersonaggioService {
         spellBook.setCasterLevel(livelloEffettivo);
         String caratteristica = utilService.getItemLabel(classe, Constants.ITEM_LABEL_SPELL_CARATTERISTICA);
         spellBook.setCaratteristica(caratteristica);
+        spellBook.setMostraSimboliAzioni(classe.getMondo() != null && Boolean.TRUE.equals(classe.getMondo().getMostraSimboliAzioni()));
         impostaCd(spellBook, livelloEffettivo, caratteristica, variabili);
         String slotBonus = utilService.getItemLabel(classe, Constants.ITEM_LABEL_SPELL_SLOT_BONUS);
 

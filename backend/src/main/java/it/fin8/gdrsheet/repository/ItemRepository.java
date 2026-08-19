@@ -197,8 +197,13 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
                               WHERE ien.item = i AND ien.label = 'EN_NAME'
                                 AND lower(ien.valore) LIKE lower(concat('%', :nome, '%'))))
               AND (:idMondo IS NULL OR (i.mondo IS NOT NULL AND i.mondo.id = :idMondo))
-              AND (:listaSpell IS NULL OR EXISTS (SELECT 1 FROM ItemLabel ils
-                              WHERE ils.item = i AND ils.label = :listaSpell))
+              AND (:listaSpell IS NULL AND :livello IS NULL
+                   OR (:listaSpell IS NOT NULL AND EXISTS (SELECT 1 FROM ItemLabel ils
+                              WHERE ils.item = i AND ils.label = :listaSpell
+                                AND (:livello IS NULL OR ils.valore = :livello)))
+                   OR (:listaSpell IS NULL AND :livello IS NOT NULL AND EXISTS (SELECT 1 FROM ItemLabel ils
+                              WHERE ils.item = i AND ils.label LIKE 'SP\\_%' ESCAPE '\\'
+                                AND ils.valore = :livello)))
               AND (:soloCombattenti IS NULL
                    OR (:soloCombattenti = true AND EXISTS (SELECT 1 FROM ItemLabel ilc
                               WHERE ilc.item = i AND ilc.label = 'COMBATTENTI_SP'
@@ -213,6 +218,7 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             @Param("tipo") TipoItem tipo,
             @Param("idMondo") Integer idMondo,
             @Param("listaSpell") String listaSpell,
+            @Param("livello") String livello,
             @Param("soloCombattenti") Boolean soloCombattenti,
             org.springframework.data.domain.Pageable pageable
     );
@@ -227,8 +233,13 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
                               WHERE ien.item = i AND ien.label = 'EN_NAME'
                                 AND lower(ien.valore) LIKE lower(concat('%', :nome, '%'))))
               AND (:idMondo IS NULL OR (i.mondo IS NOT NULL AND i.mondo.id = :idMondo))
-              AND (:listaSpell IS NULL OR EXISTS (SELECT 1 FROM ItemLabel ils
-                              WHERE ils.item = i AND ils.label = :listaSpell))
+              AND (:listaSpell IS NULL AND :livello IS NULL
+                   OR (:listaSpell IS NOT NULL AND EXISTS (SELECT 1 FROM ItemLabel ils
+                              WHERE ils.item = i AND ils.label = :listaSpell
+                                AND (:livello IS NULL OR ils.valore = :livello)))
+                   OR (:listaSpell IS NULL AND :livello IS NOT NULL AND EXISTS (SELECT 1 FROM ItemLabel ils
+                              WHERE ils.item = i AND ils.label LIKE 'SP\\_%' ESCAPE '\\'
+                                AND ils.valore = :livello)))
               AND (:soloCombattenti IS NULL
                    OR (:soloCombattenti = true AND EXISTS (SELECT 1 FROM ItemLabel ilc
                               WHERE ilc.item = i AND ilc.label = 'COMBATTENTI_SP'
@@ -259,6 +270,7 @@ public interface ItemRepository extends JpaRepository<Item, Integer> {
             @Param("tipo") TipoItem tipo,
             @Param("idMondo") Integer idMondo,
             @Param("listaSpell") String listaSpell,
+            @Param("livello") String livello,
             @Param("soloCombattenti") Boolean soloCombattenti,
             @Param("mondoIds") List<Integer> mondoIds,
             @Param("sistemaIds") List<Integer> sistemaIds,

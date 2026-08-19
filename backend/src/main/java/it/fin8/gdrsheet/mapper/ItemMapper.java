@@ -290,6 +290,7 @@ public class ItemMapper {
         dto.setSpellList(utilService.getItemLabel(classe, Constants.ITEM_LABEL_LISTA_INCANTESIMI));
         dto.setComponenti(utilService.getItemLabels(entity, Constants.ITEM_LABEL_COMPONENTE));
         dto.setScuola(utilService.getItemLabel(entity, Constants.ITEM_LABEL_SCUOLA_SP));
+        dto.setTempo(utilService.getItemLabel(entity, Constants.ITEM_LABEL_TEMPO_SP));
         return dto;
     }
 
@@ -305,6 +306,7 @@ public class ItemMapper {
         dto.setClasse(classe.getNome());
         dto.setSpellList(utilService.getCollegamentoLabel(coll, Constants.COLLEGAMENTO_LABEL_LISTA_INCANTESIMI));
         dto.setComponenti(utilService.getItemLabels(coll.getItemTarget(), Constants.ITEM_LABEL_COMPONENTE));
+        dto.setTempo(utilService.getItemLabel(entity, Constants.ITEM_LABEL_TEMPO_SP));
         if (alwaysPrep) {
             dto.setAlwaysPrep(true);
             dto.setNPrepared(null);

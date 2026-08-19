@@ -280,24 +280,26 @@ public class ItemController {
             @RequestParam(required = false) TipoItem tipo,
             @RequestParam(required = false) Integer idMondo,
             @RequestParam(required = false) String listaSpell,
+            @RequestParam(required = false) Integer livello,
             @RequestParam(required = false) Boolean soloCombattenti,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal Utente utente
     ) {
         String nomeQ = nome == null ? "" : nome.trim();
+        String livelloQ = livello == null ? null : String.valueOf(livello);
         var pr = org.springframework.data.domain.PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 50)));
         org.springframework.data.domain.Page<it.fin8.gdrsheet.entity.Item> p;
         // admin: sempre tutto. Master di un mondo specifico: tutto, ma SOLO di quel mondo — per
         // questo la richiesta deve indicare idMondo, altrimenti non c'è un mondo su cui essere
         // autorizzati (isMasterMondo con mondoId null ritorna false per chiunque non sia admin).
         if (authzService.isAdmin(utente) || (idMondo != null && authzService.isMasterMondo(utente, idMondo))) {
-            p = repo.findCompendioAll(nomeQ, tipo, idMondo, listaSpell, soloCombattenti, pr);
+            p = repo.findCompendioAll(nomeQ, tipo, idMondo, listaSpell, livelloQ, soloCombattenti, pr);
         } else {
             var mieiMondi = partyService.getMieiMondi(utente);
             var mondoIds = mieiMondi.stream().map(MondoDTO::id).filter(java.util.Objects::nonNull).toList();
             var sistemaIds = mieiMondi.stream().map(MondoDTO::sistemaId).filter(java.util.Objects::nonNull).distinct().toList();
-            p = repo.findCompendioForUser(nomeQ, tipo, idMondo, listaSpell, soloCombattenti, mondoIds, sistemaIds, pr);
+            p = repo.findCompendioForUser(nomeQ, tipo, idMondo, listaSpell, livelloQ, soloCombattenti, mondoIds, sistemaIds, pr);
         }
         return ResponseEntity.ok(new PageDTO<>(
                 p.getContent().stream().map(itemMapper::toDTO).toList(),

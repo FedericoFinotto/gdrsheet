@@ -19,7 +19,10 @@ interface CounterDef {
 }
 
 interface RowIcon {
-  name: string;            // nome per <Icona/>
+  name?: string;            // nome per <Icona/> (alternativa a glyph)
+  // glifo di un font custom (es. Pathfinder2eActions, classe CSS "pf2e-icon") invece di
+  // un'icona <Icona/>: usato per il simbolo azione, che non è nel catalogo Font Awesome/img.
+  glyph?: string;
   title?: string;
   class?: string;
   onClick?: Fn<void>;
@@ -51,6 +54,9 @@ interface ColumnDef {
 
   // icons
   list?: Fn<RowIconInput[]>;
+  // testo compatto DOPO le icone nella stessa colonna (es. "3/5" di preparati/rimasti): sola
+  // lettura, niente stepper — quello sta nel dettaglio esteso della riga. null/'' = nascosto.
+  counterText?: Fn<string | null | undefined>;
 }
 
 /* --------- Props --------- */
@@ -171,8 +177,10 @@ function clickIcon(ic: RowIcon, row: any) {
                   :disabled="iconDisabled(ic, row)"
                   @click.stop="clickIcon(ic, row)"
               >
-                <Icona :name="ic.name" :class="['row-icon', ic.class]" :title="ic.title || ic.name"/>
+                <span v-if="ic.glyph" class="pf2e-icon" :class="ic.class" :title="ic.title">{{ ic.glyph }}</span>
+                <Icona v-else :name="ic.name" :class="['row-icon', ic.class]" :title="ic.title || ic.name"/>
               </button>
+              <span v-if="col.counterText && col.counterText(row)" class="icons-counter">{{ col.counterText(row) }}</span>
             </div>
           </template>
 
@@ -272,6 +280,17 @@ function clickIcon(ic: RowIcon, row: any) {
   width: 100%;
 }
 
+/* testo compatto "N/M" dopo le icone (preparati/rimasti): sola lettura, il contatore
+   interattivo +/- sta nel dettaglio esteso della riga (vedi Mobile_DettaglioItem.vue). */
+.icons-counter {
+  margin-left: .35rem;
+  font-size: .68rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* bottone “trasparente” che contiene l’icona */
 .row-icon-btn {
   background: transparent;
@@ -279,6 +298,10 @@ function clickIcon(ic: RowIcon, row: any) {
   padding: 0;
   margin: 0;
   cursor: pointer;
+  /* stessa dimensione di .row-icon: il glifo azione (.pf2e-icon, in global.css) è dimensionato in
+     em rispetto al font-size del suo contenitore, per restare tarato sullo stesso rapporto
+     rispetto alle icone Font Awesome usato ovunque, anche in questa tabella compatta. */
+  font-size: 0.7rem;
 }
 
 .row-icon-btn[disabled] {

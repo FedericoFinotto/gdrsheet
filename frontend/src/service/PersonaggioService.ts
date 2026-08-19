@@ -236,8 +236,8 @@ export function getAlberoNodo(idMondo: number, albero: string): Promise<AxiosRes
 export function getCompendio(
     params: {
         nome?: string; tipo?: string; idMondo?: number | null; page?: number; size?: number
-        // solo per tipo INCANTESIMO: codice lista SP_* (es. SP_SAG) e flag Lista Combattenti
-        listaSpell?: string | null; soloCombattenti?: boolean | null
+        // solo per tipo INCANTESIMO: codice lista SP_* (es. SP_SAG), livello (0-9) e flag Lista Combattenti
+        listaSpell?: string | null; livello?: number | null; soloCombattenti?: boolean | null
     } = {}
 ): Promise<AxiosResponse<Page<Item>>> {
     return api.get<Page<Item>>('/item/compendio', {params});

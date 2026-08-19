@@ -5,6 +5,9 @@ import {useCharacterStore} from '../../../../../stores/personaggio';
 import {storeToRefs} from 'pinia';
 import {getAllIncantesimiByClasseAndLivello} from '../../../../../service/PersonaggioService';
 import Mobile_DettaglioItem from '../Dettaglio/Mobile_DettaglioItem.vue';
+import Icona from '../../../../../components/Icona/Icona.vue';
+import {iconForComponent} from '../../../../../function/Utils';
+import {parseAzioneGlifo} from '../../../../../function/azioni';
 
 const props = defineProps({
   idPersonaggio: {type: Number, required: true},
@@ -14,7 +17,10 @@ const props = defineProps({
   spellList: {type: String, required: true},
   /** mappa spellId -> prepared iniziale (prelevato dalla pagina principale).
    *  Se un valore è -54, viene interpretato come "sempre preparato". */
-  preparedInit: {type: Object as PropType<Record<number, number>>, default: () => ({})}
+  preparedInit: {type: Object as PropType<Record<number, number>>, default: () => ({})},
+  // Mondo con "Visualizza simboli azioni" attivo (passato dalla pagina scheda, stesso flag già
+  // risolto lì): stessa icona azione mostrata nella lista principale, vedi iconeRiga sotto.
+  mostraSimboliAzioni: {type: Boolean, default: false}
 });
 
 const emit = defineEmits<{
@@ -84,12 +90,18 @@ const fLista = ref('');
 const fScuola = ref('');   // scuola / sottoscuola / descrittori
 const fComp = ref('');     // componenti (V/S/M…)
 
+// true se l'incantesimo è preparato in uno dei due modi (sempre, o un numero > 0) — usato sia
+// per ordinare i preparati in cima sia per il badge visibile a riga chiusa (vedi template).
+function isPrepared(s: any): boolean {
+  return alwaysPrepared.value[s.id] === true || (prepared.value[s.id] ?? 0) > 0;
+}
+
 const spells = computed(() => {
   const nome = fNome.value.trim().toLowerCase();
   const lista = fLista.value.trim().toLowerCase();
   const scuola = fScuola.value.trim().toLowerCase();
   const comp = fComp.value.trim().toLowerCase();
-  return spellsAll.value.filter((s: any) => {
+  const filtered = spellsAll.value.filter((s: any) => {
     if (nome && !String(s.nome ?? '').toLowerCase().includes(nome)) return false;
     if (lista && !String(s.spellList ?? '').toLowerCase().includes(lista)) return false;
     if (scuola && !String(s.scuola ?? '').toLowerCase().includes(scuola)) return false;
@@ -99,6 +111,9 @@ const spells = computed(() => {
     }
     return true;
   });
+  // preparati (in un modo o nell'altro) in cima: spellsAll è già alfabetico, un sort stabile
+  // preserva quell'ordine dentro ciascuno dei due gruppi (preparati / non preparati).
+  return filtered.slice().sort((a: any, b: any) => Number(isPrepared(b)) - Number(isPrepared(a)));
 });
 
 // stato prepared e "sempre"
@@ -139,6 +154,19 @@ const toggleExpand = (id: number) => {
   expanded.value = set;
 };
 const isExpanded = (id: number) => expanded.value.has(id);
+
+// Icone di fondo riga (azione + componenti): stessa logica/aspetto della lista principale
+// (Mobile_Cico_4_SpellBook.vue, funzione iconeRiga) — qui replicata perché è un popup a parte,
+// senza però lo stepper/testo "N/M" (quello che qui si prepara non ha ancora un uso da tracciare).
+function iconeRiga(sp: any) {
+  const icone: any[] = []
+  if (props.mostraSimboliAzioni) {
+    const parsed = parseAzioneGlifo(sp.tempo)
+    if (parsed && !parsed.resto) icone.push({glyph: parsed.glifo, title: sp.tempo})
+  }
+  for (const c of (sp.componenti ?? [])) icone.push({name: iconForComponent(c)})
+  return icone
+}
 
 // counter (disabilita se "sempre")
 const inc = (id: number, step = 1) => {
@@ -207,30 +235,39 @@ const confirm = () => {
         <div v-if="!spells.length" class="state">Nessun incantesimo disponibile.</div>
 
         <div v-else class="spell-list">
-          <div v-for="sp in spells" :key="sp.id" class="spell-row">
+          <div v-for="sp in spells" :key="sp.id" class="spell-row" :class="{'is-prepared': isPrepared(sp)}">
             <div class="row-top">
               <button class="spell-toggle" @click="toggleExpand(sp.id)" :aria-expanded="isExpanded(sp.id)">
                 <span class="spell-name" :title="sp.nome">{{ sp.nome }}</span>
               </button>
 
-              <div class="row-actions">
-                <label class="always-toggle">
-                  <input type="checkbox" v-model="alwaysPrepared[sp.id]"/>
-                </label>
-
-                <div v-if="!alwaysPrepared[sp.id]" class="spell-controls">
-                  <button class="btn minus" @click.stop="dec(sp.id)">−</button>
-                  <div class="count" aria-live="polite">{{ prepared[sp.id] ?? 0 }}</div>
-                  <button class="btn plus" @click.stop="inc(sp.id)">+</button>
-                </div>
-
-                <div v-else class="always-badge" title="Incantesimo sempre preparato">sempre</div>
+              <!-- Icone (azione + componenti) + badge di stato preparazione, visibile anche a riga
+                   chiusa: ✓ = sempre preparato, numero = quanti preparati. Editabili aprendo il
+                   dettaglio (vedi row-expand sotto, stesso punto dove nella lista principale sta
+                   il contatore dei consumati). -->
+              <div class="row-icons" @click.stop>
+                <span v-for="(ic, i) in iconeRiga(sp)" :key="i" class="row-icon-item">
+                  <span v-if="ic.glyph" class="pf2e-icon" :title="ic.title">{{ ic.glyph }}</span>
+                  <Icona v-else :name="ic.name" class="row-icon" :title="ic.title || ic.name"/>
+                </span>
+                <span v-if="alwaysPrepared[sp.id]" class="always-badge" title="Sempre preparato">✓</span>
+                <span v-else-if="prepared[sp.id]" class="always-badge" title="Preparati">{{ prepared[sp.id] }}</span>
               </div>
             </div>
 
             <transition name="expand">
               <div v-if="isExpanded(sp.id)" class="row-expand">
-                <component :is="ExpandedComp" :data="{ item: sp, personaggio: cache?.[idPersonaggio] }"/>
+                <component :is="ExpandedComp" :data="{
+                  item: sp,
+                  personaggio: cache?.[idPersonaggio],
+                  prepareEditor: {
+                    getValue: () => prepared[sp.id] ?? 0,
+                    getAlways: () => alwaysPrepared[sp.id] === true,
+                    onInc: () => inc(sp.id),
+                    onDec: () => dec(sp.id),
+                    onToggleAlways: () => { alwaysPrepared[sp.id] = !alwaysPrepared[sp.id] },
+                  }
+                }"/>
               </div>
             </transition>
           </div>
@@ -247,6 +284,32 @@ const confirm = () => {
 </template>
 
 <style scoped>
+/* Riga di un incantesimo preparato (in un modo o nell'altro): leggero sfondo per riconoscerla
+   anche scorrendo velocemente la lista, oltre al badge ✓/N accanto alle icone. */
+.spell-row.is-prepared {
+  background: var(--always-badge-bg);
+  border-radius: .4rem;
+  margin: 0 -.4rem;
+  padding-left: .4rem;
+  padding-right: .4rem;
+}
+
+/* Icone azione + componenti, stesso aspetto della lista principale (Tabella.vue
+   .row-icon/.pf2e-icon) — replicate qui perché questo popup non usa Tabella.vue. */
+.row-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: .2rem;
+}
+.row-icon-item {
+  display: inline-flex;
+  align-items: center;
+  font-size: .7rem;
+}
+.row-icon {
+  vertical-align: middle;
+}
+
 .filtri {
   display: grid;
   grid-template-columns: 1fr 1fr;

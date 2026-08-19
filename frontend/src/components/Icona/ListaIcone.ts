@@ -24,7 +24,7 @@ export const ICONS = {
     DUCK: {kind: 'img', src: P('icons/duck-rubber-debugging.svg'), alt: 'Duck'},
     COMP_V: {kind: 'fa', classes: 'fa-solid fa-v'},    // Verbale
     COMP_S: {kind: 'fa', classes: 'fa-solid fa-s'},         // Somatico
-    COMP_M: {kind: 'fa', classes: 'fa-solid fa-M'},         // Materiale
+    COMP_M: {kind: 'fa', classes: 'fa-solid fa-m'},         // Materiale (FA7: classe minuscola, "fa-M" non esiste)
     COMP_F: {kind: 'fa', classes: 'fa-solid fa-wand-sparkles'},      // Focus
     COMP_DF: {kind: 'fa', classes: 'fa-solid fa-wand-sparkles'}, // Focus divino
     COMP_XP: {kind: 'fa', classes: 'fa-solid fa-star'},          // Costo PE

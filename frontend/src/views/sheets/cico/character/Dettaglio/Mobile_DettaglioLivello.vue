@@ -11,6 +11,8 @@ import usePopup from "../../../../../function/usePopup";
 import Mobile_DettaglioItem from "./Mobile_DettaglioItem.vue";
 import {Item} from "../../../../../models/dto/Item";
 import {getItemLabel, LABELS} from "../../../../../models/entity/ItemLabel";
+import {useMostraSimboliAzioni} from "../../../../../function/azioni";
+import AzioneValue from "../../../../../components/AzioneValue.vue";
 
 const router = useRouter()
 const {openPopup} = usePopup()
@@ -129,6 +131,10 @@ const labelEntries = computed(() =>
         .filter(x => x.resolved !== null)
 )
 
+// Flag mondo: se attivo, la riga "Azione" (TEMPO_SP) è resa coi glifi del font icone invece che
+// a testo (vedi components/AzioneValue.vue).
+const mostraSimboliAzioni = useMostraSimboliAzioni(computed(() => itemDetail.value?.mondo?.id))
+
 const TIPO_LABEL: Record<string, string> = {
   ABILITA: 'Abilità', TALENTO: 'Talento', COMP: 'Competenza',
   LINGUA: 'Lingua', INCANTESIMO: 'Incantesimo',
@@ -185,7 +191,9 @@ function showInfoAbilitaPopup(itm) {
     <!-- Labels dinamiche -->
     <div v-if="labelEntries.length" class="detail-section">
       <div v-for="entry in labelEntries" :key="entry.key">
-        <strong>{{ entry.resolved.label }}:</strong> {{ entry.resolved.value }}
+        <strong>{{ entry.resolved.label }}:</strong>
+        <AzioneValue :testo="entry.resolved.value"
+                     :mostra-simboli="entry.resolved.label === 'Azione' && mostraSimboliAzioni"/>
       </div>
     </div>
 

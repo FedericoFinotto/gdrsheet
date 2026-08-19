@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {defineProps, onMounted, ref} from 'vue';
+import {computed, defineProps, onMounted, ref} from 'vue';
 import {
   buildMappaItemAvanzamenti,
   buildMappaModificatoriAvanzamenti,
@@ -8,6 +8,8 @@ import {
   testoModificatore,
   testoModificatoreConTipo
 } from "../../../../../function/Utils";
+import {useMostraSimboliAzioni} from "../../../../../function/azioni";
+import AzioneValue from "../../../../../components/AzioneValue.vue";
 import {getItem} from "../../../../../service/PersonaggioService";
 import {ItemDB, TIPO_ITEM} from "../../../../../models/entity/ItemDB";
 import {useCharacterStore} from "../../../../../stores/personaggio";
@@ -42,6 +44,10 @@ const loading = ref(true);
 
 // Mappe per labels
 const labelMap = ref<Record<string, string>>({});
+
+// Flag mondo: se attivo, la riga "Azione" (TEMPO_SP) è resa coi glifi del font icone invece che
+// a testo (vedi components/AzioneValue.vue).
+const mostraSimboliAzioni = useMostraSimboliAzioni(computed(() => itemDetail.value?.mondo?.id))
 
 onMounted(async () => {
   try {
@@ -143,7 +149,10 @@ function showInfoItemPopup(itm) {
       <div v-for="(val, key) in labelMap" :key="key">
         <span v-if="mostraLabel(key, val)"><strong>{{
             mostraLabel(key, val).label
-          }}:</strong> {{ mostraLabel(key, val).value }}</span>
+          }}:</strong>
+          <AzioneValue :testo="mostraLabel(key, val).value"
+                       :mostra-simboli="mostraLabel(key, val).label === 'Azione' && mostraSimboliAzioni"/>
+        </span>
       </div>
       <div class="spazietto"/>
     </div>

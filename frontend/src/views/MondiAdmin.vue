@@ -215,6 +215,25 @@ async function onSalvaTipi() {
   }
 }
 
+/* ---- Visualizza simboli azioni (flag scalare, non un catalogo abilitato/disabilitato a righe) ---- */
+const mostraSimboliAzioni = ref(false)
+const busySimboliAzioni = ref(false)
+async function onToggleSimboliAzioni() {
+  if (mondoSelezionato.value === null || busySimboliAzioni.value) return
+  const nuovoValore = !mostraSimboliAzioni.value
+  busySimboliAzioni.value = true
+  errorMsg.value = null
+  try {
+    await aggiornaConfigMondo(mondoSelezionato.value, {mostraSimboliAzioni: nuovoValore})
+    mostraSimboliAzioni.value = nuovoValore
+  } catch (e) {
+    console.error('Errore salvataggio flag simboli azioni:', e)
+    errorMsg.value = 'Errore nel salvataggio del flag simboli azioni'
+  } finally {
+    busySimboliAzioni.value = false
+  }
+}
+
 /* ---- Liste/domini incantesimi abilitati per il mondo ---- */
 const catalogoListe = ref<ListaIncantesimiOpt[]>([])
 const listeAbilitate = ref<Set<string>>(new Set())
@@ -361,12 +380,14 @@ async function caricaConfigMondo() {
   if (mondoSelezionato.value === null) {
     tipiAbilitati.value = new Set()
     listeAbilitate.value = new Set()
+    mostraSimboliAzioni.value = false
     return
   }
   try {
     const {data} = await getConfigMondo(mondoSelezionato.value)
     tipiAbilitati.value = new Set(data.tipiAbilitati)
     listeAbilitate.value = new Set(data.listeIncantesimiAbilitate.map(l => l.codice))
+    mostraSimboliAzioni.value = data.mostraSimboliAzioni
     for (const t of data.tipiAbilitati) {
       statoTipi[t] = nuovoStatoTipo()
       openTipi[t] = false
@@ -590,6 +611,17 @@ onMounted(async () => {
             <button class="btn small danger" @click="onRimuovi(m)">Rimuovi</button>
           </li>
         </ul>
+      </section>
+
+      <!-- Visualizza simboli azioni: flag singolo, salvataggio immediato al click (non serve un
+           bottone Salva separato per un solo booleano, a differenza dei cataloghi sotto). -->
+      <section v-if="mondoSelezionato !== null" class="block">
+        <label class="chip-toggle" :class="{on: mostraSimboliAzioni}">
+          <input type="checkbox" :checked="mostraSimboliAzioni" :disabled="busySimboliAzioni"
+                 @change="onToggleSimboliAzioni"/>
+          Visualizza simboli azioni
+        </label>
+        <p class="muted">Se attivo, il costo in azioni degli incantesimi (1/2/3 Azioni, Azione Gratuita, Reazione) viene mostrato con le icone invece che a testo.</p>
       </section>
 
       <!-- Tipi item abilitati: solo questi sono creabili/editabili in questo mondo (opt-in) -->

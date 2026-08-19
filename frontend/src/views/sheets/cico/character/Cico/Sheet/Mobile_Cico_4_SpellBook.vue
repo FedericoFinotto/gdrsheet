@@ -11,6 +11,7 @@ import Mobile_Cico_4_SpellBookPrepare from '../../Dettaglio/Mobile_Cico_4_SpellB
 import {updatePreparedSpells, updateSpellUsage, resetSlotUsati} from '../../../../../../service/PersonaggioService';
 import {getValoreFormula} from '../../../../../../function/Calcolo';
 import {iconForComponent} from "../../../../../../function/Utils";
+import {parseAzioneGlifo} from "../../../../../../function/azioni";
 import {SpellBook, SpellBookLivello} from "../../../../../../models/dto/SpellBook";
 
 const props = defineProps({
@@ -50,11 +51,14 @@ function normalizeLevels(livelli: any): Array<{
             }, // calcolato live
             expandedComponent: markRaw(Mobile_DettaglioItem),
             expandedProps: {
-              data: {item: {} as any, personaggio: cache.value?.[props.idPersonaggio]}
+              data: {item: {} as any, personaggio: cache.value?.[props.idPersonaggio], prepCounter: null as any}
             }
           });
           // evito copia pesante del dettaglio nell'expansion
           row.expandedProps.data.item = row;
+          // stepper +/- del dettaglio esteso: stessa logica optimistic+persist già usata qui
+          // (consumeOne/refundOne), solo spostata di posto nell'UI — vedi Mobile_DettaglioItem.vue
+          row.expandedProps.data.prepCounter = {onSub: () => consumeOne(row), onAdd: () => refundOne(row)};
           return row;
         })
       }))
@@ -79,6 +83,7 @@ const groupedByClassLevel = computed(() => {
         casterLevel: sb?.casterLevel,
         caratteristica: sb?.caratteristica,
         cd: sb?.cd,
+        mostraSimboliAzioni: sb?.mostraSimboliAzioni === true,
         levels: normalizeLevels(sb?.livelli),
         spurii: sb?.spurii ?? []
       }))
@@ -312,35 +317,45 @@ async function refundOne(row: any) {
   }
 }
 
-function columnsForLevel(_lvl: number, spellList?: string) {
-  const cols: any[] = [{field: 'nome', label: ''}];
-  if (spellList === 'SP_DRUID') {
-    cols.push({
-      field: 'icons',
-      label: '',
-      type: 'icons',
-      list: (row) => row.componenti.map(c => iconForComponent(c))
-    })
-    cols.push({
-      field: 'remaining',
-      label: '',
-      type: 'counter',
-      counter: {
-        value: (row: any) => Number(row.remaining ?? 0),
-        max: (row: any) => Number.isFinite(row.nprepared) ? Number(row.nprepared) : null,
-        onSub: (row: any) => consumeOne(row),
-        onAdd: (row: any) => refundOne(row),
-        disableSub: (row: any) => saving.value.has(row.id) || Number(row.remaining ?? 0) <= 0,
-        disableAdd: (row: any) => saving.value.has(row.id) || Number(row.nused ?? 0) <= 0,
-        hide: (row: any) => row.alwaysPrep === true,
-      },
-      disabled: (row) => row.nprepared && row.nused === row.nprepared
-    });
+// Icone di fondo riga: simbolo azione (se il mondo ha "Visualizza simboli azioni" attivo e il
+// Tempo di Lancio è un pattern riconosciuto, vedi function/azioni.ts) seguito dai simboli
+// componenti (V/S/M/...) — stesse icone mostrate nel dettaglio esteso dell'incantesimo.
+function iconeRiga(row: any, mostraSimboliAzioni: boolean) {
+  const icone: any[] = []
+  if (mostraSimboliAzioni) {
+    const parsed = parseAzioneGlifo(row.tempo)
+    if (parsed && !parsed.resto) icone.push({glyph: parsed.glifo, title: row.tempo})
   }
+  icone.push(...(row.componenti ?? []).map((c: string) => ({name: iconForComponent(c)})))
+  return icone
+}
+
+// Testo compatto "rimasti/preparati" dopo le icone: solo per incantesimi con preparazione
+// tracciata (non "sempre preparato" — per quelli l'icona basta, nessun numero da mostrare). Lo
+// stepper +/- interattivo per consumare/recuperare un uso vive nel dettaglio esteso della riga
+// (Mobile_DettaglioItem.vue, contatore "prepCounter" cablato sotto in normalizeLevels).
+function testoContatore(row: any): string | null {
+  if (row.alwaysPrep === true) return null
+  return `${Number(row.remaining ?? 0)}/${Number(row.nprepared ?? 0)}`
+}
+
+function columnsForLevel(_lvl: number, spellList?: string, mostraSimboliAzioni?: boolean) {
+  const cols: any[] = [{field: 'nome', label: ''}];
+  // Icone (simbolo azione + componenti) + testo "rimasti/preparati": sempre, per ogni lista
+  // incantesimi — ogni riga qui è già un incantesimo effettivamente preparato (vedi backend
+  // generateSpellBookSezione, che popola i livelli SOLO dai figli di ITEM_INCANTESIMI_PREPARATI),
+  // quindi nprepared/nused sono sempre significativi indipendentemente dalla classe.
+  cols.push({
+    field: 'icons',
+    label: '',
+    type: 'icons',
+    list: (row) => iconeRiga(row, !!mostraSimboliAzioni),
+    counterText: testoContatore,
+  })
   return cols;
 }
 
-type ShowPopupOpts = { idClasse?: number; classe: string; livello: number; spellList: string };
+type ShowPopupOpts = { idClasse?: number; classe: string; livello: number; spellList: string; mostraSimboliAzioni?: boolean };
 
 function showPopup(opts: ShowPopupOpts) {
   const idClasse = opts.idClasse!;
@@ -369,6 +384,7 @@ function showPopup(opts: ShowPopupOpts) {
         spellList: opts.spellList,
         idPersonaggio: props.idPersonaggio,
         preparedInit,
+        mostraSimboliAzioni: !!opts.mostraSimboliAzioni,
 
         async onConfirm(payload: {
           idClasse: number;
@@ -427,7 +443,7 @@ function showPopup(opts: ShowPopupOpts) {
           </div>
           <button
               class="prepare-btn"
-              @click="showPopup({ idClasse: group.idClasse, classe: group.classe, livello: lv.livello, spellList: group.spellList })"
+              @click="showPopup({ idClasse: group.idClasse, classe: group.classe, livello: lv.livello, spellList: group.spellList, mostraSimboliAzioni: group.mostraSimboliAzioni })"
               title="Prepara incantesimi"
           >
             Prepara
@@ -437,7 +453,7 @@ function showPopup(opts: ShowPopupOpts) {
         <Tabella
             v-if="isLivelloAperto(group, lv)"
             class="mb-3"
-            :columns="columnsForLevel(lv.livello, group.spellList)"
+            :columns="columnsForLevel(lv.livello, group.spellList, group.mostraSimboliAzioni)"
             :expandable="true"
             :items="lv.incantesimi"
         />

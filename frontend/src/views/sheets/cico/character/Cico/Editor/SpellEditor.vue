@@ -14,6 +14,8 @@ import CardSottoscuole from './Spell/CardSottoscuole.vue'
 import CardDescrittori from './Spell/CardDescrittori.vue'
 import CardClassiDomini from './Spell/CardClassiDomini.vue'
 import CardComponenti from './Spell/CardComponenti.vue'
+import AzioneValue from '../../../../../../components/AzioneValue.vue'
+import {useMostraSimboliAzioni} from '../../../../../../function/azioni'
 
 
 const props = defineProps<{ item: ItemDB; readonly?: boolean }>()
@@ -153,6 +155,9 @@ const form = reactive<SpellDraft>(emptyDraft())
 // Sottoscuole/Descrittori/Componenti, vedi CatalogoIncantesimo) — null finché non risolto/in
 // errore = nessuna restrizione, per non far sparire di colpo le griglie.
 const cards = ref<Set<string>>(new Set())
+// Anteprima: se il mondo ha "Visualizza simboli azioni" attivo, mostra accanto al campo Tempo
+// come apparirebbe reso in scheda (vedi components/AzioneValue.vue).
+const mostraSimboliAzioni = useMostraSimboliAzioni(computed(() => form.idMondo))
 const scuoleAbilitateMondo = ref<Set<string> | null>(null)
 const sottoscuoleAbilitateMondo = ref<Set<string> | null>(null)
 const descrittoriAbilitatiMondo = ref<Set<string> | null>(null)
@@ -803,6 +808,9 @@ function onCancel() { emit('cancel') }
       <label class="field">
         <span class="lbl">Tempo</span>
         <input v-model.trim="form.tempo" type="text" :disabled="disabledAll" placeholder="Azione standard / 1 round …"/>
+        <span v-if="mostraSimboliAzioni" class="muted">
+          Anteprima: <AzioneValue :testo="form.tempo" :mostra-simboli="true"/>
+        </span>
       </label>
       <label class="field">
         <span class="lbl">Tiro Salvezza</span>
@@ -923,7 +931,7 @@ function onCancel() { emit('cancel') }
     <label v-if="cards.has('SPELL_COMBATTENTI')" class="field combattenti-field">
       <span class="chk">
         <input type="checkbox" v-model="form.combattenti" :disabled="disabledAll"/>
-        <span>Lista Combattenti (da valutare per Ranger/Assassino/Warblade/Paladino/Swordsage)</span>
+        <span>Combattenti</span>
       </span>
     </label>
 
@@ -958,7 +966,16 @@ function onCancel() { emit('cancel') }
 </template>
 
 <style scoped>
-.spell-editor { display: grid; gap: .75rem; margin: 0; }
+/* min-width: 0 necessario perché questo form è a sua volta un grid-item del contenitore
+   genitore .editor-scroll (anch'esso display:grid): senza, il default min-width:auto degli
+   grid-item impedisce di restringersi sotto il min-content dei figli, sforando orizzontalmente
+   su viewport stretti (mobile) anche se .row.three collassa già a una colonna sotto i 900px. */
+.spell-editor { display: grid; gap: .75rem; margin: 0; min-width: 0; }
+/* Stesso motivo un livello più sotto: ogni figlio diretto (header, .row, i fold delle card,
+   il campo Lista Combattenti...) è a sua volta un grid-item di .spell-editor, quindi eredita lo
+   stesso min-width:auto di default e va azzerato esplicitamente, altrimenti basta UNO di questi
+   figli con contenuto largo per sforare di nuovo l'intero form. */
+.spell-editor > * { min-width: 0; }
 .sp-head { display: flex; align-items: baseline; gap: .5rem; margin: 0; }
 .sp-head h2 { margin: 0; font-size: 1rem; }
 .muted { opacity: .7; font-size: .85rem; }

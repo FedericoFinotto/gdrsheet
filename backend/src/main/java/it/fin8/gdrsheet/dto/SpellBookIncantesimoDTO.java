@@ -22,4 +22,5 @@ public class SpellBookIncantesimoDTO extends ItemDTO {
     private Boolean alwaysPrep;
     private List<String> componenti;
     private String scuola; // SCUOLA_SP grezza: scuola/sottoscuole/descrittori
+    private String tempo; // TEMPO_SP grezzo: costo in azioni, per l'icona nella riga (vedi mostraSimboliAzioni)
 }

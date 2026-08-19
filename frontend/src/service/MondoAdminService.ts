@@ -95,6 +95,9 @@ export interface ListaIncantesimiOpt {
 export interface MondoConfig {
     tipiAbilitati: string[];
     listeIncantesimiAbilitate: ListaIncantesimiOpt[];
+    // se attivo, il costo in azioni (es. TEMPO_SP degli incantesimi) è mostrato coi glifi del
+    // font icone Pathfinder2eActions invece che a testo (vedi function/azioni.ts)
+    mostraSimboliAzioni: boolean;
 }
 
 // Cosa è abilitato per questo mondo (tipi item + liste/domini incantesimi): usato per filtrare i
@@ -118,7 +121,10 @@ export function creaListaIncantesimi(codice: string, etichetta: string): Promise
 // Sostituisce integralmente tipi/liste abilitati di un mondo (admin). Un campo omesso/null
 // lascia invariata quella parte, un array vuoto disabilita tutto.
 export function aggiornaConfigMondo(
-    mondoId: number, patch: { tipiAbilitati?: string[] | null; codiciListeIncantesimi?: string[] | null }
+    mondoId: number, patch: {
+        tipiAbilitati?: string[] | null; codiciListeIncantesimi?: string[] | null
+        mostraSimboliAzioni?: boolean | null
+    }
 ): Promise<AxiosResponse<MondoConfig>> {
     return api.put<MondoConfig>(`/mondo/${mondoId}/config`, patch);
 }

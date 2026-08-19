@@ -11,6 +11,9 @@ import java.util.List;
  */
 public record UpdateMondoConfigRequest(
         List<TipoItem> tipiAbilitati,
-        List<String> codiciListeIncantesimi
+        List<String> codiciListeIncantesimi,
+        // scalare, non "full replace": null = non toccare, altrimenti sovrascrive direttamente il
+        // campo su Mondo (diverso dalle due liste sopra, che sono tabelle di join)
+        Boolean mostraSimboliAzioni
 ) {
 }

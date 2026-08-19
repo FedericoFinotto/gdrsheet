@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, defineAsyncComponent, defineProps, onMounted, ref} from 'vue';
+import {computed, defineAsyncComponent, defineProps, onMounted, ref, watch} from 'vue';
 import {
   buildMappaItemAvanzamenti,
   buildMappaModificatoriAvanzamenti,
@@ -27,6 +27,10 @@ import {getItemLabel, getItemLabels, LABELS, thereIsValoreLabel} from "../../../
 import {coloreIncarico} from "../../../../../function/coloreIncarico";
 import {useHp} from "../../../../../function/useHp";
 import {getImmagini, ItemImmagine} from "../../../../../service/ImmagineService";
+import {parseAzioneGlifo} from "../../../../../function/azioni";
+import {getConfigMondo, MondoConfig} from "../../../../../service/MondoAdminService";
+import {spellListLabel} from "../../../../../function/spellLists";
+import AzioneValue from "../../../../../components/AzioneValue.vue";
 
 const DaiOggettoPopup = defineAsyncComponent(() => import("../../../../../components/DaiOggettoPopup.vue"))
 const ImmagineAllegatoPopup = defineAsyncComponent(() => import("../../../../../components/ImmagineAllegatoPopup.vue"))
@@ -38,6 +42,21 @@ const props = defineProps<{
   data: {
     item: Item;            // l'oggetto item con id e tipo
     personaggio: any;
+    // Solo dallo spellbook (Mobile_Cico_4_SpellBook.vue/Mobile_Cico_4_SpellBookPrepare.vue): riga
+    // con preparazione tracciata (nprepared/nused/remaining/alwaysPrep già su item, che è lo
+    // stesso oggetto reattivo passato dal chiamante). onSub/onAdd persistono l'uso (stessa logica
+    // optimistic+rollback del chiamante), qui si gestisce solo lo stato "in corso" locale.
+    prepCounter?: { onSub: () => Promise<void> | void; onAdd: () => Promise<void> | void } | null;
+    // Solo dal popup "Prepara incantesimi" (Mobile_Cico_4_SpellBookPrepare.vue): qui, a differenza
+    // di prepCounter sopra, non si consuma un uso già fissato ma si SCEGLIE quanti prepararne
+    // (stato locale del popup, non ancora persistito finché non si preme Conferma), più il
+    // checkbox "sempre preparato". getValue/getAlways sono funzioni (non valori) apposta: letti
+    // dentro un computed di questo componente, restano reattivi allo stato del popup chiamante
+    // pur attraversando il confine tra i due componenti.
+    prepareEditor?: {
+      getValue: () => number; getAlways: () => boolean
+      onInc: () => void; onDec: () => void; onToggleAlways: () => void
+    } | null;
   };
   // true quando il popup è usato come semplice "vedi info" fuori dal contesto scheda/inventario
   // (es. editor livello): nasconde la action-bar (Attiva/Disattiva, Modifica), dato che lì lo stato
@@ -49,6 +68,32 @@ const props = defineProps<{
   hideToggle?: boolean;
 }>();
 const {item, personaggio} = props.data;
+
+// Contatore preparazione (stepper − N/M +), tutto a sinistra della action-bar: vedi prop
+// prepCounter sopra. Nascosto se l'incantesimo è "sempre preparato" (alwaysPrep) — niente da
+// consumare/recuperare in quel caso, coerente con la stessa condizione già usata nella lista
+// (Mobile_Cico_4_SpellBook.vue) per non mostrare il testo "N/M".
+const prepCounter = computed(() => (item as any).alwaysPrep === true ? null : (props.data.prepCounter ?? null))
+const prepBusy = ref(false)
+const prepRemaining = computed(() => Number((item as any).remaining ?? 0))
+const prepPreparati = computed(() => Number((item as any).nprepared ?? 0))
+const prepUsati = computed(() => Number((item as any).nused ?? 0))
+async function prepSub() {
+  if (!prepCounter.value || prepBusy.value || prepRemaining.value <= 0) return
+  prepBusy.value = true
+  try { await prepCounter.value.onSub() } finally { prepBusy.value = false }
+}
+async function prepAdd() {
+  if (!prepCounter.value || prepBusy.value || prepUsati.value <= 0) return
+  prepBusy.value = true
+  try { await prepCounter.value.onAdd() } finally { prepBusy.value = false }
+}
+
+// Editor "quanti preparare" (popup Prepara): stepper − N + più checkbox "sempre", niente
+// frazione N/M (quella è solo per la lista in sola lettura, vedi commento su prepCounter sopra).
+const prepareEditor = computed(() => props.data.prepareEditor ?? null)
+const prepareValue = computed(() => prepareEditor.value ? prepareEditor.value.getValue() : 0)
+const prepareAlways = computed(() => prepareEditor.value ? prepareEditor.value.getAlways() : false)
 
 const characterStore = useCharacterStore();
 const {cache} = storeToRefs(characterStore);
@@ -444,14 +489,47 @@ const contenitorInfo = computed(() => {
   }
 })
 
+// Config del mondo dell'item corrente: una sola chiamata a /config, da cui derivano sia il flag
+// simboli azioni sia le etichette delle liste/domini incantesimi abilitate (vedi spellChipsInfo
+// più sotto) — evita due fetch separate allo stesso endpoint.
+const mondoConfig = ref<MondoConfig | null>(null)
+watch(() => itemDetail.value?.mondo?.id, async id => {
+  if (id == null) { mondoConfig.value = null; return }
+  try {
+    mondoConfig.value = (await getConfigMondo(id)).data
+  } catch (e) {
+    console.error('Errore caricamento configurazione mondo:', e)
+    mondoConfig.value = null
+  }
+}, {immediate: true})
+
+// Flag mondo: se attivo, il costo in azioni (TEMPO_SP) è reso coi glifi del font icone invece
+// che a testo (vedi components/AzioneValue.vue e function/azioni.ts).
+const mostraSimboliAzioni = computed(() => mondoConfig.value?.mostraSimboliAzioni ?? false)
+
+// Quando il testo di TEMPO_SP è ESATTAMENTE un pattern riconosciuto (nessun residuo, es. non
+// "1 azione (contatto)"), la riga "Tempo di Lancio" nel box incantesimo sparisce e il glifo va
+// invece mostrato accanto ai simboli componenti (V/S/M) — vedi template sotto.
+const azioneRiconosciuta = computed(() => {
+  if (!mostraSimboliAzioni.value) return null
+  const tempo = itemDetail.value?.labels?.find(l => l.label === 'TEMPO_SP')?.valore
+  const parsed = parseAzioneGlifo(tempo)
+  return parsed && !parsed.resto ? parsed : null
+})
+
 // Labels dinamiche: una riga per ogni ItemLabel grezza che passa la whitelist di mostraLabel().
 // Itera l'array raw (non un Record per label) così le label multi-valore (es. più SPELL) non si
-// schiacciano l'una sull'altra tenendo solo l'ultima.
+// schiacciano l'una sull'altra tenendo solo l'ultima. Per gli INCANTESIMI, Tempo/Range/Durata/
+// Tiro Salvezza/Scuola sono già coperti dal box curato incantesimoInfo/spellChipsInfo sotto, e
+// vanno esclusi qui per non mostrarli due volte.
 const labelsVisibili = computed(() => {
   if (!itemDetail.value?.labels) return []
+  const isSpell = itemDetail.value.tipo === TIPO_ITEM.INCANTESIMO
   return itemDetail.value.labels
       .map(l => mostraLabel(l.label, l.valore))
       .filter(lv => lv !== null)
+      .filter(lv => !(azioneRiconosciuta.value && lv.label === 'Azione'))
+      .filter(lv => !(isSpell && ['Azione', 'Range', 'Durata', 'Tiro Salvezza', 'Scuola'].includes(lv.label)))
 })
 
 // Talento e Skill Trick condividono lo stesso stile di dati dndtools.org (vedi
@@ -525,12 +603,57 @@ const attaccoInfo = computed(() => {
 const incantesimoInfo = computed(() => {
   if (!itemDetail.value || itemDetail.value.tipo !== TIPO_ITEM.INCANTESIMO) return null
   const d = itemDetail.value
+  const tempo = getItemLabel(d, LABELS.SPELL_TEMPO)
+  const tsRaw = getItemLabel(d, LABELS.SPELL_TIRO_SALVEZZA)
+  const ts = tsRaw && tsRaw.toLowerCase() !== 'none' ? tsRaw : null // stessa regola di mostraLabel()
+  const range = getItemLabel(d, LABELS.SPELL_RANGE)
+  const durata = getItemLabel(d, LABELS.SPELL_DURATA)
   const resistenza = getItemLabel(d, LABELS.SPELL_RESISTENZA)
   const manuale = getItemLabel(d, LABELS.MANUALE)
   const enNameRaw = getItemLabel(d, LABELS.EN_NAME)
   const enName = enNameRaw && enNameRaw !== d.nome ? enNameRaw : null
-  if (!resistenza && !manuale && !enName) return null
-  return {resistenza, manuale, enName}
+  if (!tempo && !ts && !range && !durata && !resistenza && !manuale && !enName) return null
+  return {tempo, ts, range, durata, resistenza, manuale, enName}
+})
+
+// Scuola/Sottoscuola/Descrittori: SCUOLA_SP è un'unica stringa composta "Scuola[/Scuola2]
+// (Sottoscuola, ...) [Descrittore, ...]" (vedi buildScuolaStringIT in SpellEditor.vue) — qui basta
+// un parsing strutturale (parentesi/quadre/slash), senza bisogno dei dizionari di traduzione
+// dell'editor, perché il dato è già salvato in italiano.
+function parseScuolaDisplay(raw: string | null): { scuole: string[]; sottoscuole: string[]; descrittori: string[] } {
+  const s = (raw ?? '').trim()
+  if (!s) return {scuole: [], sottoscuole: [], descrittori: []}
+  const paren = s.match(/\(([^)]*)\)/)
+  const bracket = s.match(/\[([^\]]*)\]/)
+  const schoolPart = s.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim()
+  return {
+    scuole: schoolPart.split('/').map(x => x.trim()).filter(Boolean),
+    sottoscuole: paren ? paren[1].split(',').map(x => x.trim()).filter(Boolean) : [],
+    descrittori: bracket ? bracket[1].split(',').map(x => x.trim()).filter(Boolean) : [],
+  }
+}
+
+// Chip Scuole/Sottoscuole/Descrittori/Classi-Domìni sotto la descrizione. Le classi/domìni sono
+// le label SP_<CODICE> (stesso pattern di SpellEditor.vue), escluso SP_SLOT che non è una lista ma
+// un dato di sezione slot di classe. Se tutte le classi/domìni condividono lo stesso livello, un
+// solo chip "Lvl N" li riassume invece di ripeterlo su ognuno.
+const spellChipsInfo = computed(() => {
+  if (!itemDetail.value || itemDetail.value.tipo !== TIPO_ITEM.INCANTESIMO) return null
+  const d = itemDetail.value
+  const {scuole, sottoscuole, descrittori} = parseScuolaDisplay(getItemLabel(d, LABELS.SPELL_SCUOLA))
+  const mappaListe = new Map((mondoConfig.value?.listeIncantesimiAbilitate ?? []).map(l => [l.codice, l.etichetta] as const))
+  const classi: Array<{ codice: string; etichetta: string; livello: number }> = []
+  for (const l of d.labels ?? []) {
+    if (l.label === LABELS.SPELL_SLOT) continue
+    if (!/^SP_[A-Z_]+$/.test(l.label ?? '')) continue
+    const n = Number((l.valore ?? '').trim())
+    if (!Number.isFinite(n) || n < 0 || n > 9) continue
+    classi.push({codice: l.label!, etichetta: mappaListe.get(l.label!) ?? spellListLabel(l.label!), livello: n})
+  }
+  if (!scuole.length && !sottoscuole.length && !descrittori.length && !classi.length) return null
+  const livelli = new Set(classi.map(c => c.livello))
+  const livelloComune = livelli.size === 1 ? classi[0].livello : null
+  return {scuole, sottoscuole, descrittori, classi, livelloComune}
 })
 
 // Forma/Trasformazione: taglia che il personaggio ASSUME quando questa forma è attiva (non è la
@@ -660,7 +783,28 @@ function toggleExpand(key: string) {
          (riga della lista/tab che ha aperto questo dettaglio) o, quando questo componente è
          aperto come popup, nel titolo del popup stesso (vedi title passato a openPopup() dai
          chiamanti) — qui non va ripetuto. -->
-    <div v-if="!readonly || linguaInfo" class="action-bar">
+    <div v-if="!readonly || linguaInfo || prepCounter || prepareEditor" class="action-bar">
+      <!-- Contatore preparazione (incantesimi, lista personaggio): tutto a sinistra, stessa riga
+           di lingua/Modifica -->
+      <div v-if="prepCounter" class="counter-wrap">
+        <button type="button" class="counter-btn" :disabled="prepBusy || prepRemaining <= 0" @click.stop="prepSub">−</button>
+        <span class="counter-value">{{ prepRemaining }}<span class="slash">/</span><span class="max">{{ prepPreparati }}</span></span>
+        <button type="button" class="counter-btn" :disabled="prepBusy || prepUsati <= 0" @click.stop="prepAdd">+</button>
+      </div>
+      <!-- Editor "quanti preparare" (popup Prepara): stepper + checkbox "sempre", niente N/M.
+           Le due modalità sono esclusive: la checkbox resta visibile solo finché non c'è ancora
+           un valore impostato (o se è lei stessa attiva, per poterla despuntare); appena il
+           contatore sale sopra 0 sparisce, e viceversa lo stepper sparisce se "sempre" è attivo. -->
+      <div v-if="prepareEditor" class="counter-wrap">
+        <label v-if="prepareAlways || prepareValue <= 0" class="always-toggle" title="Sempre preparato">
+          <input type="checkbox" :checked="prepareAlways" @change="prepareEditor.onToggleAlways()"/>
+        </label>
+        <template v-if="!prepareAlways">
+          <button type="button" class="counter-btn" @click.stop="prepareEditor.onDec()">−</button>
+          <span class="counter-value">{{ prepareValue }}</span>
+          <button type="button" class="counter-btn" @click.stop="prepareEditor.onInc()">+</button>
+        </template>
+      </div>
       <button
           v-if="!readonly && !hideToggle && disableLabel"
           type="button"
@@ -732,8 +876,9 @@ function toggleExpand(key: string) {
       </div>
     </div>
 
-    <div v-if="itemDetail?.labels?.length" style="display: flex">
-      <div v-for="comp in itemDetail.labels">
+    <div v-if="itemDetail?.labels?.length || azioneRiconosciuta" style="display: flex; align-items: center; gap: .2rem">
+      <span v-if="azioneRiconosciuta" class="pf2e-icon" :title="getItemLabel(itemDetail, LABELS.SPELL_TEMPO)">{{ azioneRiconosciuta.glifo }}</span>
+      <div v-for="comp in itemDetail?.labels">
         <Icona v-if="comp.label==='COMP_SP'" :name="iconForComponent(comp.valore)"></Icona>
       </div>
     </div>
@@ -792,7 +937,9 @@ function toggleExpand(key: string) {
     <!-- Labels dinamiche -->
     <div v-if="labelsVisibili.length">
       <div v-for="(lv, i) in labelsVisibili" :key="i">
-        <span><strong>{{ lv.label }}:</strong> {{ lv.value }}</span>
+        <span><strong>{{ lv.label }}:</strong>
+          <AzioneValue :testo="lv.value" :mostra-simboli="lv.label === 'Azione' && mostraSimboliAzioni"/>
+        </span>
       </div>
       <div class="spazietto"/>
     </div>
@@ -919,10 +1066,14 @@ function toggleExpand(key: string) {
     <div v-if="taglioAssuntaInfo" class="costo-materiale">
       <span><strong>Taglia assunta dal personaggio:</strong> {{ taglioAssuntaInfo.taglia }}</span>
     </div>
-    <div v-if="incantesimoInfo" class="costo-materiale">
+    <div v-if="incantesimoInfo" class="costo-materiale incantesimo-dettagli">
+      <span v-if="incantesimoInfo.tempo && !azioneRiconosciuta"><strong>Tempo di Lancio:</strong> {{ incantesimoInfo.tempo }}</span>
+      <span v-if="incantesimoInfo.ts"><strong>Tiro Salvezza:</strong> {{ incantesimoInfo.ts }}</span>
+      <span v-if="incantesimoInfo.range"><strong>Range:</strong> {{ incantesimoInfo.range }}</span>
+      <span v-if="incantesimoInfo.durata"><strong>Durata:</strong> {{ incantesimoInfo.durata }}</span>
+      <span v-if="incantesimoInfo.resistenza"><strong>Resistenza:</strong> {{ incantesimoInfo.resistenza }}</span>
       <span v-if="incantesimoInfo.enName"><strong>Nome originale:</strong> {{ incantesimoInfo.enName }}</span>
       <span v-if="incantesimoInfo.manuale"><strong>Manuale:</strong> {{ incantesimoInfo.manuale }}</span>
-      <span v-if="incantesimoInfo.resistenza"><strong>Resistenza agli incantesimi:</strong> {{ incantesimoInfo.resistenza }}</span>
     </div>
 
     <!-- Attacco: stessi campi mostrati nella scheda Attacchi -->
@@ -959,6 +1110,17 @@ function toggleExpand(key: string) {
       <div class="descrizione-html" v-safe-html="descrizioneMostrata"></div>
       <div style="height: 20px"></div>
       <div class="spazietto"/>
+    </div>
+
+    <!-- Incantesimo: chip Scuole/Sottoscuole/Descrittori/Classi-Domìni, un colore per categoria -->
+    <div v-if="spellChipsInfo" class="spell-chips-row">
+      <span v-for="s in spellChipsInfo.scuole" :key="'sc-'+s" class="spell-chip spell-chip-scuola">{{ s }}</span>
+      <span v-for="s in spellChipsInfo.sottoscuole" :key="'ss-'+s" class="spell-chip spell-chip-sottoscuola">{{ s }}</span>
+      <span v-for="d in spellChipsInfo.descrittori" :key="'de-'+d" class="spell-chip spell-chip-descrittore">{{ d }}</span>
+      <span v-for="c in spellChipsInfo.classi" :key="'cl-'+c.codice" class="spell-chip spell-chip-classe">
+        {{ c.etichetta }}<template v-if="spellChipsInfo.livelloComune === null"> · Lvl {{ c.livello }}</template>
+      </span>
+      <span v-if="spellChipsInfo.livelloComune !== null" class="spell-chip spell-chip-livello">Lvl {{ spellChipsInfo.livelloComune }}</span>
     </div>
 
     <!-- Utilizzi massimi + cadenza di reset (card UTILIZZI_MAX/RESET) -->
@@ -1394,6 +1556,28 @@ function toggleExpand(key: string) {
   font-size: .82rem; color: var(--text-muted);
   margin-bottom: .5rem;
 }
+/* Incantesimo: Tempo di Lancio/Tiro Salvezza/Range/Durata/Resistenza/Nome originale/Manuale,
+   uno sotto l'altro invece che affiancati come il resto di .costo-materiale. */
+.incantesimo-dettagli { flex-direction: column; gap: .15rem; }
+
+/* Incantesimo: chip Scuole/Sottoscuole/Descrittori/Classi-Domìni sotto la descrizione, un colore
+   per categoria (non per singolo chip: più chip della stessa categoria condividono il colore). */
+.spell-chips-row {
+  display: flex; flex-wrap: wrap; gap: .35rem;
+  margin: .5rem 0;
+}
+.spell-chip {
+  border-radius: .4rem;
+  padding: .1rem .5rem;
+  font-weight: 700;
+  font-size: .7rem;
+  letter-spacing: .02em;
+}
+.spell-chip-scuola { background: var(--info-bg); color: var(--info-text); }
+.spell-chip-sottoscuola { background: var(--accent-purple-bg); color: var(--accent-purple-text); }
+.spell-chip-descrittore { background: var(--accent-teal-bg); color: var(--accent-teal-text); }
+.spell-chip-classe { background: var(--accent-pink-bg); color: var(--accent-pink-text); }
+.spell-chip-livello { background: var(--warning-bg); color: var(--warning-text); }
 .section-card {
   border: 1px solid var(--hairline);
   border-radius: .5rem;

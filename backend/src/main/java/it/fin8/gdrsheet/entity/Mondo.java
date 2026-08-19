@@ -32,6 +32,12 @@ public class Mondo implements Serializable {
     @JoinColumn(name = "sistema_id")
     private Sistema sistema;
 
+    /** Se attivo, il costo in azioni (es. TEMPO_SP degli incantesimi) è mostrato coi glifi del
+     * font icone Pathfinder2eActions invece che a testo. Nasce disattivato (default false). */
+    @NotNull
+    @Column(name = "mostra_simboli_azioni", nullable = false)
+    private Boolean mostraSimboliAzioni = false;
+
     @OneToMany(mappedBy = "mondo", fetch = FetchType.LAZY)
     @JsonIgnoreProperties("mondo")
     private List<StatDefault> defaultStats;
