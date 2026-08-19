@@ -290,6 +290,12 @@ export function resetSlotUsati(personaggioId: number): Promise<AxiosResponse<voi
     return api.delete<void>(`/item/spell-slot-usati/${personaggioId}`);
 }
 
+// Mana usato di una sezione incantesimi (mondo a sistema MANA, vedi SpellBook.sistemaIncantesimi/
+// manaUsati/formulaManaTotale) — un solo contatore condiviso per l'intera sezione, non per livello.
+export function setManaUsati(itemId: number, personaggioId: number, sezioneIndice: number, usati: number): Promise<AxiosResponse<void>> {
+    return api.put<void>(`/item/${itemId}/spell-mana-usati/${personaggioId}/${sezioneIndice}`, {usati});
+}
+
 // Contatore item ($V_<nome>, es. "$V_CARICHE") mostrato/editabile in Mobile_DettaglioItem.vue
 // quando l'item ha il flag globale SHOW_$V_<nome>=1 — scoped per personaggio come UTILIZZI_USATI.
 export function setContatoreItem(itemId: number, personaggioId: number, nome: string, valore: number): Promise<AxiosResponse<void>> {

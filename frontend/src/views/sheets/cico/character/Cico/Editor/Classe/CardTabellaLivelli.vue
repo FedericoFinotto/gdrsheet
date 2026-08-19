@@ -1,15 +1,21 @@
 <script setup lang="ts">
 import {computed, reactive, watch} from 'vue'
 import SearchSelect from '../../../../../../../components/SearchSelect.vue'
+import {StatLivelloClasse} from '../../../../../../../service/StatAdminService'
 
 interface LivelloClasse {
-  livello: number; bab: string; tmp: string; rfl: string; vlt: string; spSlot: string
+  livello: number
+  valori: Record<string, string>  // statId -> valore, per le stat "livello classe" del mondo
+  spSlot: string
 }
 
 const props = defineProps<{
   numLivelli: number
   dv: string
   livelli: LivelloClasse[]  // reactive array del genitore, cresciuta per riferimento (push)
+  // Stat con colonna in questa tabella, configurate per il mondo della classe (vedi
+  // StatController#getLivelloClasse): vuoto finché il mondo non ne ha configurate.
+  statLivelloClasse: StatLivelloClasse[]
   disabled?: boolean
 }>()
 const emit = defineEmits<{
@@ -19,7 +25,7 @@ const emit = defineEmits<{
 
 function ensureLivelli(n: number) {
   for (let i = props.livelli.length; i < n; i++) {
-    props.livelli.push({livello: i + 1, bab: '', tmp: '', rfl: '', vlt: '', spSlot: ''})
+    props.livelli.push({livello: i + 1, valori: {}, spSlot: ''})
   }
 }
 function onNumLivelliInput(v: string) {
@@ -30,6 +36,23 @@ function onNumLivelliInput(v: string) {
 watch(() => props.numLivelli, n => ensureLivelli(n), {immediate: true})
 
 const livelliVisibili = computed<LivelloClasse[]>(() => props.livelli.slice(0, props.numLivelli))
+
+function valore(row: LivelloClasse, statId: string): string {
+  return row.valori?.[statId] ?? ''
+}
+function setValore(row: LivelloClasse, statId: string, v: string) {
+  if (!row.valori) row.valori = {}
+  row.valori[statId] = v
+}
+
+/* Generatore rapido BAB/TS: solo una comodità per il preset classico (mondo Cico), disponibile
+ * solo se il mondo ha effettivamente configurato quelle stat come "livello classe". Altre stat
+ * configurate da altri mondi restano solo a compilazione manuale. */
+const idBab = computed(() => props.statLivelloClasse.find(s => s.statId === 'BAB')?.statId ?? null)
+const idTmp = computed(() => props.statLivelloClasse.find(s => s.statId === 'TMP')?.statId ?? null)
+const idRfl = computed(() => props.statLivelloClasse.find(s => s.statId === 'RFL')?.statId ?? null)
+const idVlt = computed(() => props.statLivelloClasse.find(s => s.statId === 'VLT')?.statId ?? null)
+const hasGeneratore = computed(() => !!(idBab.value || idTmp.value || idRfl.value || idVlt.value))
 
 const gen = reactive({
   bab: 'MEDIO' as 'ALTO' | 'MEDIO' | 'BASSO',
@@ -48,10 +71,10 @@ function tsPer(l: number, tipo: 'BUONO' | 'SCARSO'): number {
 function generaTabella() {
   for (const row of livelliVisibili.value) {
     const l = row.livello
-    row.bab = `+${babPer(l)}`
-    row.tmp = `+${tsPer(l, gen.tmp)}`
-    row.rfl = `+${tsPer(l, gen.rfl)}`
-    row.vlt = `+${tsPer(l, gen.vlt)}`
+    if (idBab.value) setValore(row, idBab.value, `+${babPer(l)}`)
+    if (idTmp.value) setValore(row, idTmp.value, `+${tsPer(l, gen.tmp)}`)
+    if (idRfl.value) setValore(row, idRfl.value, `+${tsPer(l, gen.rfl)}`)
+    if (idVlt.value) setValore(row, idVlt.value, `+${tsPer(l, gen.vlt)}`)
   }
 }
 </script>
@@ -72,24 +95,28 @@ function generaTabella() {
     </label>
   </div>
 
-  <div class="gen">
+  <p v-if="!statLivelloClasse.length" class="muted">
+    Nessuna stat "livello classe" configurata per questo mondo (vedi Statistiche & Default Mondo).
+  </p>
+
+  <div v-if="hasGeneratore" class="gen">
     <div class="gen-grid">
-      <label class="field">
+      <label v-if="idBab" class="field">
         <span class="lbl">BAB</span>
         <SearchSelect v-model="gen.bab" :disabled="disabled" :sort="false"
                       :options="[{value:'ALTO',label:'Alto (guerriero)'},{value:'MEDIO',label:'Medio (chierico)'},{value:'BASSO',label:'Basso (mago)'}]"/>
       </label>
-      <label class="field">
+      <label v-if="idTmp" class="field">
         <span class="lbl">Tempra</span>
         <SearchSelect v-model="gen.tmp" :disabled="disabled" :sort="false"
                       :options="[{value:'BUONO',label:'Buono'},{value:'SCARSO',label:'Scarso'}]"/>
       </label>
-      <label class="field">
+      <label v-if="idRfl" class="field">
         <span class="lbl">Riflessi</span>
         <SearchSelect v-model="gen.rfl" :disabled="disabled" :sort="false"
                       :options="[{value:'BUONO',label:'Buono'},{value:'SCARSO',label:'Scarso'}]"/>
       </label>
-      <label class="field">
+      <label v-if="idVlt" class="field">
         <span class="lbl">Volontà</span>
         <SearchSelect v-model="gen.vlt" :disabled="disabled" :sort="false"
                       :options="[{value:'BUONO',label:'Buono'},{value:'SCARSO',label:'Scarso'}]"/>
@@ -100,14 +127,15 @@ function generaTabella() {
     </button>
   </div>
 
-  <div class="liv-list">
+  <div v-if="statLivelloClasse.length" class="liv-list">
     <div v-for="row in livelliVisibili" :key="row.livello" class="liv-card">
       <div class="liv-num">{{ row.livello }}</div>
       <div class="liv-fields">
-        <label><span>BAB</span><input v-model.trim="row.bab" :disabled="disabled"/></label>
-        <label><span>TMP</span><input v-model.trim="row.tmp" :disabled="disabled"/></label>
-        <label><span>RFL</span><input v-model.trim="row.rfl" :disabled="disabled"/></label>
-        <label><span>VLT</span><input v-model.trim="row.vlt" :disabled="disabled"/></label>
+        <label v-for="s in statLivelloClasse" :key="s.statId">
+          <span>{{ s.statLabel }}</span>
+          <input :value="valore(row, s.statId)" :disabled="disabled"
+                 @input="setValore(row, s.statId, ($event.target as HTMLInputElement).value.trim())"/>
+        </label>
       </div>
     </div>
   </div>

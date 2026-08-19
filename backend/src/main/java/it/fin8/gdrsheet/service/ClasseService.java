@@ -1,5 +1,6 @@
 package it.fin8.gdrsheet.service;
 
+import it.fin8.gdrsheet.StatDefault;
 import it.fin8.gdrsheet.config.Constants;
 import it.fin8.gdrsheet.def.TipoItem;
 import it.fin8.gdrsheet.def.TipoModificatore;
@@ -28,7 +29,6 @@ import java.util.stream.Collectors;
 public class ClasseService {
 
     private static final int LIVELLI = 20;
-    private static final List<String> STAT_LIVELLO = List.of("BAB", "TMP", "RFL", "VLT");
 
     private final ItemRepository itemRepository;
     private final AvanzamentoRepository avanzamentoRepository;
@@ -108,16 +108,19 @@ public class ClasseService {
                 .thenComparing(a -> String.valueOf(a.getNome()), String.CASE_INSENSITIVE_ORDER));
         dto.setAbilitaConcesse(concesse);
 
+        List<String> statLivelloClasse = statLivelloClasseDelMondo(classe.getMondo());
         List<ClasseDetailDTO.LivelloClasseDTO> livelli = new ArrayList<>();
         for (int l = 1; l <= numLivelli; l++) {
             Item avz = avzPerLivello.get(l);
             ClasseDetailDTO.LivelloClasseDTO row = new ClasseDetailDTO.LivelloClasseDTO();
             row.setLivello(l);
             if (avz != null) {
-                row.setBab(valoreMod(avz, "BAB"));
-                row.setTmp(valoreMod(avz, "TMP"));
-                row.setRfl(valoreMod(avz, "RFL"));
-                row.setVlt(valoreMod(avz, "VLT"));
+                Map<String, String> valori = new LinkedHashMap<>();
+                for (String statId : statLivelloClasse) {
+                    String v = valoreMod(avz, statId);
+                    if (v != null) valori.put(statId, v);
+                }
+                row.setValori(valori);
                 row.setSpSlot(avz.getLabel(Constants.ITEM_LABEL_SPELL_SLOT));
             }
             livelli.add(row);
@@ -352,6 +355,7 @@ public class ClasseService {
             }
         }
 
+        List<String> statLivelloClasse = statLivelloClasseDelMondo(classe.getMondo());
         if (dto.getLivelli() != null) {
             for (ClasseDetailDTO.LivelloClasseDTO row : dto.getLivelli()) {
                 int l = row.getLivello();
@@ -378,10 +382,9 @@ public class ClasseService {
                     avz.setNome(nome.toUpperCase(Locale.ROOT) + " " + l);
                 }
 
-                setModValore(avz, "BAB", row.getBab());
-                setModValore(avz, "TMP", row.getTmp());
-                setModValore(avz, "RFL", row.getRfl());
-                setModValore(avz, "VLT", row.getVlt());
+                for (String statId : statLivelloClasse) {
+                    setModValore(avz, statId, row.getValori() != null ? row.getValori().get(statId) : null);
+                }
                 setModValore(avz, "DV", null);    // DV ora gestito a livello di classe e congelato sul livello
                 setModValore(avz, "GRADI", null); // gradi ora gestiti da RANK_1/RANK sulla classe: pulizia vecchio mod
 
@@ -465,6 +468,21 @@ public class ClasseService {
         } catch (NumberFormatException e) {
             return LIVELLI;
         }
+    }
+
+    /**
+     * Stat con colonna nella Tabella Livelli per questo mondo (stat_default.livello_classe=true,
+     * vedi db.changelog-21.0.xml) — non più una lista fissa BAB/TMP/RFL/VLT uguale per tutti i
+     * mondi: ogni mondo configura le proprie (StatsAdmin.vue / StatController#getLivelloClasse).
+     */
+    private static List<String> statLivelloClasseDelMondo(Mondo mondo) {
+        if (mondo == null || mondo.getDefaultStats() == null) return List.of();
+        return mondo.getDefaultStats().stream()
+                .filter(def -> Boolean.TRUE.equals(def.getLivelloClasse()))
+                .map(StatDefault::getStatId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
     }
 
     private static String valoreMod(Item item, String statId) {

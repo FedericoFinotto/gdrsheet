@@ -41,4 +41,13 @@ public class StatDefault {
     @Column(name = "addestramento")
     private Boolean addestramento;
 
+    /** Questa stat ha una colonna nella Tabella Livelli di una classe, per questo mondo. */
+    @NotNull
+    @Column(name = "livello_classe", nullable = false)
+    private Boolean livelloClasse = false;
+
+    /** SOMMATIVO o SOSTITUTIVO (vedi Constants), rilevante solo se livelloClasse=true. */
+    @Column(name = "modo_livello_classe", length = 20)
+    private String modoLivelloClasse;
+
 }

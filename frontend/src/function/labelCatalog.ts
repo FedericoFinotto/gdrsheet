@@ -49,4 +49,5 @@ export const VARIABILI_FORMULA: VoceInfo[] = [
     {nome: '$QTA', descrizione: 'Quantità dell’item corrente (label QTA).'},
     {nome: '$V_<nome>', descrizione: 'Contatore proprio dell’item (es. $V_FORMA / $V_MOLTIPLICATORE per un frutto).'},
     {nome: 'ECCESSO() / DIFETTO() / TRONCATO()', descrizione: 'Arrotondamento per eccesso / difetto / troncamento. Es.: DIFETTO(LVL/2).'},
+    {nome: 'MIN() / MAX()', descrizione: 'Minimo / massimo tra due valori. Es.: MIN(LVL,20).'},
 ]

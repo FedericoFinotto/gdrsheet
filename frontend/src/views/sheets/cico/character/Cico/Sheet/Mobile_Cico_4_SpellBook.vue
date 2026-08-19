@@ -8,7 +8,7 @@ import {useCharacterStore} from '../../../../../../stores/personaggio';
 import {storeToRefs} from 'pinia';
 import usePopup from '../../../../../../function/usePopup';
 import Mobile_Cico_4_SpellBookPrepare from '../../Dettaglio/Mobile_Cico_4_SpellBookPrepare.vue';
-import {updatePreparedSpells, updateSpellUsage, resetSlotUsati} from '../../../../../../service/PersonaggioService';
+import {updatePreparedSpells, updateSpellUsage, resetSlotUsati, setManaUsati} from '../../../../../../service/PersonaggioService';
 import {getValoreFormula} from '../../../../../../function/Calcolo';
 import {iconForComponent} from "../../../../../../function/Utils";
 import {parseAzioneGlifo} from "../../../../../../function/azioni";
@@ -84,6 +84,10 @@ const groupedByClassLevel = computed(() => {
         caratteristica: sb?.caratteristica,
         cd: sb?.cd,
         mostraSimboliAzioni: sb?.mostraSimboliAzioni === true,
+        mostraCasterLevel: sb?.mostraCasterLevel !== false,
+        soloConosciuti: sb?.soloConosciuti === true,
+        sistemaIncantesimi: sb?.sistemaIncantesimi ?? 'SLOT',
+        manaUsati: Number(sb?.manaUsati ?? 0),
         levels: normalizeLevels(sb?.livelli),
         spurii: sb?.spurii ?? []
       }))
@@ -97,6 +101,10 @@ function fonteTipoLabel(fonteTipo?: string): string {
 /* ----------------- Calcolo async BONUS slot ----------------- */
 const slotBonusMap = ref<Record<string, number>>({});
 const keySlot = (idClasse: number | string | undefined, livello: number) => `${idClasse ?? 'NA'}:${livello}`;
+// Pool di mana totale di una sezione (sistemaIncantesimi === 'MANA'): stessa chiave usata per il
+// gruppo (idClasse+sezioneIndice, non per livello — un solo pool condiviso per l'intera sezione).
+const manaTotaleMap = ref<Record<string, number>>({});
+const keyMana = (idClasse: number | string | undefined, sezioneIndice: number | undefined) => `${idClasse ?? 'NA'}:${sezioneIndice ?? 0}`;
 let lastSlotsRun = 0;
 
 async function recomputeAllSlots() {
@@ -130,6 +138,22 @@ async function recomputeAllSlots() {
 
           if (runId !== lastSlotsRun) return;
           slotBonusMap.value[keySlot(idClasse, livello)] = bonusTot;
+        } catch {
+          // ignora errori singoli
+        }
+      })());
+    }
+    // Pool di mana (mondo a sistema MANA): formula unica per l'intera sezione, stessa logica di
+    // calcolo delle formule bonus slot (getValoreFormula), non una per livello.
+    if (sb?.sistemaIncantesimi === 'MANA' && sb?.formulaManaTotale) {
+      jobs.push((async () => {
+        try {
+          const val = await getValoreFormula(personaggio.modificatori, String(sb.formulaManaTotale)).catch(() => 0);
+          const num = (val && typeof val === 'object' && 'data' in (val as any) && (val as any).data?.risultato != null)
+              ? Number((val as any).data.risultato)
+              : Number(val);
+          if (runId !== lastSlotsRun) return;
+          manaTotaleMap.value[keyMana(idClasse, sb?.sezioneIndice)] = Number.isFinite(num) ? num : 0;
         } catch {
           // ignora errori singoli
         }
@@ -255,6 +279,26 @@ async function handleResetSlot() {
     await characterStore.fetchCharacter(props.idPersonaggio, true)
   } finally {
     resettingSlot.value = false
+  }
+}
+
+// Pool di mana (mondo a sistema MANA): totale dalla formula del mondo, usati dal contatore
+// persistito lato personaggio — un solo pool condiviso per l'intera sezione (non per livello).
+function manaTotaleGruppo(group: any): number {
+  return manaTotaleMap.value[keyMana(group.idClasse, group.sezioneIndice)] ?? 0
+}
+const busyMana = reactive<Record<string, boolean>>({})
+async function adeguaMana(group: any, delta: number) {
+  const k = keyMana(group.idClasse, group.sezioneIndice)
+  if (busyMana[k] || group.idClasse == null) return
+  const nuovo = Math.max(0, (group.manaUsati ?? 0) + delta)
+  if (nuovo === group.manaUsati) return
+  busyMana[k] = true
+  try {
+    await setManaUsati(group.idClasse, props.idPersonaggio, group.sezioneIndice ?? 0, nuovo)
+    await characterStore.fetchCharacter(props.idPersonaggio, true)
+  } finally {
+    busyMana[k] = false
   }
 }
 
@@ -423,9 +467,20 @@ function showPopup(opts: ShowPopupOpts) {
       <h3 class="classe-title">
         {{ group.classe }}
         <span class="muted fonte-tipo">Da: {{ fonteTipoLabel(group.fonteTipo) }}</span>
-        <span v-if="group.casterLevel != null" class="muted"> · CL: {{ group.casterLevel }}</span>
+        <span v-if="group.casterLevel != null && group.mostraCasterLevel" class="muted"> · CL: {{ group.casterLevel }}</span>
         <span v-if="group.cd != null" class="muted"> · CD: {{ group.cd }}</span>
-        <span v-if="testoSlotGruppo(group)" class="muted"> · Slot: {{ testoSlotGruppo(group) }}</span>
+        <span v-if="!group.soloConosciuti && group.sistemaIncantesimi !== 'MANA' && testoSlotGruppo(group)" class="muted"> · Slot: {{ testoSlotGruppo(group) }}</span>
+        <!-- Mondo a sistema MANA: un pool condiviso per l'intera sezione (Mondo.formulaManaIncantesimi),
+             non slot per livello — "−" spende un punto mana, "+" lo rimborsa (stessa convenzione
+             dello stepper preparati/usati sopra). -->
+        <span v-if="group.sistemaIncantesimi === 'MANA'" class="muted mana-hold">
+          · 🔷 Mana:
+          <button type="button" class="mana-btn" :disabled="busyMana[keyMana(group.idClasse, group.sezioneIndice)] || (manaTotaleGruppo(group) - group.manaUsati) <= 0"
+                  @click.stop="adeguaMana(group, 1)">−</button>
+          {{ Math.max(0, manaTotaleGruppo(group) - group.manaUsati) }}/{{ manaTotaleGruppo(group) }}
+          <button type="button" class="mana-btn" :disabled="busyMana[keyMana(group.idClasse, group.sezioneIndice)] || group.manaUsati <= 0"
+                  @click.stop="adeguaMana(group, -1)">+</button>
+        </span>
       </h3>
 
       <div v-for="lv in group.levels" :key="`${group.idClasse ?? group.classe}-${lv.livello}`" class="level-block">
@@ -433,13 +488,27 @@ function showPopup(opts: ShowPopupOpts) {
           <div class="level-title" @click="toggleLivello(group, lv)">
             <span class="chev" :class="{ open: isLivelloAperto(group, lv) }">▸</span>
             {{ lv.livello === 0 ? 'Cantrip' : `Livello ${lv.livello}` }}
-            <span v-if="!lv.slotConContatore" class="muted"> · slot: {{ getSlotDisplay(group.idClasse, lv.livello, lv.slot) }}</span>
-            <!-- sezione con contatore: un click apre il popup slot/bonus/totale + controlli -->
-            <span v-else class="muted slot-hold" @click.stop="apriPopupSlot(group, lv)">
-              · slot: {{ testoSlotRiga(group, lv) }}
+            <!-- Sezione "classe di riferimento" (solo oggetti): niente pool di slot separato, il
+                 numero disponibile è già quello dei conosciuti — niente "· slot: X", solo
+                 l'icona libro con preparati/disponibili. -->
+            <span v-if="group.soloConosciuti" class="muted">
+              📖 {{ totalePreparatiLivello(lv) }}/{{ getSlotDisplay(group.idClasse, lv.livello, lv.slot) }}
             </span>
-            <span v-if="lv.conosciuti != null" class="muted"> · conosciuti: {{ lv.conosciuti }}</span>
-            <span class="muted"> · preparati: {{ totalePreparatiLivello(lv) }}</span>
+            <!-- Mondo a sistema MANA: niente slot/preparati per livello, il pool è unico per la
+                 sezione (vedi il titolo della sezione) — qui solo il costo in mana di un incantesimo
+                 di questo livello. -->
+            <span v-else-if="group.sistemaIncantesimi === 'MANA'" class="muted">
+              · 🔷 costo: {{ lv.livello }} mana
+            </span>
+            <template v-else>
+              <span v-if="!lv.slotConContatore" class="muted"> · slot: {{ getSlotDisplay(group.idClasse, lv.livello, lv.slot) }}</span>
+              <!-- sezione con contatore: un click apre il popup slot/bonus/totale + controlli -->
+              <span v-else class="muted slot-hold" @click.stop="apriPopupSlot(group, lv)">
+                · slot: {{ testoSlotRiga(group, lv) }}
+              </span>
+              <span v-if="lv.conosciuti != null" class="muted"> · conosciuti: {{ lv.conosciuti }}</span>
+              <span class="muted"> · preparati: {{ totalePreparatiLivello(lv) }}</span>
+            </template>
           </div>
           <button
               class="prepare-btn"
@@ -479,6 +548,26 @@ function showPopup(opts: ShowPopupOpts) {
 </template>
 
 <style scoped>
+.mana-hold {
+  display: inline-flex;
+  align-items: center;
+  gap: .2rem;
+}
+.mana-btn {
+  border: 1px solid var(--hairline);
+  background: var(--surface-0);
+  border-radius: .3rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  line-height: 1;
+  font-size: .8rem;
+  cursor: pointer;
+  padding: 0;
+}
+.mana-btn:disabled {
+  opacity: .5;
+  cursor: default;
+}
 .slot-hold {
   cursor: pointer;
   user-select: none;

@@ -667,7 +667,19 @@ public class PersonaggioService {
             for (SezioneIncantesimi sez : parseSezioniIncantesimi(itm)) {
                 // sezione personalizzata: liste vuota è normale (nessun filtro per lista), non va saltata
                 if (!sez.personalizzata() && sez.liste().stream().allMatch(l -> l != null && l.startsWith("+"))) continue;
-                SpellBookDTO sb = generateSpellBookSezione(itm, 0, 0, id, sez, true, variabili);
+                // Sezione con classe di riferimento (Constants.ITEM_LABEL_SPELL_CLASSE_RIF_SUFFIX):
+                // il "livello" non è fisso a mano ma è quello che il personaggio ha in quella classe
+                // (default NM, stesso criterio di selettoreCasterLevel/selettoreLivelloSlot) — 0 se il
+                // personaggio non ha quella classe (la sezione risulterà senza livelli e verrà scartata).
+                int livelloRiferimento = 0;
+                if (sez.classeRiferimento() != null) {
+                    livelloRiferimento = allPersonaggioItems.getLivelli().getClassi().stream()
+                            .filter(c -> sez.classeRiferimento().equals(c.getClasse().getId()))
+                            .findFirst()
+                            .map(InfoClasseDTO::getLivelloNonMaledettoPerIncantesimi)
+                            .orElse(0);
+                }
+                SpellBookDTO sb = generateSpellBookSezione(itm, livelloRiferimento, livelloRiferimento, id, sez, true, variabili);
                 if (sb != null && !sb.getLivelli().isEmpty()) itemsDTO.getSpellbooks().add(sb);
             }
         }
@@ -1496,13 +1508,25 @@ public class PersonaggioService {
                 : filteredItems.stream().map(Item::getId)
                     .filter(iid -> !fruttiSenzaModSheet.contains(iid)).toList();
         List<Modificatore> allMods = modificatoreRepository.findAllByItemIdIn(itemIdsPerMod);
+        // Quali stat sono SOSTITUTIVE per il mondo di questo personaggio (stat_default.livello_classe
+        // + modo_livello_classe, configurabile per mondo — vedi db.changelog-21.0.xml). Le SOMMATIVE
+        // (o le stat non configurate come "livello classe" per questo mondo) non fanno il dedup per
+        // classe: restano nel gruppo "false" e vengono sommate normalmente più sotto.
+        Set<String> statSostitutivePerLivello = (p.getParty() != null && p.getParty().getMondo() != null
+                && p.getParty().getMondo().getDefaultStats() != null)
+                ? p.getParty().getMondo().getDefaultStats().stream()
+                        .filter(def -> Boolean.TRUE.equals(def.getLivelloClasse())
+                                && Constants.MODO_LIVELLO_CLASSE_SOSTITUTIVO.equals(def.getModoLivelloClasse()))
+                        .map(StatDefault::getStatId)
+                        .collect(Collectors.toSet())
+                : Set.of();
         // Un solo passaggio su allMods (partitioningBy) invece di due filtri con predicati
         // complementari: quelli che matchano vanno "de-duplicati" (un solo livello per
         // stat+nome classe, il più alto raggiunto) da elaboraModificatoriStatLivello, gli altri
         // restano così come sono.
         Map<Boolean, List<Modificatore>> modsPartizionati = allMods.stream()
                 .collect(Collectors.partitioningBy(x -> x.getItem().getTipo().equals(TipoItem.LIVELLO)
-                        && Constants.listOfUniqueByClassStats.contains(x.getStat().getId())));
+                        && statSostitutivePerLivello.contains(x.getStat().getId())));
         List<Modificatore> modificatoriPerLivello = elaboraModificatoriStatLivello(modsPartizionati.get(true));
         allMods = Stream.concat(modsPartizionati.get(false).stream(), modificatoriPerLivello.stream())
                 .toList();
@@ -1548,7 +1572,23 @@ public class PersonaggioService {
                 ));
 
         // 8) Fetch StatValues con join fetch di Stat
-        List<StatValue> stats = statValueRepository.findAllByPersonaggioIdWithStat(id);
+        List<StatValue> statsGrezze = statValueRepository.findAllByPersonaggioIdWithStat(id);
+        // Una stat abilitata per il mondo e POI disabilitata (StatDefault rimossa in StatsAdmin)
+        // lascia comunque la sua riga stat_value sul personaggio: ensureStatValues ne crea di
+        // mancanti ma non elimina mai quelle non più previste (per non perdere dati se riabilitata
+        // per errore). Qui si applica lo stesso filtro "solo se ancora nel mondo" a valle, così una
+        // stat disabilitata sparisce da scheda/Info anche se il personaggio l'aveva già valorizzata
+        // — null = personaggio senza party/mondo, nessun filtro (comportamento storico).
+        // "stats" (non statsGrezze) va assegnata una volta sola: viene catturata da diverse lambda
+        // più sotto (i task del ForkJoinPool), che richiedono una variabile effectively final.
+        Set<String> statIdsAbilitatiMondo = (p.getParty() != null && p.getParty().getMondo() != null
+                && p.getParty().getMondo().getDefaultStats() != null)
+                ? p.getParty().getMondo().getDefaultStats().stream()
+                        .map(StatDefault::getStatId).filter(Objects::nonNull).collect(Collectors.toSet())
+                : null;
+        List<StatValue> stats = statIdsAbilitatiMondo != null
+                ? statsGrezze.stream().filter(sv -> statIdsAbilitatiMondo.contains(sv.getStat().getId())).toList()
+                : statsGrezze;
 
         // 9) Costruisci DTO
         DatiPersonaggioDTO dto = new DatiPersonaggioDTO(p);
@@ -1664,9 +1704,12 @@ public class PersonaggioService {
                         variabili
                 ))
                 .toList());
-        // Rende LVL disponibile nelle formule delle statistiche
-        carList.add(new CaratteristicaDTO("LVL", "Livello", null, livelloPersonaggio, null, null));
+        // Solo le vere caratteristiche in scheda (Info mostra già il livello nel badge in header):
+        // LVL sotto viene aggiunta a carList DOPO, quindi non finisce qui.
         dto.getCaratteristiche().addAll(carList);
+        // Rende LVL disponibile nelle formule delle statistiche (non è una vera caratteristica:
+        // resta fuori da dto.getCaratteristiche(), altrimenti comparirebbe anche in scheda).
+        carList.add(new CaratteristicaDTO("LVL", "Livello", null, livelloPersonaggio, null, null));
         // Ora che le caratteristiche esistono, le loro entry "@id" entrano nella STESSA "variabili"
         // già in uso (non una mappa nuova): da qui in poi ogni calcola* le trova già pronte.
         variabili.setAll(carList.stream()
@@ -2105,7 +2148,16 @@ public class PersonaggioService {
                                       // Indice "n" della sezione (da SPELL_<n>...), serve a comporre le
                                       // label SPELL_<n>_SLOT_USATI_<livello> e a esporlo nel SpellBookDTO
                                       // così il frontend sa quale sezione aggiornare.
-                                      int indice) {}
+                                      int indice,
+                                      // Solo sezioni OGGETTO (vedi Constants.ITEM_LABEL_SPELL_CLASSE_RIF_SUFFIX):
+                                      // id di una classe di riferimento. Se valorizzato, niente SLOT/caster
+                                      // level fisso — usa il livello del personaggio in quella classe sia
+                                      // come caster level sia come indice nella tabella "conosciuti".
+                                      Integer classeRiferimento,
+                                      // Flag esplicito indipendente da classeRiferimento (vedi Constants
+                                      // .ITEM_LABEL_SPELL_SOLO_CONOSCIUTI_SUFFIX): la scheda mostra
+                                      // "preparati/disponibili" invece di "Slot: X" per questa sezione.
+                                      boolean soloConosciuti) {}
 
     /**
      * Legge le sezioni incantatore "nuove" di un item dalle label indicizzate:
@@ -2155,9 +2207,12 @@ public class PersonaggioService {
             Integer casterLevelFisso = parseIntOrNull(item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CASTER_LEVEL_SUFFIX));
             String casterLevelSorgente = item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CL_SORGENTE_SUFFIX);
             String slotLivelloSorgente = item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_SLOT_SORGENTE_SUFFIX);
+            Integer classeRiferimento = parseIntOrNull(item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_CLASSE_RIF_SUFFIX));
+            boolean soloConosciuti = "1".equals(item.getLabel("SPELL_" + n + Constants.ITEM_LABEL_SPELL_SOLO_CONOSCIUTI_SUFFIX));
             out.add(new SezioneIncantesimi(listeArr, prog, bonus, slot, conosciutiSeparati, conosciuti,
                     personalizzata, incantesimiCustom, caratteristica, casterLevelFisso,
-                    casterLevelSorgente, slotLivelloSorgente, slotConContatore, n));
+                    casterLevelSorgente, slotLivelloSorgente, slotConContatore, n, classeRiferimento,
+                    soloConosciuti));
         }
         return out;
     }
@@ -2187,23 +2242,40 @@ public class PersonaggioService {
         // Un oggetto con sezione incantesimi ma senza SPELL_<n>_CASTER_LEVEL impostato (dati creati
         // prima che il campo esistesse in editor, o mai compilato) non ha modo di calcolare slot/CD:
         // salta la sezione invece di far esplodere l'intera generazione dello spellbook del personaggio.
-        if (fisso && sez.casterLevelFisso() == null) {
+        // Sezione OGGETTO con classe di riferimento (Constants.ITEM_LABEL_SPELL_CLASSE_RIF_SUFFIX):
+        // niente caster level fisso da richiedere, il chiamante ha già risolto "livelloSlot" al
+        // livello del personaggio in quella classe (0 se non la possiede — in quel caso la sezione
+        // semplicemente non genera livelli, non è un dato mancante da segnalare).
+        boolean daClasseRiferimento = fisso && sez.classeRiferimento() != null;
+        if (fisso && !daClasseRiferimento && sez.casterLevelFisso() == null) {
             log.warn("Sezione incantesimi #{} dell'item {} ({}) senza caster level fisso: sezione ignorata",
                     sez.indice(), classe.getId(), classe.getNome());
             return null;
         }
-        Integer casterLevel = fisso ? sez.casterLevelFisso() : casterLevelClasse;
+        Integer casterLevel = daClasseRiferimento ? (livelloSlot > 0 ? livelloSlot : null)
+                : fisso ? sez.casterLevelFisso() : casterLevelClasse;
         SpellBookDTO spellBook = new SpellBookDTO();
         spellBook.setIdClasse(classe.getId());
         spellBook.setNomeClasse(classe.getNome());
         spellBook.setFonteTipo(classe.getTipo() != null ? classe.getTipo().name() : null);
         spellBook.setSpellList(String.join(",", sez.liste()));
         spellBook.setSezioneIndice(sez.indice());
+        // Esplicito (Constants.ITEM_LABEL_SPELL_SOLO_CONOSCIUTI_SUFFIX) OR implicito da classe di
+        // riferimento (che in scheda non ha comunque un pool di slot separato da mostrare).
+        spellBook.setSoloConosciuti(daClasseRiferimento || sez.soloConosciuti());
         spellBook.setSpurii(generateSpurii(classe, idPersonaggio));
         spellBook.setCasterLevel(casterLevel);
         spellBook.setCaratteristica(sez.caratteristica());
         spellBook.setMostraSimboliAzioni(classe.getMondo() != null && Boolean.TRUE.equals(classe.getMondo().getMostraSimboliAzioni()));
-        impostaCd(spellBook, casterLevel, sez.caratteristica(), variabili);
+        spellBook.setMostraCasterLevel(classe.getMondo() == null || Boolean.TRUE.equals(classe.getMondo().getMostraCasterLevel()));
+        impostaCd(spellBook, casterLevel, sez.caratteristica(), variabili, classe.getMondo());
+        if (classe.getMondo() != null && Constants.SISTEMA_INCANTESIMI_MANA.equals(classe.getMondo().getSistemaIncantesimi())) {
+            spellBook.setSistemaIncantesimi(Constants.SISTEMA_INCANTESIMI_MANA);
+            spellBook.setFormulaManaTotale(classe.getMondo().getFormulaManaIncantesimi());
+            spellBook.setManaUsati(getManaUsati(classe.getId(), idPersonaggio, sez.indice()));
+        } else {
+            spellBook.setSistemaIncantesimi(Constants.SISTEMA_INCANTESIMI_SLOT);
+        }
 
         List<SpellBookIncantesimoDTO> incantesimi;
         if (sez.personalizzata()) {
@@ -2214,7 +2286,8 @@ public class PersonaggioService {
             Item preparedSpell = itemRepository.findItemByNomeAndPersonaggio_Id(Constants.ITEM_INCANTESIMI_PREPARATI, idPersonaggio);
             incantesimi = (preparedSpell == null || preparedSpell.getChild() == null)
                     ? new ArrayList<>()
-                    : preparedSpell.getChild().stream().map(x -> itemMapper.toIncantesimoDTO(classe, x)).toList();
+                    : dedupIncantesimiPreparati(preparedSpell.getChild().stream()
+                            .map(x -> itemMapper.toIncantesimoDTO(classe, x)).toList());
         }
 
         Set<String> liste = new HashSet<>(sez.liste());
@@ -2223,7 +2296,12 @@ public class PersonaggioService {
         // Livello Massimo Non Maledetto / Livello Totale Non Maledetto / Livello Totale, vedi
         // SPELL_<n>_SLOT_SRC) — non più una coppia "attuale vs teorico massimo" come in passato.
         int[] slots;
-        if (fisso) {
+        if (daClasseRiferimento) {
+            // Niente tabella SLOT: la tabella CONOSCIUTI (una riga per livello della classe di
+            // riferimento, stesso formato del CUSTOM di classe) è l'unica fonte — è lei stessa a
+            // dire "quanti incantesimi disponibili" a quel livello, non c'è un pool di slot separato.
+            slots = conosciutiArrayDaSezione(sez, livelloSlot);
+        } else if (fisso) {
             // Item (non classe): un numero fisso di slot, nessuna progressione per livello.
             slots = sez.slot() != null && !sez.slot().isEmpty() ? parseSlotRow(sez.slot().get(0)) : new int[0];
         } else if (it.fin8.gdrsheet.def.ProgressioneIncantesimi.isPreset(sez.progressione())) {
@@ -2237,7 +2315,8 @@ public class PersonaggioService {
         }
         if (slots.length == 0) return spellBook;
 
-        int[] conosciuti = !sez.conosciutiSeparati() ? new int[0]
+        int[] conosciuti = daClasseRiferimento ? new int[0]
+                : !sez.conosciutiSeparati() ? new int[0]
                 : fisso
                     ? (sez.conosciuti() != null && !sez.conosciuti().isEmpty() ? parseSlotRow(sez.conosciuti().get(0)) : new int[0])
                     : conosciutiArrayDaSezione(sez, livelloSlot);
@@ -2262,7 +2341,7 @@ public class PersonaggioService {
             }
             int fi = i;
             liv.getIncantesimi().addAll(incantesimi.stream()
-                    .filter(x -> x.getLivello() == fi && (sez.personalizzata() || liste.contains(x.getSpellList())))
+                    .filter(x -> x.getLivello() == fi && (sez.personalizzata() || matchLista(liste, x.getSpellList())))
                     .toList());
             spellBook.getLivelli().add(liv);
         }
@@ -2270,14 +2349,82 @@ public class PersonaggioService {
     }
 
     /**
-     * CD = 10 + caster level + modificatore della caratteristica associata alla lista. Lascia
-     * "cd" a null se manca il caster level, la caratteristica non è impostata sulla sezione/classe,
-     * o non si trova tra le variabili del personaggio (es. stat inesistente/refuso in etichetta).
+     * Un solo incantesimo "preparato" per (id incantesimo, livello): eventuali righe duplicate —
+     * residuo del vecchio bug di update-in-place su Collegamento.equals() (identità di oggetto
+     * anziché per chiave, vedi ItemService.updatePreparedForCharacterAndLevel) che poteva lasciare
+     * più Collegamento per lo stesso incantesimo invece di aggiornare quello esistente, spesso con
+     * SP_LIST leggermente diverso (es. una riga salvata prima che la sezione unisse più liste e una
+     * dopo) — vengono ridotte a una sola: mai contate né mostrate più volte. NON la lista: due righe
+     * con lo stesso incantesimo+livello ma SP_LIST diverso sono lo stesso "preparato" agli occhi del
+     * giocatore, non due preparazioni distinte. Tra due duplicati tiene quello "sempre preparato" se
+     * presente, altrimenti quello con più copie preparate.
      */
-    private void impostaCd(SpellBookDTO spellBook, Integer casterLevel, String caratteristica, Map<String, Integer> variabili) {
+    private List<SpellBookIncantesimoDTO> dedupIncantesimiPreparati(List<SpellBookIncantesimoDTO> incantesimi) {
+        Map<String, SpellBookIncantesimoDTO> byKey = new LinkedHashMap<>();
+        for (SpellBookIncantesimoDTO dto : incantesimi) {
+            String key = dto.getId() + "|" + dto.getLivello();
+            SpellBookIncantesimoDTO esistente = byKey.get(key);
+            if (esistente == null) {
+                byKey.put(key, dto);
+                continue;
+            }
+            boolean alwaysEsistente = Boolean.TRUE.equals(esistente.getAlwaysPrep());
+            boolean alwaysNuovo = Boolean.TRUE.equals(dto.getAlwaysPrep());
+            if (alwaysEsistente) continue;
+            if (alwaysNuovo || nPreparatiSicuro(dto) > nPreparatiSicuro(esistente)) {
+                byKey.put(key, dto);
+            }
+        }
+        return new ArrayList<>(byKey.values());
+    }
+
+    private int nPreparatiSicuro(SpellBookIncantesimoDTO dto) {
+        return dto.getNPrepared() != null ? dto.getNPrepared() : 0;
+    }
+
+    /**
+     * Un incantesimo preparato/collegato è di questa sezione se la sua lista (una singola label
+     * SP_LIST, es. "SP_DRUID") o UNA delle liste unite in una sezione multi-lista (stessa label ma
+     * con valore CSV, es. "SP_SAG,SP_CAR,SP_INT" — così viene salvata da toNewCollegamentoIncantesimo,
+     * col valore intero della sezione) compare tra le liste della sezione stessa. Un confronto
+     * diretto liste.contains(spellListRaw) fallisce sempre su una sezione multi-lista, perché
+     * confronterebbe l'insieme dei codici con l'intera stringa CSV come se fosse un unico codice —
+     * per questo va sempre spezzata qui, anche per un incantesimo con un solo codice (spezzare una
+     * stringa senza virgole restituisce comunque se stessa).
+     */
+    private boolean matchLista(Set<String> liste, String spellListRaw) {
+        if (spellListRaw == null || spellListRaw.isBlank()) return false;
+        for (String code : spellListRaw.split(",")) {
+            if (liste.contains(code.trim())) return true;
+        }
+        return false;
+    }
+
+    /**
+     * CD = 10 + caster level + modificatore della caratteristica associata alla lista (default
+     * storico), oppure la formula di Mondo.formulaCdIncantesimi se impostata per quel mondo, con
+     * {@link Constants#FORMULA_CD_PLACEHOLDER_CARATTERISTICA} sostituito dal modificatore della
+     * caratteristica da incantatore della sezione (le altre variabili, es. @LVL, restano quelle già
+     * disponibili nel contesto del personaggio). Lascia "cd" a null se manca il caster level, la
+     * caratteristica non è impostata sulla sezione/classe, o non si trova tra le variabili del
+     * personaggio (es. stat inesistente/refuso in etichetta).
+     */
+    private void impostaCd(SpellBookDTO spellBook, Integer casterLevel, String caratteristica,
+                           Map<String, Integer> variabili, Mondo mondo) {
         if (casterLevel == null || caratteristica == null || caratteristica.isBlank() || variabili == null) return;
         Integer modCaratteristica = variabili.get("@" + caratteristica.trim());
-        if (modCaratteristica != null) spellBook.setCd(10 + casterLevel + modCaratteristica);
+        if (modCaratteristica == null) return;
+
+        String formula = mondo != null ? mondo.getFormulaCdIncantesimi() : null;
+        if (formula == null || formula.isBlank()) {
+            spellBook.setCd(10 + casterLevel + modCaratteristica);
+            return;
+        }
+        Map<String, String> valori = new HashMap<>();
+        variabili.forEach((k, v) -> valori.put(k, v == null ? null : v.toString()));
+        valori.put(Constants.FORMULA_CD_PLACEHOLDER_CARATTERISTICA, modCaratteristica.toString());
+        Integer cdCalcolata = parseIntOrNull(calcoloService.calcola(formula, valori));
+        if (cdCalcolata != null) spellBook.setCd(cdCalcolata);
     }
 
     /** Sentinel per una cella "—" (nessun accesso, mai) nelle righe CUSTOM inserite a mano. */
@@ -2311,6 +2458,21 @@ public class PersonaggioService {
         if (itemId == null || idPersonaggio == null) return 0;
         return itemLabelRepository
                 .findByItem_IdAndLabelAndPersonaggio_Id(itemId, "SPELL_" + sezioneIndice + "_SLOT_USATI_" + livello, idPersonaggio)
+                .map(l -> {
+                    try {
+                        return Integer.parseInt(l.getValore());
+                    } catch (Exception e) {
+                        return 0;
+                    }
+                })
+                .orElse(0);
+    }
+
+    /** Mana già usato di una sezione (mondo a sistema MANA) — vedi ItemService.setManaUsati per la scrittura. */
+    private int getManaUsati(Integer itemId, Integer idPersonaggio, int sezioneIndice) {
+        if (itemId == null || idPersonaggio == null) return 0;
+        return itemLabelRepository
+                .findByItem_IdAndLabelAndPersonaggio_Id(itemId, "SPELL_" + sezioneIndice + Constants.ITEM_LABEL_SPELL_MANA_USATI_PREFIX, idPersonaggio)
                 .map(l -> {
                     try {
                         return Integer.parseInt(l.getValore());
@@ -2443,7 +2605,8 @@ public class PersonaggioService {
         String caratteristica = utilService.getItemLabel(classe, Constants.ITEM_LABEL_SPELL_CARATTERISTICA);
         spellBook.setCaratteristica(caratteristica);
         spellBook.setMostraSimboliAzioni(classe.getMondo() != null && Boolean.TRUE.equals(classe.getMondo().getMostraSimboliAzioni()));
-        impostaCd(spellBook, livelloEffettivo, caratteristica, variabili);
+        spellBook.setMostraCasterLevel(classe.getMondo() == null || Boolean.TRUE.equals(classe.getMondo().getMostraCasterLevel()));
+        impostaCd(spellBook, livelloEffettivo, caratteristica, variabili, classe.getMondo());
         String slotBonus = utilService.getItemLabel(classe, Constants.ITEM_LABEL_SPELL_SLOT_BONUS);
 
         Avanzamento avanzamentoTotale = findAvanzamentoPerLivello(classe, Math.toIntExact(lvl));
@@ -2704,11 +2867,12 @@ public class PersonaggioService {
     }
 
     /**
-     * Tra i modificatori "unici per classe" (BAB/TS: il valore del livello più alto raggiunto
-     * sostituisce quelli dei livelli precedenti, non li somma) tiene solo il modificatore del
-     * livello massimo per ciascuna coppia stat+classe. {@code modificatoriSTAT} deve già essere
-     * filtrato dal chiamante (item di tipo LIVELLO, stat in listOfUniqueByClassStats) — non lo
-     * rifiltra qui per evitare un secondo passaggio sull'intera lista dei modificatori.
+     * Tra i modificatori "SOSTITUTIVI per classe" (es. BAB/TS: il valore del livello più alto
+     * raggiunto sostituisce quelli dei livelli precedenti, non li somma) tiene solo il modificatore
+     * del livello massimo per ciascuna coppia stat+classe. {@code modificatoriSTAT} deve già essere
+     * filtrato dal chiamante (item di tipo LIVELLO, stat con stat_default.livello_classe=true e
+     * modo_livello_classe=SOSTITUTIVO per il mondo del personaggio, vedi db.changelog-21.0.xml) —
+     * non lo rifiltra qui per evitare un secondo passaggio sull'intera lista dei modificatori.
      */
     public List<Modificatore> elaboraModificatoriStatLivello(List<Modificatore> modificatoriSTAT) {
         Map<String, List<Modificatore>> byStat = modificatoriSTAT.stream()

@@ -189,7 +189,7 @@ async function onRimuovi(m: MasterMondo) {
 }
 
 // fold apri/chiudi per le sezioni "Tipi item abilitati" e "Liste incantesimi abilitate"
-const open = reactive({tipi: false, liste: false})
+const open = reactive({tipi: false, liste: false, sistema: false})
 
 /* ---- Tipi item abilitati per il mondo ---- */
 const tuttiTipi = Object.values(TIPO_ITEM) as string[]
@@ -231,6 +231,35 @@ async function onToggleSimboliAzioni() {
     errorMsg.value = 'Errore nel salvataggio del flag simboli azioni'
   } finally {
     busySimboliAzioni.value = false
+  }
+}
+
+/* ---- Sistema incantesimi del mondo: Slot/Mana, formula CD, Singola/Multipla lista ---- */
+const spellSystem = reactive({
+  sistemaIncantesimi: 'SLOT' as 'SLOT' | 'MANA',
+  formulaManaIncantesimi: '',
+  formulaCdIncantesimi: '',
+  listaIncantesimi: 'MULTIPLA' as 'SINGOLA' | 'MULTIPLA',
+  mostraCasterLevel: true,
+})
+const busySpellSystem = ref(false)
+async function onSalvaSpellSystem() {
+  if (mondoSelezionato.value === null || busySpellSystem.value) return
+  busySpellSystem.value = true
+  errorMsg.value = null
+  try {
+    await aggiornaConfigMondo(mondoSelezionato.value, {
+      sistemaIncantesimi: spellSystem.sistemaIncantesimi,
+      formulaManaIncantesimi: spellSystem.formulaManaIncantesimi.trim() || null,
+      formulaCdIncantesimi: spellSystem.formulaCdIncantesimi.trim() || null,
+      listaIncantesimi: spellSystem.listaIncantesimi,
+      mostraCasterLevel: spellSystem.mostraCasterLevel,
+    })
+  } catch (e) {
+    console.error('Errore salvataggio sistema incantesimi:', e)
+    errorMsg.value = 'Errore nel salvataggio del sistema incantesimi'
+  } finally {
+    busySpellSystem.value = false
   }
 }
 
@@ -381,6 +410,11 @@ async function caricaConfigMondo() {
     tipiAbilitati.value = new Set()
     listeAbilitate.value = new Set()
     mostraSimboliAzioni.value = false
+    spellSystem.sistemaIncantesimi = 'SLOT'
+    spellSystem.formulaManaIncantesimi = ''
+    spellSystem.formulaCdIncantesimi = ''
+    spellSystem.listaIncantesimi = 'MULTIPLA'
+    spellSystem.mostraCasterLevel = true
     return
   }
   try {
@@ -388,6 +422,11 @@ async function caricaConfigMondo() {
     tipiAbilitati.value = new Set(data.tipiAbilitati)
     listeAbilitate.value = new Set(data.listeIncantesimiAbilitate.map(l => l.codice))
     mostraSimboliAzioni.value = data.mostraSimboliAzioni
+    spellSystem.sistemaIncantesimi = data.sistemaIncantesimi ?? 'SLOT'
+    spellSystem.formulaManaIncantesimi = data.formulaManaIncantesimi ?? ''
+    spellSystem.formulaCdIncantesimi = data.formulaCdIncantesimi ?? ''
+    spellSystem.listaIncantesimi = data.listaIncantesimi ?? 'MULTIPLA'
+    spellSystem.mostraCasterLevel = data.mostraCasterLevel ?? true
     for (const t of data.tipiAbilitati) {
       statoTipi[t] = nuovoStatoTipo()
       openTipi[t] = false
@@ -714,6 +753,47 @@ onMounted(async () => {
                    degli incantesimi -->
               <template v-if="t.value === 'INCANTESIMO'">
                 <section class="fold sub-fold">
+                  <button type="button" class="fold-head" @click="open.sistema = !open.sistema">
+                    <span class="fold-title">Sistema incantesimi</span>
+                    <span class="fold-summary">{{ spellSystem.sistemaIncantesimi }} · {{ spellSystem.listaIncantesimi }}</span>
+                    <span class="chev" :class="{open: open.sistema}">▸</span>
+                  </button>
+                  <div v-show="open.sistema" class="fold-body">
+                    <div class="grid">
+                      <label class="field">
+                        <span class="lbl">Slot o Mana</span>
+                        <select v-model="spellSystem.sistemaIncantesimi">
+                          <option value="SLOT">Slot (default)</option>
+                          <option value="MANA">Mana (pool condiviso)</option>
+                        </select>
+                      </label>
+                      <label v-if="spellSystem.sistemaIncantesimi === 'MANA'" class="field grow">
+                        <span class="lbl">Formula pool mana totale</span>
+                        <input v-model.trim="spellSystem.formulaManaIncantesimi" type="text" placeholder="Es.: @LVL*3+@CAR"/>
+                      </label>
+                      <label class="field">
+                        <span class="lbl">Liste incantesimi</span>
+                        <select v-model="spellSystem.listaIncantesimi">
+                          <option value="MULTIPLA">Multipla (default)</option>
+                          <option value="SINGOLA">Singola</option>
+                        </select>
+                      </label>
+                    </div>
+                    <label class="field">
+                      <span class="lbl">Formula CD incantesimi (usa %CAR per la caratteristica da incantatore)</span>
+                      <input v-model.trim="spellSystem.formulaCdIncantesimi" type="text" placeholder="Es.: 10+@LVL+%CAR — vuoto = 10 + CL + modificatore"/>
+                    </label>
+                    <label class="field chk">
+                      <input type="checkbox" v-model="spellSystem.mostraCasterLevel"/>
+                      <span>Mostra Livello Incantatore (CL) in scheda</span>
+                    </label>
+                    <button class="btn primary" :disabled="busySpellSystem" @click="onSalvaSpellSystem">
+                      {{ busySpellSystem ? 'Salvataggio…' : 'Salva sistema incantesimi' }}
+                    </button>
+                  </div>
+                </section>
+
+                <section class="fold sub-fold">
                   <button type="button" class="fold-head" @click="open.liste = !open.liste">
                     <span class="fold-title">Liste / domìni incantesimi abilitati</span>
                     <span class="fold-summary">{{ listeAbilitate.size }}/{{ catalogoListe.length }}</span>
@@ -873,6 +953,10 @@ onMounted(async () => {
 .field { display: grid; gap: .3rem; }
 .field .lbl { font-size: .8rem; font-weight: 600; opacity: .85; }
 .field input[type="text"] { padding: .45rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; }
+.field select { padding: .45rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; background: var(--surface-0); }
+.grid { display: flex; flex-wrap: wrap; gap: .6rem; align-items: flex-end; }
+.field.grow { flex: 1; min-width: 12rem; }
+.field.chk { flex-direction: row; align-items: center; gap: .4rem; min-width: auto; }
 
 h3 { margin: .3rem 0 0; font-size: .9rem; }
 

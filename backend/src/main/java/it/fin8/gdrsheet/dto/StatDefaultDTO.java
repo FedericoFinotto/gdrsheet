@@ -19,4 +19,8 @@ public class StatDefaultDTO {
     private String defaultModId;    // stat usata come modificatore (opzionale)
     private String defaultModLabel; // solo lettura
     private Boolean addestramento;
+    // Ha una colonna nella Tabella Livelli di una classe per questo mondo, e con che modo di
+    // aggregazione multi-classe (SOMMATIVO|SOSTITUTIVO, vedi Constants) — vedi db.changelog-21.0.xml.
+    private Boolean livelloClasse;
+    private String modoLivelloClasse;
 }

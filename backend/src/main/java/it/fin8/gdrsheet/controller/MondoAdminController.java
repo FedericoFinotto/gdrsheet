@@ -3,6 +3,7 @@ package it.fin8.gdrsheet.controller;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
+import it.fin8.gdrsheet.config.Constants;
 import it.fin8.gdrsheet.def.CardEditorItem;
 import it.fin8.gdrsheet.def.TipoCampoEditor;
 import it.fin8.gdrsheet.def.TipoCatalogoIncantesimo;
@@ -385,7 +386,9 @@ public class MondoAdminController {
                 .sorted((a, b) -> a.etichetta().compareToIgnoreCase(b.etichetta()))
                 .toList();
 
-        return ResponseEntity.ok(new MondoConfigDTO(tipi, liste, Boolean.TRUE.equals(mondo.getMostraSimboliAzioni())));
+        return ResponseEntity.ok(new MondoConfigDTO(tipi, liste, Boolean.TRUE.equals(mondo.getMostraSimboliAzioni()),
+                mondo.getSistemaIncantesimi(), mondo.getFormulaManaIncantesimi(), mondo.getFormulaCdIncantesimi(),
+                mondo.getListaIncantesimi(), Boolean.TRUE.equals(mondo.getMostraCasterLevel())));
     }
 
     @Operation(
@@ -459,8 +462,40 @@ public class MondoAdminController {
             }
         }
 
+        boolean toccaMondo = false;
         if (req.mostraSimboliAzioni() != null) {
             mondo.setMostraSimboliAzioni(req.mostraSimboliAzioni());
+            toccaMondo = true;
+        }
+        if (req.sistemaIncantesimi() != null) {
+            String v = req.sistemaIncantesimi().trim().toUpperCase();
+            if (!Constants.SISTEMA_INCANTESIMI_SLOT.equals(v) && !Constants.SISTEMA_INCANTESIMI_MANA.equals(v)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sistemaIncantesimi non valido: " + v);
+            }
+            mondo.setSistemaIncantesimi(v);
+            toccaMondo = true;
+        }
+        if (req.formulaManaIncantesimi() != null) {
+            mondo.setFormulaManaIncantesimi(req.formulaManaIncantesimi().isBlank() ? null : req.formulaManaIncantesimi().trim());
+            toccaMondo = true;
+        }
+        if (req.formulaCdIncantesimi() != null) {
+            mondo.setFormulaCdIncantesimi(req.formulaCdIncantesimi().isBlank() ? null : req.formulaCdIncantesimi().trim());
+            toccaMondo = true;
+        }
+        if (req.listaIncantesimi() != null) {
+            String v = req.listaIncantesimi().trim().toUpperCase();
+            if (!Constants.LISTA_INCANTESIMI_SINGOLA.equals(v) && !Constants.LISTA_INCANTESIMI_MULTIPLA.equals(v)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "listaIncantesimi non valido: " + v);
+            }
+            mondo.setListaIncantesimi(v);
+            toccaMondo = true;
+        }
+        if (req.mostraCasterLevel() != null) {
+            mondo.setMostraCasterLevel(req.mostraCasterLevel());
+            toccaMondo = true;
+        }
+        if (toccaMondo) {
             mondoRepository.save(mondo);
         }
 

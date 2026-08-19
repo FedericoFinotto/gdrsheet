@@ -37,9 +37,22 @@ export interface SpellBook {
     caratteristica?: string;           // stat id usata per la CD (es. "INT")
     cd?: number;                       // 10 + casterLevel + modificatore caratteristica
     mostraSimboliAzioni?: boolean;     // Mondo.mostraSimboliAzioni della fonte (icona invece di testo)
+    // Mondo.mostraCasterLevel della fonte: se false, non mostrare "CL: X" (il CL resta comunque
+    // usato per calcolare CD/slot/mana). Assente = true (comportamento storico), non solo false.
+    mostraCasterLevel?: boolean;
     // Indice "n" della sezione (SPELL_<n>...) sulla fonte (idClasse): serve per aggiornare il
     // contatore slot usati di un livello (setSlotUsatiPerLivello). Assente sulle sezioni legacy.
     sezioneIndice?: number;
+    // Sezione con "classe di riferimento" (solo oggetti): niente pool di slot separato, "slot" è
+    // già il numero di incantesimi conosciuti/disponibili a quel livello — non mostrare "Slot: X",
+    // solo "preparati/disponibili".
+    soloConosciuti?: boolean;
+    // Sistema incantesimi del mondo (Mondo.sistemaIncantesimi): "SLOT" (default) o "MANA". Se
+    // MANA, formulaManaTotale è la formula del pool (valutata come le formule bonus slot, stesse
+    // variabili) e manaUsati il consumo già tracciato per questa sezione (un solo contatore).
+    sistemaIncantesimi?: string;
+    formulaManaTotale?: string;
+    manaUsati?: number;
     livelli: SpellBookLivello[];   // inizializzato a []
     spurii?: SpellBookIncantesimo[];   // incantesimi non da lista/catalogo, utilizzi propri o di gruppo
 }

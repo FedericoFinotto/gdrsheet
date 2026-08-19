@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="2200" author="developer">
+        <preConditions onFail="MARK_RAN"><not><columnExists tableName="mondo" columnName="sistema_incantesimi"/></not></preConditions>
+        <comment>mondo.sistema_incantesimi: SLOT (default, storico) o MANA.</comment>
+        <addColumn tableName="mondo">
+            <column name="sistema_incantesimi" type="varchar(10)" defaultValue="SLOT">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2201" author="developer">
+        <preConditions onFail="MARK_RAN"><not><columnExists tableName="mondo" columnName="formula_mana_incantesimi"/></not></preConditions>
+        <comment>mondo.formula_mana_incantesimi: formula del pool di mana totale, rilevante solo se sistema_incantesimi=MANA.</comment>
+        <addColumn tableName="mondo">
+            <column name="formula_mana_incantesimi" type="varchar(255)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2202" author="developer">
+        <preConditions onFail="MARK_RAN"><not><columnExists tableName="mondo" columnName="formula_cd_incantesimi"/></not></preConditions>
+        <comment>mondo.formula_cd_incantesimi: formula CD di default (con %CAR), null = calcolo storico 10+CL+mod.</comment>
+        <addColumn tableName="mondo">
+            <column name="formula_cd_incantesimi" type="varchar(255)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2203" author="developer">
+        <preConditions onFail="MARK_RAN"><not><columnExists tableName="mondo" columnName="lista_incantesimi"/></not></preConditions>
+        <comment>mondo.lista_incantesimi: SINGOLA o MULTIPLA (default, storico).</comment>
+        <addColumn tableName="mondo">
+            <column name="lista_incantesimi" type="varchar(10)" defaultValue="MULTIPLA">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2204" author="developer">
+        <preConditions onFail="MARK_RAN"><not><columnExists tableName="mondo" columnName="mostra_caster_level"/></not></preConditions>
+        <comment>mondo.mostra_caster_level: se attivo (default, storico) mostra "CL: X" nello spellbook.</comment>
+        <addColumn tableName="mondo">
+            <column name="mostra_caster_level" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

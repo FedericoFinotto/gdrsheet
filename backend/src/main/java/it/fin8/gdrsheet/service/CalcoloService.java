@@ -59,7 +59,8 @@ public class CalcoloService {
     private static final Pattern PATTERN_SCAGLIONE =
             Pattern.compile("\\{\\s*'<=\\s*([-+]?[0-9]*\\.?[0-9]+)'\\s*,\\s*'([^']*)'\\s*}");
 
-    // Funzioni di arrotondamento utilizzabili nelle formule
+    // Funzioni utilizzabili nelle formule: arrotondamento (ECCESSO/DIFETTO/TRONCATO, 1 argomento)
+    // e min/max tra due valori (MIN/MAX, 2 argomenti) — es. "MIN(@LVL,20)".
     private static final Function FN_ECCESSO = new Function("ECCESSO", 1) {
         @Override public double apply(double... args) { return Math.ceil(args[0]); }
     };
@@ -69,7 +70,13 @@ public class CalcoloService {
     private static final Function FN_TRONCATO = new Function("TRONCATO", 1) {
         @Override public double apply(double... args) { return (double) (long) args[0]; }
     };
-    private static final Function[] FUNZIONI = {FN_ECCESSO, FN_DIFETTO, FN_TRONCATO};
+    private static final Function FN_MIN = new Function("MIN", 2) {
+        @Override public double apply(double... args) { return Math.min(args[0], args[1]); }
+    };
+    private static final Function FN_MAX = new Function("MAX", 2) {
+        @Override public double apply(double... args) { return Math.max(args[0], args[1]); }
+    };
+    private static final Function[] FUNZIONI = {FN_ECCESSO, FN_DIFETTO, FN_TRONCATO, FN_MIN, FN_MAX};
 
     /**
      * Metodo base: sostituisce nella formula le chiavi della mappa (es. "@CAR", "$1983_QTA")

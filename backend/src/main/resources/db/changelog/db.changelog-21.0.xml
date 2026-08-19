@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+       http://www.liquibase.org/xml/ns/dbchangelog
+       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        Tabella Livelli di una classe: le colonne (finora sempre e solo BAB/TMP/RFL/VLT, hardcoded
+        in Java) diventano configurabili per mondo, riusando stat_default (già "per mondo, per
+        stat") invece di una tabella nuova. livello_classe=true = questa stat ha una colonna nella
+        Tabella Livelli per quel mondo; modo_livello_classe distingue SOSTITUTIVO (il valore del
+        livello più alto raggiunto IN QUELLA CLASSE sostituisce quelli precedenti — sommato però ai
+        valori delle altre classi in un multiclasse, comportamento storico di BAB/TMP/RFL/VLT) da
+        SOMMATIVO (si sommano semplicemente tutti i valori, nessun "prendi il massimo per classe").
+
+        Seed: per ogni mondo esistente, BAB/TMP/RFL/VLT abilitate come SOSTITUTIVO — cioè il
+        comportamento di OGGI, ovunque, resta identico finché qualcuno non va in "Statistiche &
+        Default Mondo" e lo cambia per un mondo specifico (es. Caelis con altre stat).
+    -->
+
+    <changeSet id="2100" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="stat_default" columnName="livello_classe"/>
+            </not>
+        </preConditions>
+        <comment>stat_default.livello_classe: questa stat ha una colonna nella Tabella Livelli di una classe, per questo mondo.</comment>
+        <addColumn tableName="stat_default">
+            <column name="livello_classe" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2101" author="developer">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="stat_default" columnName="modo_livello_classe"/>
+            </not>
+        </preConditions>
+        <comment>stat_default.modo_livello_classe: SOMMATIVO o SOSTITUTIVO, rilevante solo se livello_classe=true.</comment>
+        <addColumn tableName="stat_default">
+            <column name="modo_livello_classe" type="varchar(20)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2102" author="developer">
+        <comment>Seed: BAB/TMP/RFL/VLT come SOSTITUTIVO in ogni mondo esistente, su righe stat_default già presenti (aggiorna) o nuove (crea) — preserva il comportamento attuale ovunque.</comment>
+        <sql>
+            UPDATE stat_default
+            SET livello_classe = true, modo_livello_classe = 'SOSTITUTIVO'
+            WHERE id_mondo IS NOT NULL AND stat_id IN ('BAB', 'TMP', 'RFL', 'VLT');
+
+            INSERT INTO stat_default (id_mondo, id_sistema, stat_id, addestramento, livello_classe, modo_livello_classe)
+            SELECT m.id, m.sistema_id, s.stat_id, false, true, 'SOSTITUTIVO'
+            FROM mondo m
+            CROSS JOIN (VALUES ('BAB'), ('TMP'), ('RFL'), ('VLT')) AS s(stat_id)
+            WHERE m.sistema_id IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM stat_default sd
+                WHERE sd.id_mondo = m.id AND sd.stat_id = s.stat_id
+              );
+        </sql>
+        <rollback>
+            <sql>
+                UPDATE stat_default SET livello_classe = false, modo_livello_classe = NULL
+                WHERE stat_id IN ('BAB', 'TMP', 'RFL', 'VLT');
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

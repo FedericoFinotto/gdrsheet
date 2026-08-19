@@ -21,6 +21,20 @@ const {cache} = storeToRefs(characterStore);
 // Lotta/Mischia/Distanza, che ricevono la somma sulle varie parti.
 const {risultato} = useDiceRoll()
 
+// Etichette per i box compatti (Mobile_Stat mostra l'id grezzo se non gli passi label): le
+// caratteristiche (FOR/DES/...) non sono in questa mappa apposta, mostrano già l'id come label.
+// Iterare sugli array reali del personaggio (invece dei 17 <Mobile_Stat id="..."> fissi di prima)
+// fa sì che una stat non abilitata per il mondo (quindi assente da questi array, vedi
+// StatDefault/ensureStatValues lato backend) semplicemente non compaia in Info.
+const LABEL_TS: Record<string, string> = {TMP: 'Tempra', RFL: 'Riflessi', VLT: 'Volonta'}
+const LABEL_CA: Record<string, string> = {CA: 'CA', CAC: 'Contatto', CAS: 'Sorpreso'}
+const LABEL_ATK: Record<string, string> = {BAB: 'BAB', LTT: 'Lotta', MSC: 'Mischia', GTT: 'Distanza'}
+
+// Attributi nascosti da Info: LVL è ridondante col badge livello già mostrato nell'header, i bonus
+// di avanzamento (punti caratteristica/skill/gradi, albero abilità) sono spostati nella pagina
+// Livelli (Mobile_Cico_7_Livelli.vue), dove si spendono — qui erano solo rumore.
+const ATTRIBUTI_NASCOSTI_INFO = new Set(['LVL', 'PCARBONUS', 'GRADBONUS', 'PTSKILLBON', 'ABALBERO'])
+
 const props = defineProps({
   idPersonaggio: {type: Number, required: true}
 });
@@ -310,33 +324,25 @@ async function salvaInfo() {
       </div>
     </div>
     <Mobile_HP v-if="cache[idPersonaggio]?.modificatori" :id-personaggio="idPersonaggio"/>
-    <div v-if="cache[idPersonaggio]?.modificatori" class="stat-block">
-      <Mobile_Stat id="FOR" :id-personaggio="idPersonaggio"/>
-      <Mobile_Stat id="DES" :id-personaggio="idPersonaggio"/>
-      <Mobile_Stat id="COS" :id-personaggio="idPersonaggio"/>
-      <Mobile_Stat id="INT" :id-personaggio="idPersonaggio"/>
-      <Mobile_Stat id="SAG" :id-personaggio="idPersonaggio"/>
-      <Mobile_Stat id="CAR" :id-personaggio="idPersonaggio"/>
+    <div v-if="(cache[idPersonaggio]?.modificatori?.caratteristiche ?? []).length" class="stat-block">
+      <Mobile_Stat v-for="stat in cache[idPersonaggio].modificatori.caratteristiche" :key="stat.id"
+                   :id="stat.id" :id-personaggio="idPersonaggio"/>
     </div>
-    <div v-if="cache[idPersonaggio]?.modificatori" class="stat-block">
-      <Mobile_Stat id="TMP" :id-personaggio="idPersonaggio" label="Tempra"/>
-      <Mobile_Stat id="RFL" :id-personaggio="idPersonaggio" label="Riflessi"/>
-      <Mobile_Stat id="VLT" :id-personaggio="idPersonaggio" label="Volonta"/>
+    <div v-if="(cache[idPersonaggio]?.modificatori?.tiriSalvezza ?? []).length" class="stat-block">
+      <Mobile_Stat v-for="stat in cache[idPersonaggio].modificatori.tiriSalvezza" :key="stat.id"
+                   :id="stat.id" :id-personaggio="idPersonaggio" :label="LABEL_TS[stat.id] ?? stat.label"/>
     </div>
-    <div v-if="cache[idPersonaggio]?.modificatori" class="stat-block">
-      <Mobile_Stat id="CA" :id-personaggio="idPersonaggio" label="CA"/>
-      <Mobile_Stat id="CAC" :id-personaggio="idPersonaggio" label="Contatto"/>
-      <Mobile_Stat id="CAS" :id-personaggio="idPersonaggio" label="Sorpreso"/>
+    <div v-if="(cache[idPersonaggio]?.modificatori?.classeArmatura ?? []).length" class="stat-block">
+      <Mobile_Stat v-for="stat in cache[idPersonaggio].modificatori.classeArmatura" :key="stat.id"
+                   :id="stat.id" :id-personaggio="idPersonaggio" :label="LABEL_CA[stat.id] ?? stat.label"/>
     </div>
-    <div v-if="cache[idPersonaggio]?.modificatori" class="stat-block">
-      <Mobile_Stat v-if="risultato === null" id="BAB" :id-personaggio="idPersonaggio" label="BAB"/>
-      <Mobile_Stat id="LTT" :id-personaggio="idPersonaggio" label="Lotta"/>
-      <Mobile_Stat id="MSC" :id-personaggio="idPersonaggio" label="Mischia"/>
-      <Mobile_Stat id="GTT" :id-personaggio="idPersonaggio" label="Distanza"/>
+    <div v-if="(cache[idPersonaggio]?.modificatori?.bonusAttacco ?? []).filter(x => x.id !== 'BAB' || risultato === null).length" class="stat-block">
+      <Mobile_Stat v-for="stat in cache[idPersonaggio].modificatori.bonusAttacco.filter(x => x.id !== 'BAB' || risultato === null)" :key="stat.id"
+                   :id="stat.id" :id-personaggio="idPersonaggio" :label="LABEL_ATK[stat.id] ?? stat.label"/>
     </div>
     <div class="stat-block">
       <Mobile_Stat
-          v-for="stat in (cache[idPersonaggio]?.modificatori?.attributi ?? []).filter(x => x.modificatori.length > 0)"
+          v-for="stat in (cache[idPersonaggio]?.modificatori?.attributi ?? []).filter(x => x.modificatori.length > 0 && !ATTRIBUTI_NASCOSTI_INFO.has(x.id))"
           :id="stat.id" :id-personaggio="idPersonaggio" :label="stat.label"
       />
     </div>
@@ -346,7 +352,7 @@ async function salvaInfo() {
           :id-stat="stat.id" :id-personaggio="idPersonaggio"
       />
     </div>
-    <div v-if="cache[idPersonaggio]?.modificatori" class="stat-block">
+    <div v-if="cache[idPersonaggio]?.modificatori?.dadiVita" class="stat-block">
       <Mobile_Stat id="DV" :id-personaggio="idPersonaggio" label="Dadi Vita"/>
     </div>
     <div class="spazietto"/>

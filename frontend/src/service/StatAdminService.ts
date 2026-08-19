@@ -16,6 +16,16 @@ export interface StatDefaultRow {
     defaultModId?: string | null;
     defaultModLabel?: string | null;
     addestramento?: boolean;
+    // Ha una colonna nella Tabella Livelli di una classe per questo mondo, e con che modo di
+    // aggregazione multi-classe — vedi db.changelog-21.0.xml.
+    livelloClasse?: boolean;
+    modoLivelloClasse?: 'SOMMATIVO' | 'SOSTITUTIVO' | null;
+}
+
+export interface StatLivelloClasse {
+    statId: string;
+    statLabel: string;
+    modo: 'SOMMATIVO' | 'SOSTITUTIVO';
 }
 
 export function getStatsAll(): Promise<AxiosResponse<Stat[]>> {
@@ -44,4 +54,10 @@ export function updateStatDefault(id: number, payload: StatDefaultRow): Promise<
 
 export function deleteStatDefault(id: number): Promise<AxiosResponse<void>> {
     return api.delete<void>(`/stats/default/${id}`);
+}
+
+// Aperto a qualunque utente autenticato (non richiede il permesso Statistiche sul mondo): usato
+// dall'editor classe per sapere quali colonne mostrare nella Tabella Livelli.
+export function getStatLivelloClasse(mondoId: number): Promise<AxiosResponse<StatLivelloClasse[]>> {
+    return api.get<StatLivelloClasse[]>(`/stats/livello-classe/${mondoId}`);
 }

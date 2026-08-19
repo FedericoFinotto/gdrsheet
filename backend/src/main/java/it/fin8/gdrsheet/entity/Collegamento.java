@@ -128,7 +128,10 @@ public class Collegamento {
     public Boolean contenutoIn(List<Collegamento> collegamentos) {
         if (collegamentos == null) return false;
         for (Collegamento collegamento : collegamentos) {
-            if (this.equals(collegamento)) {
+            // stessoCollegamento (source+target), non equals(): equals() di default è identità di
+            // oggetto, quindi non troverebbe mai corrispondenza tra un'istanza caricata da DB e una
+            // transiente appena costruita (id null) — vedi ItemService.updatePreparedForCharacterAndLevel.
+            if (Boolean.TRUE.equals(this.stessoCollegamento(collegamento))) {
                 return true;
             }
         }

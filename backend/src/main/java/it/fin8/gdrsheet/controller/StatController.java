@@ -6,6 +6,7 @@ import it.fin8.gdrsheet.def.TipoPermessoMondo;
 import it.fin8.gdrsheet.def.TipoStat;
 import it.fin8.gdrsheet.dto.MondoDTO;
 import it.fin8.gdrsheet.dto.StatDefaultDTO;
+import it.fin8.gdrsheet.dto.StatLivelloClasseDTO;
 import it.fin8.gdrsheet.dto.StatRequest;
 import it.fin8.gdrsheet.entity.Mondo;
 import it.fin8.gdrsheet.entity.PermessiMondo;
@@ -118,6 +119,22 @@ public class StatController {
         return ResponseEntity.ok(result);
     }
 
+    @Operation(summary = "Stat con colonna nella Tabella Livelli, per un mondo",
+            description = "Aperto a qualunque utente autenticato: serve solo a sapere quali colonne mostrare " +
+                    "nell'editor classe, non è un'informazione riservata (a differenza di /default/{mondoId})")
+    @GetMapping("/livello-classe/{mondoId}")
+    public ResponseEntity<List<StatLivelloClasseDTO>> getLivelloClasse(@PathVariable Integer mondoId) {
+        List<StatLivelloClasseDTO> result = statDefaultRepository.findAllByMondo_Id(mondoId).stream()
+                .filter(sd -> Boolean.TRUE.equals(sd.getLivelloClasse()))
+                .map(sd -> {
+                    Stat stat = sd.getStatId() != null ? statRepository.findById(sd.getStatId()).orElse(null) : null;
+                    return new StatLivelloClasseDTO(sd.getStatId(), stat != null ? stat.getLabel() : sd.getStatId(),
+                            sd.getModoLivelloClasse());
+                })
+                .toList();
+        return ResponseEntity.ok(result);
+    }
+
     @Operation(summary = "Crea una stat_default per un mondo", description = "Chi ha il permesso Statistiche su quel mondo, o admin")
     @PostMapping("/default")
     public ResponseEntity<StatDefaultDTO> createDefault(@RequestBody StatDefaultDTO req,
@@ -141,6 +158,8 @@ public class StatController {
             sd.setDefaultMod(statRepository.findById(req.getDefaultModId().trim()).orElse(null));
         }
         sd.setAddestramento(Boolean.TRUE.equals(req.getAddestramento()));
+        sd.setLivelloClasse(Boolean.TRUE.equals(req.getLivelloClasse()));
+        sd.setModoLivelloClasse(sd.getLivelloClasse() ? req.getModoLivelloClasse() : null);
         return ResponseEntity.ok(toDTO(statDefaultRepository.save(sd)));
     }
 
@@ -158,6 +177,8 @@ public class StatController {
             sd.setDefaultMod(null);
         }
         sd.setAddestramento(Boolean.TRUE.equals(req.getAddestramento()));
+        sd.setLivelloClasse(Boolean.TRUE.equals(req.getLivelloClasse()));
+        sd.setModoLivelloClasse(sd.getLivelloClasse() ? req.getModoLivelloClasse() : null);
         return ResponseEntity.ok(toDTO(statDefaultRepository.save(sd)));
     }
 
@@ -181,7 +202,9 @@ public class StatController {
                 sd.getValoreDefault(),
                 sd.getDefaultMod() != null ? sd.getDefaultMod().getId() : null,
                 sd.getDefaultMod() != null ? sd.getDefaultMod().getLabel() : null,
-                sd.getAddestramento()
+                sd.getAddestramento(),
+                sd.getLivelloClasse(),
+                sd.getModoLivelloClasse()
         );
     }
 }

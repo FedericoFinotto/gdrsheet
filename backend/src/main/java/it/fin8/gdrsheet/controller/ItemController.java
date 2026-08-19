@@ -611,6 +611,21 @@ public class ItemController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Aggiorna il mana usato di una sezione incantesimi (mondo a sistema MANA) per un personaggio")
+    @PutMapping("/{itemId}/spell-mana-usati/{personaggioId}/{sezioneIndice}")
+    public ResponseEntity<Void> setManaUsati(
+            @PathVariable Integer itemId,
+            @PathVariable Integer personaggioId,
+            @PathVariable Integer sezioneIndice,
+            @RequestBody java.util.Map<String, Integer> body,
+            @AuthenticationPrincipal Utente utente) {
+        authzService.assertCanEditPersonaggio(utente, personaggioId);
+        Integer usati = body.get("usati");
+        if (usati == null) return ResponseEntity.badRequest().build();
+        itemService.setManaUsati(itemId, personaggioId, sezioneIndice, usati);
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "Aggiorna il valore di un contatore item ($V_<nome>) per un personaggio")
     @PutMapping("/{itemId}/contatore/{personaggioId}/{nome}")
     public ResponseEntity<Void> setContatoreItem(

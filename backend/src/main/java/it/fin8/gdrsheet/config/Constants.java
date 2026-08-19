@@ -6,7 +6,11 @@ public final class Constants {
     private Constants() {
     }
 
-    public static final List<String> listOfUniqueByClassStats = List.of("BAB", "TMP", "VLT", "RFL");
+    // Sostituita da stat_default.livello_classe/modo_livello_classe (configurabile per mondo,
+    // vedi db.changelog-21.0.xml): non più una lista fissa di stat "uniche per classe" uguale per
+    // tutti i mondi. Tenuta solo come default di seed/fallback quando serve un valore letterale.
+    public static final String MODO_LIVELLO_CLASSE_SOMMATIVO = "SOMMATIVO";
+    public static final String MODO_LIVELLO_CLASSE_SOSTITUTIVO = "SOSTITUTIVO";
 
     // Stat fittizia: un CAMBIA_CARATTERISTICA su questa stat cambia la caratteristica base di TUTTE le abilità
     public static final String STAT_TUTTE_ABILITA = "ABTUTTE";
@@ -118,6 +122,34 @@ public final class Constants {
     // Assente/valore non riconosciuto = default "NM".
     public static final String ITEM_LABEL_SPELL_CL_SORGENTE_SUFFIX = "_CL_SRC";     // "NM" | "TOT"
     public static final String ITEM_LABEL_SPELL_SLOT_SORGENTE_SUFFIX = "_SLOT_SRC"; // "MNM" | "NM" | "TOT"
+    // Classe di riferimento di una sezione OGGETTO (id item CLASSE): quando impostata, la sezione
+    // non ha uno SLOT proprio né un caster level fisso — usa direttamente il livello che il
+    // personaggio ha in QUELLA classe (livello non maledetto "per incantesimi", stesso default NM
+    // di selettoreCasterLevel/selettoreLivelloSlot) sia come caster level sia come indice nella
+    // tabella SPELL_<n>_CONOSCIUTI (una riga per livello di quella classe, stesso formato del
+    // CUSTOM di classe) — niente progressione di slot, solo "quanti incantesimi conosciuti" a quel
+    // livello. Ignorata sulle sezioni di CLASSE.
+    public static final String ITEM_LABEL_SPELL_CLASSE_RIF_SUFFIX = "_CLASSE_RIF";
+    // Flag esplicito, indipendente dalla classe di riferimento sopra: la sezione non ha un pool di
+    // slot da mostrare in scheda, solo un numero di incantesimi conosciuti/disponibili — la scheda
+    // mostra l'icona libro con "preparati/disponibili" invece di "Slot: X" (vedi SpellBookDTO
+    // .soloConosciuti). Impostato di default quando si sceglie una classe di riferimento, ma
+    // editabile indipendentemente.
+    public static final String ITEM_LABEL_SPELL_SOLO_CONOSCIUTI_SUFFIX = "_SOLO_CONOSCIUTI";
+    // Mondo.sistemaIncantesimi: SLOT (default, storico) o MANA (pool condiviso, vedi
+    // Mondo.formulaManaIncantesimi e SpellBookDTO.manaTotale/manaUsati).
+    public static final String SISTEMA_INCANTESIMI_SLOT = "SLOT";
+    public static final String SISTEMA_INCANTESIMI_MANA = "MANA";
+    // Mondo.listaIncantesimi: SINGOLA (una sola lista/dominio per sezione) o MULTIPLA (default, storico).
+    public static final String LISTA_INCANTESIMI_SINGOLA = "SINGOLA";
+    public static final String LISTA_INCANTESIMI_MULTIPLA = "MULTIPLA";
+    // Placeholder sostituito nella formula CD di un mondo (Mondo.formulaCdIncantesimi) col
+    // modificatore della caratteristica da incantatore scelta sulla sezione (vedi impostaCd).
+    public static final String FORMULA_CD_PLACEHOLDER_CARATTERISTICA = "%CAR";
+    // Label personaggio-scoped: mana già speso per una sezione (SPELL_<n>_MANA_USATI_<idClasse
+    // implicito nell'item stesso>), un solo contatore condiviso per l'intera sezione invece che uno
+    // per livello come per gli slot (SPELL_<n>_SLOT_USATI_<livello>).
+    public static final String ITEM_LABEL_SPELL_MANA_USATI_PREFIX = "_MANA_USATI";
     public static final String COLLEGAMENTO_LABEL_LIVELLO = "LIVELLO";
     public static final String COLLEGAMENTO_LABEL_LISTA_INCANTESIMI = "SP_LIST";
     public static final String COLLEGAMENTO_LABEL_N_USATI = "USED";

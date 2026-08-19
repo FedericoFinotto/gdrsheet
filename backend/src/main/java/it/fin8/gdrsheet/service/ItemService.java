@@ -115,33 +115,79 @@ public class ItemService {
         Item preparedSpell = personaggio.getItems().stream().filter(x -> x.getNome().equals(Constants.ITEM_INCANTESIMI_PREPARATI)).findFirst().orElse(null);
         if (preparedSpell == null) return;
 
-        List<Collegamento> spellPresenti = preparedSpell.getChild().stream()
+        // Collegamenti già presenti per QUESTO livello, indicizzati per itemTarget (id incantesimo).
+        // Prima si confrontava con Collegamento.contenutoIn(), che usa equals() di default (identità
+        // di oggetto): un'istanza caricata da DB e una transiente appena costruita da
+        // toNewCollegamentoIncantesimo (id sempre null) non potevano MAI risultare uguali, quindi
+        // ogni conferma cancellava e ricreava tutto da zero — innocuo finché tutti i figli avevano
+        // le label attese, ma un solo figlio di preparedSpell senza LISTA_INCANTESIMI (spellList
+        // null) faceva esplodere lo .equals() qui sotto con NPE, bloccando aggiunte E rimozioni per
+        // l'intero personaggio. Confronto ora per chiave (itemTarget id).
+        //
+        // NON si richiede più che anche SP_LIST combaci esattamente con request.getSpellList():
+        // un incantesimo preparato PRIMA che una sezione unisse più liste ha ancora la vecchia
+        // stringa singola (es. "SP_SAG" invece di "SP_SAG,SP_CAR,SP_INT") — pretendere la corris-
+        // pondenza esatta lo rendeva invisibile a questo endpoint, che quindi non riusciva né ad
+        // aggiornarlo né a rimuoverlo (restava per sempre, "fantasma", anche azzerandolo dall'editor).
+        // Stesso principio già applicato in lettura, vedi PersonaggioService.matchLista: l'identità
+        // di un incantesimo preparato è (itemTarget, livello), la lista è solo un'etichetta.
+        Map<Integer, Collegamento> presentiPerSpell = preparedSpell.getChild().stream()
                 .filter(child -> {
-                    String spellList = utilService.getCollegamentoLabel(child, Constants.COLLEGAMENTO_LABEL_LISTA_INCANTESIMI);
                     String livello = utilService.getCollegamentoLabel(child, Constants.COLLEGAMENTO_LABEL_LIVELLO);
-                    return spellList.equals(request.getSpellList()) &&
-                            request.getLivello().equals(Integer.parseInt(livello));
+                    Integer livelloInt = parseIntOrNull(livello);
+                    return livelloInt != null && livelloInt.equals(request.getLivello());
                 })
-                .toList();
+                .collect(Collectors.toMap(c -> c.getItemTarget().getId(), c -> c, (a, b) -> a, LinkedHashMap::new));
 
-        List<Collegamento> spellDaPreparare = request.getPrepared().entrySet().stream()
-                .filter(sp -> sp.getValue() != 0)
-                .map(x -> itemMapper.toNewCollegamentoIncantesimo(x, preparedSpell.getId(), request.getLivello().toString(), request.getSpellList(), em))
-                .toList();
+        List<Collegamento> daEliminare = new ArrayList<>();
+        List<Collegamento> daAggiungere = new ArrayList<>();
+        List<Collegamento> daAggiornare = new ArrayList<>();
 
-        List<Collegamento> spellDaEliminare = spellPresenti.stream().filter(x -> !x.contenutoIn(spellDaPreparare)).toList();
-        List<Collegamento> spellDaAggiungere = spellDaPreparare.stream().filter(x -> !x.contenutoIn(spellPresenti)).toList();
-        List<Collegamento> spellDaAggiornare = spellPresenti.stream().filter(x -> x.contenutoIn(spellDaPreparare))
-                .peek(x -> spellDaPreparare.stream().filter(x::stessoCollegamento).findFirst().ifPresent(y -> {
-                    x.setLabel(Constants.COLLEGAMENTO_LABEL_N_PREPARATI, y.getLabel(Constants.COLLEGAMENTO_LABEL_N_PREPARATI));
-                    x.setLabel(Constants.COLLEGAMENTO_LABEL_N_USATI, y.getLabel(Constants.COLLEGAMENTO_LABEL_N_USATI));
-                })).toList();
+        for (Map.Entry<Integer, Integer> voce : request.getPrepared().entrySet()) {
+            Collegamento esistente = presentiPerSpell.remove(voce.getKey());
+            if (voce.getValue() == 0) {
+                if (esistente != null) daEliminare.add(esistente);
+                continue;
+            }
+            if (esistente == null) {
+                daAggiungere.add(itemMapper.toNewCollegamentoIncantesimo(voce, preparedSpell.getId(),
+                        request.getLivello().toString(), request.getSpellList(), em));
+                continue;
+            }
+            // Aggiornamento in place: preserva l'id (e USED, se non passa a "sempre") invece di
+            // cancellare e ricreare la riga. Aggiorna anche SP_LIST al valore corrente: se la riga
+            // portava ancora una vecchia stringa lista singola (vedi commento sopra), da qui in poi
+            // si "auto-ripara" appena viene ritoccata.
+            esistente.setLabel(Constants.COLLEGAMENTO_LABEL_LISTA_INCANTESIMI, request.getSpellList());
+            if (voce.getValue() == -54) {
+                esistente.setLabel(Constants.COLLEGAMENTO_LABEL_N_PREPARATI, "ALWAYS");
+                esistente.removeLabel(Constants.COLLEGAMENTO_LABEL_N_USATI);
+            } else {
+                esistente.setLabel(Constants.COLLEGAMENTO_LABEL_N_PREPARATI, voce.getValue().toString());
+                if (utilService.getCollegamentoLabel(esistente, Constants.COLLEGAMENTO_LABEL_N_USATI) == null) {
+                    esistente.setLabel(Constants.COLLEGAMENTO_LABEL_N_USATI, "0");
+                }
+            }
+            daAggiornare.add(esistente);
+        }
+        // Qualunque cosa resti in presentiPerSpell non è più nella richiesta (l'editor invia sempre
+        // la mappa completa per questo livello/lista): va comunque rimossa.
+        daEliminare.addAll(presentiPerSpell.values());
 
-        collegamentoRepository.deleteAll(spellDaEliminare);
-        collegamentoRepository.saveAll(spellDaAggiungere);
-        collegamentoRepository.saveAll(spellDaAggiornare);
+        collegamentoRepository.deleteAll(daEliminare);
+        collegamentoRepository.saveAll(daAggiungere);
+        collegamentoRepository.saveAll(daAggiornare);
 
         personaggioCacheService.invalidaPersonaggio(request.getIdPersonaggio());
+    }
+
+    private static Integer parseIntOrNull(String s) {
+        if (s == null || s.isBlank()) return null;
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     public void updateSpellUsage(UpdateSpellUsageRequest request) {
@@ -1767,6 +1813,28 @@ public class ItemService {
      */
     public void setSlotUsatiPerLivello(Integer itemId, Integer personaggioId, int sezioneIndice, int livello, int usati) {
         String labelKey = "SPELL_" + sezioneIndice + "_SLOT_USATI_" + livello;
+        ItemLabel label = itemLabelRepository
+                .findByItem_IdAndLabelAndPersonaggio_Id(itemId, labelKey, personaggioId)
+                .orElseGet(() -> {
+                    ItemLabel nl = new ItemLabel();
+                    nl.setItem(em.getReference(Item.class, itemId));
+                    nl.setPersonaggio(em.getReference(Personaggio.class, personaggioId));
+                    nl.setLabel(labelKey);
+                    return nl;
+                });
+        label.setValore(String.valueOf(Math.max(0, usati)));
+        itemLabelRepository.save(label);
+        personaggioCacheService.invalidaPersonaggio(personaggioId);
+    }
+
+    /**
+     * Mana usato di UNA sezione incantesimi in un mondo a sistema MANA (Mondo.sistemaIncantesimi):
+     * un solo contatore condiviso per tutta la sezione (label SPELL_&lt;n&gt;_MANA_USATI, personaggio-
+     * scoped), non uno per livello come per gli slot — vedi PersonaggioService.getManaUsati per la
+     * lettura.
+     */
+    public void setManaUsati(Integer itemId, Integer personaggioId, int sezioneIndice, int usati) {
+        String labelKey = "SPELL_" + sezioneIndice + Constants.ITEM_LABEL_SPELL_MANA_USATI_PREFIX;
         ItemLabel label = itemLabelRepository
                 .findByItem_IdAndLabelAndPersonaggio_Id(itemId, labelKey, personaggioId)
                 .orElseGet(() -> {

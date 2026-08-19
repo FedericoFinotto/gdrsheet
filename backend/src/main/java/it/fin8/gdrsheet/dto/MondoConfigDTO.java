@@ -12,7 +12,14 @@ import java.util.List;
 public record MondoConfigDTO(
         List<TipoItem> tipiAbilitati,
         List<ListaIncantesimiDTO> listeIncantesimiAbilitate,
-        boolean mostraSimboliAzioni
+        boolean mostraSimboliAzioni,
+        // Configurazione del sistema incantesimi del mondo (vedi Constants.SISTEMA_INCANTESIMI_*,
+        // Mondo.formulaManaIncantesimi/formulaCdIncantesimi/listaIncantesimi).
+        String sistemaIncantesimi,
+        String formulaManaIncantesimi,
+        String formulaCdIncantesimi,
+        String listaIncantesimi,
+        boolean mostraCasterLevel
 ) {
     public record ListaIncantesimiDTO(String codice, String etichetta) {
     }

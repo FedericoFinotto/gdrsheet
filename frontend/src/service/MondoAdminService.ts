@@ -98,6 +98,19 @@ export interface MondoConfig {
     // se attivo, il costo in azioni (es. TEMPO_SP degli incantesimi) è mostrato coi glifi del
     // font icone Pathfinder2eActions invece che a testo (vedi function/azioni.ts)
     mostraSimboliAzioni: boolean;
+    // Sistema incantesimi del mondo: "SLOT" (default) o "MANA" — vedi SpellBook.sistemaIncantesimi.
+    sistemaIncantesimi: 'SLOT' | 'MANA';
+    // Formula del pool di mana totale (rilevante solo se sistemaIncantesimi === 'MANA').
+    formulaManaIncantesimi: string | null;
+    // Formula CD di default per gli incantesimi di questo mondo, con %CAR sostituito dal
+    // modificatore della caratteristica da incantatore della sezione. Null = calcolo storico
+    // "10 + caster level + modificatore".
+    formulaCdIncantesimi: string | null;
+    // "SINGOLA" (una sola lista/dominio per sezione) o "MULTIPLA" (default, storico).
+    listaIncantesimi: 'SINGOLA' | 'MULTIPLA';
+    // Se attivo (default, storico), la scheda mostra "CL: X" nello spellbook. Il caster level resta
+    // comunque calcolato/usato per CD, slot e mana anche se disattivato — qui si nasconde solo.
+    mostraCasterLevel: boolean;
 }
 
 // Cosa è abilitato per questo mondo (tipi item + liste/domini incantesimi): usato per filtrare i
@@ -124,6 +137,11 @@ export function aggiornaConfigMondo(
     mondoId: number, patch: {
         tipiAbilitati?: string[] | null; codiciListeIncantesimi?: string[] | null
         mostraSimboliAzioni?: boolean | null
+        sistemaIncantesimi?: 'SLOT' | 'MANA' | null
+        formulaManaIncantesimi?: string | null
+        formulaCdIncantesimi?: string | null
+        listaIncantesimi?: 'SINGOLA' | 'MULTIPLA' | null
+        mostraCasterLevel?: boolean | null
     }
 ): Promise<AxiosResponse<MondoConfig>> {
     return api.put<MondoConfig>(`/mondo/${mondoId}/config`, patch);

@@ -7,12 +7,14 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Rappresentazione completa di una CLASSE per l'editor:
  * dati base + label di classe + tabella dei 20 livelli (item AVANZAMENTO
- * "NOME N" con modificatori BAB/TMP/RFL/VLT/DV/GRADI e label SP_SLOT/SPELL)
- * + abilità concesse per livello (righe avanzamento verso item non-AVANZAMENTO).
+ * "NOME N" con i modificatori "livello classe" configurati per il mondo (es. BAB/TMP/RFL/VLT
+ * nel mondo Cico, altri nel mondo Caelis — vedi stat_default.livello_classe) più DV/GRADI e
+ * label SP_SLOT/SPELL) + abilità concesse per livello (righe avanzamento verso item non-AVANZAMENTO).
  */
 @Getter
 @Setter
@@ -155,10 +157,15 @@ public class ClasseDetailDTO {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class LivelloClasseDTO {
         private int livello;       // 1..20
-        private String bab;        // es. "+3"
-        private String tmp;        // tempra
-        private String rfl;        // riflessi
-        private String vlt;        // volontà
+
+        /**
+         * Valori delle stat "livello classe" configurate per il mondo di questa classe
+         * (stat_default.livello_classe=true, vedi db.changelog-21.0.xml), chiave statId
+         * (es. "BAB" -&gt; "+3"). Prima erano campi fissi bab/tmp/rfl/vlt: ora dinamici, perché
+         * ogni mondo può configurarne di diversi (StatController#getLivelloClasse).
+         */
+        private Map<String, String> valori;
+
         private String spSlot;     // es. "4,2,1,0,0,0,0,0,0,0" (vuoto = non incantatore)
     }
 

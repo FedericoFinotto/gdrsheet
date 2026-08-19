@@ -37,6 +37,7 @@ import {SPELL_LIST_CODES, spellListLabel} from '../../../../../../function/spell
 import {TAGLIE_OPTIONS_NOME} from '../../../../../../function/Utils'
 import {TIPO_ITEM, TIPO_ITEM_LABELS} from '../../../../../../models/entity/ItemDB'
 import {getConfigMondo, getTipoItemConfig} from '../../../../../../service/MondoAdminService'
+import api from '../../../../../../service/api'
 import {getItemParents} from '../../../../../../service/PersonaggioService'
 import CardNodoStruttura from './Sections/CardNodoStruttura.vue'
 import CardScelte, {SezioneScelta} from './Sections/CardScelte.vue'
@@ -195,6 +196,17 @@ const form = reactive<{
     slotConContatore: boolean
     personalizzata: boolean; incantesimiCustom: Array<{ id: number; nome: string; livello: number }>
     caratteristica: string; casterLevelFisso: string
+    // Classe di riferimento (id item CLASSE): se impostata, niente SLOT/caster level fisso — il
+    // "livello" è quello che il personaggio ha in quella classe, e conosciutiPerLivello è la
+    // tabella "quanti incantesimi conosciuti", una riga per livello della classe di riferimento
+    // (stesso formato/dash di conosciuti, ";"-separato in SPELL_<n>_CONOSCIUTI) — vedi Constants
+    // .ITEM_LABEL_SPELL_CLASSE_RIF_SUFFIX lato backend.
+    classeRiferimento: number | null; nomeClasseRiferimento: string; conosciutiPerLivello: string[]
+    numLivelliRiferimento: number  // solo UI: righe della tabella "conosciuti", = numLivelli della classe scelta
+    // Flag esplicito (indipendente da classeRiferimento): la scheda del personaggio mostra
+    // "preparati/disponibili" invece di "Slot: X" per questa sezione — vedi Constants
+    // .ITEM_LABEL_SPELL_SOLO_CONOSCIUTI_SUFFIX lato backend.
+    soloConosciuti: boolean
   }>
   aggiunteClasse: Array<{
     idClasse: number | null; nomeClasse: string; valore: string
@@ -360,6 +372,7 @@ async function preload() {
   const spellRaw: Record<number, {
     liste?: string; bonus?: string; slot?: string; haConosciuti?: string; conosciuti?: string
     personalizzata?: string; incantesimi?: string; caratteristica?: string; casterLevel?: string
+    classeRif?: string; soloConosciuti?: string
   }> = {}
   // righe ADD_CLASSE_<n>* raccolte allo stesso modo (stesso motivo: ordine label non garantito)
   const addClasseRaw: Record<number, {
@@ -443,8 +456,8 @@ async function preload() {
       form.campiMulti[key].push(val)
     } else if (campoKeys.has(key) && !form.campi[key]) {
       form.campi[key] = val
-    } else if (/^SPELL_\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CUSTOM|_INCANTESIMI|_CARATTERISTICA|_CASTER_LEVEL)?$/.test(key)) {
-      const m = key.match(/^SPELL_(\d+)(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CUSTOM|_INCANTESIMI|_CARATTERISTICA|_CASTER_LEVEL)?$/)!
+    } else if (/^SPELL_\d+(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CUSTOM|_INCANTESIMI|_CARATTERISTICA|_CASTER_LEVEL|_CLASSE_RIF|_SOLO_CONOSCIUTI)?$/.test(key)) {
+      const m = key.match(/^SPELL_(\d+)(_PROG|_BONUS|_SLOT|_HA_CONOSCIUTI|_CONOSCIUTI|_SLOT_CONTATORE|_CUSTOM|_INCANTESIMI|_CARATTERISTICA|_CASTER_LEVEL|_CLASSE_RIF|_SOLO_CONOSCIUTI)?$/)!
       const n = Number(m[1])
       const suffix = m[2] ?? ''
       const row = (spellRaw[n] ??= {})
@@ -458,6 +471,8 @@ async function preload() {
       else if (suffix === '_INCANTESIMI') row.incantesimi = val
       else if (suffix === '_CARATTERISTICA') row.caratteristica = val
       else if (suffix === '_CASTER_LEVEL') row.casterLevel = val
+      else if (suffix === '_CLASSE_RIF') row.classeRif = val
+      else if (suffix === '_SOLO_CONOSCIUTI') row.soloConosciuti = val
       // _PROG: ignorata, gli item non hanno progressione (sempre a slot fisso)
     } else if (/^SCELTA_\d+_FATTA$/.test(key)) {
       // scelta del personaggio: personaggio-scoped, mai editata/salvata da questo editor
@@ -495,23 +510,35 @@ async function preload() {
       const [idStr, livStr] = tok.split(':')
       return {id: Number(idStr), nome: `#${idStr}`, livello: Number(livStr) || 0}
     })
+    const classeRiferimento = r.classeRif ? Number(r.classeRif) : null
     return {
       liste: (r.liste ?? '').split(',').map(s => s.trim()).filter(Boolean),
       bonus: r.bonus ?? '',
       slot: r.slot ?? '',
       conosciutiSeparati: r.haConosciuti === '1',
-      conosciuti: r.conosciuti ?? '',
+      // Classe di riferimento: SPELL_<n>_CONOSCIUTI è una tabella ";"-separata (una riga per
+      // livello di classe, come le classi) — senza, resta la singola riga legacy.
+      conosciuti: classeRiferimento ? '' : (r.conosciuti ?? ''),
+      conosciutiPerLivello: classeRiferimento && r.conosciuti
+          ? r.conosciuti.split(';').map(x => x.trim()) : [],
       slotConContatore: r.slotConContatore === '1',
       personalizzata: r.personalizzata === '1',
       incantesimiCustom,
       caratteristica: r.caratteristica ?? '',
       casterLevelFisso: r.casterLevel ?? '',
+      classeRiferimento, nomeClasseRiferimento: '', numLivelliRiferimento: 20,
+      soloConosciuti: r.soloConosciuti === '1',
     }
   })
   // il label salva solo "id:livello": recupera i nomi per mostrarli nell'editor
   await Promise.all(form.sezioniIncantesimi.flatMap(s => s.incantesimiCustom.map(async c => {
     try { c.nome = (await getItem(c.id)).data?.nome ?? c.nome } catch { /* item non trovato: resta il placeholder #id */ }
   })))
+  // Classe di riferimento delle sezioni: nome (per l'etichetta) + numero di livelli (per
+  // dimensionare la tabella "conosciuti") — non tocca conosciutiPerLivello già caricato.
+  await Promise.all(form.sezioniIncantesimi
+      .filter(s => s.classeRiferimento != null)
+      .map(s => caricaClasseRiferimento(s, s.classeRiferimento as number)))
 
   form.aggiunteClasse = Object.keys(addClasseRaw).map(Number).sort((a, b) => a - b)
       .map(n => {
@@ -619,10 +646,56 @@ function addSezioneIncantesimi() {
     slotConContatore: false,
     personalizzata: false, incantesimiCustom: [],
     caratteristica: '', casterLevelFisso: '',
+    classeRiferimento: null, nomeClasseRiferimento: '', conosciutiPerLivello: [], numLivelliRiferimento: 20,
+    soloConosciuti: false,
   })
 }
 function removeSezioneIncantesimi(i: number) {
   form.sezioniIncantesimi.splice(i, 1)
+}
+// Classe di riferimento di una sezione (vedi Constants.ITEM_LABEL_SPELL_CLASSE_RIF_SUFFIX lato
+// backend): niente SLOT/caster level fisso, il "livello" è quello che il personaggio ha in quella
+// classe. Carica nome + numero di livelli (per dimensionare la tabella conosciuti) senza toccare
+// i valori già inseriti — usata sia al caricamento sia dopo la scelta di una nuova classe.
+async function caricaClasseRiferimento(s: { nomeClasseRiferimento: string; numLivelliRiferimento: number }, idClasse: number) {
+  try {
+    const {data} = await api.get(`/item/classe/${idClasse}`)
+    s.nomeClasseRiferimento = data?.nome ?? `#${idClasse}`
+    s.numLivelliRiferimento = Math.max(1, Math.min(100, Number(data?.numLivelli) || 20))
+  } catch (e) {
+    console.error('Errore caricamento classe di riferimento:', e)
+    s.nomeClasseRiferimento = `#${idClasse}`
+  }
+}
+// SearchSelect (in modalità remota) emette solo l'id scelto: qui è anche il punto in cui una
+// nuova classe scelta dall'utente azzera la tabella conosciuti precedente (livelli diversi).
+async function onPickClasseRiferimento(s: {
+  classeRiferimento: number | null; nomeClasseRiferimento: string
+  conosciutiPerLivello: string[]; numLivelliRiferimento: number; soloConosciuti: boolean
+}, value: number | string | null) {
+  s.classeRiferimento = value == null ? null : Number(value)
+  s.nomeClasseRiferimento = ''
+  s.conosciutiPerLivello = []
+  if (s.classeRiferimento == null) return
+  s.soloConosciuti = true  // default sensato: niente scheda "vuota" per dimenticanza
+  await caricaClasseRiferimento(s, s.classeRiferimento)
+}
+async function searchClasseRiferimento(q: string) {
+  if (form.idMondo == null) return []
+  try {
+    const res = await searchItems(q, 'CLASSE', form.idMondo)
+    return (res.data ?? []).map((c: any) => ({value: c.id, label: c.nome}))
+  } catch (e) {
+    console.error('Errore ricerca classi:', e)
+    return []
+  }
+}
+function conosciutiPerLivelloDi(s: { conosciutiPerLivello: string[] }, livello: number): string {
+  return s.conosciutiPerLivello[livello - 1] ?? ''
+}
+function setConosciutiPerLivello(s: { conosciutiPerLivello: string[] }, livello: number, val: string) {
+  while (s.conosciutiPerLivello.length < livello) s.conosciutiPerLivello.push('')
+  s.conosciutiPerLivello[livello - 1] = val
 }
 function addListaIncantesimi(s: { liste: string[] }, code: string) {
   if (code && !s.liste.includes(code)) s.liste.push(code)
@@ -637,18 +710,27 @@ function removeListaIncantesimi(s: { liste: string[] }, code: string) {
 // altri mondi/sistemi che qui non hanno senso. null finché non risolto o in caso di errore =
 // nessuna restrizione nota, per non far sparire di colpo il picker.
 const listeAbilitateMondoSezioni = ref<Map<string, string> | null>(null)
+// SINGOLA (default 'MULTIPLA' finché non risolto): una sezione può avere una sola lista/dominio,
+// niente unione di più liste — vedi Mondo.listaIncantesimi/MondiAdmin.vue "Sistema incantesimi".
+const listaIncantesimiMondo = ref<'SINGOLA' | 'MULTIPLA'>('MULTIPLA')
 watch(() => form.idMondo, async (idMondo) => {
-  if (!idMondo) { listeAbilitateMondoSezioni.value = null; return }
+  if (!idMondo) { listeAbilitateMondoSezioni.value = null; listaIncantesimiMondo.value = 'MULTIPLA'; return }
   try {
     const {data} = await getConfigMondo(idMondo)
     listeAbilitateMondoSezioni.value = new Map(data.listeIncantesimiAbilitate.map(l => [l.codice, l.etichetta] as const))
+    listaIncantesimiMondo.value = data.listaIncantesimi ?? 'MULTIPLA'
   } catch (e) {
     console.error('Errore caricamento liste incantesimi del mondo:', e)
     listeAbilitateMondoSezioni.value = null
+    listaIncantesimiMondo.value = 'MULTIPLA'
   }
 }, {immediate: true})
 
 function listeIncantesimiDisponibili(s: { liste: string[] }): string[] {
+  // Mondo a lista SINGOLA: una volta scelta una lista in questa sezione, il picker "+ aggiungi"
+  // resta vuoto (non se ne possono unire altre) — la funzione stessa che nasconde il picker in
+  // template controlla s.liste.length, qui basta non proporre nulla in quel caso.
+  if (listaIncantesimiMondo.value === 'SINGOLA' && s.liste.length > 0) return []
   const catalogo = listeAbilitateMondoSezioni.value ? [...listeAbilitateMondoSezioni.value.keys()] : SPELL_LIST_CODES
   return catalogo.filter(c => !s.liste.includes(c))
 }
@@ -1002,14 +1084,23 @@ function buildPayload(): UpdateItemRequest {
       if (s.personalizzata && custom.length === 0) continue
       if (liste.length > 0) labels.push({label: `SPELL_${n}`, valore: liste.join(',')})
       if (s.bonus.trim()) labels.push({label: `SPELL_${n}_BONUS`, valore: s.bonus.trim()})
-      if (s.slot.trim()) labels.push({label: `SPELL_${n}_SLOT`, valore: s.slot.trim()})
-      if (s.conosciutiSeparati) {
-        labels.push({label: `SPELL_${n}_HA_CONOSCIUTI`, valore: '1'})
-        if (s.conosciuti.trim()) labels.push({label: `SPELL_${n}_CONOSCIUTI`, valore: s.conosciuti.trim()})
+      if (s.classeRiferimento != null) {
+        // Classe di riferimento: niente SLOT/caster level fisso, solo la tabella conosciuti
+        // (una riga per livello di quella classe) — vedi Constants.ITEM_LABEL_SPELL_CLASSE_RIF_SUFFIX.
+        labels.push({label: `SPELL_${n}_CLASSE_RIF`, valore: String(s.classeRiferimento)})
+        const conosciutiValore = s.conosciutiPerLivello.map(x => (x ?? '').trim()).join(';')
+        if (conosciutiValore.replace(/;/g, '')) labels.push({label: `SPELL_${n}_CONOSCIUTI`, valore: conosciutiValore})
+      } else {
+        if (s.slot.trim()) labels.push({label: `SPELL_${n}_SLOT`, valore: s.slot.trim()})
+        if (s.conosciutiSeparati) {
+          labels.push({label: `SPELL_${n}_HA_CONOSCIUTI`, valore: '1'})
+          if (s.conosciuti.trim()) labels.push({label: `SPELL_${n}_CONOSCIUTI`, valore: s.conosciuti.trim()})
+        }
+        if (s.casterLevelFisso.trim()) labels.push({label: `SPELL_${n}_CASTER_LEVEL`, valore: s.casterLevelFisso.trim()})
       }
       if (s.slotConContatore) labels.push({label: `SPELL_${n}_SLOT_CONTATORE`, valore: '1'})
+      if (s.soloConosciuti) labels.push({label: `SPELL_${n}_SOLO_CONOSCIUTI`, valore: '1'})
       if (s.caratteristica.trim()) labels.push({label: `SPELL_${n}_CARATTERISTICA`, valore: s.caratteristica.trim()})
-      if (s.casterLevelFisso.trim()) labels.push({label: `SPELL_${n}_CASTER_LEVEL`, valore: s.casterLevelFisso.trim()})
       if (s.personalizzata) {
         labels.push({label: `SPELL_${n}_CUSTOM`, valore: '1'})
         labels.push({label: `SPELL_${n}_INCANTESIMI`, valore: custom.map(c => `${c.id}:${c.livello}`).join(',')})
@@ -1602,8 +1693,9 @@ function onCancel() {
       </button>
       <div v-show="open.incantesimi" class="fold-body">
         <p class="muted">
-          Slot/conosciuti sono un numero fisso (l'oggetto non ha livelli), sempre disponibile.
-          Per tenere liste separate, crea più sezioni.
+          Slot/conosciuti sono un numero fisso (l'oggetto non ha livelli), sempre disponibile —
+          oppure, impostando una Classe di riferimento su una sezione, seguono il livello che il
+          personaggio ha in quella classe. Per tenere liste separate, crea più sezioni.
         </p>
 
         <div v-for="(s, i) in form.sezioniIncantesimi" :key="i" class="sez-card">
@@ -1663,8 +1755,21 @@ function onCancel() {
             </ul>
           </div>
 
+          <label class="field">
+            <span class="lbl">Classe di riferimento (opzionale)</span>
+            <SearchSelect :model-value="s.classeRiferimento" :on-search="searchClasseRiferimento"
+                          :selected-label="s.nomeClasseRiferimento" :disabled="disabledAll"
+                          placeholder="— nessuna: slot/CL a valore fisso —"
+                          @update:model-value="onPickClasseRiferimento(s, $event)"/>
+            <span class="muted">
+              Se impostata, niente slot né livello incantatore fisso: usa il livello che il
+              personaggio ha in QUELLA classe, e sotto compili solo "quanti incantesimi conosciuti"
+              per ciascun livello di quella classe (nessuna tabella di slot separata).
+            </span>
+          </label>
+
           <div class="rank-grid">
-            <label class="field">
+            <label v-if="!s.classeRiferimento" class="field">
               <span class="lbl">Slot per livello — formato "2,1,-,-,-,-,-,-,-,-" dal liv. 0 al 9 ("-" = nessun accesso)</span>
               <input v-model.trim="s.slot" type="text" placeholder="2,1,-,-,-,-,-,-,-,-" :disabled="disabledAll"/>
             </label>
@@ -1672,7 +1777,7 @@ function onCancel() {
               <span class="lbl">Formula slot bonus</span>
               <input v-model.trim="s.bonus" type="text" placeholder="Es.: 1+(@SAG-#L)/4)" :disabled="disabledAll"/>
             </label>
-            <label class="field">
+            <label v-if="!s.classeRiferimento" class="field">
               <span class="lbl">Livello incantatore fisso *</span>
               <input v-model.trim="s.casterLevelFisso" type="text" inputmode="numeric" placeholder="Es.: 10"
                      :disabled="disabledAll"/>
@@ -1686,14 +1791,34 @@ function onCancel() {
             </label>
           </div>
 
-          <label class="field checkbox-field">
-            <input type="checkbox" v-model="s.conosciutiSeparati" :disabled="disabledAll"/>
-            <span class="lbl">Traccia incantesimi conosciuti separatamente dagli slot</span>
-          </label>
-          <div v-if="s.conosciutiSeparati" class="field">
-            <span class="lbl">Incantesimi conosciuti — stesso formato degli slot</span>
-            <input v-model.trim="s.conosciuti" type="text" placeholder="2,1,-,-,-,-,-,-,-,-" :disabled="disabledAll"/>
+          <template v-if="!s.classeRiferimento">
+            <label class="field checkbox-field">
+              <input type="checkbox" v-model="s.conosciutiSeparati" :disabled="disabledAll"/>
+              <span class="lbl">Traccia incantesimi conosciuti separatamente dagli slot</span>
+            </label>
+            <div v-if="s.conosciutiSeparati" class="field">
+              <span class="lbl">Incantesimi conosciuti — stesso formato degli slot</span>
+              <input v-model.trim="s.conosciuti" type="text" placeholder="2,1,-,-,-,-,-,-,-,-" :disabled="disabledAll"/>
+            </div>
+          </template>
+          <div v-else class="field">
+            <span class="lbl">
+              Incantesimi conosciuti per livello di {{ s.nomeClasseRiferimento || 'questa classe' }}
+              — stesso formato degli slot ("-" = nessun accesso a quel livello di incantesimo)
+            </span>
+            <div class="slot-list">
+              <div v-for="l in s.numLivelliRiferimento" :key="l" class="slot-row">
+                <span class="slot-liv">{{ l }}</span>
+                <input type="text" :value="conosciutiPerLivelloDi(s, l)" placeholder="4,2,1,-,-,-,-,-,-,-"
+                       :disabled="disabledAll" @input="setConosciutiPerLivello(s, l, ($event.target as HTMLInputElement).value)"/>
+              </div>
+            </div>
           </div>
+
+          <label class="field checkbox-field">
+            <input type="checkbox" v-model="s.soloConosciuti" :disabled="disabledAll"/>
+            <span class="lbl">Traccia solo conosciuti (scheda: 📖 preparati/disponibili, niente "Slot: X")</span>
+          </label>
 
           <label class="field checkbox-field">
             <input type="checkbox" v-model="s.slotConContatore" :disabled="disabledAll"/>
@@ -1701,7 +1826,9 @@ function onCancel() {
           </label>
         </div>
 
-        <button type="button" class="btn outline" :disabled="disabledAll" @click="addSezioneIncantesimi">+ Aggiungi sezione</button>
+        <button v-if="listaIncantesimiMondo !== 'SINGOLA' || form.sezioniIncantesimi.length === 0"
+                type="button" class="btn outline" :disabled="disabledAll" @click="addSezioneIncantesimi">+ Aggiungi sezione</button>
+        <p v-else class="muted">Questo mondo usa una sola lista di incantesimi: una sezione soltanto.</p>
       </div>
     </section>
 
@@ -1991,6 +2118,9 @@ textarea { resize: vertical; }
 .chip-x { border: 0; background: transparent; color: #6366f1; cursor: pointer; font-size: .75rem; padding: 0; }
 .custom-lista-row { display: flex; gap: .4rem; margin-top: .35rem; }
 .custom-lista-row input { flex: 1; padding: .4rem .5rem; border: 1px solid var(--hairline); border-radius: .4rem; }
+.slot-list { display: grid; gap: .25rem; max-height: 16rem; overflow-y: auto; }
+.slot-row { display: grid; grid-template-columns: 2rem 1fr; gap: .4rem; align-items: center; }
+.slot-liv { font-weight: 700; font-size: .8rem; color: var(--info-text); text-align: center; }
 
 .conc-add { display: grid; grid-template-columns: 5rem 1fr; gap: .4rem; align-items: end; }
 .conc-add .grow { min-width: 0; padding: .5rem .6rem; border: 1px solid var(--hairline); border-radius: .5rem; }

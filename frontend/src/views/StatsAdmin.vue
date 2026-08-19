@@ -236,6 +236,8 @@ async function salvaDef(def: StatDefaultRow) {
       valoreDefault: (def.valoreDefault ?? '') || null,
       defaultModId: def.defaultModId || null,
       addestramento: !!def.addestramento,
+      livelloClasse: !!def.livelloClasse,
+      modoLivelloClasse: def.livelloClasse ? (def.modoLivelloClasse ?? 'SOSTITUTIVO') : null,
     })
     await loadDefaults()
   } catch (e: any) {
@@ -354,6 +356,16 @@ async function salvaStat() {
               <label class="field chk">
                 <input type="checkbox" v-model="r.def.addestramento"/>
                 <span>Addestramento</span>
+              </label>
+              <label class="field chk">
+                <input type="checkbox" v-model="r.def.livelloClasse"/>
+                <span>Colonna Tabella Livelli</span>
+              </label>
+              <label v-if="r.def.livelloClasse" class="field sm">
+                <span class="lbl">Modo</span>
+                <SearchSelect v-model="r.def.modoLivelloClasse"
+                              :options="[{value:'SOSTITUTIVO',label:'Sostitutivo (max per classe)'},{value:'SOMMATIVO',label:'Sommativo (somma sempre)'}]"
+                              :sort="false"/>
               </label>
               <button class="btn primary sm" :disabled="busy" @click="salvaDef(r.def)">Salva</button>
             </div>

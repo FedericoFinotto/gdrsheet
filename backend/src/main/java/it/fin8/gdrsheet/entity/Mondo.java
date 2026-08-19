@@ -38,6 +38,39 @@ public class Mondo implements Serializable {
     @Column(name = "mostra_simboli_azioni", nullable = false)
     private Boolean mostraSimboliAzioni = false;
 
+    /** SLOT (default, storico) o MANA: vedi Constants.SISTEMA_INCANTESIMI_*. Se MANA, lo spellbook
+     * usa un pool di mana condiviso (formulaManaIncantesimi) invece degli slot per livello, e il
+     * costo di un incantesimo è pari al suo livello (i trucchetti/livello 0 sono gratuiti). */
+    @NotNull
+    @Column(name = "sistema_incantesimi", nullable = false, length = 10)
+    private String sistemaIncantesimi = "SLOT";
+
+    /** Formula del pool di mana totale (es. "@LVL*3+@CAR"), rilevante solo se sistemaIncantesimi=MANA.
+     * Valutata come le altre formule bonus (vedi CardTabellaLivelli/getValoreFormula), stesse
+     * variabili disponibili (@LVL, @CAR, ecc.). */
+    @Column(name = "formula_mana_incantesimi", length = 255)
+    private String formulaManaIncantesimi;
+
+    /** Formula CD di default per gli incantesimi di questo mondo (es. "10+@LVL+%CAR"), con %CAR
+     * sostituito dal modificatore della caratteristica da incantatore scelta sulla sezione. Se
+     * assente, resta il calcolo storico "10 + caster level + modificatore". */
+    @Column(name = "formula_cd_incantesimi", length = 255)
+    private String formulaCdIncantesimi;
+
+    /** SINGOLA o MULTIPLA (default, storico): vedi Constants.LISTA_INCANTESIMI_*. Se SINGOLA, una
+     * sezione incantatore di questo mondo può avere una sola lista/dominio (niente unione di più
+     * liste in una sezione, né più sezioni con liste diverse). */
+    @NotNull
+    @Column(name = "lista_incantesimi", nullable = false, length = 10)
+    private String listaIncantesimi = "MULTIPLA";
+
+    /** Se attivo (default, storico), la scheda mostra "CL: X" nello spellbook. Il caster level
+     * continua comunque a essere calcolato internamente (serve per CD/slot/mana) anche se
+     * disattivato: qui si nasconde solo la sua visualizzazione. */
+    @NotNull
+    @Column(name = "mostra_caster_level", nullable = false)
+    private Boolean mostraCasterLevel = true;
+
     @OneToMany(mappedBy = "mondo", fetch = FetchType.LAZY)
     @JsonIgnoreProperties("mondo")
     private List<StatDefault> defaultStats;

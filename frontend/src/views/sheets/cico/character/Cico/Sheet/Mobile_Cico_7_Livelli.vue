@@ -5,8 +5,14 @@ import Tabella from "../../../../../../components/Tabella.vue";
 import {useCharacterStore} from "../../../../../../stores/personaggio";
 import {storeToRefs} from "pinia";
 import Mobile_DettaglioLivello from "../../Dettaglio/Mobile_DettaglioLivello.vue";
+import Mobile_Stat from "../../Shared/Mobile_Stat.vue";
 import {Livello} from "../../../../../../models/dto/Livello";
 import {createItem} from "../../../../../../service/PersonaggioService";
+
+// Bonus da spendere in fase di avanzamento (punti caratteristica/skill, gradi, albero abilità):
+// spostati qui da Info, dove erano solo rumore — qui invece è dove si spendono. Solo quelli con
+// un valore diverso da zero, come in Info (Mobile_Stat.vue mostra già l'etichetta della stat).
+const BONUS_AVANZAMENTO_IDS = ['PCARBONUS', 'GRADBONUS', 'PTSKILLBON', 'ABALBERO']
 
 const router = useRouter();
 const characterStore = useCharacterStore();
@@ -96,6 +102,11 @@ async function aggiungiRazza() {
 function gestisciGradi() {
   router.push(`/gestisci-gradi/${props.idPersonaggio}`);
 }
+
+const bonusAvanzamento = computed(() =>
+    (cache.value[props.idPersonaggio]?.modificatori?.attributi ?? [])
+        .filter(x => BONUS_AVANZAMENTO_IDS.includes(x.id) && x.modificatori.length > 0)
+)
 </script>
 
 <template>
@@ -112,6 +123,10 @@ function gestisciGradi() {
       <button type="button" class="btn-gestisci-gradi" @click="gestisciGradi">
         Gestisci gradi
       </button>
+    </div>
+    <div v-if="bonusAvanzamento.length" class="stat-block bonus-avanzamento">
+      <Mobile_Stat v-for="stat in bonusAvanzamento" :key="stat.id"
+                   :id="stat.id" :id-personaggio="idPersonaggio" :label="stat.label"/>
     </div>
     <div class="spazietto"/>
     <Tabella

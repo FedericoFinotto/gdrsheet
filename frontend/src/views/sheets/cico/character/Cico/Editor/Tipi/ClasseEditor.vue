@@ -9,6 +9,7 @@ import Icona from '../../../../../../../components/Icona/Icona.vue'
 import SearchSelect from '../../../../../../../components/SearchSelect.vue'
 import {useMondoSistema} from '../../../../../../../function/useMondoSistema'
 import {getConfigMondo, getTipoItemConfig} from '../../../../../../../service/MondoAdminService'
+import {getStatLivelloClasse, StatLivelloClasse} from '../../../../../../../service/StatAdminService'
 import {LabelRow} from '../../../../../../../models/dto/UpdateItemRequest'
 import CardInfoRazza from '../Classe/CardInfoRazza.vue'
 import CardAbilitaClasse from '../Classe/CardAbilitaClasse.vue'
@@ -30,10 +31,7 @@ const {mondoOptions, sistemaOptions, autoMondo, autoSistema} = useMondoSistema()
 
 interface LivelloClasse {
   livello: number
-  bab: string
-  tmp: string
-  rfl: string
-  vlt: string
+  valori: Record<string, string>  // statId -> valore, per le stat "livello classe" del mondo
   spSlot: string
 }
 
@@ -86,7 +84,7 @@ const form = reactive({
   numLivelli: 20,
   dv: '',
   livelli: Array.from({length: 20}, (_, i) => ({
-    livello: i + 1, bab: '', tmp: '', rfl: '', vlt: '', spSlot: '',
+    livello: i + 1, valori: {} as Record<string, string>, spSlot: '',
   })) as LivelloClasse[],
   abilitaConcesse: [] as AbilitaConcessa[],
   children: [] as ChildRef[],
@@ -114,6 +112,21 @@ watch(() => form.idMondo, async (idMondo) => {
   }
 }, {immediate: true})
 
+// Stat con colonna nella Tabella Livelli per il mondo scelto (stat_default.livello_classe, vedi
+// StatController#getLivelloClasse): vuoto finché il mondo non ne ha configurate (nessun fallback
+// automatico a BAB/TMP/RFL/VLT).
+const statLivelloClasse = ref<StatLivelloClasse[]>([])
+watch(() => form.idMondo, async (idMondo) => {
+  if (!idMondo) { statLivelloClasse.value = []; return }
+  try {
+    const {data} = await getStatLivelloClasse(idMondo)
+    statLivelloClasse.value = data
+  } catch (e) {
+    console.error('Errore caricamento stat livello classe:', e)
+    statLivelloClasse.value = []
+  }
+}, {immediate: true})
+
 // Card strutturali abilitate per (mondo, tipo item): vedi MondoTipoItemCardAbilitata lato backend.
 const cards = ref<Set<string>>(new Set())
 watch(() => form.idMondo, async (idMondo) => {
@@ -138,12 +151,13 @@ const canSave = computed(() => form.nome.trim().length > 0 && !busy.value && !pr
 /* numero di livelli della classe -> righe mostrate nella tabella */
 function ensureLivelli(n: number) {
   for (let i = form.livelli.length; i < n; i++) {
-    form.livelli.push({livello: i + 1, bab: '', tmp: '', rfl: '', vlt: '', spSlot: ''})
+    form.livelli.push({livello: i + 1, valori: {}, spSlot: ''})
   }
 }
 // righe compilate della tabella livelli, per il riepilogo del fold (vedi CardTabellaLivelli
 // per la gestione interattiva della tabella stessa)
-const livelliCompilati = computed(() => form.livelli.slice(0, form.numLivelli).filter(l => l.bab).length)
+const livelliCompilati = computed(() => form.livelli.slice(0, form.numLivelli)
+    .filter(l => l.valori && Object.values(l.valori).some(v => v)).length)
 
 /* ---- caricamento ---- */
 onMounted(async () => {
@@ -196,10 +210,7 @@ onMounted(async () => {
     for (const row of (d.livelli ?? [])) {
       const target = form.livelli[row.livello - 1]
       if (!target) continue
-      target.bab = row.bab ?? ''
-      target.tmp = row.tmp ?? ''
-      target.rfl = row.rfl ?? ''
-      target.vlt = row.vlt ?? ''
+      target.valori = {...(row.valori ?? {})}
       target.spSlot = row.spSlot ?? ''
     }
     form.abilitaConcesse = (d.abilitaConcesse ?? []).map((a: any) => ({
@@ -490,7 +501,8 @@ const sumInfoRazza = computed(() => {
         <div v-show="open.tabella" class="fold-body">
           <CardTabellaLivelli
               :num-livelli="form.numLivelli" @update:num-livelli="form.numLivelli = $event"
-              v-model:dv="form.dv" :livelli="form.livelli" :disabled="disabledAll"/>
+              v-model:dv="form.dv" :livelli="form.livelli" :stat-livello-classe="statLivelloClasse"
+              :disabled="disabledAll"/>
         </div>
       </section>
 
